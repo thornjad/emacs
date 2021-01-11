@@ -3,12 +3,12 @@
 
 This project is a fork of GNU Emacs which is used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This project contains some customizations for my use cases and is not intended for widespread use.
 
-* Compatibility
+** Compatibility
 **WARNING** this fork is not tested thoroughly, it should not be considered stable.
 
 This project /should/ be compatible with any modern Unix-like system, but is only regularly used on Ubuntu 20.04.1 with Linux 5.4.0. Other systems are not and will not be tested.
 
-* Installation
+** Installation
 Full installation information may be found in the =INSTALL= file. But this is the synopsis.
 
 Note that the =-j= option given to =make= is tuned for my 12-core system. By default, it will only use one or two threads in my experience.
@@ -20,7 +20,7 @@ make -j12
 sudo make install
 #+end_src
 
-* License
+** License
 Copyright (C) 2018-2021 Jade Michael Thornton
 Copyright (C) 2001-2021 Free Software Foundation, Inc.
 
