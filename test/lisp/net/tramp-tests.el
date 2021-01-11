@@ -3067,9 +3067,7 @@ This tests also `file-directory-p' and `file-accessible-directory-p'."
 		  (regexp-opt (directory-files tmp-name1))
 		  (length (directory-files tmp-name1)))))))
 
-	    ;; Check error case.  We do not check for the error type,
-	    ;; because ls-lisp returns `file-error', and native Tramp
-	    ;; returns `file-missing'.
+	    ;; Check error case.
 	    (delete-directory tmp-name1 'recursive)
 	    (with-temp-buffer
 	      (should-error
@@ -3187,6 +3185,59 @@ This tests also `file-directory-p' and `file-accessible-directory-p'."
 	(ignore-errors (kill-buffer buffer))
 	(ignore-errors (delete-directory tmp-name1 'recursive))
 	(ignore-errors (delete-directory tmp-name2 'recursive))))))
+
+;; The following test is inspired by Bug#45691.
+(ert-deftest tramp-test17-insert-directory-one-file ()
+  "Check `insert-directory' inside directory listing."
+  (skip-unless (tramp--test-enabled))
+
+  (dolist (quoted (if (tramp--test-expensive-test) '(nil t) '(nil)))
+    (let* ((tmp-name1
+	    (expand-file-name (tramp--test-make-temp-name nil quoted)))
+	   (tmp-name2 (expand-file-name "foo" tmp-name1))
+	   (tmp-name3 (expand-file-name "bar" tmp-name1))
+	   (dired-copy-preserve-time t)
+	   (dired-recursive-copies 'top)
+	   dired-copy-dereference
+	   buffer)
+      (unwind-protect
+	  (progn
+	    (make-directory tmp-name1)
+	    (write-region "foo" nil tmp-name2)
+	    (should (file-directory-p tmp-name1))
+	    (should (file-exists-p tmp-name2))
+
+	    ;; Check, that `insert-directory' works properly.
+	    (with-current-buffer
+		(setq buffer (dired-noselect tmp-name1 "--dired -al"))
+	      (read-only-mode -1)
+	      (goto-char (point-min))
+	      (while (not (or (eobp)
+			      (string-equal
+			       (dired-get-filename 'localp 'no-error)
+			       (file-name-nondirectory tmp-name2))))
+		(forward-line 1))
+	      (should-not (eobp))
+	      (copy-file tmp-name2 tmp-name3)
+	      (insert-directory
+	       (file-name-nondirectory tmp-name3) "--dired -al -d")
+	      ;; Point shall still be the recent file.
+	      (should
+	       (string-equal
+		(dired-get-filename 'localp 'no-error)
+		(file-name-nondirectory tmp-name2)))
+	      (should-not (re-search-forward "dired" nil t))
+	      ;; The copied file has been inserted the line before.
+	      (forward-line -1)
+	      (should
+	       (string-equal
+		(dired-get-filename 'localp 'no-error)
+		(file-name-nondirectory tmp-name3))))
+	    (kill-buffer buffer))
+
+	;; Cleanup.
+	(ignore-errors (kill-buffer buffer))
+	(ignore-errors (delete-directory tmp-name1 'recursive))))))
 
 ;; Method "smb" supports `make-symbolic-link' only if the remote host
 ;; has CIFS capabilities.  tramp-adb.el, tramp-gvfs.el and
@@ -4670,7 +4721,7 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 
 (ert-deftest tramp-test31-interrupt-process ()
   "Check `interrupt-process'."
-  :tags (if (getenv "EMACS_EMBA_CI")
+  :tags (if (or (getenv "EMACS_HYDRA_CI") (getenv "EMACS_EMBA_CI"))
 	    '(:expensive-test :unstable) '(:expensive-test))
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
@@ -5787,7 +5838,8 @@ This requires restrictions of file name syntax."
 	   (tmp-name2 (tramp--test-make-temp-name 'local quoted))
 	   (files (delq nil files))
 	   (process-environment process-environment)
-	   (sorted-files (sort (copy-sequence files) #'string-lessp)))
+	   (sorted-files (sort (copy-sequence files) #'string-lessp))
+	   buffer)
       (unwind-protect
 	  (progn
 	    (make-directory tmp-name1)
@@ -5848,6 +5900,18 @@ This requires restrictions of file name syntax."
 			    (directory-files-and-attributes
 			     tmp-name2 nil directory-files-no-dot-files-regexp))
 			   sorted-files))
+
+	    ;; Check, that `insert-directory' works properly.
+	    (with-current-buffer
+		(setq buffer (dired-noselect tmp-name1 "--dired -al"))
+	      (goto-char (point-min))
+	      (while (not (eobp))
+		(when-let ((name (dired-get-filename 'localp 'no-error)))
+		  (unless
+		      (string-match-p name directory-files-no-dot-files-regexp)
+		    (should (member name files))))
+		(forward-line 1)))
+	    (kill-buffer buffer)
 
 	    ;; `substitute-in-file-name' could return different
 	    ;; values.  For `adb', there could be strange file
@@ -5944,6 +6008,7 @@ This requires restrictions of file name syntax."
 		       (regexp-quote (getenv envvar))))))))))
 
 	;; Cleanup.
+	(ignore-errors (kill-buffer buffer))
 	(ignore-errors (delete-directory tmp-name1 'recursive))
 	(ignore-errors (delete-directory tmp-name2 'recursive))))))
 

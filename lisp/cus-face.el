@@ -1,4 +1,4 @@
-;;; cus-face.el --- customization support for faces
+;;; cus-face.el --- customization support for faces  -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 1996-1997, 1999-2021 Free Software Foundation, Inc.
 ;;
@@ -175,6 +175,7 @@
 		   (choice :tag "Style"
 			   (const :tag "Raised" released-button)
 			   (const :tag "Sunken" pressed-button)
+			   (const :tag "Flat"   flat-button)
 			   (const :tag "None" nil))))
      ;; filter to make value suitable for customize
      (lambda (real-value)

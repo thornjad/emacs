@@ -1275,7 +1275,7 @@ main (int argc, char **argv)
 	{
 	  emacs_close (STDIN_FILENO);
 	  emacs_close (STDOUT_FILENO);
-	  int result = emacs_open (term, O_RDWR, 0);
+	  int result = emacs_open_noquit (term, O_RDWR, 0);
 	  if (result != STDIN_FILENO
 	      || (fcntl (STDIN_FILENO, F_DUPFD_CLOEXEC, STDOUT_FILENO)
 		  != STDOUT_FILENO))
@@ -1956,12 +1956,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
       syms_of_json ();
 #endif
 
-      keys_of_casefiddle ();
-      keys_of_cmds ();
-      keys_of_buffer ();
       keys_of_keyboard ();
-      keys_of_keymap ();
-      keys_of_window ();
     }
   else
     {
@@ -2852,7 +2847,7 @@ from the parent process and its tty file descriptors.  */)
       int nfd;
 
       /* Get rid of stdin, stdout and stderr.  */
-      nfd = emacs_open ("/dev/null", O_RDWR, 0);
+      nfd = emacs_open_noquit ("/dev/null", O_RDWR, 0);
       err |= nfd < 0;
       err |= dup2 (nfd, STDIN_FILENO) < 0;
       err |= dup2 (nfd, STDOUT_FILENO) < 0;

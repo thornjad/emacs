@@ -161,7 +161,9 @@ set to nil, as the value is no longer rogue."
         ;; Whether automatically buffer-local.
         buffer-local)
     (unless (memq :group args)
-      (custom-add-to-group (custom-current-group) symbol 'custom-variable))
+      (let ((cg (custom-current-group)))
+        (when cg
+          (custom-add-to-group cg symbol 'custom-variable))))
     (while args
       (let ((keyword (pop args)))
 	(unless (symbolp keyword)
@@ -235,6 +237,8 @@ The following keywords are meaningful:
 
 :type	VALUE should be a widget type for editing the symbol's value.
 	Every `defcustom' should specify a value for this keyword.
+        See Info node `(elisp) Customization Types' for a list of
+        base types and useful composite types.
 :options VALUE should be a list of valid members of the widget type.
 :initialize
 	VALUE should be a function used to initialize the
@@ -525,7 +529,9 @@ If no such group is found, return nil."
   "For customization option SYMBOL, handle keyword arguments ARGS.
 Third argument TYPE is the custom option type."
   (unless (memq :group args)
-    (custom-add-to-group (custom-current-group) symbol type))
+    (let ((cg (custom-current-group)))
+      (when cg
+        (custom-add-to-group cg symbol type))))
   (while args
     (let ((arg (car args)))
       (setq args (cdr args))
