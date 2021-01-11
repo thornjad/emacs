@@ -1,0 +1,31 @@
+#+title:Emacs for Aero
+#+author:Jade Michael Thornton
+
+This project is a fork of GNU Emacs which is used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This project contains some customizations for my use cases and is not intended for widespread use.
+
+* Compatibility
+**WARNING** this fork is not tested thoroughly, it should not be considered stable.
+
+This project /should/ be compatible with any modern Unix-like system, but is only regularly used on Ubuntu 20.04.1 with Linux 5.4.0. Other systems are not and will not be tested.
+
+* Installation
+Full installation information may be found in the =INSTALL= file. But this is the synopsis.
+
+Note that the =-j= option given to =make= is tuned for my 12-core system. By default, it will only use one or two threads in my experience.
+
+#+begin_src sh
+./autoconf.sh
+./configure --with-dbus
+make -j12
+sudo make install
+#+end_src
+
+* License
+Copyright (C) 2018-2021 Jade Michael Thornton
+Copyright (C) 2001-2021 Free Software Foundation, Inc.
+
+Aero Emacs is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation version 3.
+
+**NOTICE**: While GNU Emacs may be licensed under either version 3 or any later version of the GPL, Aero Emacs is licensed under the terms of version 3 /only/. Version 3 is bad enough, I'm not letting it slip into some unknown future version.
+
+See the file =COPYING= for full license terms.
