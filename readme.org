@@ -15,7 +15,7 @@ Note that the =-j= option given to =make= is tuned for my 12-core system. By def
 
 #+begin_src sh
 ./autoconf.sh
-./configure --with-dbus
+./configure
 make -j12
 sudo make install
 #+end_src
