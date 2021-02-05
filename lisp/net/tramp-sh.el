@@ -168,6 +168,7 @@ The string is used in `tramp-methods'.")
                 (tramp-login-args           (("-l" "%u") ("-p" "%p") ("%c")
 				             ("-e" "none") ("%h")))
                 (tramp-async-args           (("-q")))
+                (tramp-direct-async         t)
                 (tramp-remote-shell         ,tramp-default-remote-shell)
                 (tramp-remote-shell-login   ("-l"))
                 (tramp-remote-shell-args    ("-c"))
@@ -180,8 +181,8 @@ The string is used in `tramp-methods'.")
               `("scpx"
                 (tramp-login-program        "ssh")
                 (tramp-login-args           (("-l" "%u") ("-p" "%p") ("%c")
-				             ("-e" "none") ("-t" "-t") ("%h")
-					     ("%l")))
+				             ("-e" "none") ("-t" "-t")
+					     ("-o" "RemoteCommand='%l'") ("%h")))
                 (tramp-async-args           (("-q")))
                 (tramp-remote-shell         ,tramp-default-remote-shell)
                 (tramp-remote-shell-login   ("-l"))
@@ -197,6 +198,7 @@ The string is used in `tramp-methods'.")
                 (tramp-login-args           (("-l" "%u") ("-p" "%p") ("%c")
 				             ("-e" "none") ("%h")))
                 (tramp-async-args           (("-q")))
+                (tramp-direct-async         t)
                 (tramp-remote-shell         ,tramp-default-remote-shell)
                 (tramp-remote-shell-login   ("-l"))
                 (tramp-remote-shell-args    ("-c"))
@@ -227,6 +229,7 @@ The string is used in `tramp-methods'.")
                 (tramp-login-args           (("-l" "%u") ("-p" "%p") ("%c")
 				             ("-e" "none") ("%h")))
                 (tramp-async-args           (("-q")))
+                (tramp-direct-async         t)
                 (tramp-remote-shell         ,tramp-default-remote-shell)
                 (tramp-remote-shell-login   ("-l"))
                 (tramp-remote-shell-args    ("-c"))))
@@ -234,8 +237,8 @@ The string is used in `tramp-methods'.")
               `("sshx"
                 (tramp-login-program        "ssh")
                 (tramp-login-args           (("-l" "%u") ("-p" "%p") ("%c")
-				             ("-e" "none") ("-t" "-t") ("%h")
-					     ("%l")))
+				             ("-e" "none") ("-t" "-t")
+					     ("-o" "RemoteCommand='%l'") ("%h")))
                 (tramp-async-args           (("-q")))
                 (tramp-remote-shell         ,tramp-default-remote-shell)
                 (tramp-remote-shell-login   ("-l"))
@@ -1091,7 +1094,8 @@ component is used as the target of the symlink."
 	  (unless ln
 	    (tramp-error
 	     v 'file-error
-	   "Making a symbolic link.  ln(1) does not exist on the remote host."))
+	     (concat "Making a symbolic link. "
+		     "ln(1) does not exist on the remote host.")))
 
 	  ;; Do the 'confirm if exists' thing.
 	  (when (file-exists-p linkname)
@@ -1705,6 +1709,12 @@ ID-FORMAT valid values are `string' and `integer'."
 	     (= (tramp-compat-file-attribute-user-id attributes)
 		(tramp-get-remote-uid v 'integer))
 	     (or (not group)
+		 ;; On BSD-derived systems files always inherit the
+                 ;; parent directory's group, so skip the group-gid
+                 ;; test.
+		 (string-match-p
+		  "BSD\\|DragonFly\\|Darwin"
+		  (tramp-get-connection-property v "uname" ""))
 		 (= (tramp-compat-file-attribute-group-id attributes)
 		    (tramp-get-remote-gid v 'integer)))))))))
 
@@ -1715,9 +1725,8 @@ ID-FORMAT valid values are `string' and `integer'."
   "Like `directory-files-and-attributes' for Tramp files."
   (unless id-format (setq id-format 'integer))
   (unless (file-exists-p directory)
-    (tramp-error
-     (tramp-dissect-file-name directory) tramp-file-missing
-     "No such file or directory" directory))
+    (tramp-compat-file-missing
+     (tramp-dissect-file-name directory) directory))
   (when (file-directory-p directory)
     (setq directory (expand-file-name directory))
     (let* ((temp
@@ -1868,8 +1877,9 @@ ID-FORMAT valid values are `string' and `integer'."
 	       ;; side.
 	       (unless (looking-at-p "^ok$")
 		 (tramp-error
-		  v 'file-error "\
-tramp-sh-handle-file-name-all-completions: internal error accessing `%s': `%s'"
+		  v 'file-error
+		  (concat "tramp-sh-handle-file-name-all-completions: "
+			  "internal error accessing `%s': `%s'")
 		  (tramp-shell-quote-argument localname) (buffer-string))))
 
 	     (while (zerop (forward-line -1))
@@ -1935,9 +1945,7 @@ tramp-sh-handle-file-name-all-completions: internal error accessing `%s': `%s'"
 	(t2 (tramp-tramp-file-p newname)))
     (with-parsed-tramp-file-name (if t1 dirname newname) nil
       (unless (file-exists-p dirname)
-	(tramp-error
-	 v tramp-file-missing
-	 "Copying directory" "No such file or directory" dirname))
+	(tramp-compat-file-missing v dirname))
       (if (and (not copy-contents)
 	       (tramp-get-method-parameter v 'tramp-copy-recursive)
 	       ;; When DIRNAME and NEWNAME are remote, they must have
@@ -2023,12 +2031,12 @@ file names."
 	  (length (tramp-compat-file-attribute-size
 		   (file-attributes (file-truename filename))))
 	  (attributes (and preserve-extended-attributes
-			   (apply #'file-extended-attributes (list filename)))))
+			   (apply #'file-extended-attributes (list filename))))
+	  (msg-operation (if (eq op 'copy) "Copying" "Renaming")))
 
       (with-parsed-tramp-file-name (if t1 filename newname) nil
 	(unless (file-exists-p filename)
-	  (tramp-error
-	   v tramp-file-missing "No such file or directory" filename))
+	  (tramp-compat-file-missing v filename))
 	(when (and (not ok-if-already-exists) (file-exists-p newname))
 	  (tramp-error v 'file-already-exists newname))
 	(when (and (file-directory-p newname)
@@ -2036,9 +2044,7 @@ file names."
 	  (tramp-error v 'file-error "File is a directory %s" newname))
 
 	(with-tramp-progress-reporter
-	    v 0 (format "%s %s to %s"
-			(if (eq op 'copy) "Copying" "Renaming")
-			filename newname)
+	    v 0 (format "%s %s to %s" msg-operation filename newname)
 
 	  (cond
 	   ;; Both are Tramp files.
@@ -2527,7 +2533,7 @@ The method used must be an out-of-band method."
   (setq dir (expand-file-name dir))
   (with-parsed-tramp-file-name dir nil
     (when (and (null parents) (file-exists-p dir))
-      (tramp-error v 'file-already-exists "Directory already exists %s" dir))
+      (tramp-error v 'file-already-exists dir))
     ;; When PARENTS is non-nil, DIR could be a chain of non-existent
     ;; directories a/b/c/...  Instead of checking, we simply flush the
     ;; whole cache.
@@ -2603,23 +2609,19 @@ The method used must be an out-of-band method."
 (defun tramp-sh-handle-insert-directory
     (filename switches &optional wildcard full-directory-p)
   "Like `insert-directory' for Tramp files."
-  (setq filename (expand-file-name filename))
   (unless switches (setq switches ""))
   ;; Check, whether directory is accessible.
   (unless wildcard
     (access-file filename "Reading directory"))
-  (with-parsed-tramp-file-name filename nil
+  (with-parsed-tramp-file-name (expand-file-name filename) nil
     (if (and (featurep 'ls-lisp)
 	     (not (symbol-value 'ls-lisp-use-insert-directory-program)))
 	(tramp-handle-insert-directory
 	 filename switches wildcard full-directory-p)
       (when (stringp switches)
         (setq switches (split-string switches)))
-      (when (tramp-get-ls-command-with ;FIXME: tramp-sh--quoting-style-options?
-	     v "--quoting-style=literal --show-control-chars")
-	(setq switches
-	      (append
-	       switches '("--quoting-style=literal" "--show-control-chars"))))
+      (setq switches
+	    (append switches (split-string (tramp-sh--quoting-style-options v))))
       (unless (tramp-get-ls-command-with v "--dired")
 	(setq switches (delete "--dired" switches)))
       (when wildcard
@@ -2668,11 +2670,9 @@ The method used must be an out-of-band method."
                        #'file-name-nondirectory (list localname))))
                    (tramp-get-remote-null-device v))))
 
-      (let ((beg-marker (point-marker))
-	    (end-marker (point-marker))
+      (let ((beg-marker (copy-marker (point) nil))
+	    (end-marker (copy-marker (point) t))
 	    (emc enable-multibyte-characters))
-	(set-marker-insertion-type beg-marker nil)
-	(set-marker-insertion-type end-marker t)
 	;; We cannot use `insert-buffer-substring' because the Tramp
 	;; buffer changes its contents before insertion due to calling
 	;; `expand-file-name' and alike.
@@ -2837,9 +2837,9 @@ the result will be a local, non-Tramp, file name."
 ;; terminated.
 (defun tramp-sh-handle-make-process (&rest args)
   "Like `make-process' for Tramp files.
-STDERR can also be a file name.  If connection property
-\"direct-async-process\" is non-nil, an alternative
-implementation will be used."
+STDERR can also be a file name.  If method parameter `tramp-direct-async'
+and connection property \"direct-async-process\" are non-nil, an
+alternative implementation will be used."
   (if (tramp-direct-async-process-p args)
       (apply #'tramp-handle-make-process args)
     (when args
@@ -3275,9 +3275,7 @@ implementation will be used."
   "Like `file-local-copy' for Tramp files."
   (with-parsed-tramp-file-name filename nil
     (unless (file-exists-p (file-truename filename))
-      (tramp-error
-       v tramp-file-missing
-       "Cannot make local copy of non-existing file `%s'" filename))
+      (tramp-compat-file-missing v filename))
 
     (let* ((size (tramp-compat-file-attribute-size
 		  (file-attributes (file-truename filename))))
@@ -3966,7 +3964,7 @@ Fall back to normal file name handler if no Tramp handler exists."
 		       "[[:blank:]]+\\([^[:blank:]]+\\)"
 		       "\\([[:blank:]]+\\([^\n\r]+\\)\\)?")
 	       line)
-	(tramp-error proc 'file-notify-error "%s" line))
+	(tramp-error proc 'file-notify-error line))
 
       (let ((object
 	     (list
@@ -4303,11 +4301,14 @@ file exists and nonzero exit status otherwise."
     ;; ensure they have the correct values when the shell starts, not
     ;; just processes run within the shell.  (Which processes include
     ;; our initial probes to ensure the remote shell is usable.)
+    ;; For the time being, we assume that all shells interpret -i as
+    ;; interactive shell.  Must be the last argument, because (for
+    ;; example) bash expects long options first.
     (tramp-send-command
      vec (format
 	  (concat
 	   "exec env TERM='%s' INSIDE_EMACS='%s,tramp:%s' "
-	   "ENV=%s %s PROMPT_COMMAND='' PS1=%s PS2='' PS3='' %s %s")
+	   "ENV=%s %s PROMPT_COMMAND='' PS1=%s PS2='' PS3='' %s %s -i")
           tramp-terminal-type
           (or (getenv "INSIDE_EMACS") emacs-version) tramp-version
           (or (getenv-internal "ENV" tramp-remote-process-environment) "")
@@ -5119,7 +5120,7 @@ connection if a previous connection has died for some reason."
 		     options (format-spec options spec)
 		     spec (format-spec-make
 			   ?h l-host ?u l-user ?p l-port ?c options
-			   ?l (concat remote-shell " " extra-args))
+			   ?l (concat remote-shell " " extra-args " -i"))
 		     command
 		     (concat
 		      ;; We do not want to see the trailing local

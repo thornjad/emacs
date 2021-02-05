@@ -320,7 +320,8 @@ matching the current search string is highlighted lazily
 When multiple windows display the current buffer, the
 highlighting is displayed only on the selected window, unless
 this variable is set to the symbol `all-windows'."
-  :type '(choice boolean
+  :type '(choice (const :tag "Off" nil)
+                 (const :tag "On, and applied to current window" t)
                  (const :tag "On, and applied to all windows" all-windows))
   :group 'lazy-highlight
   :group 'isearch)
@@ -352,9 +353,19 @@ If this is nil, extra highlighting can be \"manually\" removed with
   :group 'lazy-highlight)
 
 (defcustom lazy-highlight-initial-delay 0.25
-  "Seconds to wait before beginning to lazily highlight all matches."
+  "Seconds to wait before beginning to lazily highlight all matches.
+This setting only has effect when the search string is less than
+`lazy-highlight-no-delay-length' characters long."
   :type 'number
   :group 'lazy-highlight)
+
+(defcustom lazy-highlight-no-delay-length 3
+  "For search strings at least this long, lazy highlight starts immediately.
+For shorter search strings, `lazy-highlight-initial-delay'
+applies."
+  :type 'integer
+  :group 'lazy-highlight
+  :version "28.1")
 
 (defcustom lazy-highlight-interval 0 ; 0.0625
   "Seconds between lazily highlighting successive matches."
@@ -513,7 +524,7 @@ This is like `describe-bindings', but displays only Isearch keys."
     (call-interactively command)))
 
 (defvar isearch-menu-bar-commands
-  '(isearch-tmm-menubar menu-bar-open mouse-minor-mode-menu)
+  '(isearch-tmm-menubar tmm-menubar menu-bar-open mouse-minor-mode-menu)
   "List of commands that can open a menu during Isearch.")
 
 (defvar isearch-menu-bar-yank-map
@@ -787,7 +798,6 @@ This is like `describe-bindings', but displays only Isearch keys."
 
     (define-key map [menu-bar search-menu]
       (list 'menu-item "Isearch" isearch-menu-bar-map))
-    (define-key map [remap tmm-menubar] 'isearch-tmm-menubar)
 
     map)
   "Keymap for `isearch-mode'.")
@@ -838,10 +848,6 @@ This is like `describe-bindings', but displays only Isearch keys."
             :image '(isearch-tool-bar-image "left-arrow")))
     map))
 
-;; Note: Before adding more key bindings to this map, please keep in
-;; mind that any unbound key exits Isearch and runs the command bound
-;; to it in the local or global map.  So in effect every key unbound
-;; in this map is implicitly bound.
 (defvar minibuffer-local-isearch-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map minibuffer-local-map)
@@ -2498,6 +2504,21 @@ If search string is empty, just beep."
   (unless isearch-mode (isearch-mode t))
   (isearch-yank-string (current-kill 0)))
 
+(defun isearch-yank-from-kill-ring ()
+  "Read a string from the `kill-ring' and append it to the search string."
+  (interactive)
+  (with-isearch-suspended
+   (let ((string (read-from-kill-ring)))
+     (if (and isearch-case-fold-search
+              (eq 'not-yanks search-upper-case))
+         (setq string (downcase string)))
+     (if isearch-regexp (setq string (regexp-quote string)))
+     (setq isearch-yank-flag t)
+     (setq isearch-new-string (concat isearch-string string)
+           isearch-new-message (concat isearch-message
+                                       (mapconcat 'isearch-text-char-description
+                                                  string ""))))))
+
 (defun isearch-yank-pop ()
   "Replace just-yanked search string with previously killed string.
 Unlike `isearch-yank-pop-only', when this command is called not immediately
@@ -2506,37 +2527,31 @@ minibuffer to read a string from the `kill-ring' as `yank-pop' does."
   (interactive)
   (if (not (memq last-command '(isearch-yank-kill
                                 isearch-yank-pop isearch-yank-pop-only)))
-      ;; Yank string from kill-ring-browser.
-      (with-isearch-suspended
-       (let ((string (read-from-kill-ring)))
-         (if (and isearch-case-fold-search
-                  (eq 'not-yanks search-upper-case))
-             (setq string (downcase string)))
-         (if isearch-regexp (setq string (regexp-quote string)))
-         (setq isearch-yank-flag t)
-         (setq isearch-new-string (concat isearch-string string)
-               isearch-new-message (concat isearch-message
-                                           (mapconcat 'isearch-text-char-description
-                                                      string "")))))
+      (isearch-yank-from-kill-ring)
     (isearch-pop-state)
     (isearch-yank-string (current-kill 1))))
 
-(defun isearch-yank-pop-only ()
+(defun isearch-yank-pop-only (&optional arg)
   "Replace just-yanked search string with previously killed string.
 Unlike `isearch-yank-pop', when this command is called not immediately
 after a `isearch-yank-kill' or a `isearch-yank-pop-only', it only pops
 the last killed string instead of activating the minibuffer to read
-a string from the `kill-ring' as `yank-pop' does."
-  (interactive)
-  (if (not (memq last-command '(isearch-yank-kill
-                                isearch-yank-pop isearch-yank-pop-only)))
-      ;; Fall back on `isearch-yank-kill' for the benefits of people
-      ;; who are used to the old behavior of `M-y' in isearch mode.
-      ;; In future, `M-y' could be changed from `isearch-yank-pop-only'
-      ;; to `isearch-yank-pop' that uses the kill-ring-browser.
-      (isearch-yank-kill)
+a string from the `kill-ring' as `yank-pop' does.  The prefix arg C-u
+always reads a string from the `kill-ring' using the minibuffer."
+  (interactive "P")
+  (cond
+   ((equal arg '(4))
+    (isearch-yank-from-kill-ring))
+   ((not (memq last-command '(isearch-yank-kill
+                              isearch-yank-pop isearch-yank-pop-only)))
+    ;; Fall back on `isearch-yank-kill' for the benefits of people
+    ;; who are used to the old behavior of `M-y' in isearch mode.
+    ;; In future, `M-y' could be changed from `isearch-yank-pop-only'
+    ;; to `isearch-yank-pop' that uses the kill-ring-browser.
+    (isearch-yank-kill))
+   (t
     (isearch-pop-state)
-    (isearch-yank-string (current-kill 1))))
+    (isearch-yank-string (current-kill 1)))))
 
 (defun isearch-yank-x-selection ()
   "Pull current X selection into search string."
@@ -2997,7 +3012,7 @@ See more for options in `search-exit-option'."
      ((and (eq (car-safe main-event) 'down-mouse-1)
 	   (window-minibuffer-p (posn-window (event-start main-event))))
       ;; Swallow the up-event.
-      (read-event)
+      (read--potential-mouse-event)
       (setq this-command 'isearch-edit-string))
      ;; Don't terminate the search for motion commands.
      ((and isearch-yank-on-move
@@ -3352,7 +3367,7 @@ isearch-message-suffix prompt.  Otherwise, for isearch-message-prefix."
              (not isearch-error)
              (not isearch-suspended))
         (format format-string
-                (if isearch-forward
+                (if isearch-lazy-highlight-forward
                     isearch-lazy-count-current
                   (if (eq isearch-lazy-count-current 0)
                       0
@@ -3752,23 +3767,27 @@ since they have special meaning in a regexp."
 	(overlay-put isearch-overlay 'priority 1001)
 	(overlay-put isearch-overlay 'face isearch-face)))
 
-  (when (and search-highlight-submatches
-	     isearch-regexp)
+  (when (and search-highlight-submatches isearch-regexp)
     (mapc 'delete-overlay isearch-submatches-overlays)
     (setq isearch-submatches-overlays nil)
-    (let ((submatch-data (cddr (butlast match-data)))
+    ;; 'cddr' removes whole expression match from match-data
+    (let ((submatch-data (cddr match-data))
           (group 0)
-          ov face)
+          b e ov face)
       (while submatch-data
-        (setq group (1+ group))
-        (setq ov (make-overlay (pop submatch-data) (pop submatch-data))
-              face (intern-soft (format "isearch-group-%d" group)))
-        ;; Recycle faces from beginning.
-        (unless (facep face)
-          (setq group 1 face 'isearch-group-1))
-        (overlay-put ov 'face face)
-        (overlay-put ov 'priority 1002)
-        (push ov isearch-submatches-overlays)))))
+        (setq b (pop submatch-data)
+              e (pop submatch-data))
+        (when (and (integer-or-marker-p b)
+                   (integer-or-marker-p e))
+          (setq ov (make-overlay b e)
+                group (1+ group)
+                face (intern-soft (format "isearch-group-%d" group)))
+          ;; Recycle faces from beginning
+          (unless (facep face)
+            (setq group 1 face 'isearch-group-1))
+          (overlay-put ov 'face face)
+          (overlay-put ov 'priority 1002)
+          (push ov isearch-submatches-overlays))))))
 
 (defun isearch-dehighlight ()
   (when isearch-overlay
@@ -3908,7 +3927,8 @@ by other Emacs features."
         (clrhash isearch-lazy-count-hash)
         (setq isearch-lazy-count-current nil
               isearch-lazy-count-total nil)
-        (isearch-message)))
+        ;; Delay updating the message if possible, to avoid flicker
+        (when (string-equal isearch-string "") (isearch-message))))
     (setq isearch-lazy-highlight-window-start-changed nil)
     (setq isearch-lazy-highlight-window-end-changed nil)
     (setq isearch-lazy-highlight-error isearch-error)
@@ -3953,7 +3973,11 @@ by other Emacs features."
 		 (point-min))))
     (unless (equal isearch-string "")
       (setq isearch-lazy-highlight-timer
-            (run-with-idle-timer lazy-highlight-initial-delay nil
+            (run-with-idle-timer (if (>= (length isearch-string)
+                                         lazy-highlight-no-delay-length)
+                                     0
+                                   lazy-highlight-initial-delay)
+                                 nil
                                  'isearch-lazy-highlight-start))))
   ;; Update the current match number only in isearch-mode and
   ;; unless isearch-mode is used specially with isearch-message-function

@@ -303,7 +303,7 @@ This variable takes precedence over filtering, and even
 in completion lists of the `ibuffer-jump-to-buffer' command."
   :type 'boolean)
 
-(defcustom ibuffer-use-header-line (boundp 'header-line-format)
+(defcustom ibuffer-use-header-line t
   "If non-nil, display a header line containing current filters."
   :type 'boolean)
 
@@ -1308,6 +1308,11 @@ a new window in the current frame, splitting vertically."
                           (car dired-directory)))))
 	(and dirname (expand-file-name dirname))))))
 
+(defun ibuffer--abbreviate-file-name (filename)
+  "Abbreviate FILENAME using `ibuffer-directory-abbrev-alist'."
+  (let ((directory-abbrev-alist ibuffer-directory-abbrev-alist))
+    (abbreviate-file-name filename)))
+
 (define-ibuffer-op ibuffer-do-save ()
   "Save marked buffers as with `save-buffer'."
   (:complex t
@@ -1885,9 +1890,7 @@ If point is on a group name, this function operates on that group."
        (cond ((zerop total) "No files")
 	     ((= 1 total) "1 file")
 	     (t (format "%d files" total))))))
-  (let ((directory-abbrev-alist ibuffer-directory-abbrev-alist))
-    (abbreviate-file-name
-     (or (ibuffer-buffer-file-name) ""))))
+  (ibuffer--abbreviate-file-name (or (ibuffer-buffer-file-name) "")))
 
 (define-ibuffer-column filename-and-process
   (:name "Filename/Process"
@@ -2126,16 +2129,13 @@ the value of point at the beginning of the line for that buffer."
 	   (and ibuffer-buf
 		(not (eq ibuffer-buf buf))))))
 
-;; This function is a special case; it's not defined by
-;; `define-ibuffer-sorter'.
-(defun ibuffer-do-sort-by-recency ()
-  "Sort the buffers by last view time."
-  (interactive)
-  (setq ibuffer-sorting-mode 'recency)
-  (when (eq ibuffer-last-sorting-mode 'recency)
-    (setq ibuffer-sorting-reversep (not ibuffer-sorting-reversep)))
-  (ibuffer-update nil t)
-  (setq ibuffer-last-sorting-mode 'recency))
+(define-ibuffer-sorter recency
+ "Sort the buffers by how recently they've been used."
+  (:description "recency")
+  (time-less-p (with-current-buffer (car b)
+                 (or buffer-display-time 0))
+               (with-current-buffer (car a)
+                 (or buffer-display-time 0))))
 
 (defun ibuffer-update-format ()
   (when (null ibuffer-current-format)

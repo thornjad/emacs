@@ -70,9 +70,6 @@
 ;; <twurgler@goodyear.com> is similar to mouse-drag-throw, but
 ;; doesn't pass clicks through.
 ;;
-;; These functions have been tested in emacs version 19.30,
-;; and this package has run in the past on 19.25-19.29.
-;;
 ;; Originally mouse-drag was part of a larger package.
 ;; As of 11 July 96 the scrolling functions were split out
 ;; in preparation for incorporation into (the future) emacs-19.32.
@@ -225,7 +222,7 @@ To test this function, evaluate:
       ;; Don't change the mouse pointer shape while we drag.
       (setq track-mouse 'dragging)
       (while (progn
-	       (setq event (read-event)
+	       (setq event (read--potential-mouse-event)
 		     end (event-end event)
 		     row (cdr (posn-col-row end))
 		     col (car (posn-col-row end)))
@@ -286,7 +283,7 @@ To test this function, evaluate:
 	  window-last-col (- (window-width) 2))
     (track-mouse
       (while (progn
-	       (setq event (read-event)
+	       (setq event (read--potential-mouse-event)
 		     end (event-end event)
 		     row (cdr (posn-col-row end))
 		     col (car (posn-col-row end)))

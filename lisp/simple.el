@@ -134,10 +134,9 @@ messages are highlighted; this helps to see what messages were visited."
   :group 'next-error
   :version "28.1")
 
-(defvar next-error--message-highlight-overlay
+(defvar-local next-error--message-highlight-overlay
   nil
   "Overlay highlighting the current error message in the `next-error' buffer.")
-(make-variable-buffer-local 'next-error--message-highlight-overlay)
 
 (defcustom next-error-hook nil
   "List of hook functions run by `next-error' after visiting source file."
@@ -165,15 +164,14 @@ A buffer becomes most recent when its compilation, grep, or
 similar mode is started, or when it is used with \\[next-error]
 or \\[compile-goto-error].")
 
-(defvar next-error-buffer nil
+(defvar-local next-error-buffer nil
   "The buffer-local value of the most recent `next-error' buffer.")
 ;; next-error-buffer is made buffer-local to keep the reference
 ;; to the parent buffer used to navigate to the current buffer, so the
 ;; next call of next-buffer will use the same parent buffer to
 ;; continue navigation from it.
-(make-variable-buffer-local 'next-error-buffer)
 
-(defvar next-error-function nil
+(defvar-local next-error-function nil
   "Function to use to find the next error in the current buffer.
 The function is called with 2 parameters:
 ARG is an integer specifying by how many errors to move.
@@ -182,15 +180,13 @@ of the errors before moving.
 Major modes providing compile-like functionality should set this variable
 to indicate to `next-error' that this is a candidate buffer and how
 to navigate in it.")
-(make-variable-buffer-local 'next-error-function)
 
-(defvar next-error-move-function nil
+(defvar-local next-error-move-function nil
   "Function to use to move to an error locus.
 It takes two arguments, a buffer position in the error buffer
 and a buffer position in the error locus buffer.
 The buffer for the error locus should already be current.
 nil means use goto-char using the second argument position.")
-(make-variable-buffer-local 'next-error-move-function)
 
 (defsubst next-error-buffer-p (buffer
 			       &optional avoid-current
@@ -820,9 +816,10 @@ With ARG, perform this action that many times."
   (delete-horizontal-space t)
   (unless arg
     (setq arg 1))
-  (dotimes (_ arg)
-    (newline nil t)
-    (indent-according-to-mode)))
+  (let ((electric-indent-mode nil))
+    (dotimes (_ arg)
+      (newline nil t)
+      (indent-according-to-mode))))
 
 (defun reindent-then-newline-and-indent ()
   "Reindent current line, insert newline, then indent the new line.
@@ -832,7 +829,8 @@ In programming language modes, this is the same as TAB.
 In some text modes, where TAB inserts a tab, this indents to the
 column specified by the function `current-left-margin'."
   (interactive "*")
-  (let ((pos (point)))
+  (let ((pos (point))
+        (electric-indent-mode nil))
     ;; Be careful to insert the newline before indenting the line.
     ;; Otherwise, the indentation might be wrong.
     (newline)
@@ -1266,9 +1264,8 @@ that uses or sets the mark."
 
 ;; Counting lines, one way or another.
 
-(defvar goto-line-history nil
+(defvar-local goto-line-history nil
   "History of values entered with `goto-line'.")
-(make-variable-buffer-local 'goto-line-history)
 
 (defun goto-line-read-args (&optional relative)
   "Read arguments for `goto-line' related commands."
@@ -2307,13 +2304,11 @@ once.  In special cases, when this function needs to be called more
 than once, it can set `minibuffer-default-add-done' to nil explicitly,
 overriding the setting of this variable to t in `goto-history-element'.")
 
-(defvar minibuffer-default-add-done nil
+(defvar-local minibuffer-default-add-done nil
   "When nil, add more elements to the end of the list of default values.
 The value nil causes `goto-history-element' to add more elements to
 the list of defaults when it reaches the end of this list.  It does
 this by calling a function defined by `minibuffer-default-add-function'.")
-
-(make-variable-buffer-local 'minibuffer-default-add-done)
 
 (defun minibuffer-default-add-completions ()
   "Return a list of all completions without the default value.
@@ -2470,11 +2465,24 @@ previous element of the minibuffer history in the minibuffer."
 				   (save-excursion
 				     (goto-char (1- prompt-end))
 				     (current-column)))
-				0)
+				1)
 			 (current-column)))))
     (condition-case nil
 	(with-no-warnings
-	  (previous-line arg))
+	  (previous-line arg)
+          ;; Avoid moving point to the prompt
+          (when (< (point) (minibuffer-prompt-end))
+            ;; If there is minibuffer contents on the same line
+            (if (<= (minibuffer-prompt-end)
+                    (save-excursion
+                      (if (or truncate-lines (not line-move-visual))
+                          (end-of-line)
+                        (end-of-visual-line))
+                      (point)))
+                ;; Move to the beginning of minibuffer contents
+                (goto-char (minibuffer-prompt-end))
+              ;; Otherwise, go to the previous history element
+              (signal 'beginning-of-buffer nil))))
       (beginning-of-buffer
        ;; Restore old position since `line-move-visual' moves point to
        ;; the beginning of the line when it fails to go to the previous line.
@@ -3465,13 +3473,12 @@ excessively long before answering the question."
   :group 'undo
   :version "22.1")
 
-(defvar undo-extra-outer-limit nil
+(defvar-local undo-extra-outer-limit nil
   "If non-nil, an extra level of size that's ok in an undo item.
 We don't ask the user about truncating the undo list until the
 current item gets bigger than this amount.
 
 This variable matters only if `undo-ask-before-discard' is non-nil.")
-(make-variable-buffer-local 'undo-extra-outer-limit)
 
 ;; When the first undo batch in an undo list is longer than
 ;; undo-outer-limit, this function gets called to warn the user that
@@ -3976,6 +3983,9 @@ impose the use of a shell (with its need to quote arguments)."
 			  (start-process-shell-command "Shell" buffer command)))
 		  (setq mode-line-process '(":%s"))
                   (shell-mode)
+                  (setq-local revert-buffer-function
+                              (lambda (&rest _)
+                                (async-shell-command command buffer)))
                   (set-process-sentinel proc #'shell-command-sentinel)
 		  ;; Use the comint filter for proper handling of
 		  ;; carriage motion (see comint-inhibit-carriage-motion).
@@ -4242,6 +4252,9 @@ characters."
                                              buffer))))
             ;; Report the output.
             (with-current-buffer buffer
+              (setq-local revert-buffer-function
+                          (lambda (&rest _)
+                            (shell-command command)))
               (setq mode-line-process
                     (cond ((null exit-status)
                            " - Error")
@@ -5606,7 +5619,9 @@ See also `zap-up-to-char'."
 ;; kill-line and its subroutines.
 
 (defcustom kill-whole-line nil
-  "If non-nil, `kill-line' with no arg at start of line kills the whole line."
+  "If non-nil, `kill-line' with no arg at start of line kills the whole line.
+This variable also affects `kill-visual-line' in the same way as
+it does `kill-line'."
   :type 'boolean
   :group 'killing)
 
@@ -7319,6 +7334,10 @@ If ARG is negative, kill visual lines backward.
 If ARG is zero, kill the text before point on the current visual
 line.
 
+If the variable `kill-whole-line' is non-nil, and this command is
+invoked at start of a line that ends in a newline, kill the newline
+as well.
+
 If you want to append the killed line to the last killed text,
 use \\[append-next-kill] before \\[kill-line].
 
@@ -7331,18 +7350,27 @@ even beep.)"
   ;; Like in `kill-line', it's better to move point to the other end
   ;; of the kill before killing.
   (let ((opoint (point))
-	(kill-whole-line (and kill-whole-line (bolp))))
+        (kill-whole-line (and kill-whole-line (bolp)))
+        (orig-vlnum (cdr (nth 6 (posn-at-point)))))
     (if arg
 	(vertical-motion (prefix-numeric-value arg))
       (end-of-visual-line 1)
       (if (= (point) opoint)
 	  (vertical-motion 1)
-	;; Skip any trailing whitespace at the end of the visual line.
-	;; We used to do this only if `show-trailing-whitespace' is
-	;; nil, but that's wrong; the correct thing would be to check
-	;; whether the trailing whitespace is highlighted.  But, it's
-	;; OK to just do this unconditionally.
-	(skip-chars-forward " \t")))
+        ;; The first condition below verifies we are still on the same
+        ;; screen line, i.e. that the line isn't continued, and that
+        ;; end-of-visual-line didn't overshoot due to complications
+        ;; like display or overlay strings, intangible text, etc.:
+        ;; otherwise, we don't want to kill a character that's
+        ;; unrelated to the place where the visual line wraps.
+        (and (= (cdr (nth 6 (posn-at-point))) orig-vlnum)
+             ;; Make sure we delete the character where the line wraps
+             ;; under visual-line-mode, be it whitespace or a
+             ;; character whose category set allows to wrap at it.
+             (or (looking-at-p "[ \t]")
+                 (and word-wrap-by-category
+                      (aref (char-category-set (following-char)) ?\|)))
+             (forward-char))))
     (kill-region opoint (if (and kill-whole-line (= (following-char) ?\n))
 			    (1+ (point))
 			  (point)))))

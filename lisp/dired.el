@@ -2332,19 +2332,9 @@ to relist the file at point or the marked files or a
 subdirectory, or type \\[dired-build-subdir-alist] to parse the buffer
 again for the directory tree.
 
-Customization variables (rename this buffer and type \\[describe-variable] on each line
-for more info):
+See the `dired' customization group for a list of user options.
 
-  `dired-listing-switches'
-  `dired-trivial-filenames'
-  `dired-marker-char'
-  `dired-del-marker'
-  `dired-keep-marker-rename'
-  `dired-keep-marker-copy'
-  `dired-keep-marker-hardlink'
-  `dired-keep-marker-symlink'
-
-Hooks (use \\[describe-variable] to see their documentation):
+This mode runs the following hooks:
 
   `dired-before-readin-hook'
   `dired-after-readin-hook'
@@ -3532,18 +3522,21 @@ confirmation.  To disable the confirmation, see
   (when (and (featurep 'dired-x) dired-clean-up-buffers-too)
     (let ((buf (get-file-buffer fn)))
       (and buf
-           (and dired-clean-confirm-killing-deleted-buffers
-                (funcall #'y-or-n-p
-                         (format "Kill buffer of %s, too? "
-                                 (file-name-nondirectory fn))))
+           (or (and dired-clean-confirm-killing-deleted-buffers
+                    (funcall #'y-or-n-p
+                             (format "Kill buffer of %s, too? "
+                                     (file-name-nondirectory fn))))
+               (not dired-clean-confirm-killing-deleted-buffers))
            (kill-buffer buf)))
     (let ((buf-list (dired-buffers-for-dir (expand-file-name fn))))
       (and buf-list
-           (and dired-clean-confirm-killing-deleted-buffers
-                (y-or-n-p (format (ngettext "Kill Dired buffer of %s, too? "
-			                    "Kill Dired buffers of %s, too? "
-			                    (length buf-list))
-                                  (file-name-nondirectory fn))))
+           (or (and dired-clean-confirm-killing-deleted-buffers
+                    (y-or-n-p (format
+                               (ngettext "Kill Dired buffer of %s, too? "
+                                         "Kill Dired buffers of %s, too? "
+                                         (length buf-list))
+                               (file-name-nondirectory fn))))
+               (not dired-clean-confirm-killing-deleted-buffers))
            (dolist (buf buf-list)
              (kill-buffer buf))))))
 

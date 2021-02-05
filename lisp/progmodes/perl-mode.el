@@ -95,6 +95,12 @@
   :prefix "perl-"
   :group 'languages)
 
+(defface perl-non-scalar-variable
+  '((t :inherit font-lock-variable-name-face :underline t))
+  "Face used for non-scalar variables."
+  :version "28.1"
+  :group 'perl)
+
 (defvar perl-mode-abbrev-table nil
   "Abbrev table in use in perl-mode buffers.")
 (define-abbrev-table 'perl-mode-abbrev-table ())
@@ -137,7 +143,7 @@
   '(;; Functions
     (nil "^[ \t]*sub\\s-+\\([-[:alnum:]+_:]+\\)" 1)
     ;;Variables
-    ("Variables" "^[ \t]*\\(?:anon\\|argument\\|has\\|local\\|my\\|our\\|state\\|supersede\\)\\s-+\\([$@%][-[:alnum:]+_:]+\\)\\s-*=" 1)
+    ("Variables" "^[ \t]*\\(?:has\\|local\\|my\\|our\\|state\\)\\s-+\\([$@%][-[:alnum:]+_:]+\\)\\s-*=" 1)
     ("Packages" "^[ \t]*package\\s-+\\([-[:alnum:]+_:]+\\);" 1)
     ("Doc sections" "^=head[0-9][ \t]+\\(.*\\)" 1))
   "Imenu generic expression for Perl mode.  See `imenu-generic-expression'.")
@@ -182,16 +188,16 @@
               "\\>")
      ;;
      ;; Fontify declarators and prefixes as types.
-     ("\\<\\(anon\\|argument\\|has\\|local\\|my\\|our\\|state\\|supersede\\)\\>" . font-lock-type-face) ; declarators
-     ("\\<\\(let\\|temp\\)\\>" . font-lock-type-face) ; prefixes
-     ;;
+     ("\\<\\(has\\|local\\|my\\|our\\|state\\)\\>" . font-lock-type-face) ; declarators
+          ;;
      ;; Fontify function, variable and file name references.
      ("&\\(\\sw+\\(::\\sw+\\)*\\)" 1 font-lock-function-name-face)
-     ;; Additionally underline non-scalar variables.  Maybe this is a bad idea.
+     ;; Additionally fontify non-scalar variables.  `perl-non-scalar-variable'
+     ;; will underline them by default.
      ;;'("[$@%*][#{]?\\(\\sw+\\)" 1 font-lock-variable-name-face)
      ("[$*]{?\\(\\sw+\\(::\\sw+\\)*\\)" 1 font-lock-variable-name-face)
      ("\\([@%]\\|\\$#\\)\\(\\sw+\\(::\\sw+\\)*\\)"
-      (2 (cons font-lock-variable-name-face '(underline))))
+      (2 'perl-non-scalar-variable))
      ("<\\(\\sw+\\)>" 1 font-lock-constant-face)
      ;;
      ;; Fontify keywords with/and labels as we do in `c++-font-lock-keywords'.

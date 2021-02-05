@@ -651,7 +651,9 @@ corresponding to the switched buffer."
   (if (functionp tab-line-new-tab-choice)
       (funcall tab-line-new-tab-choice)
     (let ((tab-line-tabs-buffer-groups mouse-buffer-menu-mode-groups))
-      (if (and (listp mouse-event) window-system) ; (display-popup-menus-p)
+      (if (and (listp mouse-event)
+               (display-popup-menus-p)
+               (not tty-menu-open-use-tmm))
           (mouse-buffer-menu mouse-event) ; like (buffer-menu-open)
         ;; tty menu doesn't support mouse clicks, so use tmm
         (tmm-prompt (mouse-buffer-menu-keymap))))))
@@ -808,9 +810,7 @@ from the tab line."
   :version "27.1")
 
 ;;;###autoload
-(defvar tab-line-exclude nil)
-;;;###autoload
-(make-variable-buffer-local 'tab-line-exclude)
+(defvar-local tab-line-exclude nil)
 
 (defun tab-line-mode--turn-on ()
   "Turn on `tab-line-mode'."

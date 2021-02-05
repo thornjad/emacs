@@ -47,7 +47,7 @@
 (require 'rfc2047)
 (require 'puny)
 (require 'rmc)                          ; read-multiple-choice
-(eval-when-compile (require 'subr-x))
+(require 'subr-x)
 
 (autoload 'mailclient-send-it "mailclient")
 
@@ -394,9 +394,8 @@ If nil, don't insert any text in the body."
 ;; inspired by JoH-followup-to by Jochem Huhman <joh  at gmx.de>
 ;; new suggestions by R. Weikusat <rw at another.de>
 
-(defvar message-cross-post-old-target nil
+(defvar-local message-cross-post-old-target nil
   "Old target for cross-posts or follow-ups.")
-(make-variable-buffer-local 'message-cross-post-old-target)
 
 (defcustom message-cross-post-default t
   "When non-nil `message-cross-post-followup-to' will perform a crosspost.
@@ -620,8 +619,8 @@ Done before generating the new subject of a forward."
 
 (defcustom message-forward-ignored-headers "^Content-Transfer-Encoding:\\|^X-Gnus"
   "All headers that match this regexp will be deleted when forwarding a message.
-This variable is not consulted when forwarding encrypted messages
-and `message-forward-show-mml' is `best'.
+Also see `message-forward-included-headers' -- both variables are applied.
+In addition, see `message-forward-included-mime-headers'.
 
 This may also be a list of regexps."
   :version "21.1"
@@ -637,8 +636,33 @@ This may also be a list of regexps."
   '("^From:" "^Subject:" "^Date:" "^To:" "^Cc:")
   "If non-nil, delete non-matching headers when forwarding a message.
 Only headers that match this regexp will be included.  This
-variable should be a regexp or a list of regexps."
+variable should be a regexp or a list of regexps.
+
+Also see `message-forward-ignored-headers' -- both variables are applied.
+In addition, see `message-forward-included-mime-headers'.
+
+When forwarding messages as MIME, but when
+`message-forward-show-mml' results in MML not being used,
+`message-forward-included-mime-headers' take precedence."
   :version "27.1"
+  :group 'message-forwarding
+  :type '(repeat :value-to-internal (lambda (widget value)
+				      (custom-split-regexp-maybe value))
+		 :match (lambda (widget value)
+			  (or (stringp value)
+			      (widget-editable-list-match widget value)))
+		 regexp))
+
+(defcustom message-forward-included-mime-headers
+  '("^Content-Type:" "^MIME-Version:")
+  "When forwarding as MIME, but not using MML, don't delete these headers.
+Also see `message-forward-ignored-headers' and
+`message-forward-ignored-headers'.
+
+When forwarding messages as MIME, but when
+`message-forward-show-mml' results in MML not being used,
+`message-forward-included-mime-headers' take precedence."
+  :version "28.1"
   :group 'message-forwarding
   :type '(repeat :value-to-internal (lambda (widget value)
 				      (custom-split-regexp-maybe value))
@@ -1979,9 +2003,8 @@ You must have the \"hashcash\" binary installed, see `hashcash-path'."
     (User-Agent))
   "Alist used for formatting headers.")
 
-(defvar	message-options nil
+(defvar-local message-options nil
   "Some saved answers when sending message.")
-(make-variable-buffer-local 'message-options)
 
 (defvar message-send-mail-real-function nil
   "Internal send mail function.")
@@ -2170,10 +2193,11 @@ see `message-narrow-to-headers-or-head'."
   (require 'gnus-sum)			; for gnus-list-identifiers
   (let ((regexp (if (stringp gnus-list-identifiers)
 		    gnus-list-identifiers
-		  (mapconcat 'identity gnus-list-identifiers " *\\|"))))
+		  (mapconcat #'identity gnus-list-identifiers " *\\|"))))
     (if (and (not (equal regexp ""))
              (string-match (concat "\\(\\(\\(Re: +\\)?\\(" regexp
-                                   " *\\)\\)+\\(Re: +\\)?\\)") subject))
+                                   " *\\)\\)+\\(Re: +\\)?\\)")
+                           subject))
 	(concat (substring subject 0 (match-beginning 1))
 		(or (match-string 3 subject)
 		    (match-string 5 subject))
@@ -3057,22 +3081,23 @@ See also `message-forbidden-properties'."
 
 (defun message--syntax-propertize (beg end)
   "Syntax-propertize certain message text specially."
-  (let ((citation-regexp (concat "^" message-cite-prefix-regexp ".*$"))
-        (smiley-regexp (regexp-opt message-smileys)))
-    (goto-char beg)
-    (while (search-forward-regexp citation-regexp
-                                  end 'noerror)
-      (let ((start (match-beginning 0))
-            (end (match-end 0)))
-        (add-text-properties start (1+ start)
-                             `(syntax-table ,(string-to-syntax "<")))
-        (add-text-properties end (min (1+ end) (point-max))
-                             `(syntax-table ,(string-to-syntax ">")))))
-    (goto-char beg)
-    (while (search-forward-regexp smiley-regexp
-            end 'noerror)
-      (add-text-properties (match-beginning 0) (match-end 0)
-                           `(syntax-table ,(string-to-syntax "."))))))
+  (with-syntax-table message-mode-syntax-table
+    (let ((citation-regexp (concat "^" message-cite-prefix-regexp ".*$"))
+          (smiley-regexp (regexp-opt message-smileys)))
+      (goto-char beg)
+      (while (search-forward-regexp citation-regexp
+                                    end 'noerror)
+	(let ((start (match-beginning 0))
+              (end (match-end 0)))
+          (add-text-properties start (1+ start)
+                               `(syntax-table ,(string-to-syntax "<")))
+          (add-text-properties end (min (1+ end) (point-max))
+                               `(syntax-table ,(string-to-syntax ">")))))
+      (goto-char beg)
+      (while (search-forward-regexp smiley-regexp
+				    end 'noerror)
+	(add-text-properties (match-beginning 0) (match-end 0)
+                             `(syntax-table ,(string-to-syntax ".")))))))
 
 ;;;###autoload
 (define-derived-mode message-mode text-mode "Message"
@@ -3147,7 +3172,7 @@ Like `text-mode', but with these additional commands:
 
 (defun message-setup-fill-variables ()
   "Setup message fill variables."
-  (setq-local fill-paragraph-function 'message-fill-paragraph)
+  (setq-local fill-paragraph-function #'message-fill-paragraph)
   (make-local-variable 'adaptive-fill-first-line-regexp)
   (let ((quote-prefix-regexp
 	 ;; User should change message-cite-prefix-regexp if
@@ -3171,7 +3196,7 @@ Like `text-mode', but with these additional commands:
                 (concat quote-prefix-regexp "\\|"
                         adaptive-fill-first-line-regexp)))
   (setq-local auto-fill-inhibit-regexp nil)
-  (setq-local normal-auto-fill-function 'message-do-auto-fill))
+  (setq-local normal-auto-fill-function #'message-do-auto-fill))
 
 
 
@@ -3648,7 +3673,7 @@ are null."
 	     ((functionp message-signature)
 	      (funcall message-signature))
 	     ((listp message-signature)
-	      (eval message-signature))
+	      (eval message-signature t))
 	     (t message-signature)))
 	   signature-file)
       (setq signature
@@ -3965,11 +3990,12 @@ Just \\[universal-argument] as argument means don't indent, insert no
 prefix, and don't delete any headers."
   (interactive "P")
   ;; eval the let forms contained in message-cite-style
-  (eval
-   `(let ,(if (symbolp message-cite-style)
-	      (symbol-value message-cite-style)
-	    message-cite-style)
-      (message--yank-original-internal ',arg))))
+  (let ((bindings (if (symbolp message-cite-style)
+	              (symbol-value message-cite-style)
+	            message-cite-style)))
+    (cl-progv (mapcar #'car bindings)
+        (mapcar (lambda (binding) (eval (cadr binding) t)) bindings)
+      (message--yank-original-internal arg))))
 
 (defun message-yank-buffer (buffer)
   "Insert BUFFER into the current buffer and quote it."
@@ -4038,7 +4064,7 @@ This function uses `mail-citation-hook' if that is non-nil."
 	    ;; Insert a blank line if it is peeled off.
 	    (insert "\n"))))
       (goto-char start)
-      (mapc 'funcall functions)
+      (mapc #'funcall functions)
       (when message-citation-line-function
 	(unless (bolp)
 	  (insert "\n"))
@@ -4529,7 +4555,7 @@ An address might be bogus if there's a matching entry in
 		      (and message-bogus-addresses
 			   (let ((re
 				  (if (listp message-bogus-addresses)
-				      (mapconcat 'identity
+				      (mapconcat #'identity
 						 message-bogus-addresses
 						 "\\|")
 				    message-bogus-addresses)))
@@ -4600,7 +4626,7 @@ Valid types are `send', `return', `exit', `kill' and `postpone'."
 	(funcall action))
        ;; Something to be evalled.
        (t
-	(eval action))))))
+	(eval action t))))))
 
 (defun message-send-mail-partially ()
   "Send mail as message/partial."
@@ -4916,7 +4942,7 @@ that instead."
 	    ;; Insert an extra newline if we need it to work around
 	    ;; Sun's bug that swallows newlines.
 	    (goto-char (1+ delimline))
-	    (when (eval message-mailer-swallows-blank-line)
+	    (when (eval message-mailer-swallows-blank-line t)
 	      (newline))
 	    (when message-interactive
 	      (with-current-buffer errbuf
@@ -4924,7 +4950,7 @@ that instead."
 	  (let* ((default-directory "/")
 		 (coding-system-for-write message-send-coding-system)
 		 (cpr (apply
-		       'call-process-region
+		       #'call-process-region
 		       (append
 			(list (point-min) (point-max) sendmail-program
 			      nil errbuf nil "-oi")
@@ -4976,7 +5002,7 @@ to find out how to use this."
   (pcase
       (let ((coding-system-for-write message-send-coding-system))
 	(apply
-	 'call-process-region (point-min) (point-max)
+	 #'call-process-region (point-min) (point-max)
 	 message-qmail-inject-program nil nil nil
 	 ;; qmail-inject's default behavior is to look for addresses on the
 	 ;; command line; if there're none, it scans the headers.
@@ -5368,7 +5394,7 @@ Otherwise, generate and save a value for `canlock-password' first."
 	   "Really use %s possibly unknown group%s: %s? "
 	   (if (= (length errors) 1) "this" "these")
 	   (if (= (length errors) 1) "" "s")
-	   (mapconcat 'identity errors ", "))))
+	   (mapconcat #'identity errors ", "))))
 	;; There were no errors.
 	((not errors)
 	 t)
@@ -6035,7 +6061,7 @@ subscribed address (and not the additional To and Cc header contents)."
 	 (cc (message-fetch-field "cc"))
 	 (msg-recipients (concat to (and to cc ", ") cc))
 	 (recipients
-	  (mapcar 'mail-strip-quoted-names
+	  (mapcar #'mail-strip-quoted-names
 		  (message-tokenize-header msg-recipients)))
 	 (file-regexps
 	  (if message-subscribed-address-file
@@ -6052,11 +6078,11 @@ subscribed address (and not the additional To and Cc header contents)."
 		      (if re (setq re (concat re "\\|" item))
 			(setq re (concat "\\`\\(" item))))
 		    (and re (list (concat re "\\)\\'"))))))))
-	 (mft-regexps (apply 'append message-subscribed-regexps
-			     (mapcar 'regexp-quote
+	 (mft-regexps (apply #'append message-subscribed-regexps
+			     (mapcar #'regexp-quote
 				     message-subscribed-addresses)
 			     file-regexps
-			     (mapcar 'funcall
+			     (mapcar #'funcall
 				     message-subscribed-address-functions))))
     (save-match-data
       (let ((list
@@ -6077,7 +6103,7 @@ subscribed address (and not the additional To and Cc header contents)."
       (dolist (rhs
 	       (delete-dups
 		(mapcar (lambda (rhs) (or (cadr (split-string rhs "@")) ""))
-			(mapcar 'downcase
+			(mapcar #'downcase
 				(mapcar
 				 (lambda (elem)
 				   (or (cadr elem)
@@ -6543,7 +6569,7 @@ moved to the beginning "
 	     (if to
 		 (concat " to "
 			 (or (car (mail-extract-address-components to))
-			     to) "")
+			     to))
 	       "")
 	     (if (and group (not (string= group ""))) (concat " on " group) "")
 	     "*")))
@@ -6557,7 +6583,7 @@ moved to the beginning "
 	     (if to
 		 (concat " to "
 			 (or (car (mail-extract-address-components to))
-			     to) "")
+			     to))
 	       "")
 	     (if (and group (not (string= group ""))) (concat " on " group) "")
 	     "*")))
@@ -6586,7 +6612,7 @@ moved to the beginning "
 			(cons (string-to-number (or (match-string 1 b) "1"))
 			      b)))
 		    (buffer-list)))
-	     'car-less-than-car)))
+	     #'car-less-than-car)))
 	  new)))))
 
 (defun message-pop-to-buffer (name &optional switch-function)
@@ -6942,8 +6968,8 @@ The function is called with one parameter, a cons cell ..."
 			(message-fetch-field "original-to")))
 	    cc (message-fetch-field "cc")
 	    extra (when message-extra-wide-headers
-		    (mapconcat 'identity
-			       (mapcar 'message-fetch-field
+		    (mapconcat #'identity
+			       (mapcar #'message-fetch-field
 				       message-extra-wide-headers)
 			       ", "))
 	    mct (message-fetch-field "mail-copies-to")
@@ -7027,7 +7053,7 @@ want to get rid of this query permanently.")))
       (setq recipients
             (cond ((functionp message-dont-reply-to-names)
                    (mapconcat
-                    'identity
+                    #'identity
                     (delq nil
                           (mapcar (lambda (mail)
                                     (unless (funcall message-dont-reply-to-names
@@ -7061,7 +7087,7 @@ want to get rid of this query permanently.")))
       ;; Remove hierarchical lists that are contained within each other,
       ;; if message-hierarchical-addresses is defined.
       (when message-hierarchical-addresses
-	(let ((plain-addrs (mapcar 'car recipients))
+	(let ((plain-addrs (mapcar #'car recipients))
 	      subaddrs recip)
 	  (while plain-addrs
 	    (setq subaddrs (assoc (car plain-addrs)
@@ -7616,14 +7642,28 @@ Optional DIGEST will use digest to forward."
      "-------------------- End of forwarded message --------------------\n")
     (message-remove-ignored-headers b e)))
 
-(defun message-remove-ignored-headers (b e)
+(defun message-remove-ignored-headers (b e &optional preserve-mime)
   (when (or message-forward-ignored-headers
 	    message-forward-included-headers)
+    (let ((saved-headers nil))
     (save-restriction
       (narrow-to-region b e)
       (goto-char b)
       (narrow-to-region (point)
 			(or (search-forward "\n\n" nil t) (point)))
+      ;; When forwarding as MIME, preserve some MIME headers.
+      (when preserve-mime
+	(let ((headers (buffer-string)))
+	  (with-temp-buffer
+	    (insert headers)
+	    (message-remove-header
+	     (if (listp message-forward-included-mime-headers)
+		 (mapconcat
+		  #'identity (cons "^$" message-forward-included-mime-headers)
+		  "\\|")
+	       message-forward-included-mime-headers)
+	     t nil t)
+	    (setq saved-headers (string-lines (buffer-string) t)))))
       (when message-forward-ignored-headers
 	(let ((ignored (if (stringp message-forward-ignored-headers)
 			   (list message-forward-ignored-headers)
@@ -7636,10 +7676,14 @@ Optional DIGEST will use digest to forward."
 	     (mapconcat #'identity (cons "^$" message-forward-included-headers)
 			"\\|")
 	   message-forward-included-headers)
-	 t nil t)))))
+	 t nil t))
+      ;; Insert the MIME headers, if any.
+      (goto-char (point-max))
+      (forward-line -1)
+      (dolist (header saved-headers)
+	(insert header "\n"))))))
 
-(defun message-forward-make-body-mime (forward-buffer &optional beg end
-						      remove-headers)
+(defun message-forward-make-body-mime (forward-buffer &optional beg end)
   (let ((b (point)))
     (insert "\n\n<#part type=message/rfc822 disposition=inline raw=t>\n")
     (save-restriction
@@ -7649,8 +7693,7 @@ Optional DIGEST will use digest to forward."
       (goto-char (point-min))
       (when (looking-at "From ")
 	(replace-match "X-From-Line: "))
-      (when remove-headers
-	(message-remove-ignored-headers (point-min) (point-max)))
+      (message-remove-ignored-headers (point-min) (point-max) t)
       (goto-char (point-max)))
     (insert "<#/part>\n")
     ;; Consider there is no illegible text.
@@ -7789,8 +7832,7 @@ is for the internal use."
 				 (message-signed-or-encrypted-p)
 			       (error t))))))
 	    (message-forward-make-body-mml forward-buffer)
-	  (message-forward-make-body-mime
-	   forward-buffer nil nil (not (eq message-forward-show-mml 'best))))
+	  (message-forward-make-body-mime forward-buffer))
       (message-forward-make-body-plain forward-buffer)))
   (message-position-point))
 
@@ -8324,7 +8366,7 @@ The following arguments may contain lists of values."
         (with-output-to-temp-buffer " *MESSAGE information message*"
           (with-current-buffer " *MESSAGE information message*"
 	    (fundamental-mode)
-	    (mapc 'princ text)
+	    (mapc #'princ text)
 	    (goto-char (point-min))))
 	(funcall ask question))
     (funcall ask question)))

@@ -541,10 +541,9 @@ sign.  See `sh-feature'."
   :group 'sh-script)
 
 
-(defvar sh-header-marker nil
+(defvar-local sh-header-marker nil
   "When non-nil is the end of header for prepending by \\[sh-execute-region].
 That command is also used for setting this variable.")
-(make-variable-buffer-local 'sh-header-marker)
 
 (defcustom sh-beginning-of-command
   "\\([;({`|&]\\|\\`\\|[^\\]\n\\)[ \t]*\\([/~[:alnum:]:]\\)"
@@ -1556,7 +1555,7 @@ with your script for an edit-interpret-debug cycle."
   (sh-set-shell
    (cond ((save-excursion
             (goto-char (point-min))
-            (looking-at "#![ \t]?\\([^ \t\n]*/bin/env[ \t]\\)?\\([^ \t\n]+\\)"))
+            (looking-at auto-mode-interpreter-regexp))
           (match-string 2))
          ((not buffer-file-name) sh-shell-file)
          ;; Checks that use `buffer-file-name' follow.
@@ -1957,12 +1956,18 @@ May return nil if the line should not be treated as continued."
     ('(:after . "case-)") (- (sh-var-value 'sh-indent-for-case-alt)
                              (sh-var-value 'sh-indent-for-case-label)))
     (`(:before . ,(or "(" "{" "[" "while" "if" "for" "case"))
-     (if (not (smie-rule-prev-p "&&" "||" "|"))
-         (when (smie-rule-hanging-p)
-           (smie-rule-parent))
+     (cond
+      ((and (equal token "{") (smie-rule-parent-p "for"))
+       (let ((data (smie-backward-sexp "in")))
+         (when (equal (nth 2 data) "for")
+           `(column . ,(smie-indent-virtual)))))
+      ((not (smie-rule-prev-p "&&" "||" "|"))
+       (when (smie-rule-hanging-p)
+         (smie-rule-parent)))
+      (t
        (unless (smie-rule-bolp)
 	 (while (equal "|" (nth 2 (smie-backward-sexp 'halfexp))))
-	 `(column . ,(smie-indent-virtual)))))
+	 `(column . ,(smie-indent-virtual))))))
     ;; FIXME: Maybe this handling of ;; should be made into
     ;; a smie-rule-terminator function that takes the substitute ";" as arg.
     (`(:before . ,(or ";;" ";&" ";;&"))
@@ -2927,8 +2932,8 @@ option followed by a colon `:' if the option accepts an argument."
 (put 'sh-assignment 'delete-selection t)
 (defun sh-assignment (arg)
   "Remember preceding identifier for future completion and do self-insert."
-  (interactive "p")
   (declare (obsolete nil "27.1"))
+  (interactive "p")
   (self-insert-command arg)
   (sh--assignment-collect))
 

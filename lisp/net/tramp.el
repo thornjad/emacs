@@ -259,9 +259,9 @@ pair of the form (KEY VALUE).  The following KEYs are defined:
     parameters to suppress diagnostic messages, in order not to
     tamper the process output.
 
-  * `tramp-direct-async-args'
-    An additional argument when a direct asynchronous process is
-    started.  Used so far only in the \"mock\" method of tramp-tests.el.
+  * `tramp-direct-async'
+    Whether the method supports direct asynchronous processes.
+    Until now, just \"ssh\"-based and \"adb\"-based methods do.
 
   * `tramp-copy-program'
     This specifies the name of the program to use for remotely copying
@@ -1755,7 +1755,8 @@ The outline level is equal to the verbosity of the Tramp message."
 Message is formatted with FMT-STRING as control string and the remaining
 ARGUMENTS to actually emit the message (if applicable)."
   (let ((inhibit-message t)
-	file-name-handler-alist message-log-max signal-hook-function)
+	create-lockfiles file-name-handler-alist message-log-max
+	signal-hook-function)
     (with-current-buffer (tramp-get-debug-buffer vec)
       (goto-char (point-max))
       (let ((point (point)))
@@ -1982,6 +1983,15 @@ the resulting error message."
 
 (put #'tramp-with-demoted-errors 'tramp-suppress-trace t)
 
+(defun tramp-test-message (fmt-string &rest arguments)
+  "Emit a Tramp message according `default-directory'."
+  (if (tramp-tramp-file-p default-directory)
+      (apply #'tramp-message
+	     (tramp-dissect-file-name default-directory) 0 fmt-string arguments)
+    (apply #'message fmt-string arguments)))
+
+(put #'tramp-test-message 'tramp-suppress-trace t)
+
 ;; This function provides traces in case of errors not triggered by
 ;; Tramp functions.
 (defun tramp-signal-hook-function (error-symbol data)
@@ -1991,7 +2001,7 @@ the resulting error message."
   (unless (eq error-symbol 'void-variable)
     (tramp-error
      (car tramp-current-connection) error-symbol
-     "%s" (mapconcat (lambda (x) (format "%s" x)) data " "))))
+     (mapconcat (lambda (x) (format "%s" x)) data " "))))
 
 (put #'tramp-signal-hook-function 'tramp-suppress-trace t)
 
@@ -3048,9 +3058,9 @@ User is always nil."
 (defun tramp-handle-access-file (filename string)
   "Like `access-file' for Tramp files."
   (unless (file-readable-p (file-truename filename))
-    (tramp-error
-     (tramp-dissect-file-name filename) tramp-file-missing
-     "%s: No such file or directory %s" string filename)))
+    (tramp-compat-file-missing
+     (tramp-dissect-file-name filename)
+     (format "%s: %s" string filename))))
 
 (defun tramp-handle-add-name-to-file
   (filename newname &optional ok-if-already-exists)
@@ -3084,9 +3094,7 @@ User is always nil."
   ;; `copy-directory' creates NEWNAME before running this check.  So
   ;; we do it ourselves.
   (unless (file-exists-p directory)
-    (tramp-error
-     (tramp-dissect-file-name directory) tramp-file-missing
-     "No such file or directory" directory))
+    (tramp-compat-file-missing (tramp-dissect-file-name directory) directory))
   ;; We must do it file-wise.
   (tramp-run-real-handler
    'copy-directory
@@ -3107,9 +3115,7 @@ User is always nil."
 (defun tramp-handle-directory-files (directory &optional full match nosort count)
   "Like `directory-files' for Tramp files."
   (unless (file-exists-p directory)
-    (tramp-error
-     (tramp-dissect-file-name directory) tramp-file-missing
-     "No such file or directory" directory))
+    (tramp-compat-file-missing (tramp-dissect-file-name directory) directory))
   (when (file-directory-p directory)
     (setq directory (file-name-as-directory (expand-file-name directory)))
     (let ((temp (nreverse (file-name-all-completions "" directory)))
@@ -3206,9 +3212,7 @@ User is always nil."
   "Like `file-local-copy' for Tramp files."
   (with-parsed-tramp-file-name filename nil
     (unless (file-exists-p filename)
-      (tramp-error
-       v tramp-file-missing
-       "Cannot make local copy of non-existing file `%s'" filename))
+      (tramp-compat-file-missing v filename))
     (let ((tmpfile (tramp-compat-make-temp-file filename)))
       (copy-file filename tmpfile 'ok-if-already-exists 'keep-time)
       tmpfile)))
@@ -3418,8 +3422,10 @@ User is always nil."
 		      (if (stringp symlink-target)
 			  (if (file-remote-p symlink-target)
 			      (tramp-compat-file-name-quote symlink-target 'top)
-			    (expand-file-name
-			     symlink-target (file-name-directory v2-localname)))
+			    (tramp-drop-volume-letter
+			     (expand-file-name
+			      symlink-target
+			      (file-name-directory v2-localname))))
 			v2-localname)
 		      'nohop)))
 	     (when (>= numchase numchase-limit)
@@ -3501,9 +3507,7 @@ User is always nil."
     (with-parsed-tramp-file-name filename nil
       (unwind-protect
 	  (if (not (file-exists-p filename))
-	      (tramp-error
-	       v tramp-file-missing
-	       "File `%s' not found on remote host" filename)
+	      (tramp-compat-file-missing v filename)
 
 	    (with-tramp-progress-reporter
 		v 3 (format-message "Inserting `%s'" filename)
@@ -3626,8 +3630,7 @@ User is always nil."
 	 v 'file-error
 	 "File `%s' does not include a `.el' or `.elc' suffix" file)))
     (unless (or noerror (file-exists-p file))
-      (tramp-error
-       v tramp-file-missing "Cannot load nonexistent file `%s'" file))
+      (tramp-compat-file-missing v file))
     (if (not (file-exists-p file))
 	nil
       (let ((signal-hook-function (unless noerror signal-hook-function))
@@ -3741,7 +3744,9 @@ User is always nil."
   (let ((v (tramp-dissect-file-name default-directory))
 	(buffer (plist-get args :buffer))
 	(stderr (plist-get args :stderr)))
-    (and ;; It has been indicated.
+    (and ;; The method supports it.
+         (tramp-get-method-parameter v 'tramp-direct-async)
+	 ;; It has been indicated.
          (tramp-get-connection-property v "direct-async-process" nil)
 	 ;; There's no multi-hop.
 	 (or (not (tramp-multi-hop-p v))
@@ -3791,15 +3796,20 @@ It does not support `:stderr'."
 		    (get-buffer-create buffer)
 		  ;; BUFFER can be nil.  We use a temporary buffer.
 		  (generate-new-buffer tramp-temp-buffer-name)))
-	       ;; We use as environment the difference to toplevel
-	       ;; `process-environment'.
 	       (env (mapcar
 		     (lambda (elt)
-		       (unless
-			   (member
-			    elt (default-toplevel-value 'process-environment))
-			 (when (string-match-p "=" elt) elt)))
-		     process-environment))
+		       (when (string-match-p "=" elt) elt))
+		     tramp-remote-process-environment))
+	       ;; We use as environment the difference to toplevel
+	       ;; `process-environment'.
+	       (env (dolist (elt process-environment env)
+		      (when
+			  (and
+			   (string-match-p "=" elt)
+			   (not
+			    (member
+			     elt (default-toplevel-value 'process-environment))))
+			(setq env (cons elt env)))))
 	       (env (setenv-internal
 		     env "INSIDE_EMACS"
 		     (concat (or (getenv "INSIDE_EMACS") emacs-version)
@@ -3821,8 +3831,6 @@ It does not support `:stderr'."
 		  (tramp-get-method-parameter v 'tramp-login-args))
 		 (async-args
 		  (tramp-get-method-parameter v 'tramp-async-args))
-		 (direct-async-args
-		  (tramp-get-method-parameter v 'tramp-direct-async-args))
 		 ;; We don't create the temporary file.  In fact, it
 		 ;; is just a prefix for the ControlPath option of
 		 ;; ssh; the real temporary file has another name, and
@@ -3850,7 +3858,7 @@ It does not support `:stderr'."
 		   ?h (or host "") ?u (or user "") ?p (or port "")
 		   ?c options ?l "")
 	     ;; Add arguments for asynchronous processes.
-	     login-args (append async-args direct-async-args login-args)
+	     login-args (append async-args login-args)
 	     ;; Expand format spec.
 	     login-args
 	     (tramp-compat-flatten-tree

@@ -46,10 +46,8 @@
 (defvar calc-embedded-modes nil)
 (defvar calc-embedded-globals nil)
 (defvar calc-embedded-active nil)
-(defvar calc-embedded-all-active nil)
-(make-variable-buffer-local 'calc-embedded-all-active)
-(defvar calc-embedded-some-active nil)
-(make-variable-buffer-local 'calc-embedded-some-active)
+(defvar-local calc-embedded-all-active nil)
+(defvar-local calc-embedded-some-active nil)
 
 ;; The following variables are customizable and defined in calc.el.
 (defvar calc-embedded-announce-formula)
@@ -651,6 +649,8 @@ The command \\[yank] can retrieve it from there."
 (defvar calc-embed-prev-modes)
 
 (defun calc-embedded-set-modes (gmodes modes local-modes &optional temp)
+  (defvar the-language)
+  (defvar the-display-just)
   (let ((the-language (calc-embedded-language))
 	(the-display-just (calc-embedded-justify))
 	(v gmodes)

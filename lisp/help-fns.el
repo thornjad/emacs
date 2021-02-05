@@ -533,7 +533,7 @@ suitable file is found, return nil."
                     (format "\nMacro: %s"
                             (help--docstring-quote
                              (format-kbd-macro real-def))))
-                   (t "[Missing arglist.  Please make a bug report.]")))
+                   (t "[Missing arglist.]")))
              ;; Insert "`X", not "(\` X)", when documenting `X.
              (use1 (replace-regexp-in-string
                     "\\`(\\\\=\\\\\\\\=` \\([^\n ]*\\))\\'"
@@ -839,7 +839,7 @@ Returns a list of the form (REAL-FUNCTION DEF ALIASED REAL-DEF)."
 		 (t "")))
 
     (if (and aliased (not (fboundp real-def)))
-	(princ ",\nwhich is not defined.  Please make a bug report.")
+	(princ ",\nwhich is not defined.")
       (with-current-buffer standard-output
 	(save-excursion
 	  (save-match-data
@@ -1652,6 +1652,9 @@ in `describe-keymap'.  See also `Searching the Active Keymaps'."
                          (if (get-text-property (point) 'local-map)
                              (get-char-property (point) 'local-map)
                            (current-local-map)))))
+
+(defvar keymap-name-history nil
+  "History for input to `describe-keymap'.")
 
 ;;;###autoload
 (defun describe-keymap (keymap)

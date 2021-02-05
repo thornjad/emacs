@@ -186,6 +186,21 @@ See `replace-regexp' and `query-replace-regexp-eval'.")
                         length)
              length)))))
 
+(defun query-replace-read-from-suggestions ()
+  "Return a list of standard suggestions for `query-replace-read-from'.
+By default, the list includes the active region, the identifier
+(a.k.a. \"tag\") at point (see Info node `(emacs) Identifier Search'),
+the last isearch string, and the last replacement regexp.
+`query-replace-read-from' appends the list returned
+by this function to the end of values available via
+\\<minibuffer-local-map>\\[next-history-element]."
+  (delq nil (list (when (use-region-p)
+                    (buffer-substring-no-properties
+                     (region-beginning) (region-end)))
+                  (find-tag-default)
+                  (car search-ring)
+                  (car (symbol-value query-replace-from-history-variable)))))
+
 (defun query-replace-read-from (prompt regexp-flag)
   "Query and return the `from' argument of a query-replace operation.
 Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should be a regexp.
@@ -242,7 +257,8 @@ wants to replace FROM with TO."
                 (if regexp-flag
                     (read-regexp prompt nil 'minibuffer-history)
                   (read-from-minibuffer
-                   prompt nil nil nil nil (car search-ring) t)))))
+                   prompt nil nil nil nil
+                   (query-replace-read-from-suggestions) t)))))
            (to))
       (if (and (zerop (length from)) query-replace-defaults)
 	  (cons (caar query-replace-defaults)
@@ -327,14 +343,15 @@ Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should a regexp."
 (defun query-replace-read-args (prompt regexp-flag &optional noerror)
   (unless noerror
     (barf-if-buffer-read-only))
-  (let* ((from (query-replace-read-from prompt regexp-flag))
-	 (to (if (consp from) (prog1 (cdr from) (setq from (car from)))
-	       (query-replace-read-to from prompt regexp-flag))))
-    (list from to
-	  (or (and current-prefix-arg (not (eq current-prefix-arg '-)))
-              (and (plist-member (text-properties-at 0 from) 'isearch-regexp-function)
-                   (get-text-property 0 'isearch-regexp-function from)))
-	  (and current-prefix-arg (eq current-prefix-arg '-)))))
+  (save-mark-and-excursion
+    (let* ((from (query-replace-read-from prompt regexp-flag))
+           (to (if (consp from) (prog1 (cdr from) (setq from (car from)))
+                 (query-replace-read-to from prompt regexp-flag))))
+      (list from to
+            (or (and current-prefix-arg (not (eq current-prefix-arg '-)))
+                (and (plist-member (text-properties-at 0 from) 'isearch-regexp-function)
+                     (get-text-property 0 'isearch-regexp-function from)))
+            (and current-prefix-arg (eq current-prefix-arg '-))))))
 
 (defun query-replace (from-string to-string &optional delimited start end backward region-noncontiguous-p)
   "Replace some occurrences of FROM-STRING with TO-STRING.
@@ -808,11 +825,16 @@ the function that you set this to can check `this-command'."
 
 (defun read-regexp-suggestions ()
   "Return a list of standard suggestions for `read-regexp'.
-By default, the list includes the tag at point, the last isearch regexp,
-the last isearch string, and the last replacement regexp.  `read-regexp'
-appends the list returned by this function to the end of values available
-via \\<minibuffer-local-map>\\[next-history-element]."
+By default, the list includes the active region, the identifier
+(a.k.a. \"tag\") at point (see Info node `(emacs) Identifier Search'),
+the last isearch regexp, the last isearch string, and the last
+replacement regexp.  `read-regexp' appends the list returned
+by this function to the end of values available via
+\\<minibuffer-local-map>\\[next-history-element]."
   (list
+   (when (use-region-p)
+     (buffer-substring-no-properties
+      (region-beginning) (region-end)))
    (find-tag-default-as-regexp)
    (find-tag-default-as-symbol-regexp)
    (car regexp-search-ring)
@@ -825,31 +847,35 @@ Prompt with the string PROMPT.  If PROMPT ends in \":\" (followed by
 optional whitespace), use it as-is.  Otherwise, add \": \" to the end,
 possibly preceded by the default result (see below).
 
-The optional argument DEFAULTS can be either: nil, a string, a list
-of strings, or a symbol.  We use DEFAULTS to construct the default
-return value in case of empty input.
+The optional argument DEFAULTS is used to construct the default
+return value in case of empty input.  DEFAULTS can be nil, a string,
+a list of strings, or a symbol.
 
-If DEFAULTS is a string, we use it as-is.
+If DEFAULTS is a string, the function uses it as-is.
 
 If DEFAULTS is a list of strings, the first element is the
 default return value, but all the elements are accessible
 using the history command \\<minibuffer-local-map>\\[next-history-element].
 
-If DEFAULTS is a non-nil symbol, then if `read-regexp-defaults-function'
-is non-nil, we use that in place of DEFAULTS in the following:
-  If DEFAULTS is the symbol `regexp-history-last', we use the first
-  element of HISTORY (if specified) or `regexp-history'.
-  If DEFAULTS is a function, we call it with no arguments and use
-  what it returns, which should be either nil, a string, or a list of strings.
+If DEFAULTS is the symbol `regexp-history-last', the default return
+value will be the first element of HISTORY.  If HISTORY is omitted or
+nil, `regexp-history' is used instead.
+If DEFAULTS is a symbol with a function definition, it is called with
+no arguments and should return either nil, a string, or a list of
+strings, which will be used as above.
+Other symbol values for DEFAULTS are ignored.
 
-We append the standard values from `read-regexp-suggestions' to DEFAULTS
-before using it.
+If `read-regexp-defaults-function' is non-nil, its value is used
+instead of DEFAULTS in the two cases described in the last paragraph.
+
+Before using whatever value DEFAULTS yields, the function appends the
+standard values from `read-regexp-suggestions' to that value.
 
 If the first element of DEFAULTS is non-nil (and if PROMPT does not end
-in \":\", followed by optional whitespace), we add it to the prompt.
+in \":\", followed by optional whitespace), DEFAULT is added to the prompt.
 
 The optional argument HISTORY is a symbol to use for the history list.
-If nil, uses `regexp-history'."
+If nil, use `regexp-history'."
   (let* ((defaults
 	   (if (and defaults (symbolp defaults))
 	       (cond
@@ -866,13 +892,10 @@ If nil, uses `regexp-history'."
 	 ;; Do not automatically add default to the history for empty input.
 	 (history-add-new-input nil)
 	 (input (read-from-minibuffer
-		 (cond ((string-match-p ":[ \t]*\\'" prompt)
-			prompt)
-		       ((and default (> (length default) 0))
-			 (format "%s (default %s): " prompt
-				 (query-replace-descr default)))
-		       (t
-			(format "%s: " prompt)))
+                 (if (string-match-p ":[ \t]*\\'" prompt)
+                     prompt
+                   (format-prompt prompt (and (length> default 0)
+                                              (query-replace-descr default))))
 		 nil nil nil (or history 'regexp-history) suggestions t)))
     (if (equal input "")
 	;; Return the default value when the user enters empty input.
@@ -1522,7 +1545,10 @@ You can add this to `occur-hook' if you always want a separate
   (with-current-buffer
       (if (eq major-mode 'occur-mode) (current-buffer) (get-buffer "*Occur*"))
     (rename-buffer (concat "*Occur: "
-                           (mapconcat #'buffer-name
+                           (mapconcat (lambda (boo)
+                                        (buffer-name (if (overlayp boo)
+                                                         (overlay-buffer boo)
+                                                       boo)))
                                       (car (cddr occur-revert-arguments)) "/")
                            "*")
                    (or unique-p (not interactive-p)))))
@@ -1756,7 +1782,8 @@ See also `multi-occur'."
 			       42)
 			    (window-width))
 			 "" (occur-regexp-descr regexp))))
-          (occur--garbage-collect-revert-args)
+          (unless (eq bufs (nth 2 occur-revert-arguments))
+            (occur--garbage-collect-revert-args))
 	  (setq occur-revert-arguments (list regexp nlines bufs))
           (if (= count 0)
               (kill-buffer occur-buf)
@@ -2428,23 +2455,27 @@ It is called with three arguments, as if it were
 	(overlay-put replace-overlay 'priority 1001) ;higher than lazy overlays
 	(overlay-put replace-overlay 'face 'query-replace)))
 
-  (when (and query-replace-highlight-submatches
-	     regexp-flag)
+  (when (and query-replace-highlight-submatches regexp-flag)
     (mapc 'delete-overlay replace-submatches-overlays)
     (setq replace-submatches-overlays nil)
-    (let ((submatch-data (cddr (butlast (match-data t))))
+    ;; 'cddr' removes whole expression match from match-data
+    (let ((submatch-data (cddr (match-data t)))
           (group 0)
-          ov face)
+          b e ov face)
       (while submatch-data
-        (setq group (1+ group))
-        (setq ov (make-overlay (pop submatch-data) (pop submatch-data))
-              face (intern-soft (format "isearch-group-%d" group)))
-        ;; Recycle faces from beginning.
-        (unless (facep face)
-          (setq group 1 face 'isearch-group-1))
-        (overlay-put ov 'face face)
-        (overlay-put ov 'priority 1002)
-        (push ov replace-submatches-overlays))))
+        (setq b (pop submatch-data)
+              e (pop submatch-data))
+        (when (and (integer-or-marker-p b)
+                   (integer-or-marker-p e))
+          (setq ov (make-overlay b e)
+                group (1+ group)
+                face (intern-soft (format "isearch-group-%d" group)))
+          ;; Recycle faces from beginning
+          (unless (facep face)
+            (setq group 1 face 'isearch-group-1))
+          (overlay-put ov 'face face)
+          (overlay-put ov 'priority 1002)
+          (push ov replace-submatches-overlays)))))
 
   (if query-replace-lazy-highlight
       (let ((isearch-string search-string)
