@@ -6,7 +6,7 @@ This project is a fork of GNU Emacs which is used to build [[https://gitlab.com/
 ** Compatibility
 *WARNING* this fork is not tested thoroughly, it should not be considered stable.
 
-This project /should/ be compatible with any modern Unix-like system, but is only regularly used on Ubuntu 20.04.1 with Linux 5.4.0. Other systems are not and will not be tested.
+This project /should/ be compatible with any modern Unix-like system, but is only regularly used on Ubuntu 20.10; other systems are not tested.
 
 ** Installation
 Full installation information may be found in the =INSTALL= file. But this is the synopsis.
@@ -15,7 +15,7 @@ Note that the =-j= option given to =make= is tuned for my 12-core system. By def
 
 #+begin_src sh
 ./autoconf.sh
-./configure
+make aero-configure
 make -j12
 sudo make install
 #+end_src
@@ -26,6 +26,6 @@ Copyright (C) 2001-2021 Free Software Foundation, Inc.
 
 Aero Emacs is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation version 3.
 
-*NOTICE*: While GNU Emacs may be licensed under either version 3 or any later version of the GPL, Aero Emacs is licensed under the terms of version 3 /only/. Version 3 is bad enough, I'm not letting it slip into some unknown future version.
+*NOTICE*: While GNU Emacs may be licensed under either version 3 or any later version of the GPL, Aero Emacs is licensed under the terms of version 3 /only/. Version 3 is bad enough, I'm not letting it slip into some unknown future version automatically.
 
 See the file =COPYING= for full license terms.
