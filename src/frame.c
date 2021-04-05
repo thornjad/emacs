@@ -898,6 +898,7 @@ make_frame (bool mini_p)
   f->no_accept_focus = false;
   f->z_group = z_group_none;
   f->tooltip = false;
+  f->child_frame_border_width = -1;
   f->last_tab_bar_item = -1;
 #ifndef HAVE_EXT_TOOL_BAR
   f->last_tool_bar_item = -1;
@@ -1486,7 +1487,7 @@ do_switch_frame (Lisp_Object frame, int track, int for_deletion, Lisp_Object nor
 #endif
     internal_last_event_frame = Qnil;
 
-  move_minibuffer_onto_frame ();
+  move_minibuffers_onto_frame (sf, for_deletion);
   return frame;
 }
 
@@ -3544,10 +3545,17 @@ DEFUN ("frame-fringe-width", Ffringe_width, Sfringe_width, 0, 1, 0,
 }
 
 DEFUN ("frame-child-frame-border-width", Fframe_child_frame_border_width, Sframe_child_frame_border_width, 0, 1, 0,
-       doc: /* Return width of FRAME's child-frame border in pixels.  */)
+       doc: /* Return width of FRAME's child-frame border in pixels.
+ If FRAME's 'child-frame-border-width' parameter is nil, return FRAME's
+ internal border width instead.  */)
   (Lisp_Object frame)
 {
-  return make_fixnum (FRAME_CHILD_FRAME_BORDER_WIDTH (decode_any_frame (frame)));
+  int width = FRAME_CHILD_FRAME_BORDER_WIDTH (decode_any_frame (frame));
+
+  if (width < 0)
+    return make_fixnum (FRAME_INTERNAL_BORDER_WIDTH (decode_any_frame (frame)));
+  else
+    return make_fixnum (FRAME_CHILD_FRAME_BORDER_WIDTH (decode_any_frame (frame)));
 }
 
 DEFUN ("frame-internal-border-width", Fframe_internal_border_width, Sframe_internal_border_width, 0, 1, 0,
@@ -3587,7 +3595,7 @@ check_frame_pixels (Lisp_Object size, Lisp_Object pixelwise, int item_size)
 }
 
 DEFUN ("set-frame-height", Fset_frame_height, Sset_frame_height, 2, 4,
-       "(list (selected-frame) (prefix-numeric-value current-prefix-arg))",
+       "(set-frame-property--interactive \"Frame height: \" (frame-height))",
        doc: /* Set text height of frame FRAME to HEIGHT lines.
 Optional third arg PRETEND non-nil means that redisplay should use
 HEIGHT lines but that the idea of the actual height of the frame should
@@ -3612,7 +3620,7 @@ If FRAME is nil, it defaults to the selected frame.  */)
 }
 
 DEFUN ("set-frame-width", Fset_frame_width, Sset_frame_width, 2, 4,
-       "(list (selected-frame) (prefix-numeric-value current-prefix-arg))",
+       "(set-frame-property--interactive \"Frame width: \" (frame-width))",
        doc: /* Set text width of frame FRAME to WIDTH columns.
 Optional third arg PRETEND non-nil means that redisplay should use WIDTH
 columns but that the idea of the actual width of the frame should not
@@ -3736,6 +3744,17 @@ window state change flag is reset.  */)
   return (FRAME_WINDOW_STATE_CHANGE (f) = !NILP (arg)) ? Qt : Qnil;
 }
 
+DEFUN ("frame-scale-factor", Fframe_scale_factor, Sframe_scale_factor,
+       0, 1, 0,
+       doc: /* Return FRAMEs scale factor.
+The scale factor is the amount by which a logical pixel size must be
+multiplied to find the real number of pixels.  */)
+     (Lisp_Object frame)
+{
+  struct frame *f = decode_live_frame (frame);
+
+  return (make_float (f ? FRAME_SCALE_FACTOR (f) : 1));
+}
 
 /***********************************************************************
 				Frame Parameters
@@ -3882,7 +3901,7 @@ frame_float (struct frame *f, Lisp_Object val, enum frame_float_type what,
 	      Lisp_Object frame;
 
 	      XSETFRAME (frame, f);
-	      monitor_attributes = Fcar (call1 (Qdisplay_monitor_attributes_list, frame));
+	      monitor_attributes = call1 (Qframe_monitor_attributes, frame);
 	      if (NILP (monitor_attributes))
 		{
 		  /* No monitor attributes available.  */
@@ -4311,7 +4330,9 @@ gui_report_frame_params (struct frame *f, Lisp_Object *alistptr)
   store_in_alist (alistptr, Qborder_width,
 		  make_fixnum (f->border_width));
   store_in_alist (alistptr, Qchild_frame_border_width,
-		  make_fixnum (FRAME_CHILD_FRAME_BORDER_WIDTH (f)));
+		  FRAME_CHILD_FRAME_BORDER_WIDTH (f) >= 0
+		  ? make_fixnum (FRAME_CHILD_FRAME_BORDER_WIDTH (f))
+		  : Qnil);
   store_in_alist (alistptr, Qinternal_border_width,
 		  make_fixnum (FRAME_INTERNAL_BORDER_WIDTH (f)));
   store_in_alist (alistptr, Qright_divider_width,
@@ -5880,7 +5901,7 @@ syms_of_frame (void)
   DEFSYM (Qframep, "framep");
   DEFSYM (Qframe_live_p, "frame-live-p");
   DEFSYM (Qframe_windows_min_size, "frame-windows-min-size");
-  DEFSYM (Qdisplay_monitor_attributes_list, "display-monitor-attributes-list");
+  DEFSYM (Qframe_monitor_attributes, "frame-monitor-attributes");
   DEFSYM (Qwindow__pixel_to_total, "window--pixel-to-total");
   DEFSYM (Qexplicit_name, "explicit-name");
   DEFSYM (Qheight, "height");
@@ -6447,6 +6468,7 @@ iconify the top level frame instead.  */);
   defsubr (&Sframe_pointer_visible_p);
   defsubr (&Sframe_window_state_change);
   defsubr (&Sset_frame_window_state_change);
+  defsubr (&Sframe_scale_factor);
 
 #ifdef HAVE_WINDOW_SYSTEM
   defsubr (&Sx_get_resource);

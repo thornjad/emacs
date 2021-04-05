@@ -1439,6 +1439,8 @@ ARGS is a list of image descriptors."
 			    (apply #'create-image file doc-view--image-type nil args)
 			  (unless (member :width args)
 			    (setq args `(,@args :width ,doc-view-image-width)))
+                          (unless (member :transform-smoothing args)
+                            (setq args `(,@args :transform-smoothing t)))
 			  (apply #'create-image file doc-view--image-type nil args))))
 	     (slice (doc-view-current-slice))
 	     (img-width (and image (car (image-size image))))
@@ -1800,11 +1802,6 @@ If BACKWARD is non-nil, jump to the previous match."
   (remove-overlays (point-min) (point-max) 'doc-view t)
   (if (consp image-mode-winprops-alist) (setq image-mode-winprops-alist nil)))
 
-(defun doc-view-intersection (l1 l2)
-  (let ((l ()))
-    (dolist (x l1) (if (memq x l2) (push x l)))
-    l))
-
 (defun doc-view-set-doc-type ()
   "Figure out the current document type (`doc-view-doc-type')."
   (let ((name-types
@@ -1839,7 +1836,7 @@ If BACKWARD is non-nil, jump to the previous match."
 	    ((looking-at "AT&TFORM") '(djvu))))))
     (setq-local
      doc-view-doc-type
-     (car (or (doc-view-intersection name-types content-types)
+     (car (or (nreverse (seq-intersection name-types content-types #'eq))
               (when (and name-types content-types)
                 (error "Conflicting types: name says %s but content says %s"
                        name-types content-types))
@@ -2143,6 +2140,12 @@ See the command `doc-view-mode' for more information on this mode."
 	      (doc-view-goto-page page))))
     (add-hook 'bookmark-after-jump-hook show-fn-sym)
     (bookmark-default-handler bmk)))
+
+;; Obsolete.
+
+(defun doc-view-intersection (l1 l2)
+  (declare (obsolete seq-intersection "28.1"))
+  (nreverse (seq-intersection l1 l2 #'eq)))
 
 (provide 'doc-view)
 

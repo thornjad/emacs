@@ -1,4 +1,4 @@
-;;; cfengine.el --- mode for editing Cfengine files
+;;; cfengine.el --- mode for editing Cfengine files  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2001-2021 Free Software Foundation, Inc.
 
@@ -69,7 +69,6 @@
 
 (defcustom cfengine-indent 2
   "Size of a CFEngine indentation step in columns."
-  :group 'cfengine
   :type 'integer)
 
 (defcustom cfengine-cf-promises
@@ -86,7 +85,6 @@ Used for syntax discovery and checking.  Set to nil to disable
 the `compile-command' override.  In that case, the ElDoc support
 will use a fallback syntax definition."
   :version "24.4"
-  :group 'cfengine
   :type '(choice file (const nil)))
 
 (defcustom cfengine-parameters-indent '(promise pname 2)
@@ -145,7 +143,6 @@ bundle agent rcfiles
 }
 "
   :version "24.4"
-  :group 'cfengine
   :type '(list
           (choice (const :tag "Anchor at beginning of promise" promise)
                   (const :tag "Anchor at beginning of line" bol))
@@ -799,7 +796,6 @@ bundle agent rcfiles
 
 (defcustom cfengine-mode-abbrevs nil
   "Abbrevs for CFEngine2 mode."
-  :group 'cfengine
   :type '(repeat (list (string :tag "Name")
 		       (string :tag "Expansion")
 		       (choice  :tag "Hook" (const nil) function))))
@@ -991,13 +987,11 @@ Intended as the value of `indent-line-function'."
     (if (> (- (point-max) pos) (point))
 	(goto-char (- (point-max) pos)))))
 
-;; This doesn't work too well in Emacs 21.2.  See 22.1 development
-;; code.
 (defun cfengine-fill-paragraph (&optional justify)
   "Fill `paragraphs' in Cfengine code."
   (interactive "P")
   (or (if (fboundp 'fill-comment-paragraph)
-	  (fill-comment-paragraph justify) ; post Emacs 21.3
+          (fill-comment-paragraph justify)
 	;; else do nothing in a comment
 	(nth 4 (parse-partial-sexp (save-excursion
 				     (beginning-of-defun)
@@ -1446,7 +1440,7 @@ to the action header."
       (cfengine3-mode)
     (cfengine2-mode)))
 
-(defalias 'cfengine-mode 'cfengine3-mode)
+(defalias 'cfengine-mode #'cfengine3-mode)
 
 (provide 'cfengine3)
 (provide 'cfengine)

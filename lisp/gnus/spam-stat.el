@@ -492,7 +492,7 @@ Add user supplied modifications if supplied."
   (let* ((probs (mapcar #'cadr spam-stat-score-data))
 	 (prod (apply #'* probs))
 	 (score0
-	  (/ prod (+ prod (apply #'* (mapcar #'(lambda (x) (- 1 x))
+          (/ prod (+ prod (apply #'* (mapcar (lambda (x) (- 1 x))
 					     probs)))))
 	 (score1s
 	  (condition-case nil
@@ -575,7 +575,6 @@ check the variable `spam-stat-score-data'."
 
 (defun spam-stat-count ()
   "Return size of `spam-stat'."
-  (interactive)
   (hash-table-count spam-stat))
 
 (defun spam-stat-test-directory (dir &optional verbose)

@@ -728,9 +728,9 @@ Available types are listed in the variable `quail-keyboard-layout-alist'."
   :type (cons 'choice (mapcar (lambda (elt)
 				(list 'const (car elt)))
 			      quail-keyboard-layout-alist))
-  :set #'(lambda (symbol value)
-	   (quail-update-keyboard-layout value)
-	   (set symbol value)))
+  :set (lambda (symbol value)
+         (quail-update-keyboard-layout value)
+         (set symbol value)))
 
 ;;;###autoload
 (defun quail-set-keyboard-layout (kbd-type)
@@ -1075,7 +1075,7 @@ The installed decode map can be referred by the function `quail-decode-map'."
 KEY is a string meaning a sequence of keystrokes to be translated.
 TRANSLATION is a character, a string, a vector, a Quail map,
  a function, or a cons.
-It it is a character, it is the sole translation of KEY.
+If it is a character, it is the sole translation of KEY.
 If it is a string, each character is a candidate for the translation.
 If it is a vector, each element (string or character) is a candidate
  for the translation.
@@ -1571,12 +1571,12 @@ with more keys."
 	    (let (char)
 	      (if (stringp quail-current-str)
 		  (catch 'tag
-		    (mapc #'(lambda (ch)
-			      (when (/= (unibyte-char-to-multibyte
-					 (multibyte-char-to-unibyte ch))
-					ch)
-				  (setq char ch)
-				  (throw 'tag nil)))
+                    (mapc (lambda (ch)
+                            (when (/= (unibyte-char-to-multibyte
+                                       (multibyte-char-to-unibyte ch))
+                                      ch)
+                              (setq char ch)
+                              (throw 'tag nil)))
 			  quail-current-str))
 		(if (/= (unibyte-char-to-multibyte
 			 (multibyte-char-to-unibyte quail-current-str))
@@ -2827,19 +2827,19 @@ If CHAR is an ASCII character and can be input by typing itself, return t."
 	(key-list nil))
     (if (consp decode-map)
 	(let ((str (string char)))
-	  (mapc #'(lambda (elt)
-		    (if (string= str (car elt))
-			(setq key-list (cons (cdr elt) key-list))))
+          (mapc (lambda (elt)
+                  (if (string= str (car elt))
+                      (setq key-list (cons (cdr elt) key-list))))
 		(cdr decode-map)))
       (let ((key-head (aref decode-map char)))
 	(if (stringp key-head)
 	    (setq key-list (quail-find-key1
 			    (quail-lookup-key key-head nil t)
 			    key-head char nil))
-	  (mapc #'(lambda (elt)
-		    (setq key-list
-			  (quail-find-key1
-			   (quail-lookup-key elt nil t) elt char key-list)))
+          (mapc (lambda (elt)
+                  (setq key-list
+                        (quail-find-key1
+                         (quail-lookup-key elt nil t) elt char key-list)))
 		key-head))))
     (or key-list
 	(and (< char 128)
@@ -3066,28 +3066,31 @@ of each directory."
 	    ;; Don't get fooled by commented-out code.
 	    (while (re-search-forward "^[ \t]*(quail-define-package" nil t)
 	      (goto-char (match-beginning 0))
-	      (condition-case nil
-		  (let ((form (read (current-buffer))))
-		    (with-current-buffer list-buf
-		      (insert
-		       (format "(register-input-method
+              (let (form)
+	        (condition-case err
+		    (progn
+                      (setq form (read (current-buffer)))
+		      (with-current-buffer list-buf
+		        (insert
+		         (format "(register-input-method
  %S %S '%s
  %S %S
  %S)\n"
-			       (nth 1 form) ; PACKAGE-NAME
-			       (nth 2 form) ; LANGUAGE
-			       'quail-use-package ; ACTIVATE-FUNC
-			       (nth 3 form) ; PACKAGE-TITLE
-			       (progn	; PACKAGE-DESCRIPTION (one line)
-				 (string-match ".*" (nth 5 form))
-				 (match-string 0 (nth 5 form)))
-			       (file-relative-name ; PACKAGE-FILENAME
-				(file-name-sans-extension (car pkg-list))
-				(car dirnames))))))
-		(error
-		 ;; Ignore the remaining contents of this file.
-		 (goto-char (point-max))
-		 (message "Some part of \"%s\" is broken" (car pkg-list))))))
+			         (nth 1 form)       ; PACKAGE-NAME
+			         (nth 2 form)       ; LANGUAGE
+			         'quail-use-package ; ACTIVATE-FUNC
+			         (nth 3 form)       ; PACKAGE-TITLE
+			         (progn	; PACKAGE-DESCRIPTION (one line)
+				   (string-match ".*" (nth 5 form))
+				   (match-string 0 (nth 5 form)))
+			         (file-relative-name ; PACKAGE-FILENAME
+				  (file-name-sans-extension (car pkg-list))
+				  (car dirnames))))))
+		  (error
+		   ;; Ignore the remaining contents of this file.
+		   (goto-char (point-max))
+		   (message "Some part of \"%s\" is broken: %s in %s"
+                            (car pkg-list) err form))))))
 	  (setq pkg-list (cdr pkg-list)))
 	(setq quail-dirs (cdr quail-dirs) dirnames (cdr dirnames))))
 

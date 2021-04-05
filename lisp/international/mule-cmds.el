@@ -679,18 +679,18 @@ DEFAULT is the coding system to use by default in the query."
   ;;	((CODING (POS . CHAR) (POS . CHAR) ...) ...)
   (if unsafe
       (setq unsafe
-	    (mapcar #'(lambda (coding)
-			(cons coding
-			      (if (stringp from)
-				  (mapcar #'(lambda (pos)
-					      (cons pos (aref from pos)))
-					  (unencodable-char-position
-					   0 (length from) coding
-					   11 from))
-				(mapcar #'(lambda (pos)
-					    (cons pos (char-after pos)))
-					(unencodable-char-position
-					 from to coding 11)))))
+            (mapcar (lambda (coding)
+                      (cons coding
+                            (if (stringp from)
+                                (mapcar (lambda (pos)
+                                          (cons pos (aref from pos)))
+                                        (unencodable-char-position
+                                         0 (length from) coding
+                                         11 from))
+                              (mapcar (lambda (pos)
+                                        (cons pos (char-after pos)))
+                                      (unencodable-char-position
+                                       from to coding 11)))))
 		    unsafe)))
 
   (setq codings (sanitize-coding-system-list codings))
@@ -744,19 +744,19 @@ e.g., for sending an email message.\n ")
 		(insert (format "  %s cannot encode these:" (car coding)))
 		(let ((i 0)
 		      (func1
-		       #'(lambda (bufname pos)
-			   (when (buffer-live-p (get-buffer bufname))
-			     (pop-to-buffer bufname)
-			     (goto-char pos))))
+                       (lambda (bufname pos)
+                         (when (buffer-live-p (get-buffer bufname))
+                           (pop-to-buffer bufname)
+                           (goto-char pos))))
 		      (func2
-		       #'(lambda (bufname pos coding)
-			   (when (buffer-live-p (get-buffer bufname))
-			     (pop-to-buffer bufname)
-			     (if (< (point) pos)
-				 (goto-char pos)
-			       (forward-char 1)
-			       (search-unencodable-char coding)
-			       (forward-char -1))))))
+                       (lambda (bufname pos coding)
+                         (when (buffer-live-p (get-buffer bufname))
+                           (pop-to-buffer bufname)
+                           (if (< (point) pos)
+                               (goto-char pos)
+                             (forward-char 1)
+                             (search-unencodable-char coding)
+                             (forward-char -1))))))
 		  (dolist (elt (cdr coding))
 		    (insert " ")
 		    (if (stringp from)
@@ -1524,7 +1524,7 @@ To deactivate it programmatically, use `deactivate-input-method'."
   (interactive
    (let* ((default (or (car input-method-history) default-input-method)))
      (list (read-input-method-name
-	    (if default "Select input method (default %s): " "Select input method: ")
+	    (format-prompt "Select input method" default)
 	    default t)
 	   t)))
   (activate-input-method input-method)
@@ -1569,7 +1569,7 @@ which marks the variable `default-input-method' as set for Custom buffers."
        (if (or arg (not default))
 	   (progn
 	     (read-input-method-name
-	      (if default "Input method (default %s): " "Input method: " )
+	      (format-prompt "Input method" default)
 	      default t))
 	 default))
       (unless default-input-method
@@ -1620,7 +1620,7 @@ If `default-transient-input-method' was not yet defined, prompt for it."
   "Describe input method INPUT-METHOD."
   (interactive
    (list (read-input-method-name
-	  "Describe input method (default current choice): ")))
+          (format-prompt "Describe input method" current-input-method))))
   (if (and input-method (symbolp input-method))
       (setq input-method (symbol-name input-method)))
   (help-setup-xref (list #'describe-input-method
@@ -1929,7 +1929,7 @@ runs the hook `exit-language-environment-hook'.  After setting up
 the new language environment, it runs `set-language-environment-hook'."
   (interactive (list (read-language-name
 		      nil
-		      "Set language environment (default English): ")))
+		      (format-prompt "Set language environment" "English"))))
   (if language-name
       (if (symbolp language-name)
 	  (setq language-name (symbol-name language-name)))
@@ -2144,7 +2144,7 @@ See `set-language-info-alist' for use in programs."
   (interactive
    (list (read-language-name
 	  'documentation
-	  "Describe language environment (default current choice): ")))
+	  (format-prompt "Describe language environment" current-language-environment))))
   (if (null language-name)
       (setq language-name current-language-environment))
   (if (or (null language-name)
@@ -2245,7 +2245,7 @@ See `set-language-info-alist' for use in programs."
      ;; LANGUAGE is a language code taken from ISO 639:1988 (E/F)
      ;; with additions from ISO 639/RA Newsletter No.1/1989;
      ;; see Internet RFC 2165 (1997-06) and
-     ;; http://www.evertype.com/standards/iso639/iso639-en.html
+     ;; https://www.evertype.com/standards/iso639/iso639-en.html
      ;; TERRITORY is a country code taken from ISO 3166
      ;; http://www.din.de/gremien/nas/nabd/iso3166ma/codlstp1/en_listp1.html.
      ;; CODESET and MODIFIER are implementation-dependent.
@@ -3077,11 +3077,46 @@ on encoding."
         (puthash "BELL (BEL)" ?\a names)
         (setq ucs-names names))))
 
+(defun mule--ucs-names-sort-by-code (names)
+  (let ((codes-and-names
+         (mapcar (lambda (name) (cons (gethash name ucs-names) name)) names)))
+    (mapcar #'cdr (sort codes-and-names #'car-less-than-car))))
+
 (defun mule--ucs-names-affixation (names)
   (mapcar (lambda (name)
             (let ((char (gethash name ucs-names)))
-              (list name (concat (if char (format "%c" char) " ") "\t") "")))
+              (list name (concat (if char (list char) " ") "\t") "")))
           names))
+
+(defun mule--ucs-names-group (names)
+  (let* ((codes-and-names
+          (mapcar (lambda (name) (cons (gethash name ucs-names) name)) names))
+         (grouped
+          (seq-group-by
+           (lambda (code-name)
+             (let ((script (aref char-script-table (car code-name))))
+               (if script (symbol-name script) "ungrouped")))
+           codes-and-names))
+         names-with-header header)
+    (dolist (group (sort grouped (lambda (a b) (string< (car a) (car b)))))
+      (setq header t)
+      (dolist (code-name (cdr group))
+        (push (list
+               (cdr code-name)
+               (concat
+                (if header
+                    (progn
+                      (setq header nil)
+                      (concat "\n" (propertize
+                                    (format "* %s\n" (car group))
+                                    'face 'header-line)))
+                  "")
+                ;; prefix
+                (if (car code-name) (format "%c" (car code-name)) " ") "\t")
+               ;; suffix
+               "")
+              names-with-header)))
+    (nreverse names-with-header)))
 
 (defun char-from-name (string &optional ignore-case)
   "Return a character as a number from its Unicode name STRING.
@@ -3104,6 +3139,23 @@ Return nil if STRING does not name a character."
                                            ignore-case))
                 code)))))))
 
+(defcustom read-char-by-name-sort nil
+  "How to sort characters for `read-char-by-name' completion.
+Defines the sorting order either by character names or their codepoints."
+  :type '(choice
+          (const :tag "Sort by character names" nil)
+          (const :tag "Sort by character codepoints" code))
+  :group 'mule
+  :version "28.1")
+
+(defcustom read-char-by-name-group nil
+  "How to group characters for `read-char-by-name' completion.
+When t, split characters to sections of Unicode blocks
+sorted alphabetically."
+  :type 'boolean
+  :group 'mule
+  :version "28.1")
+
 (defun read-char-by-name (prompt)
   "Read a character by its Unicode name or hex number string.
 Display PROMPT and read a string that represents a character by its
@@ -3116,6 +3168,9 @@ use completion.  If you type a substring of the Unicode name
 preceded by an asterisk `*' and use completion, it will show all
 the characters whose names include that substring, not necessarily
 at the beginning of the name.
+
+The options `read-char-by-name-sort' and `read-char-by-name-group'
+define the sorting order of completion characters and how to group them.
 
 Accept a name like \"CIRCULATION FUNCTION\", a hexadecimal
 number like \"2A10\", or a number in hash notation (e.g.,
@@ -3130,8 +3185,14 @@ as names, not numbers."
 	   prompt
 	   (lambda (string pred action)
 	     (if (eq action 'metadata)
-		 '(metadata
-		   (affixation-function . mule--ucs-names-affixation)
+		 `(metadata
+		   (display-sort-function
+		    . ,(when (eq read-char-by-name-sort 'code)
+                         #'mule--ucs-names-sort-by-code))
+		   (affixation-function
+		    . ,(if read-char-by-name-group
+                           #'mule--ucs-names-group
+                         #'mule--ucs-names-affixation))
 		   (category . unicode-name))
 	       (complete-with-action action (ucs-names) string pred)))))
 	 (char

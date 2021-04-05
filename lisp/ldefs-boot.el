@@ -62,7 +62,7 @@ should return a grid vector array that is the new solution.
 ;;;### (autoloads nil "add-log" "vc/add-log.el" (0 0 0 0))
 ;;; Generated autoloads from vc/add-log.el
 
-(put 'change-log-default-name 'safe-local-variable 'string-or-null-p)
+(put 'change-log-default-name 'safe-local-variable #'string-or-null-p)
 
 (defvar add-log-current-defun-function nil "\
 If non-nil, function to guess name of surrounding function.
@@ -477,31 +477,31 @@ With value nil, inhibit any automatic allout-mode activation.")
 
 (custom-autoload 'allout-auto-activation "allout" nil)
 
-(put 'allout-use-hanging-indents 'safe-local-variable 'booleanp)
+(put 'allout-use-hanging-indents 'safe-local-variable #'booleanp)
 
 (put 'allout-reindent-bodies 'safe-local-variable (lambda (x) (memq x '(nil t text force))))
 
-(put 'allout-show-bodies 'safe-local-variable 'booleanp)
+(put 'allout-show-bodies 'safe-local-variable #'booleanp)
 
-(put 'allout-header-prefix 'safe-local-variable 'stringp)
+(put 'allout-header-prefix 'safe-local-variable #'stringp)
 
-(put 'allout-primary-bullet 'safe-local-variable 'stringp)
+(put 'allout-primary-bullet 'safe-local-variable #'stringp)
 
-(put 'allout-plain-bullets-string 'safe-local-variable 'stringp)
+(put 'allout-plain-bullets-string 'safe-local-variable #'stringp)
 
-(put 'allout-distinctive-bullets-string 'safe-local-variable 'stringp)
+(put 'allout-distinctive-bullets-string 'safe-local-variable #'stringp)
 
 (put 'allout-use-mode-specific-leader 'safe-local-variable (lambda (x) (or (memq x '(t nil allout-mode-leaders comment-start)) (stringp x))))
 
-(put 'allout-old-style-prefixes 'safe-local-variable 'booleanp)
+(put 'allout-old-style-prefixes 'safe-local-variable #'booleanp)
 
-(put 'allout-stylish-prefixes 'safe-local-variable 'booleanp)
+(put 'allout-stylish-prefixes 'safe-local-variable #'booleanp)
 
-(put 'allout-numbered-bullet 'safe-local-variable 'string-or-null-p)
+(put 'allout-numbered-bullet 'safe-local-variable #'string-or-null-p)
 
-(put 'allout-file-xref-bullet 'safe-local-variable 'string-or-null-p)
+(put 'allout-file-xref-bullet 'safe-local-variable #'string-or-null-p)
 
-(put 'allout-presentation-padding 'safe-local-variable 'integerp)
+(put 'allout-presentation-padding 'safe-local-variable #'integerp)
 
 (put 'allout-layout 'safe-local-variable (lambda (x) (or (numberp x) (listp x) (memq x '(: * + -)))))
 
@@ -784,7 +784,7 @@ OPEN:	A TOPIC that is not CLOSED, though its OFFSPRING or BODY may be.
 
 \(fn &optional ARG)" t nil)
 
-(defalias 'outlinify-sticky 'outlineify-sticky)
+(defalias 'outlinify-sticky #'outlineify-sticky)
 
 (autoload 'outlineify-sticky "allout" "\
 Activate outline mode and establish file var so it is started subsequently.
@@ -827,7 +827,7 @@ See `allout-widgets-mode' for allout widgets mode features.")
 
 (custom-autoload 'allout-widgets-auto-activation "allout-widgets" nil)
 
-(put 'allout-widgets-mode-inhibit 'safe-local-variable 'booleanp)
+(put 'allout-widgets-mode-inhibit 'safe-local-variable #'booleanp)
 
 (autoload 'allout-widgets-mode "allout-widgets" "\
 Toggle Allout Widgets mode.
@@ -1161,11 +1161,11 @@ Returns list of symbols and documentation found.
 (autoload 'archive-mode "arc-mode" "\
 Major mode for viewing an archive file in a dired-like way.
 You can move around using the usual cursor motion commands.
-Letters no longer insert themselves.
-Type `e' to pull a file out of the archive and into its own buffer;
+Letters no longer insert themselves.\\<archive-mode-map>
+Type \\[archive-extract] to pull a file out of the archive and into its own buffer;
 or click mouse-2 on the file's line in the archive mode buffer.
 
-If you edit a sub-file of this archive (as with the `e' command) and
+If you edit a sub-file of this archive (as with the \\[archive-extract] command) and
 save it, the contents of that buffer will be saved back into the
 archive.
 
@@ -1539,7 +1539,7 @@ ENTRY is the name of a password-store entry.
 The key used to retrieve the password is the symbol `secret'.
 
 The convention used as the format for a password-store file is
-the following (see http://www.passwordstore.org/#organization):
+the following (see https://www.passwordstore.org/#organization):
 
 secret
 key1: value1
@@ -1881,7 +1881,7 @@ specifies in the mode line.
 Activate Mouse Avoidance mode.
 See function `mouse-avoidance-mode' for possible values.
 Setting this variable directly does not take effect;
-use either \\[customize] or the function `mouse-avoidance-mode'.")
+use either \\[customize] or \\[mouse-avoidance-mode].")
 
 (custom-autoload 'mouse-avoidance-mode "avoid" nil)
 
@@ -1995,6 +1995,20 @@ seconds.
 ;;;;;;  0 0))
 ;;; Generated autoloads from emacs-lisp/benchmark.el
 
+(autoload 'benchmark-call "benchmark" "\
+Measure the run time of calling FUNC a number REPETITIONS of times.
+The result is a list (TIME GC GCTIME)
+where TIME is the total time it took, in seconds.
+GCTIME is the amount of time that was spent in the GC
+and GC is the number of times the GC was called.
+
+REPETITIONS can also be a floating point number, in which case it
+specifies a minimum number of seconds that the benchmark execution
+should take.  In that case the return value is prepended with the
+number of repetitions actually used.
+
+\(fn FUNC &optional REPETITIONS)" nil nil)
+
 (autoload 'benchmark-run "benchmark" "\
 Time execution of FORMS.
 If REPETITIONS is supplied as a number, run FORMS that many times,
@@ -2024,6 +2038,8 @@ Interactively, REPETITIONS is taken from the prefix arg, and
 the command prompts for the form to benchmark.
 For non-interactive use see also `benchmark-run' and
 `benchmark-run-compiled'.
+FORM can also be a function in which case we measure the time it takes
+to call it without any argument.
 
 \(fn REPETITIONS FORM)" t nil)
 
@@ -2035,7 +2051,7 @@ The return value is the value of the final form in BODY.
 
 (function-put 'benchmark-progn 'lisp-indent-function '0)
 
-(register-definition-prefixes "benchmark" '("benchmark-elapse"))
+(register-definition-prefixes "benchmark" '("benchmark-"))
 
 ;;;***
 
@@ -2529,7 +2545,7 @@ deletion, or > if it is flagged for displaying." t nil)
 (defalias 'edit-bookmarks 'bookmark-bmenu-list)
 
 (autoload 'bookmark-bmenu-search "bookmark" "\
-Incremental search of bookmarks, hiding the non-matches as we go." t nil)
+Incremental search of bookmarks, hiding the non-matches as we go." '(bookmark-bmenu-mode) nil)
 
 (defvar menu-bar-bookmark-map (let ((map (make-sparse-keymap "Bookmark functions"))) (bindings--define-key map [load] '(menu-item "Load a Bookmark File..." bookmark-load :help "Load bookmarks from a bookmark file)")) (bindings--define-key map [write] '(menu-item "Save Bookmarks As..." bookmark-write :help "Write bookmarks to a file (reading the file name with the minibuffer)")) (bindings--define-key map [save] '(menu-item "Save Bookmarks" bookmark-save :help "Save currently defined bookmarks")) (bindings--define-key map [edit] '(menu-item "Edit Bookmark List" bookmark-bmenu-list :help "Display a list of existing bookmarks")) (bindings--define-key map [delete] '(menu-item "Delete Bookmark..." bookmark-delete :help "Delete a bookmark from the bookmark list")) (bindings--define-key map [delete-all] '(menu-item "Delete all Bookmarks..." bookmark-delete-all :help "Delete all bookmarks from the bookmark list")) (bindings--define-key map [rename] '(menu-item "Rename Bookmark..." bookmark-rename :help "Change the name of a bookmark")) (bindings--define-key map [locate] '(menu-item "Insert Location..." bookmark-locate :help "Insert the name of the file associated with a bookmark")) (bindings--define-key map [insert] '(menu-item "Insert Contents..." bookmark-insert :help "Insert the text of the file pointed to by a bookmark")) (bindings--define-key map [set] '(menu-item "Set Bookmark..." bookmark-set :help "Set a bookmark named inside a file.")) (bindings--define-key map [jump] '(menu-item "Jump to Bookmark..." bookmark-jump :help "Jump to a bookmark (a point in some file)")) map))
 
@@ -4410,11 +4426,6 @@ Returns a form where all lambdas don't have any free variables.
 
 \(fn FORM)" nil nil)
 
-(autoload 'cconv-warnings-only "cconv" "\
-Add the warnings that closure conversion would encounter.
-
-\(fn FORM)" nil nil)
-
 (register-definition-prefixes "cconv" '("cconv-"))
 
 ;;;***
@@ -4799,7 +4810,7 @@ element to judge if that element should be excluded from the list.
 The buffer is left in Command History mode." t nil)
 
 (autoload 'command-history "chistory" "\
-Examine commands from `command-history' in a buffer.
+Examine commands from variable `command-history' in a buffer.
 The number of commands listed is controlled by `list-command-history-max'.
 The command history is filtered by `list-command-history-filter' if non-nil.
 Use \\<command-history-map>\\[command-history-repeat] to repeat the command on the current line.
@@ -4897,8 +4908,12 @@ all methods of NAME have to use the same set of arguments for dispatch.
 Each dispatch argument and TYPE are specified in ARGS where the corresponding
 formal argument appears as (VAR TYPE) rather than just VAR.
 
-The optional second argument QUALIFIER is a specifier that
-modifies how the method is combined with other methods, including:
+The optional EXTRA element, on the form `:extra STRING', allows
+you to add more methods for the same specializers and qualifiers.
+These are distinguished by STRING.
+
+The optional argument QUALIFIER is a specifier that modifies how
+the method is combined with other methods, including:
    :before  - Method will be called before the primary
    :after   - Method will be called after the primary
    :around  - Method will be called around everything else
@@ -4915,9 +4930,9 @@ method to be applicable.
 The set of acceptable TYPEs (also called \"specializers\") is defined
 \(and can be extended) by the various methods of `cl-generic-generalizers'.
 
-\(fn NAME [QUALIFIER] ARGS &rest [DOCSTRING] BODY)" nil t)
+\(fn NAME [EXTRA] [QUALIFIER] ARGS &rest [DOCSTRING] BODY)" nil t)
 
-(function-put 'cl-defmethod 'doc-string-elt '3)
+(function-put 'cl-defmethod 'doc-string-elt 'cl--defmethod-doc-pos)
 
 (function-put 'cl-defmethod 'lisp-indent-function 'defun)
 
@@ -5940,8 +5955,7 @@ span the needed amount of lines.
 
 Variables `cperl-pod-here-scan', `cperl-pod-here-fontify',
 `cperl-pod-face', `cperl-pod-head-face' control processing of POD and
-here-docs sections.  With capable Emaxen results of scan are used
-for indentation too, otherwise they are used for highlighting only.
+here-docs sections.  Results of scan are used for indentation too.
 
 Variables controlling indentation style:
  `cperl-tab-always-indent'
@@ -6405,9 +6419,9 @@ PACKAGE value appearing in the :package-version keyword.  Since
 the user might see the value in an error message, a good choice is
 the official name of the package, such as MH-E or Gnus.")
 
-(defalias 'customize-changed 'customize-changed-options)
+(define-obsolete-function-alias 'customize-changed-options #'customize-changed "28.1")
 
-(autoload 'customize-changed-options "cus-edit" "\
+(autoload 'customize-changed "cus-edit" "\
 Customize all settings whose meanings have changed in Emacs itself.
 This includes new user options and faces, and new customization
 groups, as well as older options and faces whose meanings or
@@ -6775,6 +6789,15 @@ If the HANDLER returns a `dbus-error', it is propagated as return message.
 
 \(fn EVENT)" t nil)
 
+(function-put 'dbus-handle-event 'completion-predicate #'ignore)
+
+(autoload 'dbus-monitor "dbus" "\
+Invoke `dbus-register-monitor' interactively, and switch to the buffer.
+BUS is either a Lisp keyword, `:system' or `:session', or a
+string denoting the bus address.  The value nil defaults to `:session'.
+
+\(fn &optional BUS)" t nil)
+
 (register-definition-prefixes "dbus" '("dbus-"))
 
 ;;;***
@@ -7006,7 +7029,9 @@ The most useful commands are:
 \\[decipher-frequency-count]  Display the frequency of each ciphertext letter
 \\[decipher-adjacency-list]  Show adjacency list for current letter (lists letters appearing next to it)
 \\[decipher-make-checkpoint]  Save the current cipher alphabet (checkpoint)
-\\[decipher-restore-checkpoint]  Restore a saved cipher alphabet (checkpoint)" t nil)
+\\[decipher-restore-checkpoint]  Restore a saved cipher alphabet (checkpoint)
+
+\(fn)" t nil)
 
 (register-definition-prefixes "decipher" '("decipher-"))
 
@@ -7130,6 +7155,9 @@ KEYWORD-ARGS:
            :after-hook FORM
                    A single lisp form which is evaluated after the mode
                    hooks have been run.  It should not be quoted.
+           :interactive BOOLEAN
+                   Whether the derived mode should be `interactive' or not.
+                   The default is t.
 
 BODY:      forms to execute just before running the
            hooks for the new mode.  Do not use `interactive' here.
@@ -7475,13 +7503,13 @@ You can control what lines will be unwrapped by frobbing
 indicating the minimum and maximum length of an unwrapped citation line.  If
 NODISPLAY is non-nil, don't redisplay the article buffer.
 
-\(fn &optional NODISPLAY)" t nil)
+\(fn &optional NODISPLAY)" '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-article-outlook-repair-attribution "deuglify" "\
 Repair a broken attribution line.
 If NODISPLAY is non-nil, don't redisplay the article buffer.
 
-\(fn &optional NODISPLAY)" t nil)
+\(fn &optional NODISPLAY)" '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-outlook-deuglify-article "deuglify" "\
 Full deuglify of broken Outlook (Express) articles.
@@ -7489,10 +7517,10 @@ Treat \"smartquotes\", unwrap lines, repair attribution and
 rearrange citation.  If NODISPLAY is non-nil, don't redisplay the
 article buffer.
 
-\(fn &optional NODISPLAY)" t nil)
+\(fn &optional NODISPLAY)" '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-article-outlook-deuglify-article "deuglify" "\
-Deuglify broken Outlook (Express) articles and redisplay." t nil)
+Deuglify broken Outlook (Express) articles and redisplay." '(gnus-article-mode gnus-summary-mode) nil)
 
 (register-definition-prefixes "deuglify" '("gnus-"))
 
@@ -7559,23 +7587,22 @@ This is a mode for searching a dictionary server implementing the
 protocol defined in RFC 2229.
 
 This is a quick reference to this mode describing the default key bindings:
+\\<dictionary-mode-map>
+* \\[dictionary-close] close the dictionary buffer
+* \\[dictionary-help] display this help information
+* \\[dictionary-search] ask for a new word to search
+* \\[dictionary-lookup-definition] search the word at point
+* \\[forward-button] or TAB place point to the next link
+* \\[backward-button] or S-TAB place point to the prev link
 
-* q close the dictionary buffer
-* h display this help information
-* s ask for a new word to search
-* d search the word at point
-* n or Tab place point to the next link
-* p or S-Tab place point to the prev link
+* \\[dictionary-match-words] ask for a pattern and list all matching words.
+* \\[dictionary-select-dictionary] select the default dictionary
+* \\[dictionary-select-strategy] select the default search strategy
 
-* m ask for a pattern and list all matching words.
-* D select the default dictionary
-* M select the default search strategy
-
-* Return or Button2 visit that link
-" nil nil)
+* RET or <mouse-2> visit that link" nil nil)
 
 (autoload 'dictionary "dictionary" "\
-Create a new dictonary buffer and install dictionary-mode." t nil)
+Create a new dictionary buffer and install `dictionary-mode'." t nil)
 
 (autoload 'dictionary-search "dictionary" "\
 Search the WORD in DICTIONARY if given or in all if nil.
@@ -7606,7 +7633,7 @@ Display entries matching WORD or the current word if not given.
 Display tooltips for the current word.
 
 This function can be used to enable or disable the tooltip mode
-for the current buffer (based on ARG). If global-tooltip-mode is
+for the current buffer (based on ARG).  If global-tooltip-mode is
 active it will overwrite that mode for the current buffer.
 
 \(fn &optional ARG)" t nil)
@@ -7772,10 +7799,15 @@ Switches passed to `ls' for Dired.  MUST contain the `l' option.
 May contain all other options that don't contradict `-l';
 may contain even `F', `b', `i' and `s'.  See also the variable
 `dired-ls-F-marks-symlinks' concerning the `F' switch.
+
+If you have files with names with embedded newline characters, adding
+`b' to the switches will allow Dired to handle those files better.
+
 Options that include embedded whitespace must be quoted
 like this: \"--option=value with spaces\"; you can use
 `combine-and-quote-strings' to produce the correct quoting of
 each option.
+
 On systems such as MS-DOS and MS-Windows, which use `ls' emulation in Lisp,
 some of the `ls' switches are not supported; see the doc string of
 `insert-directory' in `ls-lisp.el' for more details.")
@@ -7873,19 +7905,9 @@ directories again, type \\[dired-do-redisplay] to relist the file at point or th
 subdirectory, or type \\[dired-build-subdir-alist] to parse the buffer
 again for the directory tree.
 
-Customization variables (rename this buffer and type \\[describe-variable] on each line
-for more info):
+See the `dired' customization group for a list of user options.
 
-  `dired-listing-switches'
-  `dired-trivial-filenames'
-  `dired-marker-char'
-  `dired-del-marker'
-  `dired-keep-marker-rename'
-  `dired-keep-marker-copy'
-  `dired-keep-marker-hardlink'
-  `dired-keep-marker-symlink'
-
-Hooks (use \\[describe-variable] to see their documentation):
+This mode runs the following hooks:
 
   `dired-before-readin-hook'
   `dired-after-readin-hook'
@@ -8266,6 +8288,13 @@ if some action was made, or nil if the URL is ignored.")
 ;;;### (autoloads nil "dns" "net/dns.el" (0 0 0 0))
 ;;; Generated autoloads from net/dns.el
 
+(autoload 'dns-query "dns" "\
+Query a DNS server for NAME of TYPE.
+If FULL, return the entire record returned.
+If REVERSE, look up an IP address.
+
+\(fn NAME &optional TYPE FULL REVERSE)" nil nil)
+
 (register-definition-prefixes "dns" '("dns-"))
 
 ;;;***
@@ -8487,6 +8516,10 @@ BODY contains code to execute each time the mode is enabled or disabled.
 :lighter SPEC	Same as the LIGHTER argument.
 :keymap MAP	Same as the KEYMAP argument.
 :require SYM	Same as in `defcustom'.
+:interactive VAL  Whether this mode should be a command or not.  The default
+                is to make it one; use nil to avoid that.  If VAL is a list,
+                it's interpreted as a list of major modes this minor mode
+                is useful in.
 :variable PLACE	The location to use instead of the variable MODE to store
 		the state of the mode.	This can be simply a different
 		named variable, or a generalized variable.
@@ -8583,158 +8616,6 @@ CSS contains a list of syntax specifications of the form (CHAR . SYNTAX).
 (function-put 'easy-mmode-defsyntax 'lisp-indent-function '1)
 
 (register-definition-prefixes "easy-mmode" '("easy-mmode-"))
-
-;;;***
-
-;;;### (autoloads nil "easymenu" "emacs-lisp/easymenu.el" (0 0 0
-;;;;;;  0))
-;;; Generated autoloads from emacs-lisp/easymenu.el
-
-(autoload 'easy-menu-define "easymenu" "\
-Define a pop-up menu and/or menu bar menu specified by MENU.
-If SYMBOL is non-nil, define SYMBOL as a function to pop up the
-submenu defined by MENU, with DOC as its doc string.
-
-MAPS, if non-nil, should be a keymap or a list of keymaps; add
-the submenu defined by MENU to the keymap or each of the keymaps,
-as a top-level menu bar item.
-
-The first element of MENU must be a string.  It is the menu bar
-item name.  It may be followed by the following keyword argument
-pairs:
-
- :filter FUNCTION
-    FUNCTION must be a function which, if called with one
-    argument---the list of the other menu items---returns the
-    items to actually display.
-
- :visible INCLUDE
-    INCLUDE is an expression.  The menu is visible if the
-    expression evaluates to a non-nil value.  `:included' is an
-    alias for `:visible'.
-
- :active ENABLE
-    ENABLE is an expression.  The menu is enabled for selection
-    if the expression evaluates to a non-nil value.  `:enable' is
-    an alias for `:active'.
-
- :label FORM
-    FORM is an expression that is dynamically evaluated and whose
-    value serves as the menu's label (the default is the first
-    element of MENU).
-
- :help HELP
-    HELP is a string, the help to display for the menu.
-    In a GUI this is a \"tooltip\" on the menu button.  (Though
-    in Lucid :help is not shown for the top-level menu bar, only
-    for sub-menus.)
-
-The rest of the elements in MENU are menu items.
-A menu item can be a vector of three elements:
-
-  [NAME CALLBACK ENABLE]
-
-NAME is a string--the menu item name.
-
-CALLBACK is a command to run when the item is chosen, or an
-expression to evaluate when the item is chosen.
-
-ENABLE is an expression; the item is enabled for selection if the
-expression evaluates to a non-nil value.
-
-Alternatively, a menu item may have the form:
-
-   [ NAME CALLBACK [ KEYWORD ARG ]... ]
-
-where NAME and CALLBACK have the same meanings as above, and each
-optional KEYWORD and ARG pair should be one of the following:
-
- :keys KEYS
-    KEYS is a string; a keyboard equivalent to the menu item.
-    This is normally not needed because keyboard equivalents are
-    usually computed automatically.  KEYS is expanded with
-    `substitute-command-keys' before it is used.
-
- :key-sequence KEYS
-    KEYS is a hint for speeding up Emacs's first display of the
-    menu.  It should be nil if you know that the menu item has no
-    keyboard equivalent; otherwise it should be a string or
-    vector specifying a keyboard equivalent for the menu item.
-
- :active ENABLE
-    ENABLE is an expression; the item is enabled for selection
-    whenever this expression's value is non-nil.  `:enable' is an
-    alias for `:active'.
-
- :visible INCLUDE
-    INCLUDE is an expression; this item is only visible if this
-    expression has a non-nil value.  `:included' is an alias for
-    `:visible'.
-
- :label FORM
-    FORM is an expression that is dynamically evaluated and whose
-    value serves as the menu item's label (the default is NAME).
-
- :suffix FORM
-    FORM is an expression that is dynamically evaluated and whose
-    value is concatenated with the menu entry's label.
-
- :style STYLE
-    STYLE is a symbol describing the type of menu item; it should
-    be `toggle' (a checkbox), or `radio' (a radio button), or any
-    other value (meaning an ordinary menu item).
-
- :selected SELECTED
-    SELECTED is an expression; the checkbox or radio button is
-    selected whenever the expression's value is non-nil.
-
- :help HELP
-    HELP is a string, the help to display for the menu item.
-
-Alternatively, a menu item can be a string.  Then that string
-appears in the menu as unselectable text.  A string consisting
-solely of dashes is displayed as a menu separator.
-
-Alternatively, a menu item can be a list with the same format as
-MENU.  This is a submenu.
-
-\(fn SYMBOL MAPS DOC MENU)" nil t)
-
-(function-put 'easy-menu-define 'lisp-indent-function 'defun)
-
-(autoload 'easy-menu-do-define "easymenu" "\
-
-
-\(fn SYMBOL MAPS DOC MENU)" nil nil)
-
-(autoload 'easy-menu-create-menu "easymenu" "\
-Create a menu called MENU-NAME with items described in MENU-ITEMS.
-MENU-NAME is a string, the name of the menu.  MENU-ITEMS is a list of items
-possibly preceded by keyword pairs as described in `easy-menu-define'.
-
-\(fn MENU-NAME MENU-ITEMS)" nil nil)
-
-(autoload 'easy-menu-change "easymenu" "\
-Change menu found at PATH as item NAME to contain ITEMS.
-PATH is a list of strings for locating the menu that
-should contain a submenu named NAME.
-ITEMS is a list of menu items, as in `easy-menu-define'.
-These items entirely replace the previous items in that submenu.
-
-If MAP is specified, it should normally be a keymap; nil stands for the local
-menu-bar keymap.  It can also be a symbol, which has earlier been used as the
-first argument in a call to `easy-menu-define', or the value of such a symbol.
-
-If the menu located by PATH has no submenu named NAME, add one.
-If the optional argument BEFORE is present, add it just before
-the submenu named BEFORE, otherwise add it at the end of the menu.
-
-To implement dynamic menus, either call this from
-`menu-bar-update-hook' or use a menu filter.
-
-\(fn PATH NAME ITEMS &optional BEFORE MAP)" nil nil)
-
-(register-definition-prefixes "easymenu" '("add-submenu" "easy-menu-"))
 
 ;;;***
 
@@ -9423,26 +9304,6 @@ an EDE controlled project.
 ;;;### (autoloads nil "edebug" "emacs-lisp/edebug.el" (0 0 0 0))
 ;;; Generated autoloads from emacs-lisp/edebug.el
 
-(defvar edebug-all-defs nil "\
-If non-nil, evaluating defining forms instruments for Edebug.
-This applies to `eval-defun', `eval-region', `eval-buffer', and
-`eval-current-buffer'.  `eval-region' is also called by
-`eval-last-sexp', and `eval-print-last-sexp'.
-
-You can use the command `edebug-all-defs' to toggle the value of this
-variable.  You may wish to make it local to each buffer with
-\(make-local-variable \\='edebug-all-defs) in your
-`emacs-lisp-mode-hook'.")
-
-(custom-autoload 'edebug-all-defs "edebug" t)
-
-(defvar edebug-all-forms nil "\
-Non-nil means evaluation of all forms will instrument for Edebug.
-This doesn't apply to loading or evaluations in the minibuffer.
-Use the command `edebug-all-forms' to toggle the value of this option.")
-
-(custom-autoload 'edebug-all-forms "edebug" t)
-
 (autoload 'edebug-basic-spec "edebug" "\
 Return t if SPEC uses only extant spec symbols.
 An extant spec symbol is a symbol that is not a function and has a
@@ -9476,7 +9337,7 @@ Toggle edebugging of all definitions." t nil)
 (autoload 'edebug-all-forms "edebug" "\
 Toggle edebugging of all forms." t nil)
 
-(register-definition-prefixes "edebug" '("cancel-edebug-on-entry" "edebug" "get-edebug-spec" "global-edebug-"))
+(register-definition-prefixes "edebug" '("arglist" "backquote-form" "def-declarations" "edebug" "function-form" "interactive" "lambda-" "name" "nested-backquote-form"))
 
 ;;;***
 
@@ -9498,9 +9359,9 @@ arguments after setting up the Ediff buffers.
 
 \(fn FILE-A FILE-B FILE-C &optional STARTUP-HOOKS)" t nil)
 
-(defalias 'ediff3 'ediff-files3)
+(defalias 'ediff3 #'ediff-files3)
 
-(defalias 'ediff 'ediff-files)
+(defalias 'ediff #'ediff-files)
 
 (autoload 'ediff-current-file "ediff" "\
 Start ediff between current buffer and its file on disk.
@@ -9526,7 +9387,7 @@ symbol describing the Ediff job type; it defaults to
 
 \(fn BUFFER-A BUFFER-B &optional STARTUP-HOOKS JOB-NAME)" t nil)
 
-(defalias 'ebuffers 'ediff-buffers)
+(defalias 'ebuffers #'ediff-buffers)
 
 (autoload 'ediff-buffers3 "ediff" "\
 Run Ediff on three buffers, BUFFER-A, BUFFER-B, and BUFFER-C.
@@ -9540,7 +9401,7 @@ symbol describing the Ediff job type; it defaults to
 
 \(fn BUFFER-A BUFFER-B BUFFER-C &optional STARTUP-HOOKS JOB-NAME)" t nil)
 
-(defalias 'ebuffers3 'ediff-buffers3)
+(defalias 'ebuffers3 #'ediff-buffers3)
 
 (autoload 'ediff-directories "ediff" "\
 Run Ediff on a pair of directories, DIR1 and DIR2, comparing files that have
@@ -9549,7 +9410,7 @@ expression; only file names that match the regexp are considered.
 
 \(fn DIR1 DIR2 REGEXP)" t nil)
 
-(defalias 'edirs 'ediff-directories)
+(defalias 'edirs #'ediff-directories)
 
 (autoload 'ediff-directory-revisions "ediff" "\
 Run Ediff on a directory, DIR1, comparing its files with their revisions.
@@ -9558,7 +9419,7 @@ names.  Only the files that are under revision control are taken into account.
 
 \(fn DIR1 REGEXP)" t nil)
 
-(defalias 'edir-revisions 'ediff-directory-revisions)
+(defalias 'edir-revisions #'ediff-directory-revisions)
 
 (autoload 'ediff-directories3 "ediff" "\
 Run Ediff on three directories, DIR1, DIR2, and DIR3, comparing files that
@@ -9567,7 +9428,7 @@ regular expression; only file names that match the regexp are considered.
 
 \(fn DIR1 DIR2 DIR3 REGEXP)" t nil)
 
-(defalias 'edirs3 'ediff-directories3)
+(defalias 'edirs3 #'ediff-directories3)
 
 (autoload 'ediff-merge-directories "ediff" "\
 Run Ediff on a pair of directories, DIR1 and DIR2, merging files that have
@@ -9577,7 +9438,7 @@ MERGE-AUTOSTORE-DIR is the directory in which to store merged files.
 
 \(fn DIR1 DIR2 REGEXP &optional MERGE-AUTOSTORE-DIR)" t nil)
 
-(defalias 'edirs-merge 'ediff-merge-directories)
+(defalias 'edirs-merge #'ediff-merge-directories)
 
 (autoload 'ediff-merge-directories-with-ancestor "ediff" "\
 Merge files in directories DIR1 and DIR2 using files in ANCESTOR-DIR as ancestors.
@@ -9597,7 +9458,7 @@ MERGE-AUTOSTORE-DIR is the directory in which to store merged files.
 
 \(fn DIR1 REGEXP &optional MERGE-AUTOSTORE-DIR)" t nil)
 
-(defalias 'edir-merge-revisions 'ediff-merge-directory-revisions)
+(defalias 'edir-merge-revisions #'ediff-merge-directory-revisions)
 
 (autoload 'ediff-merge-directory-revisions-with-ancestor "ediff" "\
 Run Ediff on a directory, DIR1, merging its files with their revisions and ancestors.
@@ -9839,7 +9700,7 @@ Call `ediff-merge-directories-with-ancestor' with the next four command line arg
 (autoload 'ediff-show-registry "ediff-mult" "\
 Display Ediff's registry." t nil)
 
-(defalias 'eregistry 'ediff-show-registry)
+(defalias 'eregistry #'ediff-show-registry)
 
 (register-definition-prefixes "ediff-mult" '("ediff-"))
 
@@ -10775,7 +10636,7 @@ be invoked for the values of the other parameters.
 
 \(fn &key (SERVER (erc-compute-server)) (PORT (erc-compute-port)) (NICK (erc-compute-nick)) PASSWORD (FULL-NAME (erc-compute-full-name)))" t nil)
 
-(defalias 'erc-select 'erc)
+(defalias 'erc-select #'erc)
 
 (autoload 'erc-tls "erc" "\
 Interactively select TLS connection parameters and run ERC.
@@ -10866,10 +10727,6 @@ it has to be wrapped in `(eval (quote ...))'.
 
 (function-put 'ert-deftest 'lisp-indent-function '2)
 
-(put 'ert-deftest 'lisp-indent-function 2)
-
-(put 'ert-info 'lisp-indent-function 1)
-
 (autoload 'ert-run-tests-batch "ert" "\
 Run the tests specified by SELECTOR, printing results to the terminal.
 
@@ -10902,7 +10759,7 @@ and how to display message.
 
 \(fn SELECTOR &optional OUTPUT-BUFFER-NAME MESSAGE-FN)" t nil)
 
-(defalias 'ert 'ert-run-tests-interactively)
+(defalias 'ert #'ert-run-tests-interactively)
 
 (autoload 'ert-describe-test "ert" "\
 Display the documentation for TEST-OR-TEST-NAME (a symbol or ert-test).
@@ -10915,8 +10772,6 @@ Display the documentation for TEST-OR-TEST-NAME (a symbol or ert-test).
 
 ;;;### (autoloads nil "ert-x" "emacs-lisp/ert-x.el" (0 0 0 0))
 ;;; Generated autoloads from emacs-lisp/ert-x.el
-
-(put 'ert-with-test-buffer 'lisp-indent-function 1)
 
 (autoload 'ert-kill-all-test-buffers "ert-x" "\
 Kill all test buffers that are still live." t nil)
@@ -12034,9 +11889,9 @@ INC may be passed as a numeric prefix argument.
 The actual adjustment made depends on the final component of the
 key-binding used to invoke the command, with all modifiers removed:
 
-   +, =   Increase the default face height by one step
-   -      Decrease the default face height by one step
-   0      Reset the default face height to the global default
+   +, =   Increase the height of the default face by one step
+   -      Decrease the height of the default face by one step
+   0      Reset the height of the default face to the global default
 
 After adjusting, continue to read input events and further adjust
 the face height as long as the input event read
@@ -12112,6 +11967,13 @@ Besides the choice of face, it is the same as `buffer-face-mode'.
 \(fn &optional ARG)" t nil)
 
 (register-definition-prefixes "face-remap" '("buffer-face-mode-" "face-" "internal-lisp-face-attributes" "text-scale-"))
+
+;;;***
+
+;;;### (autoloads nil "facemenu" "facemenu.el" (0 0 0 0))
+;;; Generated autoloads from facemenu.el
+
+(register-definition-prefixes "facemenu" '("facemenu-" "list-colors-"))
 
 ;;;***
 
@@ -12378,6 +12240,8 @@ If OBJECT is a filewatch event, call its callback.
 Otherwise, signal a `file-notify-error'.
 
 \(fn OBJECT)" t nil)
+
+(function-put 'file-notify-handle-event 'completion-predicate #'ignore)
 
 (register-definition-prefixes "filenotify" '("file-notify-"))
 
@@ -12878,7 +12742,6 @@ Change the filter on a `find-lisp-find-dired' buffer to REGEXP.
 
 ;;;### (autoloads nil "finder" "finder.el" (0 0 0 0))
 ;;; Generated autoloads from finder.el
-(push (purecopy '(finder 1 0)) package--builtin-versions)
 
 (autoload 'finder-list-keywords "finder" "\
 Display descriptions of the keywords in the Finder buffer." t nil)
@@ -12947,7 +12810,7 @@ lines.
 (autoload 'flymake-log "flymake" "\
 Log, at level LEVEL, the message MSG formatted with ARGS.
 LEVEL is passed to `display-warning', which is used to display
-the warning.  If this form is included in a byte-compiled file,
+the warning.  If this form is included in a file,
 the generated warning contains an indication of the file that
 generated it.
 
@@ -13931,7 +13794,7 @@ regular expression that can be used as an element of
 ;;;### (autoloads nil "generic-x" "generic-x.el" (0 0 0 0))
 ;;; Generated autoloads from generic-x.el
 
-(register-definition-prefixes "generic-x" '("default-generic-mode" "generic-"))
+(register-definition-prefixes "generic-x" '("alias-generic-mode" "ansible-inventory-generic-mode" "apache-" "astap-generic-mode" "default-generic-mode" "etc-" "fvwm-generic-mode" "generic-" "hosts-generic-mode" "ibis-generic-mode" "java-" "mail" "named-" "pkginfo-generic-mode" "prototype-generic-mode" "rc-generic-mode" "rul-" "samba-generic-mode" "show-tabs-generic-mode" "spice-generic-mode" "vrml-generic-mode" "x-resource-generic-mode" "xmodmap-generic-mode"))
 
 ;;;***
 
@@ -14190,7 +14053,7 @@ Make the current buffer look like a nice article." nil nil)
 ;;; Generated autoloads from gnus/gnus-bookmark.el
 
 (autoload 'gnus-bookmark-set "gnus-bookmark" "\
-Set a bookmark for this article." t nil)
+Set a bookmark for this article." '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-bookmark-jump "gnus-bookmark" "\
 Jump to a Gnus bookmark (BMK-NAME).
@@ -14296,7 +14159,7 @@ The value of `message-draft-headers' determines which headers are
 generated when the article is delayed.  Remaining headers are
 generated when the article is sent.
 
-\(fn DELAY)" t nil)
+\(fn DELAY)" '(message-mode) nil)
 
 (autoload 'gnus-delay-send-queue "gnus-delay" "\
 Send all the delayed messages that are due now." t nil)
@@ -14440,13 +14303,13 @@ Insert a random Face header from `gnus-face-directory'." nil nil)
 Display gravatar in the From header.
 If gravatar is already displayed, remove it.
 
-\(fn &optional FORCE)" t nil)
+\(fn &optional FORCE)" '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-treat-mail-gravatar "gnus-gravatar" "\
 Display gravatars in the Cc and To headers.
 If gravatars are already displayed, remove them.
 
-\(fn &optional FORCE)" t nil)
+\(fn &optional FORCE)" '(gnus-article-mode gnus-summary-mode) nil)
 
 (register-definition-prefixes "gnus-gravatar" '("gnus-gravatar-"))
 
@@ -14557,15 +14420,15 @@ If FORCE is non-nil, replace the old ones.
 Minor mode for providing mailing-list commands.
 
 If called interactively, toggle `Gnus-Mailing-List mode'.  If the
-prefix argument is positive, enable the mode, and if it is zero
-or negative, disable the mode.
+prefix argument is positive, enable the mode, and if it is zero or
+negative, disable the mode.
 
-If called from Lisp, toggle the mode if ARG is `toggle'.  Enable
-the mode if ARG is nil, omitted, or is a positive number.
-Disable the mode if ARG is a negative number.
+If called from Lisp, toggle the mode if ARG is `toggle'.  Enable the
+mode if ARG is nil, omitted, or is a positive number.  Disable the
+mode if ARG is a negative number.
 
-The mode's hook is called both when the mode is enabled and when
-it is disabled.
+The mode's hook is called both when the mode is enabled and when it is
+disabled.
 
 \\{gnus-mailing-list-mode-map}
 
@@ -14724,15 +14587,15 @@ This is typically a function to add in
 
 (autoload 'gnus-treat-from-picon "gnus-picon" "\
 Display picons in the From header.
-If picons are already displayed, remove them." t nil)
+If picons are already displayed, remove them." '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-treat-mail-picon "gnus-picon" "\
 Display picons in the Cc and To headers.
-If picons are already displayed, remove them." t nil)
+If picons are already displayed, remove them." '(gnus-article-mode gnus-summary-mode) nil)
 
 (autoload 'gnus-treat-newsgroups-picon "gnus-picon" "\
 Display picons in the Newsgroups and Followup-To headers.
-If picons are already displayed, remove them." t nil)
+If picons are already displayed, remove them." '(gnus-article-mode gnus-summary-mode) nil)
 
 (register-definition-prefixes "gnus-picon" '("gnus-picon-"))
 
@@ -14864,7 +14727,7 @@ between gnus-sieve-region-start and gnus-sieve-region-end with
 \(gnus-sieve-script gnus-sieve-select-method gnus-sieve-crosspost).
 See the documentation for these variables and functions for details." t nil)
 
-(autoload 'gnus-sieve-article-add-rule "gnus-sieve" nil t nil)
+(autoload 'gnus-sieve-article-add-rule "gnus-sieve" nil '(gnus-article-mode gnus-summary-mode) nil)
 
 (register-definition-prefixes "gnus-sieve" '("gnus-sieve-"))
 
@@ -15472,6 +15335,8 @@ arguments as NAME.  DO is a function as defined in `gv-get'.
 
 (or (assq 'gv-setter defun-declarations-alist) (push (list 'gv-setter #'gv--setter-defun-declaration) defun-declarations-alist))
 
+(let ((spec (get 'compiler-macro 'edebug-declaration-spec))) (put 'gv-expander 'edebug-declaration-spec spec) (put 'gv-setter 'edebug-declaration-spec spec))
+
 (autoload 'gv-define-setter "gv" "\
 Define a setter method for generalized variable NAME.
 This macro is an easy-to-use substitute for `gv-define-expander' that works
@@ -15512,7 +15377,7 @@ The return value is the last VAL in the list.
 
 \(fn PLACE VAL PLACE VAL ...)" nil t)
 
-(put 'gv-place 'edebug-form-spec 'edebug-match-form)
+(def-edebug-elem-spec 'gv-place '(form))
 
 (autoload 'gv-ref "gv" "\
 Return a reference to PLACE.
@@ -15993,7 +15858,7 @@ Add xrefs for symbols in `pp's output between FROM and TO.
 (define-obsolete-function-alias 'help-xref-interned 'describe-symbol "25.1")
 
 (autoload 'help-bookmark-jump "help-mode" "\
-Jump to help-mode bookmark BOOKMARK.
+Jump to `help-mode' bookmark BOOKMARK.
 Handler function for record returned by `help-bookmark-make-record'.
 BOOKMARK is a bookmark name or a bookmark record.
 
@@ -17005,7 +16870,7 @@ buffers which are visiting a file.
 
 (autoload 'ibuffer "ibuffer" "\
 Begin using Ibuffer to edit a list of buffers.
-Type `h' after entering ibuffer for more information.
+Type \\<ibuffer-mode-map>\\[describe-mode] after entering ibuffer for more information.
 
 All arguments are optional.
 OTHER-WINDOW-P says to use another window.
@@ -17029,7 +16894,7 @@ If optional arg OTHER-WINDOW is non-nil, then use another window.
 
 \(fn &optional OTHER-WINDOW)" t nil)
 
-(register-definition-prefixes "ibuffer" '("filename" "ibuffer-" "locked" "mark" "mod" "name" "process" "read-only" "size"))
+(register-definition-prefixes "ibuffer" '("filename" "ibuffer-" "locked" "mark" "mod" "name" "process" "read-only" "recency" "size"))
 
 ;;;***
 
@@ -17291,7 +17156,7 @@ The main features of this mode are
    Use \\[idlwave-fill-paragraph] to refill a paragraph inside a
    comment.  The indentation of the second line of the paragraph
    relative to the first will be retained.  Use
-   \\[idlwave-auto-fill-mode] to toggle auto-fill mode for these
+   \\[auto-fill-mode] to toggle auto-fill mode for these
    comments.  When the variable `idlwave-fill-comment-line-only' is
    nil, code can also be auto-filled and auto-indented.
 
@@ -18192,7 +18057,7 @@ element should come before the second.  The arguments are cons cells;
 
 (custom-autoload 'imenu-sort-function "imenu" t)
 
-(defvar imenu-generic-expression nil "\
+(defvar-local imenu-generic-expression nil "\
 List of definition matchers for creating an Imenu index.
 Each element of this list should have the form
 
@@ -18228,9 +18093,7 @@ characters which normally have \"symbol\" syntax are considered to have
 \"word\" syntax during matching.")
 (put 'imenu-generic-expression 'risky-local-variable t)
 
-(make-variable-buffer-local 'imenu-generic-expression)
-
-(defvar imenu-create-index-function 'imenu-default-create-index-function "\
+(defvar-local imenu-create-index-function 'imenu-default-create-index-function "\
 The function to use for creating an index alist of the current buffer.
 
 It should be a function that takes no arguments and returns
@@ -18239,9 +18102,7 @@ called within a `save-excursion'.
 
 See `imenu--index-alist' for the format of the buffer index alist.")
 
-(make-variable-buffer-local 'imenu-create-index-function)
-
-(defvar imenu-prev-index-position-function 'beginning-of-defun "\
+(defvar-local imenu-prev-index-position-function 'beginning-of-defun "\
 Function for finding the next index position.
 
 If `imenu-create-index-function' is set to
@@ -18252,18 +18113,14 @@ file.
 The function should leave point at the place to be connected to the
 index and it should return nil when it doesn't find another index.")
 
-(make-variable-buffer-local 'imenu-prev-index-position-function)
-
-(defvar imenu-extract-index-name-function nil "\
+(defvar-local imenu-extract-index-name-function nil "\
 Function for extracting the index item name, given a position.
 
 This function is called after `imenu-prev-index-position-function'
 finds a position for an index item, with point at that position.
 It should return the name for that index item.")
 
-(make-variable-buffer-local 'imenu-extract-index-name-function)
-
-(defvar imenu-name-lookup-function nil "\
+(defvar-local imenu-name-lookup-function nil "\
 Function to compare string with index item.
 
 This function will be called with two strings, and should return
@@ -18274,18 +18131,28 @@ Set this to some other function for more advanced comparisons,
 such as \"begins with\" or \"name matches and number of
 arguments match\".")
 
-(make-variable-buffer-local 'imenu-name-lookup-function)
-
-(defvar imenu-default-goto-function 'imenu-default-goto-function "\
+(defvar-local imenu-default-goto-function 'imenu-default-goto-function "\
 The default function called when selecting an Imenu item.
 The function in this variable is called when selecting a normal index-item.")
-
-(make-variable-buffer-local 'imenu-default-goto-function)
 (put 'imenu--index-alist 'risky-local-variable t)
 
-(make-variable-buffer-local 'imenu-syntax-alist)
+(defvar-local imenu-syntax-alist nil "\
+Alist of syntax table modifiers to use while in `imenu--generic-function'.
 
-(make-variable-buffer-local 'imenu-case-fold-search)
+The car of the assocs may be either a character or a string and the
+cdr is a syntax description appropriate for `modify-syntax-entry'.  For
+a string, all the characters in the string get the specified syntax.
+
+This is typically used to give word syntax to characters which
+normally have symbol syntax to simplify `imenu-expression'
+and speed-up matching.")
+
+(defvar-local imenu-case-fold-search t "\
+Defines whether `imenu--generic-function' should fold case when matching.
+
+This variable should be set (only) by initialization code
+for modes which use `imenu--generic-function'.  If it is not set, but
+`font-lock-defaults' is set, then font-lock's setting is used.")
 
 (autoload 'imenu-add-to-menubar "imenu" "\
 Add an `imenu' entry to the menu bar for the current buffer.
@@ -18754,25 +18621,6 @@ See Info node `(elisp)Defining Functions' for more details.
 (function-put 'define-inline 'doc-string-elt '3)
 
 (register-definition-prefixes "inline" '("inline-"))
-
-;;;***
-
-;;;### (autoloads nil "inversion" "cedet/inversion.el" (0 0 0 0))
-;;; Generated autoloads from cedet/inversion.el
-(push (purecopy '(inversion 1 3)) package--builtin-versions)
-
-(autoload 'inversion-require-emacs "inversion" "\
-Declare that you need either EMACS-VER, XEMACS-VER or SXEMACS-ver.
-Only checks one based on which kind of Emacs is being run.
-
-This function is obsolete; do this instead:
-    (when (version<= \"28.1\" emacs-version) ...)
-
-\(fn EMACS-VER XEMACS-VER SXEMACS-VER)" nil nil)
-
-(make-obsolete 'inversion-require-emacs 'nil '"28.1")
-
-(register-definition-prefixes "inversion" '("inversion-"))
 
 ;;;***
 
@@ -19703,13 +19551,13 @@ A major mode to edit GNU ld script files
 ;;;;;;  (0 0 0 0))
 ;;; Generated autoloads from textmodes/less-css-mode.el
 
-(put 'less-css-compile-at-save 'safe-local-variable 'booleanp)
+(put 'less-css-compile-at-save 'safe-local-variable #'booleanp)
 
 (put 'less-css-lessc-options 'safe-local-variable t)
 
-(put 'less-css-output-directory 'safe-local-variable 'stringp)
+(put 'less-css-output-directory 'safe-local-variable #'stringp)
 
-(put 'less-css-input-file-name 'safe-local-variable 'stringp)
+(put 'less-css-input-file-name 'safe-local-variable #'stringp)
  (add-to-list 'auto-mode-alist '("\\.less\\'" . less-css-mode))
 
 (autoload 'less-css-mode "less-css-mode" "\
@@ -20685,7 +20533,7 @@ to auto-complete your input based on the installed manual pages.
 (autoload 'man-follow "man" "\
 Get a Un*x manual page of the item under point and put it in a buffer.
 
-\(fn MAN-ARGS)" t nil)
+\(fn MAN-ARGS)" '(man-common) nil)
 
 (autoload 'Man-bookmark-jump "man" "\
 Default bookmark handler for Man buffers.
@@ -20698,7 +20546,7 @@ Default bookmark handler for Man buffers.
 
 ;;;### (autoloads nil "map" "emacs-lisp/map.el" (0 0 0 0))
 ;;; Generated autoloads from emacs-lisp/map.el
-(push (purecopy '(map 2 1)) package--builtin-versions)
+(push (purecopy '(map 3 0)) package--builtin-versions)
 
 (register-definition-prefixes "map" '("map-"))
 
@@ -20922,9 +20770,12 @@ which specify the range to operate on.
 Command to parse command line mailto: links.
 This is meant to be used for MIME handlers: Setting the handler
 for \"x-scheme-handler/mailto;\" to \"emacs -f message-mailto %u\"
-will then start up Emacs ready to compose mail." t nil)
+will then start up Emacs ready to compose mail.  For emacsclient use
+  emacsclient -e '(message-mailto \"%u\")'
 
-(register-definition-prefixes "message" '("message-" "nil"))
+\(fn &optional URL)" t nil)
+
+(register-definition-prefixes "message" '("message-"))
 
 ;;;***
 
@@ -22202,7 +22053,8 @@ This affects the implicit sorting of lists of coding systems returned by
 operations such as `find-coding-systems-region'.
 
 \(fn CODING-SYSTEMS &rest BODY)" nil t)
-(put 'with-coding-priority 'lisp-indent-function 1)
+
+(function-put 'with-coding-priority 'lisp-indent-function '1)
 
 (autoload 'detect-coding-with-language-environment "mule-util" "\
 Detect a coding system for the text between FROM and TO with LANG-ENV.
@@ -22245,6 +22097,32 @@ QUALITY can be:
 
 ;;;### (autoloads nil "mwheel" "mwheel.el" (0 0 0 0))
 ;;; Generated autoloads from mwheel.el
+
+(defcustom mouse-wheel-mode t "\
+Non-nil if Mouse-Wheel mode is enabled.
+See the `mouse-wheel-mode' command
+for a description of this minor mode.
+Setting this variable directly does not take effect;
+either customize it (see the info node `Easy Customization')
+or call the function `mouse-wheel-mode'." :set #'custom-set-minor-mode :initialize 'custom-initialize-delay :group 'mouse :type 'boolean)
+
+(custom-autoload 'mouse-wheel-mode "mwheel" nil)
+
+(autoload 'mouse-wheel-mode "mwheel" "\
+Toggle mouse wheel support (Mouse Wheel mode).
+
+If called interactively, toggle `Mouse-Wheel mode'.  If the prefix
+argument is positive, enable the mode, and if it is zero or negative,
+disable the mode.
+
+If called from Lisp, toggle the mode if ARG is `toggle'.  Enable the
+mode if ARG is nil, omitted, or is a positive number.  Disable the
+mode if ARG is a negative number.
+
+The mode's hook is called both when the mode is enabled and when it is
+disabled.
+
+\(fn &optional ARG)" t nil)
 
 (register-definition-prefixes "mwheel" '("mouse-wheel-" "mwheel-"))
 
@@ -22506,7 +22384,7 @@ gnutls-boot (as returned by `gnutls-boot-parameters').
 
 \(fn NAME BUFFER HOST SERVICE &rest PARAMETERS)" nil nil)
 
-(defalias 'open-protocol-stream 'open-network-stream)
+(define-obsolete-function-alias 'open-protocol-stream #'open-network-stream "26.1")
 
 (register-definition-prefixes "network-stream" '("network-stream-"))
 
@@ -24200,6 +24078,8 @@ Turning on outline mode calls the value of `text-mode-hook' and then of
 `outline-mode-hook', if they are non-nil.
 
 \(fn)" t nil)
+(put 'outline-minor-mode-cycle 'safe-local-variable 'booleanp)
+(put 'outline-minor-mode-highlight 'safe-local-variable 'booleanp)
 
 (autoload 'outline-minor-mode "outline" "\
 Toggle Outline minor mode.
@@ -24345,7 +24225,11 @@ directory.
 
 (autoload 'package-install-selected-packages "package" "\
 Ensure packages in `package-selected-packages' are installed.
-If some packages are not installed propose to install them." t nil)
+If some packages are not installed, propose to install them.
+If optional argument NOCONFIRM is non-nil, don't ask for
+confirmation to install packages.
+
+\(fn &optional NOCONFIRM)" t nil)
 
 (autoload 'package-reinstall "package" "\
 Reinstall package PKG.
@@ -24585,7 +24469,6 @@ PATTERN matches.  PATTERN can take one of the forms:
   (pred (not FUN)) matches if FUN called on EXPVAL returns nil.
   (app FUN PAT)    matches if FUN called on EXPVAL matches PAT.
   (guard BOOLEXP)  matches if BOOLEXP evaluates to non-nil.
-  (let PAT EXPR)   matches if EXPR matches PAT.
   (and PAT...)     matches if all the patterns match.
   (or PAT...)      matches if any of the patterns matches.
 
@@ -24595,7 +24478,7 @@ FUN in `pred' and `app' can take one of the forms:
   (F ARG1 .. ARGn)
      call F with ARG1..ARGn and EXPVAL as n+1'th argument
 
-FUN, BOOLEXP, EXPR, and subsequent PAT can refer to variables
+FUN, BOOLEXP, and subsequent PAT can refer to variables
 bound earlier in the pattern by a SYMBOL pattern.
 
 Additional patterns can be defined using `pcase-defmacro'.
@@ -26058,6 +25941,13 @@ Save the result in `project-list-file' if the list of projects has changed.
 
 \(fn PR)" nil nil)
 
+(autoload 'project-remove-known-project "project" "\
+Remove directory PROJECT-ROOT from the project list.
+PROJECT-ROOT is the root directory of a known project listed in
+the project list.
+
+\(fn PROJECT-ROOT)" t nil)
+
 (autoload 'project-known-project-roots "project" "\
 Return the list of root directories of all known projects." nil nil)
 
@@ -26065,19 +25955,6 @@ Return the list of root directories of all known projects." nil nil)
 Execute an extended command in project root." t nil)
 
 (function-put 'project-execute-extended-command 'interactive-only 'command-execute)
-
-(defvar project-switch-commands '((project-find-file "Find file") (project-find-regexp "Find regexp") (project-dired "Dired") (project-vc-dir "VC-Dir") (project-eshell "Eshell")) "\
-Alist mapping commands to descriptions.
-Used by `project-switch-project' to construct a dispatch menu of
-commands available upon \"switching\" to another project.
-
-Each element is of the form (COMMAND LABEL &optional KEY) where
-COMMAND is the command to run when KEY is pressed.  LABEL is used
-to distinguish the menu entries in the dispatch menu.  If KEY is
-absent, COMMAND must be bound in `project-prefix-map', and the
-key is looked up in that map.")
-
-(custom-autoload 'project-switch-commands "project" t)
 
 (autoload 'project-switch-project "project" "\
 \"Switch\" to another project by running an Emacs command.
@@ -26655,7 +26532,7 @@ Add one translation rule, KEY to TRANSLATION, in the current Quail package.
 KEY is a string meaning a sequence of keystrokes to be translated.
 TRANSLATION is a character, a string, a vector, a Quail map,
  a function, or a cons.
-It it is a character, it is the sole translation of KEY.
+If it is a character, it is the sole translation of KEY.
 If it is a string, each character is a candidate for the translation.
 If it is a vector, each element (string or character) is a candidate
  for the translation.
@@ -27427,6 +27304,34 @@ sequence.  This behavior can be modified by the global variable
 recently executed command not bound to an input event\".
 
 \(fn REPEAT-ARG)" t nil)
+
+(defvar repeat-mode nil "\
+Non-nil if Repeat mode is enabled.
+See the `repeat-mode' command
+for a description of this minor mode.
+Setting this variable directly does not take effect;
+either customize it (see the info node `Easy Customization')
+or call the function `repeat-mode'.")
+
+(custom-autoload 'repeat-mode "repeat" nil)
+
+(autoload 'repeat-mode "repeat" "\
+Toggle Repeat mode.
+When Repeat mode is enabled, and the command symbol has the property named
+`repeat-map', this map is activated temporarily for the next command.
+
+If called interactively, toggle `Repeat mode'.  If the prefix argument
+is positive, enable the mode, and if it is zero or negative, disable
+the mode.
+
+If called from Lisp, toggle the mode if ARG is `toggle'.  Enable the
+mode if ARG is nil, omitted, or is a positive number.  Disable the
+mode if ARG is a negative number.
+
+The mode's hook is called both when the mode is enabled and when it is
+disabled.
+
+\(fn &optional ARG)" t nil)
 
 (register-definition-prefixes "repeat" '("repeat-"))
 
@@ -28269,7 +28174,7 @@ Major mode for editing Ruby code.
 ;;;### (autoloads nil "ruler-mode" "ruler-mode.el" (0 0 0 0))
 ;;; Generated autoloads from ruler-mode.el
 
-(defvar ruler-mode nil "\
+(defvar-local ruler-mode nil "\
 Non-nil if Ruler mode is enabled.
 Use the command `ruler-mode' to change this variable.")
 
@@ -28483,24 +28388,7 @@ For more details, see Info node `(elisp) Extending Rx'.
 
 (function-put 'rx-define 'lisp-indent-function 'defun)
 
-(autoload 'rx--pcase-macroexpander "rx" "\
-A pattern that matches strings against `rx' REGEXPS in sexp form.
-REGEXPS are interpreted as in `rx'.  The pattern matches any
-string that is a match for REGEXPS, as if by `string-match'.
-
-In addition to the usual `rx' syntax, REGEXPS can contain the
-following constructs:
-
-  (let REF RX...)  binds the symbol REF to a submatch that matches
-                   the regular expressions RX.  REF is bound in
-                   CODE to the string of the submatch or nil, but
-                   can also be used in `backref'.
-  (backref REF)    matches whatever the submatch REF matched.
-                   REF can be a number, as usual, or a name
-                   introduced by a previous (let REF ...)
-                   construct.
-
-\(fn &rest REGEXPS)" nil nil)
+(eval-and-compile (defun rx--pcase-macroexpander (&rest regexps) "A pattern that matches strings against `rx' REGEXPS in sexp form.\nREGEXPS are interpreted as in `rx'.  The pattern matches any\nstring that is a match for REGEXPS, as if by `string-match'.\n\nIn addition to the usual `rx' syntax, REGEXPS can contain the\nfollowing constructs:\n\n  (let REF RX...)  binds the symbol REF to a submatch that matches\n                   the regular expressions RX.  REF is bound in\n                   CODE to the string of the submatch or nil, but\n                   can also be used in `backref'.\n  (backref REF)    matches whatever the submatch REF matched.\n                   REF can be a number, as usual, or a name\n                   introduced by a previous (let REF ...)\n                   construct." (let* ((rx--pcase-vars nil) (regexp (rx--to-expr (rx--pcase-transform (cons 'seq regexps)))) (nvars (length rx--pcase-vars))) `(and (pred stringp) ,(if (zerop nvars) `(pred (string-match ,regexp)) `(app (lambda (s) (and (string-match ,regexp s) ,(rx--reduce-right (lambda (a b) `(cons ,a ,b)) (mapcar (lambda (i) `(match-string ,i s)) (number-sequence 1 nvars))))) ,(list '\` (rx--reduce-right #'cons (mapcar (lambda (name) (list '\, name)) (reverse rx--pcase-vars))))))))))
 
 (define-symbol-prop 'rx--pcase-macroexpander 'edebug-form-spec 'nil)
 
@@ -28995,14 +28883,6 @@ Major mode for editing Bovine grammars.
 
 ;;;***
 
-;;;### (autoloads nil "semantic/grammar-wy" "cedet/semantic/grammar-wy.el"
-;;;;;;  (0 0 0 0))
-;;; Generated autoloads from cedet/semantic/grammar-wy.el
-
-(register-definition-prefixes "semantic/grammar-wy" '("semantic-grammar-wy--"))
-
-;;;***
-
 ;;;### (autoloads nil "semantic/java" "cedet/semantic/java.el" (0
 ;;;;;;  0 0 0))
 ;;; Generated autoloads from cedet/semantic/java.el
@@ -29433,6 +29313,12 @@ Equality is defined by TESTFN if non-nil or by `equal' if nil.
 
 \(fn SEQUENCE ELT &optional TESTFN)" nil nil)
 
+(autoload 'seq-intersection "seq" "\
+Return a list of the elements that appear in both SEQUENCE1 and SEQUENCE2.
+Equality is defined by TESTFN if non-nil or by `equal' if nil.
+
+\(fn SEQUENCE1 SEQUENCE2 &optional TESTFN)" nil nil)
+
 (autoload 'seq-group-by "seq" "\
 Apply FUNCTION to each element of SEQUENCE.
 Separate the elements of SEQUENCE into an alist using the results as
@@ -29626,7 +29512,7 @@ or Edit/Text Properties/Face commands.
 Pages can have <a name=\"SOMENAME\">named points</a> and can link other points
 to them with <a href=\"#SOMENAME\">see also somename</a>.  In the same way <a
 href=\"URL\">see also URL</a> where URL is a filename relative to current
-directory, or absolute as in `http://www.cs.indiana.edu/elisp/w3/docs.html'.
+directory, or absolute as in `https://www.cs.indiana.edu/elisp/w3/docs.html'.
 
 Images in many formats can be inlined with <img src=\"URL\">.
 
@@ -31375,7 +31261,7 @@ Major-mode for writing SRecode macros.
 
 \(fn)" t nil)
 
-(defalias 'srt-mode 'srecode-template-mode)
+(defalias 'srt-mode #'srecode-template-mode)
 
 (register-definition-prefixes "srecode/srt-mode" '("semantic-" "srecode-"))
 
@@ -31785,9 +31671,7 @@ disabled.
 
 \(fn &optional ARG)" t nil)
 
-(defvar tab-line-exclude nil)
-
-(make-variable-buffer-local 'tab-line-exclude)
+(defvar-local tab-line-exclude nil)
 
 (put 'global-tab-line-mode 'globalized-minor-mode t)
 
@@ -31939,7 +31823,7 @@ Move the point under the table as shown below.
     +--------------+------+--------------------------------+
     -!-
 
-Type M-x table-insert-row instead of \\[table-insert-row-column].  \\[table-insert-row-column] does not work
+Type \\[table-insert-row] instead of \\[table-insert-row-column].  \\[table-insert-row-column] does not work
 when the point is outside of the table.  This insertion at
 outside of the table effectively appends a row at the end.
 
@@ -32236,11 +32120,11 @@ HTML:
         URL `https://www.w3.org'
 
 LaTeX:
-        URL `http://www.maths.tcd.ie/~dwilkins/LaTeXPrimer/Tables.html'
+        URL `https://www.maths.tcd.ie/~dwilkins/LaTeXPrimer/Tables.html'
 
 CALS (DocBook DTD):
-        URL `http://www.oasis-open.org/html/a502.htm'
-        URL `http://www.oreilly.com/catalog/docbook/chapter/book/table.html#AEN114751'
+        URL `https://www.oasis-open.org/html/a502.htm'
+        URL `https://www.oreilly.com/catalog/docbook/chapter/book/table.html#AEN114751'
 
 \(fn LANGUAGE &optional DEST-BUFFER CAPTION)" t nil)
 
@@ -32448,12 +32332,12 @@ Connect to the Emacs talk group from the current X display or tty frame." t nil)
 (autoload 'tar-mode "tar-mode" "\
 Major mode for viewing a tar file as a dired-like listing of its contents.
 You can move around using the usual cursor motion commands.
-Letters no longer insert themselves.
-Type `e' to pull a file out of the tar file and into its own buffer;
+Letters no longer insert themselves.\\<tar-mode-map>
+Type \\[tar-extract] to pull a file out of the tar file and into its own buffer;
 or click mouse-2 on the file's line in the Tar mode buffer.
-Type `c' to copy an entry from the tar file into another file on disk.
+Type \\[tar-copy] to copy an entry from the tar file into another file on disk.
 
-If you edit a sub-file of this archive (as with the `e' command) and
+If you edit a sub-file of this archive (as with the \\[tar-extract] command) and
 save it with \\[save-buffer], the contents of that buffer will be
 saved back into the tar-file buffer; in this way you can edit a file
 inside of a tar archive without extracting it and re-archiving it.
@@ -32807,11 +32691,11 @@ says which mode to use.
 
 \(fn)" t nil)
 
-(defalias 'TeX-mode 'tex-mode)
+(defalias 'TeX-mode #'tex-mode)
 
-(defalias 'plain-TeX-mode 'plain-tex-mode)
+(defalias 'plain-TeX-mode #'plain-tex-mode)
 
-(defalias 'LaTeX-mode 'latex-mode)
+(defalias 'LaTeX-mode #'latex-mode)
 
 (autoload 'plain-tex-mode "tex-mode" "\
 Major mode for editing files of input for plain TeX.
@@ -33467,7 +33351,11 @@ point.
 \(fn &optional FORMAT HERE)" t nil)
 
 (autoload 'emacs-init-time "time" "\
-Return a string giving the duration of the Emacs initialization." t nil)
+Return a string giving the duration of the Emacs initialization.
+FORMAT is a string to format the result, using `format'. If nil,
+the default format \"%f seconds\" is used.
+
+\(fn &optional FORMAT)" t nil)
 
 (register-definition-prefixes "time" '("display-time-" "legacy-style-world-list" "time--display-world-list" "world-clock-" "zoneinfo-style-world-list"))
 
@@ -34153,6 +34041,13 @@ Add archive file name handler to `file-name-handler-alist'." (when tramp-archive
 
 ;;;***
 
+;;;### (autoloads nil "tramp-fuse" "net/tramp-fuse.el" (0 0 0 0))
+;;; Generated autoloads from net/tramp-fuse.el
+
+(register-definition-prefixes "tramp-fuse" '("tramp-fuse-"))
+
+;;;***
+
 ;;;### (autoloads nil "tramp-gvfs" "net/tramp-gvfs.el" (0 0 0 0))
 ;;; Generated autoloads from net/tramp-gvfs.el
 
@@ -34187,6 +34082,13 @@ Add archive file name handler to `file-name-handler-alist'." (when tramp-archive
 ;;; Generated autoloads from net/tramp-smb.el
 
 (register-definition-prefixes "tramp-smb" '("tramp-smb-"))
+
+;;;***
+
+;;;### (autoloads nil "tramp-sshfs" "net/tramp-sshfs.el" (0 0 0 0))
+;;; Generated autoloads from net/tramp-sshfs.el
+
+(register-definition-prefixes "tramp-sshfs" '("tramp-sshfs-"))
 
 ;;;***
 
@@ -34262,8 +34164,8 @@ resumed later.
 ;;;;;;  0 0))
 ;;; Generated autoloads from textmodes/two-column.el
  (autoload '2C-command "two-column" () t 'keymap)
- (global-set-key "\C-x6" '2C-command)
- (global-set-key [f2] '2C-command)
+ (global-set-key "\C-x6" #'2C-command)
+ (global-set-key [f2] #'2C-command)
 
 (autoload '2C-two-columns "two-column" "\
 Split current window vertically for two-column editing.
@@ -35368,7 +35270,12 @@ The buffer in question is current when this function is called.
 
 \(fn FILENAME)" nil nil)
 
-(register-definition-prefixes "userlock" '("ask-user-about-" "file-" "userlock--check-content-unchanged"))
+(autoload 'userlock--handle-unlock-error "userlock" "\
+Report an ERROR that occurred while unlocking a file.
+
+\(fn ERROR)" nil nil)
+
+(register-definition-prefixes "userlock" '("ask-user-about-" "file-" "userlock--"))
 
 ;;;***
 
@@ -35514,6 +35421,22 @@ register the file.  If no backend declares itself responsible, the
 first backend that could register the file is used.
 
 \(fn &optional VC-FILESET COMMENT)" t nil)
+
+(autoload 'vc-ignore "vc" "\
+Ignore FILE under the VCS of DIRECTORY.
+
+Normally, FILE is a wildcard specification that matches the files
+to be ignored.  When REMOVE is non-nil, remove FILE from the list
+of ignored files.
+
+DIRECTORY defaults to `default-directory' and is used to
+determine the responsible VC backend.
+
+When called interactively, prompt for a FILE to ignore, unless a
+prefix argument is given, in which case prompt for a file FILE to
+remove from the list of ignored files.
+
+\(fn FILE &optional DIRECTORY REMOVE)" t nil)
 
 (autoload 'vc-version-diff "vc" "\
 Report diffs between revisions REV1 and REV2 in the repository history.
@@ -36119,7 +36042,7 @@ Add a description of the problem and include a reproducible test case.
 Feel free to send questions and enhancement requests to <reto@gnu.org>.
 
 Official distribution is at
-URL `http://www.iis.ee.ethz.ch/~zimmi/emacs/vera-mode.html'
+URL `https://www.iis.ee.ethz.ch/~zimmi/emacs/vera-mode.html'
 
 
                                                   The Vera Mode Maintainer
@@ -36139,7 +36062,7 @@ Key bindings:
 ;;;### (autoloads nil "verilog-mode" "progmodes/verilog-mode.el"
 ;;;;;;  (0 0 0 0))
 ;;; Generated autoloads from progmodes/verilog-mode.el
-(push (purecopy '(verilog-mode 2020 6 27 14326051)) package--builtin-versions)
+(push (purecopy '(verilog-mode 2021 3 30 243771231)) package--builtin-versions)
 
 (autoload 'verilog-mode "verilog-mode" "\
 Major mode for editing Verilog code.
@@ -36888,15 +36811,13 @@ If nil, make an icon of the frame.  If non-nil, delete the frame.")
 
 (custom-autoload 'view-remove-frame-by-deleting "view" t)
 
-(defvar view-mode nil "\
+(defvar-local view-mode nil "\
 Non-nil if View mode is enabled.
 Don't change this variable directly, you must change it by one of the
 functions that enable or disable view mode.")
 
-(make-variable-buffer-local 'view-mode)
-
 (autoload 'kill-buffer-if-not-modified "view" "\
-Like `kill-buffer', but does nothing if the buffer is modified.
+Like `kill-buffer', but does nothing if buffer BUF is modified.
 
 \(fn BUF)" nil nil)
 
@@ -36962,7 +36883,7 @@ file: Users may suspend viewing in order to modify the buffer.
 Exiting View mode will then discard the user's edits.  Setting
 EXIT-ACTION to `kill-buffer-if-not-modified' avoids this.
 
-This function does not enable View mode if the buffer's major-mode
+This function does not enable View mode if the buffer's major mode
 has a `special' mode-class, because such modes usually have their
 own View-like bindings.
 
@@ -36984,7 +36905,7 @@ Optional argument EXIT-ACTION is either nil or a function with buffer as
 argument.  This function is called when finished viewing buffer.  Use
 this argument instead of explicitly setting `view-exit-action'.
 
-This function does not enable View mode if the buffer's major-mode
+This function does not enable View mode if the buffer's major mode
 has a `special' mode-class, because such modes usually have their
 own View-like bindings.
 
@@ -37006,7 +36927,7 @@ Optional argument EXIT-ACTION is either nil or a function with buffer as
 argument.  This function is called when finished viewing buffer.  Use
 this argument instead of explicitly setting `view-exit-action'.
 
-This function does not enable View mode if the buffer's major-mode
+This function does not enable View mode if the buffer's major mode
 has a `special' mode-class, because such modes usually have their
 own View-like bindings.
 
@@ -38455,15 +38376,15 @@ Zone out, completely." t nil)
 ;;;;;;  "cedet/semantic/db-typecache.el" "cedet/semantic/db.el" "cedet/semantic/debug.el"
 ;;;;;;  "cedet/semantic/decorate/include.el" "cedet/semantic/decorate/mode.el"
 ;;;;;;  "cedet/semantic/dep.el" "cedet/semantic/doc.el" "cedet/semantic/edit.el"
-;;;;;;  "cedet/semantic/find.el" "cedet/semantic/format.el" "cedet/semantic/html.el"
-;;;;;;  "cedet/semantic/ia-sb.el" "cedet/semantic/ia.el" "cedet/semantic/idle.el"
-;;;;;;  "cedet/semantic/imenu.el" "cedet/semantic/lex-spp.el" "cedet/semantic/lex.el"
-;;;;;;  "cedet/semantic/mru-bookmark.el" "cedet/semantic/scope.el"
-;;;;;;  "cedet/semantic/senator.el" "cedet/semantic/sort.el" "cedet/semantic/symref.el"
-;;;;;;  "cedet/semantic/symref/cscope.el" "cedet/semantic/symref/global.el"
-;;;;;;  "cedet/semantic/symref/grep.el" "cedet/semantic/symref/idutils.el"
-;;;;;;  "cedet/semantic/symref/list.el" "cedet/semantic/tag-file.el"
-;;;;;;  "cedet/semantic/tag-ls.el" "cedet/semantic/tag-write.el"
+;;;;;;  "cedet/semantic/find.el" "cedet/semantic/format.el" "cedet/semantic/grammar-wy.el"
+;;;;;;  "cedet/semantic/html.el" "cedet/semantic/ia-sb.el" "cedet/semantic/ia.el"
+;;;;;;  "cedet/semantic/idle.el" "cedet/semantic/imenu.el" "cedet/semantic/lex-spp.el"
+;;;;;;  "cedet/semantic/lex.el" "cedet/semantic/mru-bookmark.el"
+;;;;;;  "cedet/semantic/scope.el" "cedet/semantic/senator.el" "cedet/semantic/sort.el"
+;;;;;;  "cedet/semantic/symref.el" "cedet/semantic/symref/cscope.el"
+;;;;;;  "cedet/semantic/symref/global.el" "cedet/semantic/symref/grep.el"
+;;;;;;  "cedet/semantic/symref/idutils.el" "cedet/semantic/symref/list.el"
+;;;;;;  "cedet/semantic/tag-file.el" "cedet/semantic/tag-ls.el" "cedet/semantic/tag-write.el"
 ;;;;;;  "cedet/semantic/tag.el" "cedet/semantic/texi.el" "cedet/semantic/util-modes.el"
 ;;;;;;  "cedet/semantic/wisent/java-tags.el" "cedet/semantic/wisent/javascript.el"
 ;;;;;;  "cedet/semantic/wisent/javat-wy.el" "cedet/semantic/wisent/js-wy.el"
@@ -38476,12 +38397,12 @@ Zone out, completely." t nil)
 ;;;;;;  "cus-face.el" "cus-start.el" "custom.el" "dired-aux.el" "dired-x.el"
 ;;;;;;  "electric.el" "emacs-lisp/backquote.el" "emacs-lisp/byte-run.el"
 ;;;;;;  "emacs-lisp/cl-extra.el" "emacs-lisp/cl-macs.el" "emacs-lisp/cl-preloaded.el"
-;;;;;;  "emacs-lisp/cl-seq.el" "emacs-lisp/eieio-compat.el" "emacs-lisp/eieio-custom.el"
-;;;;;;  "emacs-lisp/eieio-opt.el" "emacs-lisp/float-sup.el" "emacs-lisp/lisp-mode.el"
-;;;;;;  "emacs-lisp/lisp.el" "emacs-lisp/macroexp.el" "emacs-lisp/map-ynp.el"
-;;;;;;  "emacs-lisp/nadvice.el" "emacs-lisp/syntax.el" "emacs-lisp/timer.el"
-;;;;;;  "env.el" "epa-hook.el" "erc/erc-autoaway.el" "erc/erc-button.el"
-;;;;;;  "erc/erc-capab.el" "erc/erc-dcc.el" "erc/erc-desktop-notifications.el"
+;;;;;;  "emacs-lisp/cl-seq.el" "emacs-lisp/easymenu.el" "emacs-lisp/eieio-compat.el"
+;;;;;;  "emacs-lisp/eieio-custom.el" "emacs-lisp/eieio-opt.el" "emacs-lisp/float-sup.el"
+;;;;;;  "emacs-lisp/lisp-mode.el" "emacs-lisp/lisp.el" "emacs-lisp/macroexp.el"
+;;;;;;  "emacs-lisp/map-ynp.el" "emacs-lisp/nadvice.el" "emacs-lisp/syntax.el"
+;;;;;;  "emacs-lisp/timer.el" "env.el" "epa-hook.el" "erc/erc-autoaway.el"
+;;;;;;  "erc/erc-button.el" "erc/erc-capab.el" "erc/erc-dcc.el" "erc/erc-desktop-notifications.el"
 ;;;;;;  "erc/erc-ezbounce.el" "erc/erc-fill.el" "erc/erc-identd.el"
 ;;;;;;  "erc/erc-imenu.el" "erc/erc-join.el" "erc/erc-list.el" "erc/erc-log.el"
 ;;;;;;  "erc/erc-match.el" "erc/erc-menu.el" "erc/erc-netsplit.el"
@@ -38495,7 +38416,7 @@ Zone out, completely." t nil)
 ;;;;;;  "eshell/em-ls.el" "eshell/em-pred.el" "eshell/em-prompt.el"
 ;;;;;;  "eshell/em-rebind.el" "eshell/em-script.el" "eshell/em-smart.el"
 ;;;;;;  "eshell/em-term.el" "eshell/em-tramp.el" "eshell/em-unix.el"
-;;;;;;  "eshell/em-xtra.el" "facemenu.el" "faces.el" "files.el" "font-core.el"
+;;;;;;  "eshell/em-xtra.el" "faces.el" "files.el" "font-core.el"
 ;;;;;;  "font-lock.el" "format.el" "frame.el" "help.el" "hfy-cmap.el"
 ;;;;;;  "ibuf-ext.el" "indent.el" "international/characters.el" "international/charprop.el"
 ;;;;;;  "international/charscript.el" "international/cp51932.el"

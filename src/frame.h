@@ -907,6 +907,13 @@ default_pixels_per_inch_y (void)
   (WINDOWP (f->minibuffer_window)				\
    && XFRAME (XWINDOW (f->minibuffer_window)->frame) == f)
 
+/* Scale factor of frame F.  */
+#if defined HAVE_NS
+# define FRAME_SCALE_FACTOR(f) (FRAME_NS_P (f) ? ns_frame_scale_factor (f) : 1)
+#else
+# define FRAME_SCALE_FACTOR(f) 1
+#endif
+
 /* Pixel width of frame F.  */
 #define FRAME_PIXEL_WIDTH(f) ((f)->pixel_width)
 
@@ -1449,11 +1456,11 @@ INLINE int
 FRAME_INTERNAL_BORDER_WIDTH (struct frame *f)
 {
 #ifdef HAVE_WINDOW_SYSTEM
-  return FRAME_PARENT_FRAME(f)
-    ? (f->child_frame_border_width
-       ? FRAME_CHILD_FRAME_BORDER_WIDTH(f)
-       : frame_dimension (f->internal_border_width))
-    : frame_dimension (f->internal_border_width);
+  return (FRAME_PARENT_FRAME(f)
+	  ? (FRAME_CHILD_FRAME_BORDER_WIDTH(f) >= 0
+	     ? FRAME_CHILD_FRAME_BORDER_WIDTH(f)
+	     : frame_dimension (f->internal_border_width))
+	  : frame_dimension (f->internal_border_width));
 #else
   return frame_dimension (f->internal_border_width);
 #endif

@@ -131,16 +131,21 @@ This exists as a variable so it can be set locally in certain buffers.")
 			(((class grayscale color)
 			  (background light))
 			 :background "gray85"
+                         ;; We use negative thickness of the horizontal box border line to
+                         ;; avoid making lines taller when fields become visible.
+                         :box (:line-width (1 . -1) :color "gray80")
 			 :extend t)
 			(((class grayscale color)
 			  (background dark))
 			 :background "dim gray"
+                         :box (:line-width (1 . -1) :color "gray46")
 			 :extend t)
 			(t
 			 :slant italic
 			 :extend t))
   "Face used for editable fields."
-  :group 'widget-faces)
+  :group 'widget-faces
+  :version "28.1")
 
 (defface widget-single-line-field '((((type tty))
 				     :background "green3"
@@ -745,7 +750,7 @@ automatically."
   :type 'boolean)
 
 (defcustom widget-image-conversion
-  '((xpm ".xpm") (gif ".gif") (png ".png") (jpeg ".jpg" ".jpeg")
+  '((svg ".svg") (xpm ".xpm") (gif ".gif") (png ".png") (jpeg ".jpg" ".jpeg")
     (xbm ".xbm"))
   "Conversion alist from image formats to file name suffixes."
   :group 'widgets
@@ -1873,20 +1878,9 @@ as the argument to `documentation-property'."
   (let ((value (widget-get widget :value)))
     (and (listp value)
 	 (<= (length value) (length vals))
-	 (let ((head (widget-sublist vals 0 (length value))))
+         (let ((head (seq-subseq vals 0 (length value))))
 	   (and (equal head value)
-		(cons head (widget-sublist vals (length value))))))))
-
-(defun widget-sublist (list start &optional end)
-  "Return the sublist of LIST from START to END.
-If END is omitted, it defaults to the length of LIST."
-  (if (> start 0) (setq list (nthcdr start list)))
-  (if end
-      (unless (<= end start)
-	(setq list (copy-sequence list))
-	(setcdr (nthcdr (- end start 1) list) nil)
-	list)
-    (copy-sequence list)))
+                (cons head (seq-subseq vals (length value))))))))
 
 (defun widget-item-action (widget &optional event)
   ;; Just notify itself.
@@ -2570,9 +2564,9 @@ Return an alist of (TYPE MATCH)."
   :button-suffix ""
   :button-prefix ""
   :on "(*)"
-  :on-glyph "radio1"
+  :on-glyph "radio-checked"
   :off "( )"
-  :off-glyph "radio0")
+  :off-glyph "radio")
 
 (defun widget-radio-button-notify (widget _child &optional event)
   ;; Tell daddy.
@@ -4029,7 +4023,7 @@ is inline."
                    (mapcar #'length (defined-colors))))
   :tag "Color"
   :value "black"
-  :completions (or facemenu-color-alist (defined-colors))
+  :completions (defined-colors)
   :sample-face-get 'widget-color-sample-face-get
   :notify 'widget-color-notify
   :match #'widget-color-match
@@ -4044,7 +4038,10 @@ is inline."
    :tag " Choose " :action 'widget-color--choose-action)
   (widget-insert " "))
 
+(declare-function list-colors-display "facemenu")
+
 (defun widget-color--choose-action (widget &optional _event)
+  (require 'facemenu)
   (list-colors-display
    nil nil
    (let ((cbuf (current-buffer))
@@ -4067,8 +4064,11 @@ is inline."
 	(list (cons 'foreground-color value))
       'default)))
 
+(declare-function facemenu-read-color "facemenu")
+
 (defun widget-color-action (widget &optional event)
   "Prompt for a color."
+  (require 'facemenu)
   (let* ((tag (widget-apply widget :menu-tag-get))
 	 (prompt (concat tag ": "))
 	 (answer (facemenu-read-color prompt)))
@@ -4106,7 +4106,9 @@ is inline."
 	(setq help-echo (funcall help-echo widget)))
     (if help-echo (message "%s" (eval help-echo)))))
 
-;;; The End:
+;;; Obsolete.
+
+(define-obsolete-function-alias 'widget-sublist #'seq-subseq "28.1")
 
 (provide 'wid-edit)
 

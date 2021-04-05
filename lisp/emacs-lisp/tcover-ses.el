@@ -6,6 +6,8 @@
 ;; Keywords: spreadsheet lisp utility
 ;; Package: testcover
 
+;; This file is part of GNU Emacs.
+
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
@@ -30,8 +32,8 @@
 
 ;;;Here are some macros that exercise SES.  Set `pause' to t if you want the
 ;;;macros to pause after each step.
-(let* ((pause nil)
-       (x (if pause "\^Xq" ""))
+(let* (;; (pause nil)
+       (x (if nil "\^Xq" "")) ;; pause
        (y "\^X\^Fses-test.ses\r\^[<"))
   ;;Fiddle with the existing spreadsheet
   (fset 'ses-exercise-example
