@@ -1,6 +1,7 @@
 ;;; url-http.el --- HTTP retrieval routines  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999, 2001, 2004-2021 Free Software Foundation, Inc.
+;; Copyright (c) 2021 Jade Michael Thornton
+;; Copyright (c) 1999, 2001, 2004-2021 Free Software Foundation, Inc.
 
 ;; Author: Bill Perry <wmperry@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -790,9 +791,9 @@ should be shown to the user."
                 ;; Authorization header field.
                 (url-http-handle-authentication nil))
                ('payment-required              ; 402
-                ;; This code is reserved for future use
-                (url-mark-buffer-as-dead buffer)
-                (error "Somebody wants you to give them money"))
+                ;; Unlike as specified in GNU Emacs, this code is not
+                ;; unused.
+                t)
                ('forbidden			; 403
                 ;; The server understood the request, but is refusing to
                 ;; fulfill it.  Authorization will not help and the request
