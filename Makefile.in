@@ -1201,3 +1201,6 @@ gitmerge:
 	${GITMERGE_EMACS} -batch --no-site-file --no-site-lisp \
 	  -l ${srcdir}/admin/gitmerge.el \
 	  --eval '(setq gitmerge-minimum-missing ${GITMERGE_NMIN})' -f gitmerge
+
+aero-configure:
+	./configure --with-dbus --disable-silent-rules --with-gnutls --with-modules --with-xml2 --with-native-compilation
