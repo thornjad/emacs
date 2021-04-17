@@ -18,6 +18,7 @@ make install
 This is not considered stable, and not all features are currently working.
 
 #+begin_src sh
+make build-docker
 docker run -ti --name emacs --net=host\
  -v /tmp/.X11-unix:/tmp/.X11-unix:ro -e DISPLAY="unix$DISPLAY"\
  -v <path_to_your_.emacs.d>:/home/aero/.config/emacs\
