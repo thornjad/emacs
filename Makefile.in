@@ -1204,3 +1204,6 @@ gitmerge:
 
 aero-configure:
 	./configure --with-dbus --disable-silent-rules --with-gnutls --with-modules --with-xml2 --with-native-compilation
+
+build-docker:
+	docker build -t aero-emacs .

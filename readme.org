@@ -1,23 +1,28 @@
 #+title:Emacs for Aero
 #+author:Jade Michael Thornton
 
-This project is a fork of GNU Emacs which is used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This project contains some customizations for my use cases and is not intended for widespread use.
-
-** Compatibility
-*WARNING* this fork is not tested thoroughly, it should not be considered stable.
-
-This project /should/ be compatible with any modern Unix-like system, but is only regularly used on Ubuntu 20.10; other systems are not tested.
+This project is a fork of GNU Emacs which is used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This repository contains changes to core functionality which are neither approved nor peer reviewed by GNU, and as such should *NOT* be considered stable.
 
 ** Installation
+*** Manual install
 Full installation information may be found in the =INSTALL= file. But this is the synopsis.
-
-Note that the =-j= option given to =make= is tuned for my 12-core system. By default, it will only use one or two threads in my experience.
 
 #+begin_src sh
 ./autoconf.sh
 make aero-configure
-make -j12
-sudo make install
+make
+make install
+#+end_src
+
+*** Docker
+This is not considered stable, and not all features are currently working.
+
+#+begin_src sh
+docker run -ti --name emacs --net=host\
+ -v /tmp/.X11-unix:/tmp/.X11-unix:ro -e DISPLAY="unix$DISPLAY"\
+ -v <path_to_your_.emacs.d>:/home/aero/.config/emacs\
+ -v <path_to_your_workspace>:/mnt/workspace\
+ aero-emacs emacs
 #+end_src
 
 ** License
