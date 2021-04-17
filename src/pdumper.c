@@ -128,7 +128,7 @@ static struct
 {
   void *mem;
   int sz;
-} remembered_data[32];
+} remembered_data[64];
 static int nr_remembered_data = 0;
 
 typedef int_least32_t dump_off;
