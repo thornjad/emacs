@@ -6045,34 +6045,6 @@ fi
 
 AC_OUTPUT
 
-if test ! "$with_mailutils"; then
-  if test "$with_pop" = yes; then
-    AC_MSG_WARN([This configuration installs a 'movemail' program
-that retrieves POP3 email via only insecure channels.
-To omit insecure POP3, you can use '$0 --without-pop'.])
-  elif test "$with_pop" = no-by-default; then
-    AC_MSG_WARN([This configuration installs a 'movemail' program
-that does not retrieve POP3 email.  By default, Emacs 25 and earlier
-installed a 'movemail' program that retrieved POP3 email via only
-insecure channels, a practice that is no longer recommended but that
-you can continue to support by using '$0 --with-pop'.])
-  fi
-
-  case $opsys in
-    mingw32)
-      # Don't suggest GNU Mailutils, as it hasn't been ported.
-      ;;
-    *)
-      emacs_fix_movemail="use '$0 --with-mailutils'"
-      case `(movemail --version) 2>/dev/null` in
-	*Mailutils*) ;;
-	*) emacs_fix_movemail="install GNU Mailutils
-<https://mailutils.org> and $emacs_fix_movemail";;
-      esac
-      AC_MSG_NOTICE([You might want to $emacs_fix_movemail.]);;
-  esac
-fi
-
 if test "${HAVE_XFT}" = yes; then
   AC_MSG_WARN([This configuration uses libXft, which has a number of
     font rendering issues, and is being considered for removal in the
