@@ -185,6 +185,16 @@ When `nil', never wrap, just stop at the last match."
                  (const :tag "Disable wrapping" nil))
   :version "28.1")
 
+(defcustom isearch-repeat-on-direction-change nil
+  "Whether a direction change should move to another match.
+When `nil', the default, a direction change moves point to the other
+end of the current search match.
+When `t', a direction change moves to another search match, if there
+is one."
+  :type '(choice (const :tag "Remain on the same match" nil)
+                 (const :tag "Move to another match" t))
+  :version "28.1")
+
 (defvar isearch-mode-hook nil
   "Function(s) to call after starting up an incremental search.")
 
@@ -1847,6 +1857,8 @@ Use `isearch-exit' to quit without signaling."
 	      (funcall isearch-wrap-function)
 	    (goto-char (if isearch-forward (point-min) (point-max))))))
     ;; C-s in reverse or C-r in forward, change direction.
+    (if (and isearch-other-end isearch-repeat-on-direction-change)
+        (goto-char isearch-other-end))
     (setq isearch-forward (not isearch-forward)
 	  isearch-success t))
 
@@ -1910,10 +1922,12 @@ of the buffer, type \\[isearch-beginning-of-buffer] with a numeric argument."
         (cond ((< count 0)
                (isearch-repeat-backward (abs count))
                ;; Reverse the direction back
-               (isearch-repeat 'forward))
+               (let ((isearch-repeat-on-direction-change nil))
+                 (isearch-repeat 'forward)))
               (t
                ;; Take into account one iteration to reverse direction
-               (when (not isearch-forward) (setq count (1+ count)))
+               (unless isearch-repeat-on-direction-change
+                 (when (not isearch-forward) (setq count (1+ count))))
                (isearch-repeat 'forward count))))
     (isearch-repeat 'forward)))
 
@@ -1931,10 +1945,12 @@ of the buffer, type \\[isearch-end-of-buffer] with a numeric argument."
         (cond ((< count 0)
                (isearch-repeat-forward (abs count))
                ;; Reverse the direction back
-               (isearch-repeat 'backward))
+               (let ((isearch-repeat-on-direction-change nil))
+                 (isearch-repeat 'backward)))
               (t
                ;; Take into account one iteration to reverse direction
-               (when isearch-forward (setq count (1+ count)))
+               (unless isearch-repeat-on-direction-change
+                 (when isearch-forward (setq count (1+ count))))
                (isearch-repeat 'backward count))))
     (isearch-repeat 'backward)))
 
@@ -2545,7 +2561,9 @@ Otherwise invoke whatever the calling mouse-2 command sequence
 is bound to outside of Isearch."
   (interactive "e")
   (let ((w (posn-window (event-start click)))
-        (binding (let ((overriding-terminal-local-map nil))
+        (binding (let ((overriding-terminal-local-map nil)
+                       ;; Key search depends on mode (bug#47755)
+                       (isearch-mode nil))
                    (key-binding (this-command-keys-vector) t))))
     (if (and (window-minibuffer-p w)
 	     (not (minibuffer-window-active-p w))) ; in echo area
@@ -3038,6 +3056,10 @@ See more for options in `search-exit-option'."
            (goto-char isearch-pre-move-point))
          (isearch-search-and-update)))
      (setq isearch-pre-move-point nil))
+  ;; Terminate the search if point has moved to another buffer.
+  (unless (eq isearch--current-buffer (current-buffer))
+    (when (buffer-live-p isearch--current-buffer)
+      (with-current-buffer isearch--current-buffer (isearch-exit))))
   (force-mode-line-update))
 
 (defun isearch-quote-char (&optional count)

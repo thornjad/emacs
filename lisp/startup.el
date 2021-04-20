@@ -544,7 +544,8 @@ It is the default value of the variable `top-level'."
           (dolist (path (split-string path-env path-separator))
             (unless (string= "" path)
               (push path comp-eln-load-path)))))
-      (push (concat user-emacs-directory "eln-cache/") comp-eln-load-path)
+      (push (expand-file-name "eln-cache/" user-emacs-directory)
+            comp-eln-load-path)
       ;; When $HOME is set to '/nonexistent' means we are running the
       ;; testsuite, add a temporary folder in front to produce there
       ;; new compilations.
@@ -636,6 +637,16 @@ It is the default value of the variable `top-level'."
 		(set pathsym (mapcar (lambda (dir)
 				       (decode-coding-string dir coding t))
 				     path)))))
+        (when (featurep 'nativecomp)
+          (let ((npath (symbol-value 'comp-eln-load-path)))
+            (set 'comp-eln-load-path
+                 (mapcar (lambda (dir)
+                           ;; Call expand-file-name to remove all the
+                           ;; pesky ".." from the directyory names in
+                           ;; comp-eln-load-path.
+                           (expand-file-name
+                            (decode-coding-string dir coding t)))
+                         npath))))
 	(dolist (filesym '(data-directory doc-directory exec-directory
 					  installation-directory
 					  invocation-directory invocation-name
@@ -1111,7 +1122,7 @@ please check its value")
                          ("--no-x-resources") ("--debug-init")
                          ("--user") ("--iconic") ("--icon-type") ("--quick")
 			 ("--no-blinking-cursor") ("--basic-display")
-                         ("--dump-file") ("--temacs")))
+                         ("--dump-file") ("--temacs") ("--seccomp")))
              (argi (pop args))
              (orig-argi argi)
              argval)
@@ -1163,7 +1174,8 @@ please check its value")
 	  (push '(visibility . icon) initial-frame-alist))
 	 ((member argi '("-nbc" "-no-blinking-cursor"))
 	  (setq no-blinking-cursor t))
-         ((member argi '("-dump-file" "-temacs"))  ; Handled in C
+         ((member argi '("-dump-file" "-temacs" "-seccomp"))
+          ;; Handled in C
           (or argval (pop args))
           (setq argval nil))
 	 ;; Push the popped arg back on the list of arguments.
