@@ -3,6 +3,11 @@
 
 This project is a fork of GNU Emacs, used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This repository contains changes to core functionality which are neither approved nor peer reviewed by GNU, and as such is *NOT* considered stable.
 
+** Major differences with GNU Emacs
+- Native compilation is enabled by default, disable with =--without-native-compilation=
+- Xwidgets support is enabled by default, disable with =--without-xwidgets=
+- Included Dockerfile for containerized builds
+
 ** Installation
 *** Manual install
 The =INSTALL= file contains full installation information, but here's the synopsis:
@@ -13,6 +18,10 @@ The =INSTALL= file contains full installation information, but here's the synops
 make
 make install
 #+end_src
+
+Before running =make=, it may be useful to check the output of =configure= to ensure the compiler will use all the features you want. You may be missing some optional dependencies.
+
+Also note that =make= accepts a jobs argument, =-j=, which sets the number of threads the compiler can use. In theory, omitting this argument should give you a balance between fast-ish and not locking up the rest of your system. In practice, if you can give it the same number of threads as logical cores available, the process will go much quicker. On my 12-core system, =make= on its own takes around 2 minutes while =make -j12= runs in around 15 seconds.
 
 *** Docker
 This is not considered stable, and not all features are currently working.
