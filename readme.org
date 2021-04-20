@@ -1,11 +1,11 @@
 #+title:Emacs for Aero
 #+author:Jade Michael Thornton
 
-This project is a fork of GNU Emacs which is used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This repository contains changes to core functionality which are neither approved nor peer reviewed by GNU, and as such should *NOT* be considered stable.
+This project is a fork of GNU Emacs, used to build [[https://gitlab.com/thornjad/aero][Aero Emacs]]. This repository contains changes to core functionality which are neither approved nor peer reviewed by GNU, and as such is *NOT* considered stable.
 
 ** Installation
 *** Manual install
-Full installation information may be found in the =INSTALL= file. But this is the synopsis.
+The =INSTALL= file contains full installation information, but here's the synopsis:
 
 #+begin_src sh
 ./autoconf.sh
