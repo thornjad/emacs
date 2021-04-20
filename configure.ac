@@ -484,7 +484,7 @@ OPTION_DEFAULT_ON([gnutls],[don't use -lgnutls for SSL/TLS support])
 OPTION_DEFAULT_ON([zlib],[don't compile with zlib decompression support])
 OPTION_DEFAULT_ON([modules],[don't compile with dynamic modules support])
 OPTION_DEFAULT_ON([threads],[don't compile with elisp threading support])
-OPTION_DEFAULT_OFF([native-compilation],[compile with Emacs Lisp native compiler support])
+OPTION_DEFAULT_ON([native-compilation],[compile with Emacs Lisp native compiler support])
 
 AC_ARG_WITH([file-notification],[AS_HELP_STRING([--with-file-notification=LIB],
  [use a file notification library (LIB one of: yes, inotify, kqueue, gfile, w32, no)])],
@@ -505,7 +505,7 @@ otherwise for the first of 'inotify', 'kqueue' or 'gfile' that is usable.])
  ],
  [with_file_notification=$with_features])
 
-OPTION_DEFAULT_OFF([xwidgets],
+OPTION_DEFAULT_ON([xwidgets],
   [enable use of xwidgets in Emacs buffers (requires gtk3 or macOS Cocoa)])
 
 ## Makefile.in needs the cache file name.

@@ -9,7 +9,7 @@ The =INSTALL= file contains full installation information, but here's the synops
 
 #+begin_src sh
 ./autoconf.sh
-make aero-configure
+./configure
 make
 make install
 #+end_src
