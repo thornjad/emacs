@@ -519,6 +519,7 @@ DIRS are relative."
       xdg-dir)
      (t emacs-d-dir))))
 
+(defvar comp-eln-load-path)
 (defun normal-top-level ()
   "Emacs calls this function when it first starts up.
 It sets `command-line-processed', processes the command-line,
@@ -538,7 +539,6 @@ It is the default value of the variable `top-level'."
 
     (when (featurep 'nativecomp)
       ;; Form `comp-eln-load-path'.
-      (defvar comp-eln-load-path)
       (let ((path-env (getenv "EMACSNATIVELOADPATH")))
         (when path-env
           (dolist (path (split-string path-env path-separator))
@@ -1200,7 +1200,7 @@ please check its value")
         ;; are dependencies between them.
         (nreverse custom-delayed-init-variables))
   (mapc #'custom-reevaluate-setting custom-delayed-init-variables)
-  (setq custom-delayed-init-variables nil)
+  (setq custom-delayed-init-variables t)
 
   ;; Warn for invalid user name.
   (when init-file-user
