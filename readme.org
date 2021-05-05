@@ -38,7 +38,7 @@ docker run -ti --name emacs --net=host\
 
 ** License
 Copyright (C) 2018-2021 Jade Michael Thornton\\
-Copyright (C) 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 1985-2021 Free Software Foundation, Inc.
 
 Aero Emacs is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation version 3.
 
