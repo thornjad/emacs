@@ -9071,8 +9071,9 @@ handle_one_xevent (struct x_display_info *dpyinfo,
              to check the pixel dimensions as well.  */
           if (width != FRAME_PIXEL_WIDTH (f)
               || height != FRAME_PIXEL_HEIGHT (f)
-	      || (delayed_size_change
-		  && (width != f->new_width || height != f->new_height)))
+	      || (f->new_size_p
+		  && ((f->new_width >= 0 && width != f->new_width)
+		      || (f->new_height >= 0 && height != f->new_height))))
             {
               change_frame_size (f, width, height, false, true, false);
               x_clear_under_internal_border (f);
@@ -11822,12 +11823,14 @@ x_make_frame_visible (struct frame *f)
     poll_suppress_count = old_poll_suppress_count;
 #endif
 
-    if (CONSP (frame_size_history))
-      frame_size_history_plain
-	(f, build_string ("x_make_frame_visible"));
+    if (!FRAME_VISIBLE_P (f))
+      {
+	if (CONSP (frame_size_history))
+	  frame_size_history_plain
+	    (f, build_string ("x_make_frame_visible"));
 
-    if (! FRAME_VISIBLE_P (f))
-      x_wait_for_event (f, MapNotify);
+	x_wait_for_event (f, MapNotify);
+      }
   }
 }
 

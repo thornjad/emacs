@@ -1,7 +1,7 @@
 ;;; project.el --- Operations on the current project  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2015-2021 Free Software Foundation, Inc.
-;; Version: 0.5.4
+;; Version: 0.6.0
 ;; Package-Requires: ((emacs "26.1") (xref "1.0.2"))
 
 ;; This is a GNU ELPA :core package.  Avoid using functionality that
@@ -1120,11 +1120,14 @@ current project, it will be killed."
 
 (defun project--buffer-list (pr)
   "Return the list of all buffers in project PR."
-  (let (bufs)
+  (let ((remote-project-p (file-remote-p (project-root pr)))
+        bufs)
     (dolist (buf (buffer-list))
-      (when (equal pr
-                   (with-current-buffer buf
-                     (project-current)))
+      (when (and (let ((remote (file-remote-p (buffer-local-value 'default-directory buf))))
+                   (if remote-project-p remote (not remote)))
+                 (equal pr
+                        (with-current-buffer buf
+                          (project-current))))
         (push buf bufs)))
     (nreverse bufs)))
 

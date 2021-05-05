@@ -7296,45 +7296,49 @@ not_in_argv (NSString *arg)
 - (void)viewDidResize:(NSNotification *)notification
 {
   NSRect frame = [self frame];
-  int neww, newh;
+  int neww, newh, oldw, oldh;
 
   if (! FRAME_LIVE_P (emacsframe))
     return;
 
   NSTRACE ("[EmacsView viewDidResize]");
 
-  neww = (int)NSWidth (frame);
-  newh = (int)NSHeight (frame);
-  NSTRACE_SIZE ("New size", NSMakeSize (neww, newh));
-
 #ifdef NS_DRAW_TO_BUFFER
-  if ([self wantsUpdateLayer])
+  /* If the buffer size doesn't match the view's backing size, destroy
+     the buffer and let it be recreated at the correct size later.  */
+  if ([self wantsUpdateLayer] && surface)
     {
-      CGFloat scale = [[self window] backingScaleFactor];
-      NSSize size = [surface getSize];
-      int oldw = size.width / scale;
-      int oldh = size.height / scale;
+      NSRect surfaceRect = {{0, 0}, [surface getSize]};
+      NSRect frameRect = [[self window] convertRectToBacking:frame];
 
-      NSTRACE_SIZE ("Original size", NSMakeSize (oldw, oldh));
-
-      /* Don't want to do anything when the view size hasn't changed. */
-      if ((oldh == newh && oldw == neww))
+      if (!NSEqualRects (frameRect, surfaceRect))
         {
-          NSTRACE_MSG ("No change");
-          return;
+          [surface release];
+          surface = nil;
+
+          [self setNeedsDisplay:YES];
         }
-
-      [surface release];
-      surface = nil;
-
-      [self setNeedsDisplay:YES];
     }
 #endif
 
-  /* I'm not sure if it's safe to call this every time the view
-     changes size, as Emacs may already know about the change.
-     Unfortunately there doesn't seem to be a bullet-proof method of
-     determining whether we need to call it or not.  */
+  neww = (int)NSWidth (frame);
+  newh = (int)NSHeight (frame);
+  oldw = FRAME_PIXEL_WIDTH (emacsframe);
+  oldh = FRAME_PIXEL_HEIGHT (emacsframe);
+
+  /* Don't want to do anything when the view size hasn't changed. */
+  if (emacsframe->new_size_p
+      ? (newh == emacsframe->new_height
+         && neww == emacsframe->new_width)
+      : (oldh == newh && oldw == neww))
+    {
+      NSTRACE_MSG ("No change");
+      return;
+    }
+
+  NSTRACE_SIZE ("New size", NSMakeSize (neww, newh));
+  NSTRACE_SIZE ("Original size", NSMakeSize (oldw, oldh));
+
   change_frame_size (emacsframe, neww, newh, false, YES, false);
 
   SET_FRAME_GARBAGED (emacsframe);

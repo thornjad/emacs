@@ -1008,6 +1008,11 @@ GTK toolkit, this is only true if 'x-gtk-use-system-tooltips' is t.
 *** 'g' ('revert-buffer') in 'help-mode' no longer requires confirmation.
 
 +++
+*** New command 'describe-command' shows help for a command.
+This can be used instead of 'describe-function' for interactive
+commands and is globally bound to `C-h x'.
+
++++
 *** New command 'describe-keymap' describes keybindings in a keymap.
 
 ---
@@ -1077,16 +1082,6 @@ defaulting to active region when used interactively.
 ** The old non-SMIE indentation of 'sh-mode' has been removed.
 
 ---
-** The 'list-bookmark' menu is now based on 'tabulated-list-mode'.
-The interactive bookmark list will now benefit from features in
-'tabulated-list-mode' like sorting columns or changing column width.
-
-Support for the optional "inline" header line, allowing for a header
-without using 'header-line-format', has been dropped.  Consequently,
-the variables 'bookmark-bmenu-use-header-line' and
-'bookmark-bmenu-inline-header-height' are now declared obsolete.
-
----
 ** The sb-image.el library is now marked obsolete.
 This file was a compatibility kludge which is no longer needed.
 
@@ -1108,6 +1103,28 @@ To customize obsolete user options, use 'customize-option' or
 *** New SVG icons for checkboxes and arrows.
 They will be used automatically instead of the old icons.  If Emacs is
 built without SVG support, the old icons will be used instead.
+
+** Bookmarks
+
+*** Bookmarks can now be targets for new tabs.
+When the bookmark.el library is loaded, a customize choice is added
+to 'tab-bar-new-tab-choice' for new tabs to show the bookmark list.
+
+---
+*** The 'list-bookmarks' menu is now based on 'tabulated-list-mode'.
+The interactive bookmark list will now benefit from features in
+'tabulated-list-mode' like sorting columns or changing column width.
+
+Support for the optional "inline" header line, allowing for a header
+without using 'header-line-format', has been dropped.  Consequently,
+the variables 'bookmark-bmenu-use-header-line' and
+'bookmark-bmenu-inline-header-height' are now declared obsolete.
+
+---
+*** New user option 'bookmark-fontify'.
+If non-nil, setting a bookmark will colorize the current line with
+'bookmark-face'.
+
 
 ** Edebug
 
@@ -2189,10 +2206,6 @@ The width now depends of the width of the window, but will never be
 wider than the length of the longest buffer name, except that it will
 never be narrower than 19 characters.
 
-*** Bookmarks can now be targets for new tabs.
-When the bookmark.el library is loaded, a customize choice is added
-to 'tab-bar-new-tab-choice' for new tabs to show the bookmark list.
-
 ---
 *** Movement commands in 'gomoku-mode' are fixed.
 'gomoku-move-sw' and 'gomoku-move-ne' now work correctly, and
@@ -2448,6 +2461,11 @@ This is to keep the same behavior as Eshell.
 
 
 * Incompatible Lisp Changes in Emacs 28.1
+
++++
+** 'completing-read-default' sets completion variables buffer-locally.
+'minibuffer-completion-table' and related variables are now set buffer-locally
+in the minibuffer instead of being set via a global let-binding.
 
 +++
 ** The use of positional arguments in 'define-minor-mode' is obsolete.
