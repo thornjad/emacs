@@ -1966,6 +1966,8 @@ we put it on this frame."
     ;; frame visible.
     (if (eq (window-system) 'w32)
 	(sit-for 0 t))
+    (if (eq (window-system) 'pgtk)
+	(sit-for 0.1 t))
     (dolist (frame (append (frame-list) (list (selected-frame))))
       (if (and (frame-visible-p frame)
 	       (not (window-minibuffer-p (frame-selected-window frame))))

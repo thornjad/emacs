@@ -60,7 +60,8 @@ enum output_method
   output_x_window,
   output_msdos_raw,
   output_w32,
-  output_ns
+  output_ns,
+  output_pgtk
 };
 
 /* Input queue declarations and hooks.  */
@@ -262,6 +263,10 @@ enum event_kind
   , FILE_NOTIFY_EVENT
 #endif
 
+#ifdef HAVE_PGTK
+  /* Pre-edit text was changed. */
+  , PGTK_PREEDIT_TEXT_EVENT
+#endif
 };
 
 /* Bit width of an enum event_kind tag at the start of structs and unions.  */
@@ -442,6 +447,7 @@ struct terminal
     struct x_display_info *x;         /* xterm.h */
     struct w32_display_info *w32;     /* w32term.h */
     struct ns_display_info *ns;       /* nsterm.h */
+    struct pgtk_display_info *pgtk; /* pgtkterm.h */
   } display_info;
 
 
@@ -515,7 +521,7 @@ struct terminal
      BGCOLOR.  */
   void (*query_frame_background_color) (struct frame *f, Emacs_Color *bgcolor);
 
-#if defined (HAVE_X_WINDOWS) || defined (HAVE_NTGUI)
+#if defined (HAVE_X_WINDOWS) || defined (HAVE_NTGUI) || defined (HAVE_PGTK)
   /* On frame F, translate pixel colors to RGB values for the NCOLORS
      colors in COLORS.  Use cached information, if available.  */
 
@@ -830,6 +836,9 @@ extern struct terminal *terminal_list;
 #elif defined (HAVE_NS)
 #define TERMINAL_FONT_CACHE(t)						\
   (t->type == output_ns ? t->display_info.ns->name_list_element : Qnil)
+#elif defined (HAVE_PGTK)
+#define TERMINAL_FONT_CACHE(t)						\
+  (t->type == output_pgtk ? t->display_info.pgtk->name_list_element : Qnil)
 #endif
 
 extern struct terminal *decode_live_terminal (Lisp_Object);
