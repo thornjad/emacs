@@ -299,9 +299,8 @@ to find the list of ignores for each directory."
          (localdir (file-name-unquote (file-local-name (expand-file-name dir))))
          (command (format "%s %s %s -type f %s -print0"
                           find-program
-                          (shell-quote-argument
-                           ;; In case DIR is a symlink.
-                           (file-name-as-directory localdir))
+                          ;; In case DIR is a symlink.
+                          (file-name-as-directory localdir)
                           (xref--find-ignores-arguments ignores localdir)
                           (if files
                               (concat (shell-quote-argument "(")
@@ -1121,13 +1120,11 @@ current project, it will be killed."
 
 (defun project--buffer-list (pr)
   "Return the list of all buffers in project PR."
-  (let ((conn (file-remote-p (project-root pr)))
+  (let ((remote-project-p (file-remote-p (project-root pr)))
         bufs)
     (dolist (buf (buffer-list))
-      ;; For now we go with the assumption that a project must reside
-      ;; entirely on one host.  We might relax that in the future.
-      (when (and (equal conn
-                        (file-remote-p (buffer-local-value 'default-directory buf)))
+      (when (and (let ((remote (file-remote-p (buffer-local-value 'default-directory buf))))
+                   (if remote-project-p remote (not remote)))
                  (equal pr
                         (with-current-buffer buf
                           (project-current))))

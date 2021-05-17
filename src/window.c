@@ -7264,8 +7264,8 @@ restore_window_configuration (Lisp_Object configuration)
 {
   if (CONSP (configuration))
     Fset_window_configuration (XCAR (configuration),
-			       Fcar_safe (XCDR (configuration)),
-			       Fcar_safe (Fcdr_safe (XCDR (configuration))));
+			       XCAR (XCDR (configuration)),
+			       XCAR (XCDR (XCDR (configuration))));
   else
     Fset_window_configuration (configuration, Qnil, Qnil);
 }

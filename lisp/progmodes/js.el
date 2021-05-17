@@ -2861,11 +2861,7 @@ return nil."
           ((nth 3 parse-status) 0) ; inside string
           ((when (and js-jsx-syntax (not js-jsx--indent-col))
              (save-excursion (js-jsx--indentation parse-status))))
-          ((and (eq (char-after) ?#)
-                (save-excursion
-                  (forward-char 1)
-                  (looking-at-p cpp-font-lock-keywords-source-directives)))
-           0)
+          ((eq (char-after) ?#) 0)
           ((save-excursion (js--beginning-of-macro)) 4)
           ;; Indent array comprehension continuation lines specially.
           ((let ((bracket (nth 1 parse-status))

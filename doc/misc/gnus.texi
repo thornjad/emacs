@@ -5230,16 +5230,7 @@ Newsgroups:full
 @end example
 
 to the end of her @file{overview.fmt} file, then you can use that just
-as you would the extra headers from the mail groups.  Otherwise, you
-have to disable fetching headers with @samp{XOVER}:
-
-@lisp
-(setq nntp-nov-is-evil t
-      gnus-nov-is-evil t)
-@end lisp
-
-Be aware, though, that this will make entering an @acronym{NNTP} group
-much, much slower, so this is not recommended.
+as you would the extra headers from the mail groups.
 
 
 @node Summary Buffer Mode Line

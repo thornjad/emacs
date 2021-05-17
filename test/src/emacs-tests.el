@@ -25,12 +25,9 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'ert-x)
 (require 'rx)
 (require 'subr-x)
-
-(defconst emacs-tests--lib-src
-  (substitute-in-file-name "$EMACS_TEST_DIRECTORY/../lib-src/")
-  "Location of the lib-src directory.")
 
 (ert-deftest emacs-tests/seccomp/absent-file ()
   (skip-unless (string-match-p (rx bow "SECCOMP" eow)
@@ -138,8 +135,7 @@ to `make-temp-file', which see."
                                system-configuration-features))
   (let ((emacs
          (expand-file-name invocation-name invocation-directory))
-        (filter (expand-file-name "seccomp-filter.bpf"
-                                  emacs-tests--lib-src))
+        (filter (ert-resource-file "seccomp-filter.bpf"))
         (process-environment nil))
     (skip-unless (file-executable-p emacs))
     (skip-unless (file-readable-p filter))
@@ -164,8 +160,7 @@ to `make-temp-file', which see."
                                system-configuration-features))
   (let ((emacs
          (expand-file-name invocation-name invocation-directory))
-        (filter (expand-file-name "seccomp-filter.bpf"
-                                  emacs-tests--lib-src))
+        (filter (ert-resource-file "seccomp-filter.bpf"))
         (process-environment nil))
     (skip-unless (file-executable-p emacs))
     (skip-unless (file-readable-p filter))
@@ -191,8 +186,7 @@ to `make-temp-file', which see."
         (bwrap (executable-find "bwrap"))
         (emacs
          (expand-file-name invocation-name invocation-directory))
-        (filter (expand-file-name "seccomp-filter-exec.bpf"
-                                  emacs-tests--lib-src))
+        (filter (ert-resource-file "seccomp-filter-exec.bpf"))
         (process-environment nil))
     (skip-unless bash)
     (skip-unless bwrap)

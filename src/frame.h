@@ -456,11 +456,7 @@ struct frame
   /* True when new_width or new_height were set by change_frame_size,
      false when they were set by adjust_frame_size internally or not
      set.  */
-  bool_bf new_size_p : 1;
-
-  /* True when frame was invisible before first MapNotify event.  Used
-     in X builds only.  */
-  bool_bf was_invisible : 1;
+  bool_bf new_size_p;
 
   /* Bitfield area ends here.  */
 

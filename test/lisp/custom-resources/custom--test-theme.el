@@ -6,8 +6,6 @@
 (custom-theme-set-variables
  'custom--test
  '(custom--test-user-option 'bar)
- '(custom--test-variable 'bar)
- '(custom--test-bug-21355-before 'before)
- '(custom--test-bug-21355-after 'after))
+ '(custom--test-variable 'bar))
 
 (provide-theme 'custom--test)

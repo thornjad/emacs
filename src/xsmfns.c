@@ -357,7 +357,7 @@ ice_conn_watch_CB (IceConn iceConn, IcePointer clientData,
     }
 
   ice_fd = IceConnectionNumber (iceConn);
-  add_non_keyboard_read_fd (ice_fd, x_session_check_input, NULL);
+  add_read_fd (ice_fd, x_session_check_input, NULL);
 }
 
 /* Create the client leader window.  */

@@ -59,7 +59,7 @@ Check that the resulting binaries do not differ."
          (comp1-src (make-temp-file "stage1-" nil ".el"))
          (comp2-src (make-temp-file "stage2-" nil ".el"))
          ;; Can't use debug symbols.
-         (native-comp-debug 0))
+         (comp-debug 0))
     (copy-file comp-src comp1-src t)
     (copy-file comp-src comp2-src t)
     (let ((load-no-native t))
@@ -786,7 +786,7 @@ Return a list of results."
 
 (comp-deftest tco ()
   "Check for tail recursion elimination."
-  (let ((native-comp-speed 3)
+  (let ((comp-speed 3)
         ;; Disable ipa-pure otherwise `comp-tests-tco-f' gets
         ;; optimized-out.
         (comp-disabled-passes '(comp-ipa-pure))
@@ -814,7 +814,7 @@ Return a list of results."
 
 (comp-deftest fw-prop-1 ()
   "Some tests for forward propagation."
-  (let ((native-comp-speed 2)
+  (let ((comp-speed 2)
         (comp-post-pass-hooks '((comp-final comp-tests-fw-prop-checker-1))))
     (eval '(defun comp-tests-fw-prop-1-f ()
              (let* ((a "xxx")
@@ -828,7 +828,7 @@ Return a list of results."
 
 (defun comp-tests-check-ret-type-spec (func-form ret-type)
   (let ((lexical-binding t)
-        (native-comp-speed 2)
+        (comp-speed 2)
         (f-name (cl-second func-form)))
     (eval func-form t)
     (native-compile f-name)
@@ -1399,7 +1399,7 @@ Return a list of results."
 
 (comp-deftest pure ()
   "Some tests for pure functions optimization."
-  (let ((native-comp-speed 3)
+  (let ((comp-speed 3)
         (comp-post-pass-hooks '((comp-final comp-tests-pure-checker-1
                                             comp-tests-pure-checker-2))))
     (load (native-compile (ert-resource-file "comp-test-pure.el")))

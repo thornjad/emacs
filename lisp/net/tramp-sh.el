@@ -125,15 +125,6 @@ depends on the installed local ssh version.
 
 The string is used in `tramp-methods'.")
 
-(defvar tramp-scp-strict-file-name-checking nil
-  "Which scp strict file name checking argument to use.
-
-It is the string \"-T\" if supported by the local scp (since
-release 8.0), otherwise the string \"\".  If it is nil, it will
-be auto-detected by Tramp.
-
-The string is used in `tramp-methods'.")
-
 ;; Initialize `tramp-methods' with the supported methods.
 ;;;###tramp-autoload
 (tramp--with-startup
@@ -169,8 +160,8 @@ The string is used in `tramp-methods'.")
                 (tramp-remote-shell-login   ("-l"))
                 (tramp-remote-shell-args    ("-c"))
                 (tramp-copy-program         "scp")
-                (tramp-copy-args            (("-P" "%p") ("-p" "%k")
-					     ("%x") ("-q") ("-r") ("%c")))
+                (tramp-copy-args            (("-P" "%p") ("-p" "%k") ("-q")
+					     ("-r") ("%c")))
                 (tramp-copy-keep-date       t)
                 (tramp-copy-recursive       t)))
  (add-to-list 'tramp-methods
@@ -186,7 +177,7 @@ The string is used in `tramp-methods'.")
                 (tramp-remote-shell-args    ("-c"))
                 (tramp-copy-program         "scp")
                 (tramp-copy-args            (("-P" "%p") ("-p" "%k")
-				             ("%x") ("-q") ("-r") ("%c")))
+				             ("-q") ("-r") ("%c")))
                 (tramp-copy-keep-date       t)
                 (tramp-copy-recursive       t)))
  (add-to-list 'tramp-methods
@@ -2288,8 +2279,7 @@ The method used must be an out-of-band method."
 	      spec (list
 		    ?h (or host "") ?u (or user "") ?p (or port "")
 		    ?r listener ?c options ?k (if keep-date " " "")
-                    ?n (concat "2>" (tramp-get-remote-null-device v))
-		    ?x (tramp-scp-strict-file-name-checking v))
+                    ?n (concat "2>" (tramp-get-remote-null-device v)))
 	      copy-program (tramp-get-method-parameter v 'tramp-copy-program)
 	      copy-keep-date (tramp-get-method-parameter
 			      v 'tramp-copy-keep-date)
@@ -2371,12 +2361,11 @@ The method used must be an out-of-band method."
 		 ;; can be handled.  We don't set a timeout, because
 		 ;; the copying of large files can last longer than 60
 		 ;; secs.
-		 p (let ((default-directory (tramp-compat-temporary-file-directory)))
-		     (apply
-		      #'start-process
-		      (tramp-get-connection-name v)
-		      (tramp-get-connection-buffer v)
-		      copy-program copy-args)))
+		 p (apply
+		    #'start-process
+		    (tramp-get-connection-name v)
+		    (tramp-get-connection-buffer v)
+		    copy-program copy-args))
 		(tramp-message orig-vec 6 "%s" (string-join (process-command p) " "))
 		(process-put p 'vector orig-vec)
 		(process-put p 'adjust-window-size-function #'ignore)
@@ -2723,12 +2712,13 @@ the result will be a local, non-Tramp, file name."
 ;; We use BUFFER also as connection buffer during setup. Because of
 ;; this, its original contents must be saved, and restored once
 ;; connection has been setup.
+;; The complete STDERR buffer is available only when the process has
+;; terminated.
 (defun tramp-sh-handle-make-process (&rest args)
   "Like `make-process' for Tramp files.
-STDERR can also be a remote file name.  If method parameter
-`tramp-direct-async' and connection property
-\"direct-async-process\" are non-nil, an alternative
-implementation will be used."
+STDERR can also be a file name.  If method parameter `tramp-direct-async'
+and connection property \"direct-async-process\" are non-nil, an
+alternative implementation will be used."
   (if (tramp-direct-async-process-p args)
       (apply #'tramp-handle-make-process args)
     (when args
@@ -2762,7 +2752,7 @@ implementation will be used."
 	    (signal 'wrong-type-argument (list #'functionp sentinel)))
 	  (unless (or (null stderr) (bufferp stderr) (stringp stderr))
 	    (signal 'wrong-type-argument (list #'bufferp stderr)))
-	  (when (and (stringp stderr)
+	  (when (and (stringp stderr) (tramp-tramp-file-p stderr)
 		     (not (tramp-equal-remote default-directory stderr)))
 	    (signal 'file-error (list "Wrong stderr" stderr)))
 
@@ -2774,9 +2764,9 @@ implementation will be used."
 		 ;; STDERR can also be a file name.
 		 (tmpstderr
 		  (and stderr
-		       (tramp-unquote-file-local-name
-			(if (stringp stderr)
-			    stderr (tramp-make-tramp-temp-name v)))))
+		       (if (and (stringp stderr) (tramp-tramp-file-p stderr))
+			   (tramp-unquote-file-local-name stderr)
+			 (tramp-make-tramp-temp-file v))))
 		 (remote-tmpstderr
 		  (and tmpstderr (tramp-make-tramp-file-name v tmpstderr)))
 		 (program (car command))
@@ -2785,8 +2775,7 @@ implementation will be used."
 		 ;; "-c", it might be that the arguments exceed the
 		 ;; command line length.  Therefore, we modify the
 		 ;; command.
-		 (heredoc (and (not (bufferp stderr))
-			       (stringp program)
+		 (heredoc (and (stringp program)
 			       (string-match-p "sh$" program)
 			       (= (length args) 2)
 			       (string-equal "-c" (car args))
@@ -2850,23 +2839,6 @@ implementation will be used."
 		 tramp-current-connection
 		 p)
 
-	    ;; Handle error buffer.
-	    (when (bufferp stderr)
-	      (with-current-buffer stderr
-		(setq buffer-read-only nil))
-	      ;; Create named pipe.
-	      (tramp-send-command v (format "mknod %s p" tmpstderr))
-	      ;; Create stderr process.
-	      (make-process
-	       :name (buffer-name stderr)
-	       :buffer stderr
-	       :command `("cat" ,tmpstderr)
-	       :coding coding
-	       :noquery t
-	       :filter nil
-	       :sentinel #'ignore
-	       :file-handler t))
-
 	    (while (get-process name1)
 	      ;; NAME must be unique as process name.
 	      (setq i (1+ i)
@@ -2895,11 +2867,14 @@ implementation will be used."
 			     (if (symbolp coding) coding (cdr coding))))
 			(clear-visited-file-modtime)
 			(narrow-to-region (point-max) (point-max))
+			;; We call `tramp-maybe-open-connection', in
+			;; order to cleanup the prompt afterwards.
 			(catch 'suppress
+			  (tramp-maybe-open-connection v)
+			  (setq p (tramp-get-connection-process v))
 			  ;; Set the pid of the remote shell.  This is
 			  ;; needed when sending signals remotely.
 			  (let ((pid (tramp-send-command-and-read v "echo $$")))
-			    (setq p (tramp-get-connection-process v))
 			    (process-put p 'remote-pid pid)
 			    (tramp-set-connection-property p "remote-pid" pid))
 			  ;; `tramp-maybe-open-connection' and
@@ -2929,16 +2904,38 @@ implementation will be used."
 			(ignore-errors
 			  (set-process-query-on-exit-flag p (null noquery))
 			  (set-marker (process-mark p) (point)))
-			;; Kill stderr process delete and named pipe.
-			(when (bufferp stderr)
+			;; We must flush them here already; otherwise
+			;; `rename-file', `delete-file' or
+			;; `insert-file-contents' will fail.
+			(tramp-flush-connection-property v "process-name")
+			(tramp-flush-connection-property v "process-buffer")
+			;; Copy tmpstderr file.
+			(when (and (stringp stderr)
+				   (not (tramp-tramp-file-p stderr)))
 			  (add-function
 			   :after (process-sentinel p)
 			   (lambda (_proc _msg)
-			     (ignore-errors
-			       (while (accept-process-output
-				       (get-buffer-process stderr) 0 nil t))
-			       (delete-process (get-buffer-process stderr)))
-			     (ignore-errors
+			     (rename-file remote-tmpstderr stderr))))
+			;; Provide error buffer.  This shows only
+			;; initial error messages; messages arriving
+			;; later on will be inserted when the process
+			;; is deleted.  The temporary file will exist
+			;; until the process is deleted.
+			(when (bufferp stderr)
+			  (with-current-buffer stderr
+			    ;; There's a mysterious error, see
+			    ;; <https://github.com/joaotavora/eglot/issues/662>.
+			    (ignore-errors
+			      (insert-file-contents-literally remote-tmpstderr)))
+			  ;; Delete tmpstderr file.
+			  (add-function
+			   :after (process-sentinel p)
+			   (lambda (_proc _msg)
+			     (when (file-exists-p remote-tmpstderr)
+			       (with-current-buffer stderr
+				 (ignore-errors
+				   (insert-file-contents-literally
+				    remote-tmpstderr nil nil nil 'replace)))
 			       (delete-file remote-tmpstderr)))))
 			;; Return process.
 			p)))
@@ -4740,31 +4737,6 @@ Goes through the list `tramp-inline-compress-commands'."
 				  " -o ControlPersist=no")))))))))
       tramp-ssh-controlmaster-options)))
 
-(defun tramp-scp-strict-file-name-checking (vec)
-  "Return the strict file name checking argument of the local scp."
-  (cond
-   ;; No options to be computed.
-   ((null (assoc "%x" (tramp-get-method-parameter vec 'tramp-copy-args)))
-    "")
-
-   ;; There is already a value to be used.
-   ((stringp tramp-scp-strict-file-name-checking)
-    tramp-scp-strict-file-name-checking)
-
-   ;; Determine the options.
-   (t (setq tramp-scp-strict-file-name-checking "")
-      (let ((case-fold-search t))
-	(ignore-errors
-	  (when (executable-find "scp")
-	    (with-tramp-progress-reporter
-		vec 4 "Computing strict file name argument"
-	      (with-temp-buffer
-		(tramp-call-process vec "scp" nil t nil "-T")
-		(goto-char (point-min))
-		(unless (search-forward-regexp "unknown option -- T" nil t)
-		  (setq tramp-scp-strict-file-name-checking "-T")))))))
-      tramp-scp-strict-file-name-checking)))
-
 (defun tramp-timeout-session (vec)
   "Close the connection VEC after a session timeout.
 If there is just some editing, retry it after 5 seconds."
@@ -4829,12 +4801,10 @@ connection if a previous connection has died for some reason."
 	  (with-tramp-progress-reporter
 	      vec 3
 	      (if (zerop (length (tramp-file-name-user vec)))
-		  (format "Opening connection %s for %s using %s"
-			  process-name
+		  (format "Opening connection for %s using %s"
 			  (tramp-file-name-host vec)
 			  (tramp-file-name-method vec))
-		(format "Opening connection %s for %s@%s using %s"
-			process-name
+		(format "Opening connection for %s@%s using %s"
 			(tramp-file-name-user vec)
 			(tramp-file-name-host vec)
 			(tramp-file-name-method vec)))
@@ -5259,11 +5229,12 @@ Return ATTR."
 	 (directory-file-name (tramp-file-name-unquote-localname vec))))
     (when (string-match-p tramp-ipv6-regexp host)
       (setq host (format "[%s]" host)))
-    ;; This does not work for MS Windows scp, if there are characters
-    ;; to be quoted.  OpenSSH 8 supports disabling of strict file name
-    ;; checking in scp, we use it when available.
+    ;; This does not work yet for MS Windows scp, if there are
+    ;; characters to be quoted.  Win32 OpenSSH 7.9 is said to support
+    ;; this, see
+    ;; <https://github.com/PowerShell/Win32-OpenSSH/releases/tag/v7.9.0.0p1-Beta>
     (unless (string-match-p "ftp$" method)
-      (setq localname (tramp-unquote-shell-quote-argument localname)))
+      (setq localname (tramp-shell-quote-argument localname)))
     (cond
      ((tramp-get-method-parameter vec 'tramp-remote-copy-program)
       localname)
@@ -5934,6 +5905,8 @@ function cell is returned to be applied on a buffer."
 ;;   session could be reused after a connection loss.  Use dtach, or
 ;;   screen, or tmux, or mosh.
 ;;
+;; * Implement `:stderr' of `make-process' as pipe process.
+
 ;; * One interesting solution (with other applications as well) would
 ;;   be to stipulate, as a directory or connection-local variable, an
 ;;   additional rc file on the remote machine that is sourced every

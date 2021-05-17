@@ -3723,7 +3723,8 @@ to avoid deleting non-prompt output."
 
           ;; If we've found all the expected prompts, stop looking
           (if (= sql-output-newline-count 0)
-              (setq sql-output-newline-count nil)
+              (setq sql-output-newline-count nil
+                    oline (concat "\n" oline))
 
             ;; Still more possible prompts, leave them for the next pass
             (setq sql-preoutput-hold oline
@@ -3768,8 +3769,6 @@ to avoid deleting non-prompt output."
 	    (with-current-buffer sql-buffer
               (when sql-debug-send
                 (message ">>SQL> %S" s))
-              (insert "\n")
-              (comint-set-process-mark)
 
 	      ;; Send the string (trim the trailing whitespace)
 	      (sql-input-sender (get-buffer-process (current-buffer)) s)

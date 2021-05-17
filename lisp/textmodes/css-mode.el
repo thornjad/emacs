@@ -1307,14 +1307,10 @@ for determining whether point is within a selector."
     (let ((pos (point)))
       (skip-chars-backward "-[:alnum:]")
       (when (eq (char-before) ?\:)
-        (let ((double-colon (eq (char-before (- (point) 1)) ?\:)))
-          (list (- (point) (if double-colon 2 1))
-                pos
-                (nconc
-                 (unless double-colon
-                   (mapcar (lambda (id) (concat ":" id)) css-pseudo-class-ids))
-                 (mapcar (lambda (id) (concat "::" id)) css-pseudo-element-ids))
-                :company-kind (lambda (_) 'function)))))))
+        (list (point) pos
+              (if (eq (char-before (- (point) 1)) ?\:)
+                  css-pseudo-element-ids
+                css-pseudo-class-ids))))))
 
 (defun css--complete-at-rule ()
   "Complete at-rule (statement beginning with `@') at point."
@@ -1322,8 +1318,7 @@ for determining whether point is within a selector."
     (let ((pos (point)))
       (skip-chars-backward "-[:alnum:]")
       (when (eq (char-before) ?\@)
-        (list (point) pos css--at-ids
-              :company-kind (lambda (_) 'keyword))))))
+        (list (point) pos css--at-ids)))))
 
 (defvar css--property-value-cache
   (make-hash-table :test 'equal :size (length css-property-alist))
@@ -1371,8 +1366,7 @@ the string PROPERTY."
           (skip-chars-backward "[:graph:]")
           (list (point) end
                 (append '("inherit" "initial" "unset")
-                        (css--property-values (car property)))
-                :company-kind (lambda (_) 'value)))))))
+                        (css--property-values (car property)))))))))
 
 (defvar css--html-tags (mapcar #'car html-tag-alist)
   "List of HTML tags.
@@ -1441,8 +1435,6 @@ tags, classes and IDs."
                     (list prop-beg prop-end)
                   (list sel-beg sel-end))
               ,(completion-table-merge prop-table sel-table)
-              :company-kind
-              ,(lambda (s) (if (test-completion s prop-table) 'property 'keyword))
               :exit-function
               ,(lambda (string status)
                  (and (eq status 'finished)

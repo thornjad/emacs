@@ -108,9 +108,8 @@ use from your key ring."
   (interactive
    (save-excursion
      (goto-char (point-min))
-     (rfc822-goto-eoh)
-     (unless (eobp)
-       (forward-line))
+     (if (search-forward mail-header-separator nil t)
+	 (forward-line))
      (setq epa-last-coding-system-specified
 	   (or coding-system-for-write
 	       (select-safe-coding-system (point) (point-max))))
@@ -136,7 +135,9 @@ If no one is selected, default secret key is used.  "
       (goto-char (point-min))
       (save-restriction
 	(narrow-to-region (point)
-                          (progn (rfc822-goto-eoh) (point)))
+			  (if (search-forward mail-header-separator nil 0)
+			      (match-beginning 0)
+			    (point)))
 	(setq recipients-string
 	      (mapconcat #'identity
 			 (nconc (mail-fetch-field "to" nil nil t)
@@ -169,7 +170,7 @@ If no one is selected, default secret key is used.  "
 	    (apply #'nconc
 		   (mapcar
 		    (lambda (recipient)
-		      (let ((tem (assoc (downcase recipient) epa-mail-aliases)))
+		      (let ((tem (assoc recipient epa-mail-aliases)))
 			(if tem (copy-sequence (cdr tem))
 			  (list recipient))))
 		    real-recipients)))
@@ -235,9 +236,8 @@ If no one is selected, symmetric encryption will be performed.  "
 		       default-recipients)))))
 
       (goto-char (point-min))
-      (rfc822-goto-eoh)
-      (unless (eobp)
-	(forward-line))
+      (if (search-forward mail-header-separator nil t)
+	  (forward-line))
       (setq start (point))
 
       (setq epa-last-coding-system-specified

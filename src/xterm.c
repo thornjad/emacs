@@ -8181,12 +8181,8 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 #if defined USE_GTK && defined HAVE_GTK3
 	      /* If GTK3 wants to impose some old size here (Bug#24526),
 		 tell it that the current size is what we want.  */
-	      if (f->was_invisible)
-		{
-		  xg_frame_set_char_size
-		    (f, FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f));
-		  f->was_invisible = false;
-		}
+	      xg_frame_set_char_size
+		(f, FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f));
 #endif
 	      XSETFRAME (inev.ie.frame_or_window, f);
 	    }
@@ -8447,12 +8443,8 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 #if defined USE_GTK && defined HAVE_GTK3
 	      /* If GTK3 wants to impose some old size here (Bug#24526),
 		 tell it that the current size is what we want.  */
-	      if (f->was_invisible)
-		{
-		  xg_frame_set_char_size
-		    (f, FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f));
-		  f->was_invisible = false;
-		}
+	      xg_frame_set_char_size
+		(f, FRAME_PIXEL_WIDTH (f), FRAME_PIXEL_HEIGHT (f));
 #endif
 	      f->output_data.x->has_been_visible = true;
 	    }
@@ -9343,11 +9335,6 @@ handle_one_xevent (struct x_display_info *dpyinfo,
       goto OTHER;
 
     case VisibilityNotify:
-      f = x_top_window_to_frame (dpyinfo, event->xvisibility.window);
-      if (f && (event->xvisibility.state == VisibilityUnobscured
-		|| event->xvisibility.state == VisibilityPartiallyObscured))
-	SET_FRAME_VISIBLE (f, 1);
-
       goto OTHER;
 
     case MappingNotify:
@@ -9604,12 +9591,11 @@ x_draw_hollow_cursor (struct window *w, struct glyph_row *row)
   /* The foreground of cursor_gc is typically the same as the normal
      background color, which can cause the cursor box to be invisible.  */
   xgcv.foreground = f->output_data.x->cursor_pixel;
-  xgcv.line_width = 1;
   if (dpyinfo->scratch_cursor_gc)
-    XChangeGC (dpy, dpyinfo->scratch_cursor_gc, GCForeground | GCLineWidth, &xgcv);
+    XChangeGC (dpy, dpyinfo->scratch_cursor_gc, GCForeground, &xgcv);
   else
     dpyinfo->scratch_cursor_gc = XCreateGC (dpy, FRAME_X_DRAWABLE (f),
-					    GCForeground | GCLineWidth, &xgcv);
+					    GCForeground, &xgcv);
   gc = dpyinfo->scratch_cursor_gc;
 
   /* When on R2L character, show cursor at the right edge of the
