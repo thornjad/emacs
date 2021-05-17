@@ -5,7 +5,7 @@ This project is a fork of GNU Emacs, used to build [[https://gitlab.com/thornjad
 
 ** Major differences with GNU Emacs
 - Native compilation is enabled by default, providing significantly better performance over stock GNU Emacs
-- Pure GTK implementation is enabled by default, eliminating reliance on X and supporting Wayland out of the box
+- Pure GTK implementation is available but disabled by default, eliminating reliance on X and supporting Wayland out of the box. Enable with =--with-pgtk=, must have GTK3+ available.
 - Xwidgets support is enabled by default
 - Included Dockerfile for containerized builds
 
