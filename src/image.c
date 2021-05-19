@@ -4191,6 +4191,7 @@ enum xpm_keyword_index
   XPM_LAST
 };
 
+#if defined HAVE_XPM || defined HAVE_NS || defined HAVE_PGTK
 /* Vector of image_keyword structures describing the format
    of valid XPM image specifications.  */
 
@@ -4431,6 +4432,7 @@ init_xpm_functions (void)
 
 #endif /* WINDOWSNT */
 
+#if defined HAVE_XPM || defined HAVE_NS || defined HAVE_PGTK
 /* Value is true if COLOR_SYMBOLS is a valid color symbols list
    for XPM images.  Such a list must consist of conses whose car and
    cdr are strings.  */
@@ -4836,7 +4838,8 @@ xpm_load (struct frame *f, struct image *img)
 
 #endif /* HAVE_XPM && !USE_CAIRO */
 
-#if defined USE_CAIRO || (defined HAVE_NS && !defined HAVE_XPM)
+#if (defined USE_CAIRO && defined HAVE_XPM)	\
+  || ((defined HAVE_NS || defined HAVE_PGTK) && !defined HAVE_XPM)
 
 /* XPM support functions for NS where libxpm is not available.
    Only XPM version 3 (without any extensions) is supported.  */

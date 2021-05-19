@@ -870,7 +870,6 @@ clean_dirs = $(mostlyclean_dirs) nextstep admin/charsets admin/unidata
 $(foreach dir,$(clean_dirs),$(eval $(call submake_template,$(dir),clean)))
 
 clean: $(clean_dirs:=_clean) clean-gsettings-schemas
-	[ ! -d test ] || $(MAKE) -C test $@
 	-rm -f ./*.tmp etc/*.tmp*
 	-rm -rf info-dir.*
 	-rm -rf native-lisp

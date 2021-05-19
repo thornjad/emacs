@@ -5566,7 +5566,8 @@ and history filled with previously-killed items from the
 See `yank-from-kill-ring' for more details."
   (interactive "p")
   (if (not (eq last-command 'yank))
-      (yank-from-kill-ring (read-from-kill-ring) current-prefix-arg)
+      (yank-from-kill-ring (read-from-kill-ring "Yank from kill-ring: ")
+                           current-prefix-arg)
     (setq this-command 'yank)
     (unless arg (setq arg 1))
     (let ((inhibit-read-only t)
@@ -5655,8 +5656,9 @@ With ARG, rotate that many kills forward (or backward, if negative)."
   (current-kill arg))
 
 (defvar read-from-kill-ring-history)
-(defun read-from-kill-ring ()
-  "Read a string from `kill-ring' using completion and minibuffer history."
+(defun read-from-kill-ring (prompt)
+  "Read a `kill-ring' entry using completion and minibuffer history.
+PROMPT is a string to prompt with."
   ;; `current-kill' updates `kill-ring' with a possible interprogram-paste
   (current-kill 0)
   (let* ((history-add-new-input nil)
@@ -5700,7 +5702,7 @@ With ARG, rotate that many kills forward (or backward, if negative)."
              (define-key map "?" nil)
              map)))
       (completing-read
-       "Yank from kill-ring: "
+       prompt
        (lambda (string pred action)
          (if (eq action 'metadata)
              ;; Keep sorted by recency
@@ -5710,16 +5712,28 @@ With ARG, rotate that many kills forward (or backward, if negative)."
        'read-from-kill-ring-history))))
 
 (defun yank-from-kill-ring (string &optional arg)
-  "Insert the `kill-ring' item selected from the minibuffer history.
-Use minibuffer navigation and search commands to browse the
-previously-killed items from the `kill-ring' variable in the
-minibuffer history before typing RET to insert the selected item,
-or use completion on the elements of `kill-ring'.  You can edit
-the item in the minibuffer before inserting it.
+  "Select a stretch of previously killed text and insert (\"paste\") it.
+This command allows to choose one of the stretches of text killed
+or yanked by previous commands, which are recorded in `kill-ring',
+and reinsert the chosen kill at point.
 
-With \\[universal-argument] as argument, put point at beginning,
-and mark at end, like `yank' does."
-  (interactive (list (read-from-kill-ring) current-prefix-arg))
+This command prompts for a previously-killed text in the minibuffer.
+Use the minibuffer history and search commands, or the minibuffer
+completion commands, to select a previously-killed text.  In
+particular, typing \\<minibuffer-local-completion-map>\\[minibuffer-complete] at the prompt will pop up a buffer showing
+all the previously-killed stretches of text from which you can
+choose the one you want to reinsert.
+Once you select the text you want to reinsert, type \\<minibuffer-local-map>\\[exit-minibuffer] to actually
+insert it and exit the minibuffer.
+You can also edit the selected text in the minibuffer before
+inserting it.
+
+With \\[universal-argument] as argument, this command puts point at
+beginning of the inserted text and mark at the end, like `yank' does.
+
+When called from Lisp, insert STRING like `insert-for-yank' does."
+  (interactive (list (read-from-kill-ring "Yank from kill-ring: ")
+                     current-prefix-arg))
   (push-mark)
   (insert-for-yank string)
   (if (consp arg)

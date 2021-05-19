@@ -1275,37 +1275,62 @@ Return nil if no change in files."
            ;; Try gzip; if we don't have that, use compress.
            (condition-case nil
                (if (file-directory-p file)
-                   (progn
-                     (setq suffix (cdr (assoc "\000" dired-compress-file-suffixes)))
-                     (when suffix
-                       (let ((out-name (concat file (car suffix)))
-                             (default-directory (file-name-directory file)))
-                         (dired-shell-command
-                          (replace-regexp-in-string
-                           "%o" (shell-quote-argument out-name)
+                   (let* ((suffix
+                           (or dired-compress-directory-default-suffix
+                               ".tar.gz"))
+                          (rule (cl-find-if
+                                 (lambda (x) (string-match-p (car x) suffix))
+                                 dired-compress-files-alist)))
+                     (if rule
+                         (let ((out-name (concat file suffix))
+                               (default-directory (file-name-directory file)))
+                           (dired-shell-command
+                            (replace-regexp-in-string
+                             "%o" (shell-quote-argument out-name)
+                             (replace-regexp-in-string
+                              "%i" (shell-quote-argument
+                                    (file-name-nondirectory file))
+                              (cdr rule)
+                              nil t)
+                             nil t))
+                           out-name)
+                       (user-error
+                        "No compression rule found for \
+`dired-compress-directory-default-suffix' %s, see `dired-compress-files-alist' for\
+ the supported suffixes list."
+                        dired-compress-directory-default-suffix)))
+                 (let* ((suffix (or dired-compress-file-default-suffix ".gz"))
+                        (out-name (concat file suffix))
+                        (rule (cl-find-if
+                               (lambda (x) (string-match-p (car x) suffix))
+                               dired-compress-file-alist)))
+                   (if (not rule)
+                       (user-error "No compression rule found for suffix %s, \
+see `dired-compress-file-alist' for the supported suffixes list."
+                                   dired-compress-file-default-suffix)
+                     (and (file-exists-p file)
+                          (or (not (file-exists-p out-name))
+                              (y-or-n-p
+                               (format
+                                "File %s already exists.  Really compress? "
+                                out-name)))
+                          (dired-shell-command
                            (replace-regexp-in-string
-                            "%i" (shell-quote-argument (file-name-nondirectory file))
-                            (cadr suffix)
-                            nil t)
-                           nil t))
-                         out-name)))
-                 (let ((out-name (concat file ".gz")))
-                   (and (or (not (file-exists-p out-name))
-                            (y-or-n-p
-                             (format "File %s already exists.  Really compress? "
-                                     out-name)))
-                        (not
-                         (dired-check-process (concat "Compressing " file)
-                                              "gzip" "-f" file))
-                        (or (file-exists-p out-name)
-                            (setq out-name (concat file ".z")))
-                        ;; Rename the compressed file to NEWNAME
-                        ;; if it hasn't got that name already.
-                        (if (and newname (not (equal newname out-name)))
-                            (progn
-                              (rename-file out-name newname t)
-                              newname)
-                          out-name))))
+                            "%o" (shell-quote-argument out-name)
+                            (replace-regexp-in-string
+                             "%i" (shell-quote-argument file)
+                             (cdr rule)
+                             nil t)
+                            nil t))
+                          (or (file-exists-p out-name)
+                              (setq out-name (concat file ".z")))
+                          ;; Rename the compressed file to NEWNAME
+                          ;; if it hasn't got that name already.
+                          (if (and newname (not (equal newname out-name)))
+                              (progn
+                                (rename-file out-name newname t)
+                                newname)
+                            out-name)))))
              (file-error
               (if (not (dired-check-process (concat "Compressing " file)
                                             "compress" "-f" file))
