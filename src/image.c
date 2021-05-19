@@ -4209,6 +4209,7 @@ static const struct image_keyword xpm_format[XPM_LAST] =
   {":color-symbols",	IMAGE_DONT_CHECK_VALUE_TYPE,		0},
   {":background",	IMAGE_STRING_OR_NIL_VALUE,		0}
 };
+#endif	/* HAVE_XPM || HAVE_NS || HAVE_PGTK */
 
 #if defined HAVE_X_WINDOWS && !defined USE_CAIRO
 
@@ -4469,6 +4470,7 @@ xpm_image_p (Lisp_Object object)
 	  && (! fmt[XPM_COLOR_SYMBOLS].count
 	      || xpm_valid_color_symbols_p (fmt[XPM_COLOR_SYMBOLS].value)));
 }
+#endif	/* HAVE_XPM || HAVE_NS || HAVE_PGTK */
 
 #endif /* HAVE_XPM || USE_CAIRO || HAVE_NS */
 
