@@ -23,7 +23,7 @@ dnl  along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 AC_PREREQ(2.65)
 dnl Note this is parsed by (at least) make-dist and lisp/cedet/ede/emacs.el.
-AC_INIT(GNU Emacs, 28.0.50, bug-gnu-emacs@gnu.org, , https://www.gnu.org/software/emacs/)
+AC_INIT(Aero Emacs, 28.0.50, jademichael@jmthornton.net, , https://gitlab.com/thornjad/emacs)
 
 dnl Set emacs_config_options to the options of 'configure', quoted for the shell,
 dnl and then quoted again for a C string.  Separate options with spaces.
@@ -5436,7 +5436,7 @@ fi
 
 version=$PACKAGE_VERSION
 
-copyright="Copyright (C) 2021 Free Software Foundation, Inc."
+copyright="Copyright (C) 2021 Jade Michael Thornton and the Free Software Foundation"
 AC_DEFINE_UNQUOTED(COPYRIGHT, ["$copyright"],
   [Short copyright string for this version of Emacs.])
 AC_SUBST(copyright)
