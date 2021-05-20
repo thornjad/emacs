@@ -336,9 +336,15 @@ endif
 
 gsettings_SCHEMAS = etc/org.gnu.emacs.defaults.gschema.xml
 
-all: ${SUBDIR} info $(gsettings_SCHEMAS:.xml=.valid)
+all: ${SUBDIR} info $(gsettings_SCHEMAS:.xml=.valid) link-bin
 
-.PHONY: all ${SUBDIR} blessmail epaths-force epaths-force-w32 etc-emacsver
+.PHONY: all ${SUBDIR} blessmail epaths-force epaths-force-w32 etc-emacsver link-bin
+
+# Link binaries to bin/ for easier access
+link-bin:
+	mkdir -p ${srcdir}/bin
+	ln -f ${srcdir}/src/emacs ${srcdir}/bin/emacs
+	ln -f ${srcdir}/lib-src/emacsclient ${srcdir}/bin/emacsclient
 
 # If configure were to just generate emacsver.tex from emacsver.tex.in
 # in the normal way, the timestamp of emacsver.tex would always be
@@ -873,6 +879,7 @@ clean: $(clean_dirs:=_clean) clean-gsettings-schemas
 	-rm -f ./*.tmp etc/*.tmp*
 	-rm -rf info-dir.*
 	-rm -rf native-lisp
+	-rm -rf bin
 
 ### 'bootclean'
 ###      Delete all files that need to be remade for a clean bootstrap.
