@@ -225,7 +225,8 @@ Value is:
  `x' for an Emacs frame that is really an X window,
  `w32' for an Emacs frame that is a window on MS-Windows display,
  `ns' for an Emacs frame on a GNUstep or Macintosh Cocoa display,
- `pc' for a direct-write MS-DOS frame.
+ `pc' for a direct-write MS-DOS frame,
+ `pgtk' for an Emacs frame running entirely in GTK.
 See also `frame-live-p'.  */)
   (Lisp_Object object)
 {
@@ -983,6 +984,7 @@ make_frame (bool mini_p)
   f->ns_transparent_titlebar = false;
 #endif
 #endif
+  f->select_mini_window_flag = false;
   /* This one should never be zero.  */
   f->change_stamp = 1;
   root_window = make_window ();
@@ -1543,7 +1545,17 @@ do_switch_frame (Lisp_Object frame, int track, int for_deletion, Lisp_Object nor
       tty->top_frame = frame;
     }
 
+  sf->select_mini_window_flag = MINI_WINDOW_P (XWINDOW (sf->selected_window));
+
   selected_frame = frame;
+
+  move_minibuffers_onto_frame (sf, for_deletion);
+
+  if (f->select_mini_window_flag
+      && !NILP (Fminibufferp (XWINDOW (f->minibuffer_window)->contents, Qt)))
+    f->selected_window = f->minibuffer_window;
+  f->select_mini_window_flag = false;
+
   if (! FRAME_MINIBUF_ONLY_P (XFRAME (selected_frame)))
     last_nonminibuf_frame = XFRAME (selected_frame);
 
@@ -1560,7 +1572,6 @@ do_switch_frame (Lisp_Object frame, int track, int for_deletion, Lisp_Object nor
 #endif
     internal_last_event_frame = Qnil;
 
-  move_minibuffers_onto_frame (sf, for_deletion);
   return frame;
 }
 

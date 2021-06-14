@@ -1991,7 +1991,7 @@ function is meant for debugging purposes."
 
 (put #'tramp-backtrace 'tramp-suppress-trace t)
 
-(defsubst tramp-error (vec-or-proc signal fmt-string &rest arguments)
+(defun tramp-error (vec-or-proc signal fmt-string &rest arguments)
   "Emit an error.
 VEC-OR-PROC identifies the connection to use, SIGNAL is the
 signal identifier to be raised, remaining arguments passed to
@@ -2574,6 +2574,8 @@ Falls back to normal file name handler if no Tramp file name handler exists."
     ;; might be an older, incompatible version active.  We try to
     ;; overload this.
     (let ((default-directory temporary-file-directory))
+      (when (bound-and-true-p tramp-archive-autoload)
+	(load "tramp-archive" 'noerror 'nomessage))
       (load "tramp" 'noerror 'nomessage)))
   (apply operation args)))
 
@@ -2585,7 +2587,7 @@ Falls back to normal file name handler if no Tramp file name handler exists."
   "Add Tramp file name handlers to `file-name-handler-alist' during autoload."
   (add-to-list 'file-name-handler-alist
 	       (cons tramp-autoload-file-name-regexp
-		     'tramp-autoload-file-name-handler))
+		     #'tramp-autoload-file-name-handler))
   (put #'tramp-autoload-file-name-handler 'safe-magic t)))
 
 ;;;###autoload (tramp-register-autoload-file-name-handlers)
@@ -2797,7 +2799,7 @@ not in completion mode."
      result1
      (ignore-errors
        (tramp-run-real-handler
-	'file-name-all-completions (list filename directory))))))
+	#'file-name-all-completions (list filename directory))))))
 
 ;; Method, host name and user name completion for a file.
 (defun tramp-completion-handle-file-name-completion
@@ -3218,7 +3220,7 @@ User is always nil."
     (tramp-compat-file-missing (tramp-dissect-file-name directory) directory))
   ;; We must do it file-wise.
   (tramp-run-real-handler
-   'copy-directory
+   #'copy-directory
    (list directory newname keep-date parents copy-contents)))
 
 (defun tramp-handle-directory-file-name (directory)

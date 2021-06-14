@@ -1661,6 +1661,7 @@ in *Help* buffer.  See also the command `describe-char'."
     (define-key m "\t" 'completion-at-point)
     (define-key m "\r" 'read--expression-try-read)
     (define-key m "\n" 'read--expression-try-read)
+    (define-key m "\M-g\M-c" 'read-expression-switch-to-completions)
     (set-keymap-parent m minibuffer-local-map)
     m))
 
@@ -4194,12 +4195,22 @@ impose the use of a shell (with its need to quote arguments)."
 	    (shell-command-on-region (point) (point) command
 				     output-buffer nil error-buffer)))))))
 
+(defun max-mini-window-lines (&optional frame)
+  "Compute maximum number of lines for echo area in FRAME.
+As defined by `max-mini-window-height'.  FRAME defaults to the
+selected frame.  Result may be a floating-point number,
+i.e. include a fractional number of lines."
+  (cond ((floatp max-mini-window-height) (* (frame-height frame)
+					    max-mini-window-height))
+	((integerp max-mini-window-height) max-mini-window-height)
+	(t 1)))
+
 (defun display-message-or-buffer (message &optional buffer-name action frame)
   "Display MESSAGE in the echo area if possible, otherwise in a pop-up buffer.
 MESSAGE may be either a string or a buffer.
 
 A pop-up buffer is displayed using `display-buffer' if MESSAGE is too long
-for maximum height of the echo area, as defined by `max-mini-window-height'
+for maximum height of the echo area, as defined by `max-mini-window-lines'
 if `resize-mini-windows' is non-nil.
 
 Returns either the string shown in the echo area, or when a pop-up
@@ -4238,14 +4249,7 @@ and are used only if a pop-up buffer is displayed."
 	     (cond ((= lines 0))
 		   ((and (or (<= lines 1)
 			     (<= lines
-				 (if resize-mini-windows
-				     (cond ((floatp max-mini-window-height)
-					    (* (frame-height)
-					       max-mini-window-height))
-					   ((integerp max-mini-window-height)
-					    max-mini-window-height)
-					   (t
-					    1))
+				 (if resize-mini-windows (max-mini-window-lines)
 				   1)))
 			 ;; Don't use the echo area if the output buffer is
 			 ;; already displayed in the selected frame.
@@ -4311,7 +4315,7 @@ current buffer after START.
 
 Optional fifth arg REPLACE, if non-nil, means to insert the
 output in place of text from START to END, putting point and mark
-around it.
+around it.  If REPLACE is the symbol `no-mark', don't set the mark.
 
 Optional sixth arg ERROR-BUFFER, if non-nil, specifies a buffer
 or buffer name to which to direct the command's standard error
@@ -4386,7 +4390,9 @@ characters."
           (let ((swap (and replace (< start end))))
             ;; Don't muck with mark unless REPLACE says we should.
             (goto-char start)
-            (and replace (push-mark (point) 'nomsg))
+            (when (and replace
+                       (not (eq replace 'no-mark)))
+              (push-mark (point) 'nomsg))
             (setq exit-status
                   (call-shell-region start end command replace
                                        (if error-file
@@ -4397,7 +4403,9 @@ characters."
             ;;   (and shell-buffer (not (eq shell-buffer (current-buffer)))
             ;; 	 (kill-buffer shell-buffer)))
             ;; Don't muck with mark unless REPLACE says we should.
-            (and replace swap (exchange-point-and-mark)))
+            (when (and replace swap
+                       (not (eq replace 'no-mark)))
+              (exchange-point-and-mark)))
         ;; No prefix argument: put the output in a temp buffer,
         ;; replacing its entire contents.
         (let ((buffer (get-buffer-create
@@ -5662,6 +5670,9 @@ PROMPT is a string to prompt with."
   ;; `current-kill' updates `kill-ring' with a possible interprogram-paste
   (current-kill 0)
   (let* ((history-add-new-input nil)
+         (history-pos (when yank-from-kill-ring-rotate
+                        (- (length kill-ring)
+                           (length kill-ring-yank-pointer))))
          (ellipsis (if (char-displayable-p ?…) "…" "..."))
          ;; Remove keymaps from text properties of copied string,
          ;; because typing RET in the minibuffer might call
@@ -5709,7 +5720,17 @@ PROMPT is a string to prompt with."
              '(metadata (display-sort-function . identity))
            (complete-with-action action completions string pred)))
        nil nil nil
-       'read-from-kill-ring-history))))
+       (if history-pos
+           (cons 'read-from-kill-ring-history
+                 (if (zerop history-pos) history-pos (1+ history-pos)))
+         'read-from-kill-ring-history)))))
+
+(defcustom yank-from-kill-ring-rotate t
+  "Whether using `yank-from-kill-ring' should rotate `kill-ring-yank-pointer'.
+If non-nil, the kill ring is rotated after selecting previously killed text."
+  :type 'boolean
+  :group 'killing
+  :version "28.1")
 
 (defun yank-from-kill-ring (string &optional arg)
   "Select a stretch of previously killed text and insert (\"paste\") it.
@@ -5734,12 +5755,19 @@ beginning of the inserted text and mark at the end, like `yank' does.
 When called from Lisp, insert STRING like `insert-for-yank' does."
   (interactive (list (read-from-kill-ring "Yank from kill-ring: ")
                      current-prefix-arg))
+  (setq yank-window-start (window-start))
   (push-mark)
   (insert-for-yank string)
+  (when yank-from-kill-ring-rotate
+    (let ((pos (seq-position kill-ring string)))
+      (if pos
+          (setq kill-ring-yank-pointer (nthcdr pos kill-ring))
+        (kill-new string))))
   (if (consp arg)
-      ;; Swap point and mark like in `yank'.
+      ;; Swap point and mark like in `yank' and `yank-pop'.
       (goto-char (prog1 (mark t)
                    (set-marker (mark-marker) (point) (current-buffer))))))
+
 
 ;; Some kill commands.
 
@@ -8793,6 +8821,8 @@ makes it easier to edit it."
 
 (defvar completion-list-mode-map
   (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map special-mode-map)
+    (define-key map "g" nil) ;; There's nothing to revert from.
     (define-key map [mouse-2] 'choose-completion)
     (define-key map [follow-link] 'mouse-face)
     (define-key map [down-mouse-2] nil)
@@ -8802,8 +8832,10 @@ makes it easier to edit it."
     (define-key map [right] 'next-completion)
     (define-key map [?\t] 'next-completion)
     (define-key map [backtab] 'previous-completion)
-    (define-key map "q" 'quit-window)
     (define-key map "z" 'kill-current-buffer)
+    (define-key map "n" 'next-completion)
+    (define-key map "p" 'previous-completion)
+    (define-key map "\M-g\M-c" 'switch-to-minibuffer)
     map)
   "Local map for completion list buffers.")
 
@@ -8890,18 +8922,17 @@ If EVENT, use EVENT's position to determine the starting position."
           (choice
            (save-excursion
              (goto-char (posn-point (event-start event)))
-             (let (beg end)
+             (let (beg)
                (cond
                 ((and (not (eobp)) (get-text-property (point) 'mouse-face))
-                 (setq end (point) beg (1+ (point))))
+                 (setq beg (1+ (point))))
                 ((and (not (bobp))
                       (get-text-property (1- (point)) 'mouse-face))
-                 (setq end (1- (point)) beg (point)))
+                 (setq beg (point)))
                 (t (error "No completion here")))
                (setq beg (previous-single-property-change beg 'mouse-face))
-               (setq end (or (next-single-property-change end 'mouse-face)
-                             (point-max)))
-               (buffer-substring-no-properties beg end)))))
+               (substring-no-properties
+                (get-text-property beg 'completion--string))))))
 
       (unless (buffer-live-p buffer)
         (error "Destination buffer is dead"))
@@ -9093,6 +9124,18 @@ select the completion near point.\n\n"))))))
       ;; FIXME: Perhaps this should be done in `minibuffer-completion-help'.
       (when (bobp)
 	(next-completion 1)))))
+
+(defun read-expression-switch-to-completions ()
+  "Select the completion list window while reading an expression."
+  (interactive)
+  (completion-help-at-point)
+  (switch-to-completions))
+
+(defun switch-to-minibuffer ()
+  "Select the minibuffer window."
+  (interactive)
+  (when (active-minibuffer-window)
+    (select-window (active-minibuffer-window))))
 
 ;;; Support keyboard commands to turn on various modifiers.
 

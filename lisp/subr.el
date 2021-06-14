@@ -195,6 +195,14 @@ buffer-local wherever it is set."
   (list 'progn (list 'defvar var val docstring)
         (list 'make-variable-buffer-local (list 'quote var))))
 
+(defun buffer-local-boundp (symbol buffer)
+  "Return non-nil if SYMBOL is bound in BUFFER.
+Also see `local-variable-p'."
+  (condition-case nil
+      (buffer-local-value symbol buffer)
+    (:success t)
+    (void-variable nil)))
+
 (defmacro push (newelt place)
   "Add NEWELT to the list stored in the generalized variable PLACE.
 This is morally equivalent to (setf PLACE (cons NEWELT PLACE)),
@@ -1757,6 +1765,12 @@ be a list of the form returned by `event-start' and `event-end'."
 (make-obsolete-variable 'load-dangerous-libraries
                         "no longer used." "27.1")
 
+(defvar inhibit--record-char nil
+  "Obsolete variable.
+This was used internally by quail.el and keyboard.c in Emacs 27.
+It does nothing in Emacs 28.")
+(make-obsolete-variable 'inhibit--record-char nil "28.1")
+
 ;; We can't actually make `values' obsolete, because that will result
 ;; in warnings when using `values' in let-bindings.
 ;;(make-obsolete-variable 'values "no longer used" "28.1")
@@ -2470,7 +2484,11 @@ file name without extension.
 If TYPE is nil, then any kind of definition is acceptable.  If
 TYPE is `defun', `defvar', or `defface', that specifies function
 definition, variable definition, or face definition only.
-Otherwise TYPE is assumed to be a symbol property."
+Otherwise TYPE is assumed to be a symbol property.
+
+This function only works for symbols defined in Lisp files.  For
+symbols that are defined in C files, use `help-C-file-name'
+instead."
   (if (and (or (null type) (eq type 'defun))
 	   (symbolp symbol)
 	   (autoloadp (symbol-function symbol)))

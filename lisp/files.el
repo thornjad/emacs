@@ -4339,6 +4339,9 @@ Return the new class name, which is a symbol named DIR."
                      (let ((read-circle nil))
                        (read (current-buffer)))
                    (end-of-file nil))))
+            (unless (listp newvars)
+              (message "Invalid data in %s: %s" file newvars)
+              (setq newvars nil))
             (setq variables
                   ;; Try and avoid loading `map' since that also loads cl-lib
                   ;; which then might hamper bytecomp warnings (bug#30635).
@@ -6225,8 +6228,11 @@ Non-file buffers need a custom function."
                         (dolist (regexp revert-without-query)
                           (when (string-match regexp file-name)
                             (throw 'found t)))))
-                 (yes-or-no-p (format "Revert buffer from file %s? "
-                                      file-name)))
+                 (yes-or-no-p
+                  (format (if (buffer-modified-p)
+                              "Discard edits and reread from %s? "
+                            "Revert buffer from file %s? ")
+                          file-name)))
              (run-hooks 'before-revert-hook)
              ;; If file was backed up but has changed since,
              ;; we should make another backup.
@@ -7920,6 +7926,7 @@ Otherwise, trash FILENAME using the freedesktop.org conventions,
 
 	       ;; Make a .trashinfo file.  Use O_EXCL, as per trash-spec 1.0.
 	       (let* ((files-base (file-name-nondirectory fn))
+                      (is-directory (file-directory-p fn))
                       (overwrite nil)
                       info-fn)
                  ;; We're checking further down whether the info file
@@ -7931,7 +7938,8 @@ Otherwise, trash FILENAME using the freedesktop.org conventions,
                          files-base (file-name-nondirectory
                                      (make-temp-file
                                       (expand-file-name
-                                       files-base trash-files-dir)))))
+                                       files-base trash-files-dir)
+                                      is-directory))))
 		 (setq info-fn (expand-file-name
 				(concat files-base ".trashinfo")
 				trash-info-dir))

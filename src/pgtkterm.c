@@ -5462,6 +5462,16 @@ x_find_modifier_meanings (struct pgtk_display_info *dpyinfo)
     {
       dpyinfo->hyper_mod_mask = GDK_MOD3_MASK;
     }
+
+  /* If xmodmap says:
+   *   $ xmodmap | grep mod4
+   *   mod4        Super_L (0x85),  Super_R (0x86),  Super_L (0xce),  Hyper_L (0xcf)
+   * then, when mod4 is pressed, both of super and hyper are recognized ON.
+   * Maybe many people have such configuration, and they don't like such behavior,
+   * so I disable hyper if such configuration is detected.
+   */
+  if (dpyinfo->hyper_mod_mask == dpyinfo->super_mod_mask)
+    dpyinfo->hyper_mod_mask = 0;
 }
 
 static void
@@ -6974,8 +6984,11 @@ pgtk_term_init (Lisp_Object display_name, char *resource_name)
   {
     GdkScreen *gscr = gdk_display_get_default_screen (dpyinfo->gdpy);
 
-    gdouble dpi = 96.0 * pgtk_text_scaling_factor();
-    gdk_screen_set_resolution (gscr, dpi);
+    gdouble dpi = gdk_screen_get_resolution (gscr);
+    if (dpi < 0)
+	dpi = 96.0;
+
+    dpi *= pgtk_text_scaling_factor();
     dpyinfo->resx = dpi;
     dpyinfo->resy = dpi;
   }
