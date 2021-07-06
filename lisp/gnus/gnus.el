@@ -1183,6 +1183,14 @@ newsgroups."
   :group 'gnus-summary-marks
   :type 'character)
 
+(defcustom gnus-process-mark-toggle t
+  "If nil the process mark command only sets the process mark."
+  :version "28.1"
+  :group 'gnus-summary
+  :group 'gnus-group-various
+  :group 'gnus-group-topic
+  :type 'boolean)
+
 (defcustom gnus-large-newsgroup 200
   "The number of articles which indicates a large newsgroup.
 If the number of articles in a newsgroup is greater than this value,
@@ -4156,8 +4164,9 @@ prompt the user for the name of an NNTP server to use."
   ;; file.
   (unless (string-match "^Gnus" gnus-version)
     (load "gnus-load" nil t))
-  (unless (byte-code-function-p (symbol-function 'gnus))
-    (message "You should byte-compile Gnus")
+  (unless (or (byte-code-function-p (symbol-function 'gnus))
+	      (subr-native-elisp-p (symbol-function 'gnus)))
+    (message "You should compile Gnus")
     (sit-for 2))
   (let ((gnus-action-message-log (list nil)))
     (gnus-1 arg dont-connect child)

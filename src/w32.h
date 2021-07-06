@@ -187,6 +187,7 @@ extern DWORD multiByteToWideCharFlags;
 
 extern char *w32_my_exename (void);
 extern const char *w32_relocate (const char *);
+extern char *realpath (const char *, char *);
 
 extern void init_environment (char **);
 extern void check_windows_init_file (void);
@@ -232,6 +233,9 @@ extern int w32_memory_info (unsigned long long *, unsigned long long *,
 
 /* Compare 2 UTF-8 strings in locale-dependent fashion.  */
 extern int w32_compare_strings (const char *, const char *, char *, int);
+
+/* Return the number of processor execution units on this system.  */
+extern unsigned w32_get_nproc (void);
 
 /* Return a cryptographically secure seed for PRNG.  */
 extern int w32_init_random (void *, ptrdiff_t);

@@ -170,7 +170,9 @@ expression, in which case we want to handle forms differently."
                        define-inline cl-defun cl-defmacro cl-defgeneric
                        cl-defstruct pcase-defmacro))
            (macrop car)
-	   (setq expand (let ((load-file-name file)) (macroexpand form)))
+	   (setq expand (let ((load-true-file-name file)
+                              (load-file-name file))
+                          (macroexpand form)))
 	   (memq (car expand) '(progn prog1 defalias)))
       (make-autoload expand file 'expansion)) ;Recurse on the expansion.
 
@@ -248,7 +250,10 @@ expression, in which case we want to handle forms differently."
 	   (custom-autoload ',varname ,file
                             ,(condition-case nil
                                  (null (plist-get props :set))
-                               (error nil))))))
+                               (error nil)))
+           ;; Propagate the :safe property to the loaddefs file.
+           ,@(when-let ((safe (plist-get props :safe)))
+               `((put ',varname 'safe-local-variable ,safe))))))
 
      ((eq car 'defgroup)
       ;; In Emacs this is normally handled separately by cus-dep.el, but for

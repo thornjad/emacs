@@ -941,7 +941,8 @@ For more details, see Info node `(cl)Loop Facility'.
                                "above" "below" "by" "in" "on" "=" "across"
                                "repeat" "while" "until" "always" "never"
                                "thereis" "collect" "append" "nconc" "sum"
-                               "count" "maximize" "minimize" "if" "unless"
+                               "count" "maximize" "minimize"
+                               "if" "when" "unless"
                                "return"]
                           form]
                          ["using" (symbolp symbolp)]
@@ -1924,7 +1925,8 @@ from OBARRAY.
 
 \(fn (VAR [OBARRAY [RESULT]]) BODY...)"
   (declare (indent 1)
-           (debug ((symbolp &optional form form) cl-declarations body)))
+           (debug ((symbolp &optional form form) cl-declarations
+                   def-body)))
   ;; Apparently this doesn't have an implicit block.
   `(cl-block nil
      (let (,(car spec))
@@ -1964,7 +1966,7 @@ Each symbol in the first list is bound to the corresponding value in the
 second list (or to nil if VALUES is shorter than SYMBOLS); then the
 BODY forms are executed and their result is returned.  This is much like
 a `let' form, except that the list of symbols can be computed at run-time."
-  (declare (indent 2) (debug (form form body)))
+  (declare (indent 2) (debug (form form def-body)))
   (let ((bodyfun (make-symbol "body"))
         (binds (make-symbol "binds"))
         (syms (make-symbol "syms"))
@@ -2141,6 +2143,15 @@ Like `cl-flet' but the definitions can refer to previous ones.
                      ;; tail-called any more.
                      (not (memq var shadowings)))))
              `(,(car exp) ,bindings . ,(funcall opt-exps exps)))
+            ((and `(condition-case ,err-var ,bodyform . ,handlers)
+                  (guard (not (eq err-var var))))
+             `(condition-case ,err-var
+                  ,(if (assq :success handlers)
+                       bodyform
+                     `(progn (setq ,retvar ,bodyform) nil))
+                . ,(mapcar (lambda (h)
+                             (cons (car h) (funcall opt-exps (cdr h))))
+                           handlers)))
             ('nil nil)  ;No need to set `retvar' to return nil.
             (_ `(progn (setq ,retvar ,exp) nil))))))
 
@@ -2468,6 +2479,14 @@ values.  For compatibility, (cl-values A B C) is a synonym for (list A B C).
 (defmacro cl-the (type form)
   "Return FORM.  If type-checking is enabled, assert that it is of TYPE."
   (declare (indent 1) (debug (cl-type-spec form)))
+  ;; When native compiling possibly add the appropriate type hint.
+  (when (and (boundp 'byte-native-compiling)
+             byte-native-compiling)
+    (setf form
+          (cl-case type
+            (fixnum `(comp-hint-fixnum ,form))
+            (cons `(comp-hint-cons ,form))
+            (otherwise form))))
   (if (not (or (not (macroexp-compiling-p))
                (< cl--optimize-speed 3)
                (= cl--optimize-safety 3)))
@@ -2477,6 +2496,28 @@ values.  For compatibility, (cl-values A B C) is a synonym for (list A B C).
                 (signal 'wrong-type-argument
                         (list ',type ,temp ',form)))
               ,temp))))
+
+;;;###autoload
+(or (assq 'cl-optimize defun-declarations-alist)
+    (let ((x (list 'cl-optimize #'cl--optimize)))
+      (push x macro-declarations-alist)
+      (push x defun-declarations-alist)))
+
+(defun cl--optimize (f _args &rest qualities)
+  "Serve 'cl-optimize' in function declarations.
+Example:
+(defun foo (x)
+  (declare (cl-optimize (speed 3) (safety 0)))
+  x)"
+  ;; FIXME this should make use of `cl--declare-stack' but I suspect
+  ;; this mechanism should be reviewed first.
+  (cl-loop for (qly val) in qualities
+           do (cl-ecase qly
+                (speed
+                 (setf cl--optimize-speed val)
+                 (byte-run--set-speed f nil val))
+                (safety
+                 (setf cl--optimize-safety val)))))
 
 (defvar cl--proclaim-history t)    ; for future compilers
 (defvar cl--declare-stack t)       ; for future compilers
@@ -3235,6 +3276,13 @@ STRUCT-TYPE is a symbol naming a struct type.  Return `record',
   (declare (side-effect-free t) (pure t))
   (cl--struct-class-type (cl--struct-get-class struct-type)))
 
+(defun cl--alist-to-plist (alist)
+  (let ((res '()))
+    (dolist (x alist)
+      (push (car x) res)
+      (push (cdr x) res))
+    (nreverse res)))
+
 (defun cl-struct-slot-info (struct-type)
   "Return a list of slot names of struct STRUCT-TYPE.
 Each entry is a list (SLOT-NAME . OPTS), where SLOT-NAME is a
@@ -3252,7 +3300,7 @@ slots skipped by :initial-offset may appear in the list."
                 ,(cl--slot-descriptor-initform slot)
                 ,@(if (not (eq (cl--slot-descriptor-type slot) t))
                       `(:type ,(cl--slot-descriptor-type slot)))
-                ,@(cl--slot-descriptor-props slot))
+                ,@(cl--alist-to-plist (cl--slot-descriptor-props slot)))
               descs)))
     (nreverse descs)))
 
@@ -3547,6 +3595,10 @@ The type name can then be used in `cl-typecase', `cl-check-type', etc."
           (cl-function (lambda (&cl-defs ('*) ,@arglist) ,@body)))))
 
 (cl-deftype extended-char () '(and character (not base-char)))
+;; Define fixnum so `cl-typep' recognize it and the type check emitted
+;; by `cl-the' is effective.
+(cl-deftype fixnum () 'fixnump)
+(cl-deftype bignum () 'bignump)
 
 ;;; Additional functions that we can now define because we've defined
 ;;; `cl-defsubst' and `cl-typep'.

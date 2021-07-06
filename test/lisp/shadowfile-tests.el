@@ -70,8 +70,11 @@
   "Temporary directory for Tramp tests.")
 
 (setq password-cache-expiry nil
-      shadow-debug (getenv "EMACS_HYDRA_CI")
+      shadow-debug (or (getenv "EMACS_HYDRA_CI") (getenv "EMACS_EMBA_CI"))
       tramp-verbose 0
+      ;; When the remote user id is 0, Tramp refuses unsafe temporary files.
+      tramp-allow-unsafe-temporary-files
+      (or tramp-allow-unsafe-temporary-files noninteractive)
       ;; On macOS, `temporary-file-directory' is a symlinked directory.
       temporary-file-directory (file-truename temporary-file-directory)
       shadow-test-remote-temporary-file-directory
@@ -117,8 +120,8 @@
   (ignore-errors (delete-file shadow-info-file))
   (ignore-errors (delete-file shadow-todo-file))
   ;; Reset variables.
+  (shadow-invalidate-hashtable)
   (setq shadow-info-buffer nil
-        shadow-hashtable nil
         shadow-todo-buffer nil
         shadow-files-to-copy nil))
 

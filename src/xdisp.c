@@ -869,6 +869,19 @@ bset_update_mode_line (struct buffer *b)
   b->text->redisplay = true;
 }
 
+void
+wset_update_mode_line (struct window *w)
+{
+  w->update_mode_line = true;
+  /* When a window's mode line needs to be updated, the window's frame's
+     title may also need to be updated, but we don't need to worry about it
+     here.  Instead, `gui_consider_frame_title' is automatically called
+     whenever w->update_mode_line is set for that frame's selected window.
+     But for this to work reliably, we have to make sure the window
+     is considered, so we have to mark it for redisplay.  */
+  wset_redisplay (w);
+}
+
 DEFUN ("set-buffer-redisplay", Fset_buffer_redisplay,
        Sset_buffer_redisplay, 4, 4, 0,
        doc: /* Mark the current buffer for redisplay.
@@ -10051,8 +10064,20 @@ move_it_to (struct it *it, ptrdiff_t to_charpos, int to_x, int to_y, int to_vpos
 	  if ((op & MOVE_TO_POS) != 0
 	      && (IT_CHARPOS (*it) > to_charpos
 		  || (IT_CHARPOS (*it) == to_charpos
+		      /* Consider TO_CHARPOS as REACHED if we are at
+			 EOB that ends in something other than a newline.  */
 		      && to_charpos == ZV
-		      && (ZV_BYTE <= 1 || FETCH_BYTE (ZV_BYTE - 1) != '\n'))))
+		      && (ZV_BYTE <= 1 || FETCH_BYTE (ZV_BYTE - 1) != '\n')
+		      /* But if we have a display or an overlay string
+			 at EOB, keep going until we exhaust all the
+			 characters of the string(s).  */
+		      && (it->sp == 0
+			  || (STRINGP (it->string)
+			      && (it->current.overlay_string_index < 0
+				  || (it->current.overlay_string_index >= 0
+				      && it->current.overlay_string_index
+				         >= it->n_overlay_strings - 1))
+			      && IT_STRING_CHARPOS (*it) >= it->end_charpos)))))
 	    {
 	      reached = 9;
 	      goto out;
@@ -10770,6 +10795,9 @@ include the height of both, if present, in the return value.  */)
 	  it.max_descent = max (it.max_descent, it.descent);
 	}
     }
+  else
+    bidi_unshelve_cache (it2data, true);
+
   if (!NILP (x_limit))
     {
       /* Don't return more than X-LIMIT.  */
@@ -10813,6 +10841,47 @@ include the height of both, if present, in the return value.  */)
 
   return Fcons (make_fixnum (x - start_x), make_fixnum (y));
 }
+
+DEFUN ("display--line-is-continued-p", Fdisplay__line_is_continued_p,
+       Sdisplay__line_is_continued_p, 0, 0, 0,
+       doc: /* Return non-nil if the current screen line is continued on display.  */)
+  (void)
+{
+  struct buffer *oldb = current_buffer;
+  struct window *w = XWINDOW (selected_window);
+  enum move_it_result rc = MOVE_POS_MATCH_OR_ZV;
+
+  set_buffer_internal_1 (XBUFFER (w->contents));
+
+  if (PT < ZV)
+    {
+      struct text_pos startpos;
+      struct it it;
+      void *itdata;
+      /* Use a marker, since vertical-motion enters redisplay, which can
+	 trigger fontifications, which in turn could modify buffer text.  */
+      Lisp_Object opoint = Fpoint_marker ();
+
+      /* Make sure to start from the beginning of the current screen
+	 line, so that move_it_in_display_line_to counts pixels correctly.  */
+      Fvertical_motion (make_fixnum (0), selected_window, Qnil);
+      SET_TEXT_POS (startpos, PT, PT_BYTE);
+      itdata = bidi_shelve_cache ();
+      start_display (&it, w, startpos);
+      /* If lines are truncated, no line is continued.  */
+      if (it.line_wrap != TRUNCATE)
+	{
+	  it.glyph_row = NULL;
+	  rc = move_it_in_display_line_to (&it, ZV, -1, MOVE_TO_POS);
+	}
+      SET_PT_BOTH (marker_position (opoint), marker_byte_position (opoint));
+      bidi_unshelve_cache (itdata, false);
+    }
+  set_buffer_internal_1 (oldb);
+
+  return rc == MOVE_LINE_CONTINUED ? Qt : Qnil;
+}
+
 
 /***********************************************************************
 			       Messages
@@ -11835,7 +11904,7 @@ resize_mini_window (struct window *w, bool exact_p)
       int height, max_height;
       struct text_pos start;
       struct buffer *old_current_buffer = NULL;
-      int windows_height = FRAME_WINDOWS_HEIGHT (f);
+      int windows_height = FRAME_INNER_HEIGHT (f);
 
       if (current_buffer != XBUFFER (w->contents))
 	{
@@ -13452,8 +13521,6 @@ PIXELWISE non-nil means return the height of the tab bar in pixels.  */)
 static bool
 redisplay_tab_bar (struct frame *f)
 {
-  f->tab_bar_redisplayed = true;
-
   struct window *w;
   struct it it;
   struct glyph_row *row;
@@ -13466,6 +13533,8 @@ redisplay_tab_bar (struct frame *f)
       || (w = XWINDOW (f->tab_bar_window),
           WINDOW_TOTAL_LINES (w) == 0))
     return false;
+
+  f->tab_bar_redisplayed = true;
 
   /* Set up an iterator for the tab-bar window.  */
   init_iterator (&it, w, -1, -1, w->desired_matrix->rows, TAB_BAR_FACE_ID);
@@ -13607,8 +13676,9 @@ redisplay_tab_bar (struct frame *f)
 
 /* Get information about the tab-bar item which is displayed in GLYPH
    on frame F.  Return in *PROP_IDX the index where tab-bar item
-   properties start in F->tab_bar_items.  Value is false if
-   GLYPH doesn't display a tab-bar item.  */
+   properties start in F->tab_bar_items.  Return in CLOSE_P an
+   indication whether the click was on the close-tab icon of the tab.
+   Value is false if GLYPH doesn't display a tab-bar item.  */
 
 static bool
 tab_bar_item_info (struct frame *f, struct glyph *glyph,
@@ -13654,7 +13724,6 @@ static int
 get_tab_bar_item (struct frame *f, int x, int y, struct glyph **glyph,
 		   int *hpos, int *vpos, int *prop_idx, bool *close_p)
 {
-  Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (f);
   struct window *w = XWINDOW (f->tab_bar_window);
   int area;
 
@@ -13668,18 +13737,7 @@ get_tab_bar_item (struct frame *f, int x, int y, struct glyph **glyph,
   if (!tab_bar_item_info (f, *glyph, prop_idx, close_p))
     return -1;
 
-  /* Is mouse on the highlighted item?  */
-  if (EQ (f->tab_bar_window, hlinfo->mouse_face_window)
-      && *vpos >= hlinfo->mouse_face_beg_row
-      && *vpos <= hlinfo->mouse_face_end_row
-      && (*vpos > hlinfo->mouse_face_beg_row
-	  || *hpos >= hlinfo->mouse_face_beg_col)
-      && (*vpos < hlinfo->mouse_face_end_row
-	  || *hpos < hlinfo->mouse_face_end_col
-	  || hlinfo->mouse_face_past_end))
-    return 0;
-
-  return 1;
+  return *prop_idx == f->last_tab_bar_item ? 0 : 1;
 }
 
 
@@ -13701,24 +13759,13 @@ handle_tab_bar_click (struct frame *f, int x, int y, bool down_p,
   Lisp_Object enabled_p;
   int ts;
 
-  /* If not on the highlighted tab-bar item, and mouse-highlight is
-     non-nil, return.  This is so we generate the tab-bar button
-     click only when the mouse button is released on the same item as
-     where it was pressed.  However, when mouse-highlight is disabled,
-     generate the click when the button is released regardless of the
-     highlight, since tab-bar items are not highlighted in that
-     case.  */
   frame_to_window_pixel_xy (w, &x, &y);
   ts = get_tab_bar_item (f, x, y, &glyph, &hpos, &vpos, &prop_idx, &close_p);
   if (ts == -1
-      || (ts != 0 && !NILP (Vmouse_highlight)))
+      /* If the button is released on a tab other than the one where
+	 it was pressed, don't generate the tab-bar button click event.  */
+      || (ts != 0 && !down_p))
     return;
-
-  /* When mouse-highlight is off, generate the click for the item
-     where the button was pressed, disregarding where it was
-     released.  */
-  if (NILP (Vmouse_highlight) && !down_p)
-    prop_idx = f->last_tab_bar_item;
 
   /* If item is disabled, do nothing.  */
   enabled_p = AREF (f->tab_bar_items, prop_idx + TAB_BAR_ITEM_ENABLED_P);
@@ -13727,10 +13774,10 @@ handle_tab_bar_click (struct frame *f, int x, int y, bool down_p,
 
   if (down_p)
     {
-      /* Show item in pressed state.  */
+      /* Show the clicked button in pressed state.  */
       if (!NILP (Vmouse_highlight))
 	show_mouse_face (hlinfo, DRAW_IMAGE_SUNKEN);
-      f->last_tab_bar_item = prop_idx;
+      f->last_tab_bar_item = prop_idx; /* record the pressed tab */
     }
   else
     {
@@ -14399,21 +14446,13 @@ PIXELWISE non-nil means return the height of the tool bar in pixels.  */)
   return make_fixnum (height);
 }
 
+#ifndef HAVE_EXT_TOOL_BAR
 
-/* Display the tool-bar of frame F.  Value is true if tool-bar's
-   height should be changed.  */
+/* Display the internal tool-bar of frame F.  Value is true if
+   tool-bar's height should be changed.  */
 static bool
 redisplay_tool_bar (struct frame *f)
 {
-  f->tool_bar_redisplayed = true;
-#ifdef HAVE_EXT_TOOL_BAR
-
-  if (FRAME_EXTERNAL_TOOL_BAR (f))
-    update_frame_tool_bar (f);
-  return false;
-
-#else /* ! (HAVE_EXT_TOOL_BAR) */
-
   struct window *w;
   struct it it;
   struct glyph_row *row;
@@ -14426,6 +14465,8 @@ redisplay_tool_bar (struct frame *f)
       || (w = XWINDOW (f->tool_bar_window),
           WINDOW_TOTAL_LINES (w) == 0))
     return false;
+
+  f->tool_bar_redisplayed = true;
 
   /* Set up an iterator for the tool-bar window.  */
   init_iterator (&it, w, -1, -1, w->desired_matrix->rows, TOOL_BAR_FACE_ID);
@@ -14562,12 +14603,9 @@ redisplay_tool_bar (struct frame *f)
     }
 
   f->minimize_tool_bar_window_p = false;
+
   return false;
-
-#endif /* HAVE_EXT_TOOL_BAR */
 }
-
-#ifndef HAVE_EXT_TOOL_BAR
 
 /* Get information about the tool-bar item which is displayed in GLYPH
    on frame F.  Return in *PROP_IDX the index where tool-bar item
@@ -19331,7 +19369,7 @@ redisplay_window (Lisp_Object window, bool just_this_one_p)
 
 #ifdef HAVE_EXT_TOOL_BAR
 	  if (FRAME_EXTERNAL_TOOL_BAR (f))
-	    redisplay_tool_bar (f);
+	    update_frame_tool_bar (f);
 #else
 	  if (WINDOWP (f->tool_bar_window)
 	      && (FRAME_TOOL_BAR_LINES (f) > 0
@@ -22351,15 +22389,23 @@ extend_face_to_end_of_line (struct it *it)
       it->face_id = (it->glyph_row->ends_at_zv_p ?
                      default_face->id : face->id);
 
-      /* Display fill-column indicator if needed.  */
-      const int indicator_column = fill_column_indicator_column (it, 1);
-
       /* Make sure our idea of current_x is in sync with the glyphs
 	 actually in the glyph row.  They might differ because
 	 append_space_for_newline can insert one glyph without
 	 updating current_x.  */
       it->current_x = it->glyph_row->used[TEXT_AREA];
 
+      /* The above assignment causes the code below to use a
+	 non-standard semantics of it->current_x: it is measured
+	 relative to the beginning of the text-area, thus disregarding
+	 the window's hscroll.  That is why we need to correct the
+	 indicator column for the hscroll, otherwise the indicator
+	 will not move together with the text as result of horizontal
+	 scrolling.  */
+      const int indicator_column =
+	fill_column_indicator_column (it, 1) - it->first_visible_x;
+
+      /* Display fill-column indicator if needed.  */
       while (it->current_x <= it->last_visible_x)
 	{
 	  if (it->current_x != indicator_column)
@@ -30255,7 +30301,7 @@ produce_glyphless_glyph (struct it *it, bool for_no_font, Lisp_Object acronym)
 
       /* +4 is for vertical bars of a box plus 1-pixel spaces at both side.  */
       width = max (metrics_upper.width, metrics_lower.width) + 4;
-      upper_xoff = upper_yoff = 2; /* the typical case */
+      upper_xoff = lower_xoff = 2; /* the typical case */
       if (base_width >= width)
 	{
 	  /* Align the upper to the left, the lower to the right.  */
@@ -30269,13 +30315,7 @@ produce_glyphless_glyph (struct it *it, bool for_no_font, Lisp_Object acronym)
 	  if (metrics_upper.width >= metrics_lower.width)
 	    lower_xoff = (width - metrics_lower.width) / 2;
 	  else
-	    {
-	      /* FIXME: This code doesn't look right.  It formerly was
-		 missing the "lower_xoff = 0;", which couldn't have
-		 been right since it left lower_xoff uninitialized.  */
-	      lower_xoff = 0;
-	      upper_xoff = (width - metrics_upper.width) / 2;
-	    }
+	    upper_xoff = (width - metrics_upper.width) / 2;
 	}
 
       /* +5 is for horizontal bars of a box plus 1-pixel spaces at
@@ -31983,6 +32023,11 @@ draw_row_with_mouse_face (struct window *w, int start_x, struct glyph_row *row,
 static void
 show_mouse_face (Mouse_HLInfo *hlinfo, enum draw_glyphs_face draw)
 {
+  /* Don't bother doing anything if the mouse-face window is not set
+     up.  */
+  if (!WINDOWP (hlinfo->mouse_face_window))
+    return;
+
   struct window *w = XWINDOW (hlinfo->mouse_face_window);
   struct frame *f = XFRAME (WINDOW_FRAME (w));
 
@@ -33191,7 +33236,8 @@ note_mode_line_or_margin_highlight (Lisp_Object window, int x, int y,
      of the mode line without any text (e.g. past the right edge of
      the mode line text), use that windows's mode line help echo if it
      has been set.  */
-  if (STRINGP (string) || area == ON_MODE_LINE)
+  if (STRINGP (string) || area == ON_MODE_LINE || area == ON_HEADER_LINE
+      || area == ON_TAB_LINE)
     {
       /* Arrange to display the help by setting the global variables
 	 help_echo_string, help_echo_object, and help_echo_pos.  */
@@ -33248,6 +33294,19 @@ note_mode_line_or_margin_highlight (Lisp_Object window, int x, int y,
 	    }
 	  else if (draggable && area == ON_MODE_LINE)
 	    cursor = FRAME_OUTPUT_DATA (f)->vertical_drag_cursor;
+	  else if ((area == ON_MODE_LINE
+		    && WINDOW_BOTTOMMOST_P (w)
+		    && !FRAME_HAS_MINIBUF_P (f)
+		    && !NILP (Fframe_parameter
+			      (w->frame, Qdrag_with_mode_line)))
+		   || (((area == ON_HEADER_LINE
+			 && !NILP (Fframe_parameter
+				   (w->frame, Qdrag_with_header_line)))
+			|| (area == ON_TAB_LINE
+			    && !NILP (Fframe_parameter
+				      (w->frame, Qdrag_with_tab_line))))
+		       && WINDOW_TOPMOST_P (w)))
+	    cursor = FRAME_OUTPUT_DATA (f)->hand_cursor;
 	  else
 	    cursor = FRAME_OUTPUT_DATA (f)->nontext_cursor;
 	}
@@ -34335,7 +34394,7 @@ gui_draw_bottom_divider (struct window *w)
 		  && !NILP (XWINDOW (p->parent)->next))))
 	x1 -= WINDOW_RIGHT_DIVIDER_WIDTH (w);
 
-	FRAME_RIF (f)->draw_window_divider (w, x0, x1, y0, y1);
+      FRAME_RIF (f)->draw_window_divider (w, x0, x1, y0, y1);
     }
 }
 
@@ -34740,6 +34799,7 @@ be let-bound around code that needs to disable messages temporarily. */);
   defsubr (&Swindow_text_pixel_size);
   defsubr (&Smove_point_visually);
   defsubr (&Sbidi_find_overridden_directionality);
+  defsubr (&Sdisplay__line_is_continued_p);
 
   DEFSYM (Qmenu_bar_update_hook, "menu-bar-update-hook");
   DEFSYM (Qoverriding_terminal_local_map, "overriding-terminal-local-map");
@@ -34835,6 +34895,10 @@ be let-bound around code that needs to disable messages temporarily. */);
 
   DEFSYM (Qdragging, "dragging");
   DEFSYM (Qdropping, "dropping");
+
+  DEFSYM (Qdrag_with_mode_line, "drag-with-mode-line");
+  DEFSYM (Qdrag_with_header_line, "drag-with-header-line");
+  DEFSYM (Qdrag_with_tab_line, "drag-with-tab-line");
 
   DEFSYM (Qinhibit_free_realized_faces, "inhibit-free-realized-faces");
 
@@ -35604,8 +35668,10 @@ as usual.  If the function returns a string, the returned string is
 displayed in the echo area.  If this function returns any other non-nil
 value, this means that the message was already handled, and the original
 message text will not be displayed in the echo area.
-See also `clear-message-function' that can be used to clear the
-message displayed by this function.  */);
+
+Also see `clear-message-function' (which can be used to clear the
+message displayed by this function), and `command-error-function'
+(which controls how error messages are displayed).  */);
   Vset_message_function = Qnil;
 
   DEFVAR_LISP ("clear-message-function", Vclear_message_function,

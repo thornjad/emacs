@@ -138,15 +138,12 @@ Possible modifier keys are `control', `meta', `shift', `hyper', `super' and
   (when (and (memq 'tab-bar-format-global tab-bar-format)
              (member '(global-mode-string ("" global-mode-string " "))
                      mode-line-misc-info))
-    (setq mode-line-misc-info
-          (append '(global-mode-string
-                    ("" (:eval (if (and tab-bar-mode
-                                        (memq 'tab-bar-format-global
-                                              tab-bar-format))
-                                   "" global-mode-string))
-                     " "))
-                  (remove '(global-mode-string ("" global-mode-string " "))
-                          mode-line-misc-info)))))
+    (setf (alist-get 'global-mode-string mode-line-misc-info)
+          '(("" (:eval (if (and tab-bar-mode
+                                (memq 'tab-bar-format-global
+                                      tab-bar-format))
+                           "" global-mode-string))
+             " ")))))
 
 (defun tab-bar--undefine-keys ()
   "Uninstall key bindings previously bound by `tab-bar--define-keys'."
@@ -2074,6 +2071,28 @@ When `switch-to-buffer-obey-display-actions' is non-nil,
 (define-key tab-prefix-map "\C-f" 'find-file-other-tab)
 (define-key tab-prefix-map "\C-r" 'find-file-read-only-other-tab)
 (define-key tab-prefix-map "t" 'other-tab-prefix)
+
+(defvar tab-bar-switch-repeat-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "o" 'tab-next)
+    (define-key map "O" 'tab-previous)
+    map)
+  "Keymap to repeat tab switch key sequences `C-x t o o O'.
+Used in `repeat-mode'.")
+(put 'tab-next 'repeat-map 'tab-bar-switch-repeat-map)
+(put 'tab-previous 'repeat-map 'tab-bar-switch-repeat-map)
+
+(defvar tab-bar-move-repeat-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "m" 'tab-move)
+    (define-key map "M" (lambda ()
+                          (interactive)
+                          (setq repeat-map 'tab-bar-move-repeat-map)
+                          (tab-move -1)))
+    map)
+  "Keymap to repeat tab move key sequences `C-x t m m M'.
+Used in `repeat-mode'.")
+(put 'tab-move 'repeat-map 'tab-bar-move-repeat-map)
 
 
 (provide 'tab-bar)

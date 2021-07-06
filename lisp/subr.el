@@ -195,6 +195,14 @@ buffer-local wherever it is set."
   (list 'progn (list 'defvar var val docstring)
         (list 'make-variable-buffer-local (list 'quote var))))
 
+(defun buffer-local-boundp (symbol buffer)
+  "Return non-nil if SYMBOL is bound in BUFFER.
+Also see `local-variable-p'."
+  (condition-case nil
+      (buffer-local-value symbol buffer)
+    (:success t)
+    (void-variable nil)))
+
 (defmacro push (newelt place)
   "Add NEWELT to the list stored in the generalized variable PLACE.
 This is morally equivalent to (setf PLACE (cons NEWELT PLACE)),
@@ -245,6 +253,11 @@ value of last one, or nil if there are none.
 \(fn COND BODY...)"
   (declare (indent 1) (debug t))
   (cons 'if (cons cond (cons nil body))))
+
+(defsubst subr-primitive-p (object)
+  "Return t if OBJECT is a built-in primitive function."
+  (and (subrp object)
+       (not (subr-native-elisp-p object))))
 
 (defsubst xor (cond1 cond2)
   "Return the boolean exclusive-or of COND1 and COND2.
@@ -1752,6 +1765,12 @@ be a list of the form returned by `event-start' and `event-end'."
 (make-obsolete-variable 'load-dangerous-libraries
                         "no longer used." "27.1")
 
+(defvar inhibit--record-char nil
+  "Obsolete variable.
+This was used internally by quail.el and keyboard.c in Emacs 27.
+It does nothing in Emacs 28.")
+(make-obsolete-variable 'inhibit--record-char nil "28.1")
+
 ;; We can't actually make `values' obsolete, because that will result
 ;; in warnings when using `values' in let-bindings.
 ;;(make-obsolete-variable 'values "no longer used" "28.1")
@@ -1810,9 +1829,15 @@ This makes the hook buffer-local, and it makes t a member of the
 buffer-local value.  That acts as a flag to run the hook
 functions of the global value as well as in the local value.
 
-HOOK should be a symbol, and FUNCTION may be any valid function.  If
-HOOK is void, it is first set to nil.  If HOOK's value is a single
-function, it is changed to a list of functions."
+HOOK should be a symbol.  If HOOK is void, it is first set to
+nil.  If HOOK's value is a single function, it is changed to a
+list of functions.
+
+FUNCTION may be any valid function, but it's recommended to use a
+function symbol and not a lambda form.  Using a symbol will
+ensure that the function is not re-added if the function is
+edited, and using lambda forms may also have a negative
+performance impact when running `add-hook' and `remove-hook'."
   (or (boundp hook) (set hook nil))
   (or (default-boundp hook) (set-default hook nil))
   (unless (numberp depth) (setq depth (if depth 90 0)))
@@ -1830,12 +1855,13 @@ function, it is changed to a list of functions."
     (unless (member function hook-value)
       (when (stringp function)          ;FIXME: Why?
 	(setq function (purecopy function)))
+      ;; All those `equal' tests performed between functions can end up being
+      ;; costly since those functions may be large recursive and even cyclic
+      ;; structures, so we index `hook--depth-alist' with `eq'.  (bug#46326)
       (when (or (get hook 'hook--depth-alist) (not (zerop depth)))
         ;; Note: The main purpose of the above `when' test is to avoid running
         ;; this `setf' before `gv' is loaded during bootstrap.
-        (setf (alist-get function (get hook 'hook--depth-alist)
-                         0 'remove #'equal)
-              depth))
+        (push (cons function depth) (get hook 'hook--depth-alist)))
       (setq hook-value
 	    (if (< 0 depth)
 		(append hook-value (list function))
@@ -1845,8 +1871,8 @@ function, it is changed to a list of functions."
           (setq hook-value
                 (sort (if (< 0 depth) hook-value (copy-sequence hook-value))
                       (lambda (f1 f2)
-                        (< (alist-get f1 depth-alist 0 nil #'equal)
-                           (alist-get f2 depth-alist 0 nil #'equal))))))))
+                        (< (alist-get f1 depth-alist 0 nil #'eq)
+                           (alist-get f2 depth-alist 0 nil #'eq))))))))
     ;; Set the actual variable
     (if local
 	(progn
@@ -1907,11 +1933,21 @@ one will be removed."
 	       (not (and (consp (symbol-value hook))
 			 (memq t (symbol-value hook)))))
       (setq local t))
-    (let ((hook-value (if local (symbol-value hook) (default-value hook))))
+    (let ((hook-value (if local (symbol-value hook) (default-value hook)))
+          (old-fun nil))
       ;; Remove the function, for both the list and the non-list cases.
       (if (or (not (listp hook-value)) (eq (car hook-value) 'lambda))
-	  (if (equal hook-value function) (setq hook-value nil))
-	(setq hook-value (delete function (copy-sequence hook-value))))
+	  (when (equal hook-value function)
+	    (setq old-fun hook-value)
+	    (setq hook-value nil))
+	(when (setq old-fun (car (member function hook-value)))
+	  (setq hook-value (remq old-fun hook-value))))
+      (when old-fun
+        ;; Remove auxiliary depth info to avoid leaks (bug#46414)
+        ;; and to avoid the list growing too long.
+        (let* ((depths (get hook 'hook--depth-alist))
+               (di (assq old-fun depths)))
+          (when di (put hook 'hook--depth-alist (delq di depths)))))
       ;; If the function is on the global hook, we need to shadow it locally
       ;;(when (and local (member function (default-value hook))
       ;;	       (not (member (cons 'not function) hook-value)))
@@ -2008,7 +2044,7 @@ FUN is then called once."
 
 (defmacro subr--with-wrapper-hook-no-warnings (hook args &rest body)
   "Like (with-wrapper-hook HOOK ARGS BODY), but without warnings."
-  (declare (debug (form sexp body)))
+  (declare (debug (form sexp def-body)))
   ;; We need those two gensyms because CL's lexical scoping is not available
   ;; for function arguments :-(
   (let ((funs (make-symbol "funs"))
@@ -2448,7 +2484,11 @@ file name without extension.
 If TYPE is nil, then any kind of definition is acceptable.  If
 TYPE is `defun', `defvar', or `defface', that specifies function
 definition, variable definition, or face definition only.
-Otherwise TYPE is assumed to be a symbol property."
+Otherwise TYPE is assumed to be a symbol property.
+
+This function only works for symbols defined in Lisp files.  For
+symbols that are defined in C files, use `help-C-file-name'
+instead."
   (if (and (or (null type) (eq type 'defun))
 	   (symbolp symbol)
 	   (autoloadp (symbol-function symbol)))
@@ -3929,7 +3969,7 @@ If you quit, the process is killed with SIGINT, or SIGKILL if you quit again."
 Within a `track-mouse' form, mouse motion generates input events that
  you can read with `read-event'.
 Normally, mouse motion is ignored."
-  (declare (debug t) (indent 0))
+  (declare (debug (def-body)) (indent 0))
   `(internal--track-mouse (lambda () ,@body)))
 
 (defmacro with-current-buffer (buffer-or-name &rest body)
@@ -4433,7 +4473,7 @@ change `before-change-functions' or `after-change-functions'.
 Additionally, the buffer modifications of BODY are recorded on
 the buffer's undo list as a single \(apply ...) entry containing
 the function `undo--wrap-and-run-primitive-undo'."
-  (declare (debug t) (indent 2))
+  (declare (debug (form form def-body)) (indent 2))
   `(combine-change-calls-1 ,beg ,end (lambda () ,@body)))
 
 (defun undo--wrap-and-run-primitive-undo (beg end list)
@@ -5007,7 +5047,8 @@ See also `with-eval-after-load'."
                      (funcall func)
                    (let ((lfn load-file-name)
                          ;; Don't use letrec, because equal (in
-                         ;; add/remove-hook) would get trapped in a cycle.
+                         ;; add/remove-hook) could get trapped in a cycle
+                         ;; (bug#46326).
                          (fun (make-symbol "eval-after-load-helper")))
                      (fset fun (lambda (file)
                                  (when (equal file lfn)
@@ -5023,7 +5064,7 @@ See also `with-eval-after-load'."
 FILE is normally a feature name, but it can also be a file name,
 in case that file does not provide any feature.  See `eval-after-load'
 for more details about the different forms of FILE and their semantics."
-  (declare (indent 1) (debug t))
+  (declare (indent 1) (debug (form def-body)))
   `(eval-after-load ,file (lambda () ,@body)))
 
 (defvar after-load-functions nil
@@ -5517,7 +5558,7 @@ command is called from a keyboard macro?"
       ;; Now `frame' should be "the function from which we were called".
       (pcase (cons frame nextframe)
         ;; No subr calls `interactive-p', so we can rule that out.
-        (`((,_ ,(pred (lambda (f) (subrp (indirect-function f)))) . ,_) . ,_) nil)
+        (`((,_ ,(pred (lambda (f) (subr-primitive-p (indirect-function f)))) . ,_) . ,_) nil)
         ;; In case #<subr funcall-interactively> without going through the
         ;; `funcall-interactively' symbol (bug#3984).
         (`(,_ . (t ,(pred (lambda (f)
@@ -5595,8 +5636,8 @@ to deactivate this transient map, regardless of KEEP-PRED."
             (internal-pop-keymap map 'overriding-terminal-local-map)
             (remove-hook 'pre-command-hook clearfun)
             (when on-exit (funcall on-exit)))))
-    ;; Don't use letrec, because equal (in add/remove-hook) would get trapped
-    ;; in a cycle.
+    ;; Don't use letrec, because equal (in add/remove-hook) could get trapped
+    ;; in a cycle. (bug#46326)
     (fset clearfun
           (lambda ()
             (with-demoted-errors "set-transient-map PCH: %S"

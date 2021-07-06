@@ -577,6 +577,46 @@ Each element is (INDEX . VALUE)")
 (defvar byte-compile-depth 0 "Current depth of execution stack.")
 (defvar byte-compile-maxdepth 0 "Maximum depth of execution stack.")
 
+;; The following is used by comp.el to spill data out of here.
+;;
+;; Spilling is done in 3 places:
+;;
+;; - `byte-compile-lapcode' to obtain the map bytecode -> LAP for any
+;;   code assembled.
+;;
+;; - `byte-compile-lambda' to obtain arglist doc and interactive spec
+;;   af any lambda compiled (including anonymous).
+;;
+;; - `byte-compile-file-form-defmumble' to obtain the list of
+;;   top-level forms as they would be outputted in the .elc file.
+;;
+
+(cl-defstruct byte-to-native-lambda
+  byte-func lap)
+
+;; Top level forms:
+(cl-defstruct byte-to-native-func-def
+  "Named function defined at top-level."
+  name c-name byte-func)
+(cl-defstruct byte-to-native-top-level
+  "All other top-level forms."
+  form lexical)
+
+(defvar byte-native-compiling nil
+  "Non-nil while native compiling.")
+(defvar byte-native-qualities nil
+  "To spill default qualities from the compiled file.")
+(defvar byte+native-compile nil
+  "Non-nil while producing at the same time byte and native code.")
+(defvar byte-to-native-lambdas-h nil
+  "Hash byte-code -> byte-to-native-lambda.")
+(defvar byte-to-native-top-level-forms nil
+  "List of top level forms.")
+(defvar byte-to-native-output-file nil
+  "Temporary file containing the byte-compilation output.")
+(defvar byte-to-native-plist-environment nil
+  "To spill `overriding-plist-environment'.")
+
 
 ;;; The byte codes; this information is duplicated in bytecomp.c
 
@@ -973,7 +1013,12 @@ CONST2 may be evaluated multiple times."
                    ;; it within 2 bytes in the byte string).
                    (puthash value pc hash-table))
                hash-table))
-    (apply 'unibyte-string (nreverse bytes))))
+    (let ((bytecode (apply 'unibyte-string (nreverse bytes))))
+      (when byte-native-compiling
+        ;; Spill LAP for the native compiler here.
+        (puthash bytecode (make-byte-to-native-lambda :lap lap)
+                 byte-to-native-lambdas-h))
+      bytecode)))
 
 
 ;;; compile-time evaluation
@@ -1590,7 +1635,10 @@ URLs."
          ;; Ignore these `substitute-command-keys' substitutions.
          (seq "\\" (or "="
                        (seq "<" (* (not ">")) ">")
-                       (seq "{" (* (not "}")) "}")))))
+                       (seq "{" (* (not "}")) "}")))
+         ;; Ignore the function signature that's stashed at the end of
+         ;; the doc string (in some circumstances).
+         (seq bol "(fn (" (* nonl))))
     ""
     ;; Heuristic: assume these substitutions are of some length N.
     (replace-regexp-in-string
@@ -1702,10 +1750,14 @@ It is too wide if it has any lines longer than the largest of
          ;; cause macro calls in B to think they come from A.
          (current-load-list (list nil))
          )
-     ,@body))
+     (prog1
+         (progn ,@body)
+       (when byte-native-compiling
+         (setq byte-to-native-plist-environment
+               overriding-plist-environment)))))
 
 (defmacro displaying-byte-compile-warnings (&rest body)
-  (declare (debug t))
+  (declare (debug (def-body)))
   `(let* ((--displaying-byte-compile-warnings-fn (lambda () ,@body))
 	  (warning-series-started
 	   (and (markerp warning-series)
@@ -1805,8 +1857,7 @@ also be compiled."
                         (file-readable-p source)
 			(not (string-match "\\`\\.#" file))
                         (not (auto-save-file-name-p source))
-                        (not (string-equal dir-locals-file
-                                           (file-name-nondirectory source))))
+                        (not (member source (dir-locals--all-files directory))))
                    (progn (cl-incf
                            (pcase (byte-recompile-file source force arg)
                              ('no-byte-compile skip-count)
@@ -2014,64 +2065,73 @@ See also `emacs-lisp-byte-compile-and-load'."
 	  (message "Compiling %s...done" filename))
 	(kill-buffer input-buffer)
 	(with-current-buffer output-buffer
-	  (goto-char (point-max))
-	  (insert "\n")			; aaah, unix.
-	  (cond
-	   ((null target-file) nil)     ;We only wanted the warnings!
-	   ((and (file-writable-p target-file)
-                 ;; We attempt to create a temporary file in the
-                 ;; target directory, so the target directory must be
-                 ;; writable.
-                 (file-writable-p
-                  (file-name-directory
-                   ;; Need to expand in case TARGET-FILE doesn't
-                   ;; include a directory (Bug#45287).
-                   (expand-file-name target-file))))
-	    ;; We must disable any code conversion here.
-	    (let* ((coding-system-for-write 'no-conversion)
-		   ;; Write to a tempfile so that if another Emacs
-		   ;; process is trying to load target-file (eg in a
-		   ;; parallel bootstrap), it does not risk getting a
-		   ;; half-finished file.  (Bug#4196)
-		   (tempfile
-		    (make-temp-file (expand-file-name target-file)))
-		   (default-modes (default-file-modes))
-		   (temp-modes (logand default-modes #o600))
-		   (desired-modes (logand default-modes #o666))
-		   (kill-emacs-hook
-		    (cons (lambda () (ignore-errors
-				  (delete-file tempfile)))
-			  kill-emacs-hook)))
-	      (unless (= temp-modes desired-modes)
-		(set-file-modes tempfile desired-modes 'nofollow))
-	      (write-region (point-min) (point-max) tempfile nil 1)
-	      ;; This has the intentional side effect that any
-	      ;; hard-links to target-file continue to
-	      ;; point to the old file (this makes it possible
-	      ;; for installed files to share disk space with
-	      ;; the build tree, without causing problems when
-	      ;; emacs-lisp files in the build tree are
-	      ;; recompiled).  Previously this was accomplished by
-	      ;; deleting target-file before writing it.
-	      (rename-file tempfile target-file t))
-	    (or noninteractive (message "Wrote %s" target-file)))
-           ((file-writable-p target-file)
-            ;; In case the target directory isn't writable (see e.g. Bug#44631),
-            ;; try writing to the output file directly.  We must disable any
-            ;; code conversion here.
-            (let ((coding-system-for-write 'no-conversion))
-              (with-file-modes (logand (default-file-modes) #o666)
-                (write-region (point-min) (point-max) target-file nil 1)))
-            (or noninteractive (message "Wrote %s" target-file)))
-	   (t
-	    ;; This is just to give a better error message than write-region
-	    (let ((exists (file-exists-p target-file)))
-	      (signal (if exists 'file-error 'file-missing)
-		      (list "Opening output file"
-			    (if exists
-				"Cannot overwrite file"
-			      "Directory not writable or nonexistent")
-			    target-file)))))
+          (when (and target-file
+                     (or (not byte-native-compiling)
+                         (and byte-native-compiling byte+native-compile)))
+	    (goto-char (point-max))
+	    (insert "\n")			; aaah, unix.
+	    (cond
+	     ((and (file-writable-p target-file)
+		   ;; We attempt to create a temporary file in the
+		   ;; target directory, so the target directory must be
+		   ;; writable.
+		   (file-writable-p
+		    (file-name-directory
+		     ;; Need to expand in case TARGET-FILE doesn't
+		     ;; include a directory (Bug#45287).
+		     (expand-file-name target-file))))
+	      ;; We must disable any code conversion here.
+	      (let* ((coding-system-for-write 'no-conversion)
+		     ;; Write to a tempfile so that if another Emacs
+		     ;; process is trying to load target-file (eg in a
+		     ;; parallel bootstrap), it does not risk getting a
+		     ;; half-finished file.  (Bug#4196)
+		     (tempfile
+		      (make-temp-file (when (file-writable-p target-file)
+                                        (expand-file-name target-file))))
+		     (default-modes (default-file-modes))
+		     (temp-modes (logand default-modes #o600))
+		     (desired-modes (logand default-modes #o666))
+		     (kill-emacs-hook
+		      (cons (lambda () (ignore-errors
+				    (delete-file tempfile)))
+			    kill-emacs-hook)))
+	        (unless (= temp-modes desired-modes)
+		  (set-file-modes tempfile desired-modes 'nofollow))
+	        (write-region (point-min) (point-max) tempfile nil 1)
+	        ;; This has the intentional side effect that any
+	        ;; hard-links to target-file continue to
+	        ;; point to the old file (this makes it possible
+	        ;; for installed files to share disk space with
+	        ;; the build tree, without causing problems when
+	        ;; emacs-lisp files in the build tree are
+	        ;; recompiled).  Previously this was accomplished by
+	        ;; deleting target-file before writing it.
+	        (if byte-native-compiling
+                    ;; Defer elc final renaming.
+                    (setf byte-to-native-output-file
+                          (cons tempfile target-file))
+                  (rename-file tempfile target-file t)))
+	      (or noninteractive
+		  byte-native-compiling
+		  (message "Wrote %s" target-file)))
+             ((file-writable-p target-file)
+              ;; In case the target directory isn't writable (see e.g. Bug#44631),
+              ;; try writing to the output file directly.  We must disable any
+              ;; code conversion here.
+              (let ((coding-system-for-write 'no-conversion))
+                (with-file-modes (logand (default-file-modes) #o666)
+                  (write-region (point-min) (point-max) target-file nil 1)))
+              (or noninteractive (message "Wrote %s" target-file)))
+	     (t
+	      ;; This is just to give a better error message than write-region
+	      (let ((exists (file-exists-p target-file)))
+	        (signal (if exists 'file-error 'file-missing)
+		        (list "Opening output file"
+			      (if exists
+				  "Cannot overwrite file"
+			        "Directory not writable or nonexistent")
+			      target-file))))))
 	  (kill-buffer (current-buffer)))
 	(if (and byte-compile-generate-call-tree
 		 (or (eq t byte-compile-generate-call-tree)
@@ -2174,6 +2234,17 @@ With argument ARG, insert value in current buffer after the form."
 	(setq byte-compile-unresolved-functions nil)
         (setq byte-compile-noruntime-functions nil)
         (setq byte-compile-new-defuns nil)
+        (when byte-native-compiling
+          (defvar native-comp-speed)
+          (push `(native-comp-speed . ,native-comp-speed) byte-native-qualities)
+          (defvar native-comp-debug)
+          (push `(native-comp-debug . ,native-comp-debug) byte-native-qualities)
+          (defvar native-comp-driver-options)
+          (push `(native-comp-driver-options . ,native-comp-driver-options)
+                byte-native-qualities)
+          (defvar no-native-compile)
+          (push `(no-native-compile . ,no-native-compile)
+                byte-native-qualities))
 
 	;; Compile the forms from the input buffer.
 	(while (progn
@@ -2246,6 +2317,10 @@ Call from the source buffer."
   ;; defalias calls are output directly by byte-compile-file-form-defmumble;
   ;; it does not pay to first build the defalias in defmumble and then parse
   ;; it here.
+  (when byte-native-compiling
+    ;; Spill output for the native compiler here
+    (push (make-byte-to-native-top-level :form form :lexical lexical-binding)
+          byte-to-native-top-level-forms))
   (let ((print-escape-newlines t)
         (print-length nil)
         (print-level nil)
@@ -2689,6 +2764,15 @@ not to take responsibility for the actual compilation of the code."
                  ;; If there's no doc string, provide -1 as the "doc string
                  ;; index" so that no element will be treated as a doc string.
                  (if (not (stringp (documentation code t))) -1 4)))
+            (when byte-native-compiling
+              ;; Spill output for the native compiler here.
+              (push (if macro
+                        (make-byte-to-native-top-level
+                         :form `(defalias ',name '(macro . ,code) nil)
+                         :lexical lexical-binding)
+                      (make-byte-to-native-func-def :name name
+                                                    :byte-func code))
+                    byte-to-native-top-level-forms))
             ;; Output the form by hand, that's much simpler than having
             ;; b-c-output-file-form analyze the defalias.
             (byte-compile-output-docform
@@ -2966,30 +3050,37 @@ for symbols generated by the byte compiler itself."
                                    reserved-csts)))
       ;; Build the actual byte-coded function.
       (cl-assert (eq 'byte-code (car-safe compiled)))
-      (apply #'make-byte-code
-             (if lexical-binding
-                 (byte-compile-make-args-desc arglist)
-               arglist)
-             (append
-              ;; byte-string, constants-vector, stack depth
-              (cdr compiled)
-              ;; optionally, the doc string.
-              (cond ((and lexical-binding arglist)
-                     ;; byte-compile-make-args-desc lost the args's names,
-                     ;; so preserve them in the docstring.
-                     (list (help-add-fundoc-usage doc arglist)))
-                    ((or doc int)
-                     (list doc)))
-              ;; optionally, the interactive spec (and the modes the
-              ;; command applies to).
-              (cond
-               ;; We have some command modes, so use the vector form.
-               (command-modes
-                (list (vector (nth 1 int) command-modes)))
-               ;; No command modes, use the simple form with just the
-               ;; interactive spec.
-               (int
-                (list (nth 1 int)))))))))
+      (let ((out
+	     (apply #'make-byte-code
+		    (if lexical-binding
+			(byte-compile-make-args-desc arglist)
+		      arglist)
+		    (append
+		     ;; byte-string, constants-vector, stack depth
+		     (cdr compiled)
+		     ;; optionally, the doc string.
+		     (cond ((and lexical-binding arglist)
+			    ;; byte-compile-make-args-desc lost the args's names,
+			    ;; so preserve them in the docstring.
+			    (list (help-add-fundoc-usage doc arglist)))
+			   ((or doc int)
+			    (list doc)))
+		     ;; optionally, the interactive spec (and the modes the
+		     ;; command applies to).
+		     (cond
+		      ;; We have some command modes, so use the vector form.
+		      (command-modes
+                       (list (vector (nth 1 int) command-modes)))
+		      ;; No command modes, use the simple form with just the
+		      ;; interactive spec.
+		      (int
+                       (list (nth 1 int))))))))
+	(when byte-native-compiling
+          (setf (byte-to-native-lambda-byte-func
+                 (gethash (cadr compiled)
+                          byte-to-native-lambdas-h))
+                out))
+	out))))
 
 (defvar byte-compile-reserved-constants 0)
 
@@ -4621,10 +4712,15 @@ binding slots have been popped."
 (defun byte-compile-condition-case (form)
   (let* ((var (nth 1 form))
          (body (nth 2 form))
+         (handlers (nthcdr 3 form))
          (depth byte-compile-depth)
+         (success-handler (assq :success handlers))
+         (failure-handlers (if success-handler
+                               (remq success-handler handlers)
+                             handlers))
          (clauses (mapcar (lambda (clause)
                             (cons (byte-compile-make-tag) clause))
-                          (nthcdr 3 form)))
+                          failure-handlers))
          (endtag (byte-compile-make-tag)))
     (byte-compile-set-symbol-position 'condition-case)
     (unless (symbolp var)
@@ -4650,30 +4746,40 @@ binding slots have been popped."
 
     (byte-compile-form body) ;; byte-compile--for-effect
     (dolist (_ clauses) (byte-compile-out 'byte-pophandler))
-    (byte-compile-goto 'byte-goto endtag)
 
-    (while clauses
-      (let ((clause (pop clauses))
-            (byte-compile-bound-variables byte-compile-bound-variables)
-            (byte-compile--lexical-environment
-             byte-compile--lexical-environment))
-        (setq byte-compile-depth (1+ depth))
-        (byte-compile-out-tag (pop clause))
-        (dolist (_ clauses) (byte-compile-out 'byte-pophandler))
-        (cond
-         ((null var) (byte-compile-discard))
-         (lexical-binding
-          (push (cons var (1- byte-compile-depth))
-                byte-compile--lexical-environment))
-         (t (byte-compile-dynamic-variable-bind var)))
-        (byte-compile-body (cdr clause)) ;; byte-compile--for-effect
-        (cond
-         ((null var) nil)
-         (lexical-binding (byte-compile-discard 1 'preserve-tos))
-         (t (byte-compile-out 'byte-unbind 1)))
-        (byte-compile-goto 'byte-goto endtag)))
+    (let ((compile-handler-body
+           (lambda (body)
+             (let ((byte-compile-bound-variables byte-compile-bound-variables)
+                   (byte-compile--lexical-environment
+                    byte-compile--lexical-environment))
+               (cond
+                ((null var) (byte-compile-discard))
+                (lexical-binding
+                 (push (cons var (1- byte-compile-depth))
+                       byte-compile--lexical-environment))
+                (t (byte-compile-dynamic-variable-bind var)))
 
-    (byte-compile-out-tag endtag)))
+               (byte-compile-body body) ;; byte-compile--for-effect
+
+               (cond
+                ((null var))
+                (lexical-binding (byte-compile-discard 1 'preserve-tos))
+                (t (byte-compile-out 'byte-unbind 1)))))))
+
+      (when success-handler
+        (funcall compile-handler-body (cdr success-handler)))
+
+      (byte-compile-goto 'byte-goto endtag)
+
+      (while clauses
+        (let ((clause (pop clauses)))
+          (setq byte-compile-depth (1+ depth))
+          (byte-compile-out-tag (pop clause))
+          (dolist (_ clauses) (byte-compile-out 'byte-pophandler))
+          (funcall compile-handler-body (cdr clause))
+          (byte-compile-goto 'byte-goto endtag)))
+
+      (byte-compile-out-tag endtag))))
 
 (defun byte-compile-save-excursion (form)
   (if (and (eq 'set-buffer (car-safe (car-safe (cdr form))))
@@ -5202,7 +5308,8 @@ already up-to-date."
   "Reload any Lisp file that was changed since Emacs was dumped.
 Use with caution."
   (let* ((argv0 (car command-line-args))
-         (emacs-file (or (cdr (nth 2 (pdumper-stats)))
+         (emacs-file (or (and (fboundp 'pdumper-stats)
+                              (cdr (nth 2 (pdumper-stats))))
                          (executable-find argv0))))
     (if (not (and emacs-file (file-exists-p emacs-file)))
         (message "Can't find %s to refresh preloaded Lisp files" argv0)
@@ -5217,7 +5324,7 @@ Use with caution."
                    ;; so it can cause recompilation to fail.
                    (not (member (file-name-nondirectory f)
                                 '("pcase.el" "bytecomp.el" "macroexp.el"
-                                  "cconv.el" "byte-opt.el"))))
+                                  "cconv.el" "byte-opt.el" "comp.el"))))
           (message "Reloading stale %s" (file-name-nondirectory f))
           (condition-case nil
               (load f 'noerror nil 'nosuffix)
@@ -5298,13 +5405,15 @@ and corresponding effects."
 ;;
 (eval-when-compile
   (or (byte-code-function-p (symbol-function 'byte-compile-form))
+      (subr-native-elisp-p (symbol-function 'byte-compile-form))
       (assq 'byte-code (symbol-function 'byte-compile-form))
       (let ((byte-optimize nil)		; do it fast
 	    (byte-compile-warnings nil))
 	(mapc (lambda (x)
-		(or noninteractive (message "compiling %s..." x))
-		(byte-compile x)
-		(or noninteractive (message "compiling %s...done" x)))
+                (unless (subr-native-elisp-p x)
+		  (or noninteractive (message "compiling %s..." x))
+		  (byte-compile x)
+		  (or noninteractive (message "compiling %s...done" x))))
 	      '(byte-compile-normal-call
 		byte-compile-form
 		byte-compile-body

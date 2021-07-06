@@ -56,9 +56,9 @@
   :group 'applications)
 
 (defcustom rcirc-server-alist
-  '(("chat.freenode.net" :channels ("#rcirc")
+  '(("irc.libera.chat" :channels ("#rcirc")
      ;; Don't use the TLS port by default, in case gnutls is not available.
-     ;; :port 7000 :encryption tls
+     ;; :port 6697 :encryption tls
      ))
   "An alist of IRC connections to establish when running `rcirc'.
 Each element looks like (SERVER-NAME PARAMETERS).
@@ -196,7 +196,7 @@ If nil, no maximum is applied."
 
 Uninteresting lines are those whose responses are listed in
 `rcirc-omit-responses'."
-  nil " Omit" nil
+  :lighter " Omit"
   (if rcirc-omit-mode
       (progn
 	(add-to-invisibility-spec '(rcirc-omit . nil))
@@ -245,13 +245,15 @@ The ARGUMENTS for each METHOD symbol are:
   `chanserv': NICK CHANNEL PASSWORD
   `bitlbee': NICK PASSWORD
   `quakenet': ACCOUNT PASSWORD
+  `sasl': NICK PASSWORD
 
 Examples:
- ((\"freenode\" nickserv \"bob\" \"p455w0rd\")
-  (\"freenode\" chanserv \"bob\" \"#bobland\" \"passwd99\")
+ ((\"Libera.Chat\" nickserv \"bob\" \"p455w0rd\")
+  (\"Libera.Chat\" chanserv \"bob\" \"#bobland\" \"passwd99\")
   (\"bitlbee\" bitlbee \"robert\" \"sekrit\")
   (\"dal.net\" nickserv \"bob\" \"sekrit\" \"NickServ@services.dal.net\")
-  (\"quakenet.org\" quakenet \"bobby\" \"sekrit\"))"
+  (\"quakenet.org\" quakenet \"bobby\" \"sekrit\")
+  (\"oftc\" sasl \"bob\" \"hunter2\"))"
   :type '(alist :key-type (regexp :tag "Server")
 		:value-type (choice (list :tag "NickServ"
 					  (const nickserv)
@@ -269,6 +271,10 @@ Examples:
                                     (list :tag "QuakeNet"
                                           (const quakenet)
                                           (string :tag "Account")
+                                          (string :tag "Password"))
+                                    (list :tag "SASL"
+                                          (const sasl)
+                                          (string :tag "Nick")
                                           (string :tag "Password")))))
 
 (defcustom rcirc-auto-authenticate-flag t
@@ -543,6 +549,22 @@ If ARG is non-nil, instead prompt for connection parameters."
 (defvar rcirc-connection-info nil)
 (defvar rcirc-process nil)
 
+(defun rcirc-get-server-method (server)
+  (catch 'method
+    (dolist (i rcirc-authinfo)
+      (let ((server-i (car i))
+	    (method (cadr i)))
+	(when (string-match server-i server)
+          (throw 'method method))))))
+
+(defun rcirc-get-server-password (server)
+  (catch 'pass
+    (dolist (i rcirc-authinfo)
+      (let ((server-i (car i))
+	    (args (cdddr i)))
+	(when (string-match server-i server)
+          (throw 'pass (car args)))))))
+
 ;;;###autoload
 (defun rcirc-connect (server &optional port nick user-name
                              full-name startup-channels password encryption
@@ -559,6 +581,7 @@ If ARG is non-nil, instead prompt for connection parameters."
 	   (user-name (or user-name rcirc-default-user-name))
 	   (full-name (or full-name rcirc-default-full-name))
 	   (startup-channels startup-channels)
+           (use-sasl (eq (rcirc-get-server-method server) 'sasl))
            (process (open-network-stream
                      (or server-alias server) nil server port-number
                      :type (or encryption 'plain))))
@@ -591,6 +614,8 @@ If ARG is non-nil, instead prompt for connection parameters."
       (setq-local rcirc-server-parameters nil)
 
       (add-hook 'auto-save-hook 'rcirc-log-write)
+      (when use-sasl
+        (rcirc-send-string process "CAP REQ sasl"))
 
       ;; identify
       (unless (zerop (length password))
@@ -598,6 +623,10 @@ If ARG is non-nil, instead prompt for connection parameters."
       (rcirc-send-string process (concat "NICK " nick))
       (rcirc-send-string process (concat "USER " user-name
                                          " 0 * :" full-name))
+      ;; Setup sasl, and initiate authentication.
+      (when (and rcirc-auto-authenticate-flag
+                 use-sasl)
+        (rcirc-send-string process "AUTHENTICATE PLAIN"))
 
       ;; setup ping timer if necessary
       (unless rcirc-keepalive-timer
@@ -1166,9 +1195,10 @@ If ALL is non-nil, update prompts in all IRC buffers."
        (or (eq (aref target 0) ?#)
            (eq (aref target 0) ?&))))
 
-(defcustom rcirc-log-directory "~/.emacs.d/rcirc-log"
+(defcustom rcirc-log-directory (locate-user-emacs-file "rcirc-log")
   "Directory to keep IRC logfiles."
-  :type 'directory)
+  :type 'directory
+  :version "28.1")
 
 (defcustom rcirc-log-flag nil
   "Non-nil means log IRC activity to disk.
@@ -1359,9 +1389,7 @@ Create the buffer if it doesn't exist."
 
 (define-minor-mode rcirc-multiline-minor-mode
   "Minor mode for editing multiple lines in rcirc."
-  :init-value nil
   :lighter " rcirc-mline"
-  :keymap rcirc-multiline-minor-mode-map
   :global nil
   (setq fill-column rcirc-max-message-length))
 
@@ -1863,9 +1891,6 @@ This function does not alter the INPUT string."
 ;;;###autoload
 (define-minor-mode rcirc-track-minor-mode
   "Global minor mode for tracking activity in rcirc buffers."
-  :init-value nil
-  :lighter ""
-  :keymap rcirc-track-minor-mode-map
   :global t
   (or global-mode-string (setq global-mode-string '("")))
   ;; toggle the mode-line channel indicator
@@ -2506,7 +2531,8 @@ If ARG is given, opens the URL in a new browser window."
 			'follow-link t
 			'rcirc-url url
 			'action (lambda (button)
-				  (browse-url (button-get button 'rcirc-url))))
+				  (browse-url-button-open-url
+                                   (button-get button 'rcirc-url))))
       ;; Record the URL if it is not already the latest stored URL.
       (unless (string= url (caar rcirc-urls))
         (push (cons url start) rcirc-urls)))))
@@ -2926,7 +2952,8 @@ Passwords are stored in `rcirc-authinfo' (which see)."
                  (rcirc-send-privmsg
                   process
                   "&bitlbee"
-                  (concat "IDENTIFY " (car args)))))
+                  (concat "IDENTIFY " (car args))))
+                (sasl nil))
             ;; quakenet authentication doesn't rely on the user's nickname.
             ;; the variable `nick' here represents the Q account name.
             (when (eq method 'quakenet)
@@ -2972,6 +2999,16 @@ Passwords are stored in `rcirc-authinfo' (which see)."
 
 (defun rcirc-handler-CTCP-response (process _target sender message)
   (rcirc-print process sender "CTCP" nil message t))
+
+(defun rcirc-handler-AUTHENTICATE (process _cmd _args _text)
+  (rcirc-send-string
+   process
+   (format "AUTHENTICATE %s"
+           (base64-encode-string
+            ;; use connection user-name
+            (concat "\0" (nth 3 rcirc-connection-info)
+                    "\0" (rcirc-get-server-password rcirc-server))))))
+
 
 (defgroup rcirc-faces nil
   "Faces for rcirc."

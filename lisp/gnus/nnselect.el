@@ -777,7 +777,7 @@ If this variable is nil, or if the provided function returns nil,
 Return an article list."
   (let ((func (alist-get 'nnselect-function specs))
 	(args (alist-get 'nnselect-args specs)))
-    (condition-case err
+    (condition-case-unless-debug err
 	(funcall func args)
       (error (gnus-error 3 "nnselect-run: %s on %s gave error %s" func args err)
 	     []))))
@@ -968,7 +968,6 @@ Pass NO-PARSE on to the search engine."
     (gnus-group-make-search-group no-parse spec)))
 
 
-;; The end.
 (provide 'nnselect)
 
 ;;; nnselect.el ends here

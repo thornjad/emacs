@@ -88,6 +88,7 @@ using, but only when you also use Edebug."
 ;; because the byte compiler binds them; as a result, if edebug
 ;; is first loaded for a require in a compilation, they will be left unbound.
 
+;;;###autoload
 (defcustom edebug-all-defs nil
   "If non-nil, evaluating defining forms instruments for Edebug.
 This applies to `eval-defun', `eval-region', `eval-buffer', and
@@ -100,6 +101,7 @@ variable.  You may wish to make it local to each buffer with
 `emacs-lisp-mode-hook'."
   :type 'boolean)
 
+;;;###autoload
 (defcustom edebug-all-forms nil
   "Non-nil means evaluation of all forms will instrument for Edebug.
 This doesn't apply to loading or evaluations in the minibuffer.
@@ -459,6 +461,9 @@ invoked without a prefix argument.
 If acting on a `defun' for FUNCTION, and the function was instrumented,
 `Edebug: FUNCTION' is printed in the minibuffer.  If not instrumented,
 just FUNCTION is printed."
+  ;; Re-install our advice, in case `debug' re-bound `load-read-function' to
+  ;; its default value.
+  (add-function :around load-read-function #'edebug--read)
   (let* ((edebug-all-forms (not (eq (not edebug-it) (not edebug-all-defs))))
 	 (edebug-all-defs  edebug-all-forms))
     (funcall orig-fun nil)))
@@ -1942,14 +1947,16 @@ a sequence of elements."
   ;; Normally, &define is interpreted specially other places.
   ;; This should only be called inside of a spec list to match the remainder
   ;; of the current list.  e.g. ("lambda" &define args def-body)
-   (edebug-make-form-wrapper
-    cursor
-    (edebug-before-offset cursor)
-    ;; Find the last offset in the list.
-    (let ((offsets (edebug-cursor-offsets cursor)))
-      (while (consp offsets) (setq offsets (cdr offsets)))
-      offsets)
-    specs))
+  (prog1 (edebug-make-form-wrapper
+          cursor
+          (edebug-before-offset cursor)
+          ;; Find the last offset in the list.
+          (let ((offsets (edebug-cursor-offsets cursor)))
+            (while (consp offsets) (setq offsets (cdr offsets)))
+            offsets)
+          specs)
+    ;; Stop backtracking here (Bug#41988).
+    (setq edebug-gate t)))
 
 (cl-defmethod edebug--match-&-spec-op ((_ (eql &name)) cursor specs)
   "Compute the name for `&name SPEC FUN` spec operator.
@@ -4114,12 +4121,12 @@ This should be a list of `edebug---frame' objects.")
   "Stack frames of the current Edebug Backtrace buffer with instrumentation.
 This should be a list of `edebug---frame' objects.")
 
-;; Data structure for backtrace frames with information
-;; from Edebug instrumentation found in the backtrace.
 (cl-defstruct
     (edebug--frame
      (:constructor edebug--make-frame)
      (:include backtrace-frame))
+  "Data structure for backtrace frames with information
+from Edebug instrumentation found in the backtrace."
   def-name before-index after-index)
 
 (defun edebug-pop-to-backtrace ()

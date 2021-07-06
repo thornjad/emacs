@@ -1001,6 +1001,13 @@ It looks like this:
 @end example
 @end ifnottex
 
+  As a somewhat peculiar side effect of @code{(a b . c)} and
+@code{(a . (b . c))} being equivalent, for consistency this means
+that if you replace @code{b} here with the empty sequence, then it
+follows that @code{(a . c)} and @code{(a . ( . c))} are equivalent,
+too.  This also means that @code{( .  c)} is equivalent to @code{c},
+but this is seldom used.
+
 @node Association List Type
 @subsubsection Association List Type
 
@@ -2411,7 +2418,7 @@ that is evaluated.  For example:
 
 @noindent
 Although the list @code{(0.5)} was mutable when it was created, it should not
-have been changed via @code{setcar} because it given to @code{eval}.  The
+have been changed via @code{setcar} because it was given to @code{eval}.  The
 reverse does not occur: an object that should not be changed never
 becomes mutable afterwards.
 

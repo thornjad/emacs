@@ -247,8 +247,6 @@
 ;; I'd recommend the first one since you'll get the same behavior for
 ;; all modes out-of-the-box.
 
-;;; TODO:
-
 ;;; Code:
 
 (require 'ansi-color)
@@ -3385,7 +3383,8 @@ user-friendly message if there's no process running; defaults to
 t when called interactively."
   (interactive "p")
   (pop-to-buffer
-   (process-buffer (python-shell-get-process-or-error msg)) nil t))
+   (process-buffer (python-shell-get-process-or-error msg))
+   nil 'mark-for-redisplay))
 
 (defun python-shell-send-setup-code ()
   "Send all setup code for shell.
@@ -4240,6 +4239,11 @@ JUSTIFY should be used (if applicable) as in `fill-paragraph'."
                     (point)))))
          (num-quotes (python-syntax-count-quotes
                       (char-after str-start-pos) str-start-pos))
+         (str-line-start-pos
+          (save-excursion
+            (goto-char str-start-pos)
+            (beginning-of-line)
+            (point-marker)))
          (str-end-pos
           (save-excursion
             (goto-char (+ str-start-pos num-quotes))
@@ -4263,7 +4267,7 @@ JUSTIFY should be used (if applicable) as in `fill-paragraph'."
             ('symmetric (and multi-line-p (cons 1 1)))))
          (fill-paragraph-function))
     (save-restriction
-      (narrow-to-region str-start-pos str-end-pos)
+      (narrow-to-region str-line-start-pos str-end-pos)
       (fill-paragraph justify))
     (save-excursion
       (when (and (python-info-docstring-p) python-fill-docstring-style)

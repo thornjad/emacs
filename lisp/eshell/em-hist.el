@@ -293,7 +293,7 @@ Returns nil if INPUT is prepended by blank space, otherwise non-nil."
 
   (add-hook 'eshell-exit-hook #'eshell-write-history nil t)
 
-  (add-hook 'kill-emacs-hook #'eshell-save-some-history)
+  (add-hook 'kill-emacs-query-functions #'eshell-save-some-history)
 
   (add-hook 'eshell-input-filter-functions #'eshell-add-to-history nil t))
 
@@ -310,7 +310,8 @@ Returns nil if INPUT is prepended by blank space, otherwise non-nil."
 			(format-message
 			 "Save input history for Eshell buffer `%s'? "
 			 (buffer-name buf)))))
-	      (eshell-write-history))))))
+	      (eshell-write-history)))))
+  t)
 
 (defun eshell/history (&rest args)
   "List in help buffer the buffer's input history."
@@ -379,7 +380,7 @@ input."
              (if (eq eshell-hist-ignoredups 'erase)
                  ;; Remove any old occurrences of the input, and put
                  ;; the new one at the end.
-                 (progn
+                 (unless (ring-empty-p eshell-history-ring)
                    (ring-remove eshell-history-ring
 	                        (ring-member eshell-history-ring input))
                    t)

@@ -1452,8 +1452,8 @@ DEFUN ("insert-char", Finsert_char, Sinsert_char, 1, 3,
               (prefix-numeric-value current-prefix-arg)\
               t))",
        doc: /* Insert COUNT copies of CHARACTER.
-Interactively, prompt for CHARACTER.  You can specify CHARACTER in one
-of these ways:
+Interactively, prompt for CHARACTER using `read-char-by-name'.
+You can specify CHARACTER in one of these ways:
 
  - As its Unicode character name, e.g. \"LATIN SMALL LETTER A\".
    Completion is available; if you type a substring of the name
@@ -2941,6 +2941,8 @@ DEFUN ("propertize", Fpropertize, Spropertize, 1, MANY, 0,
 First argument is the string to copy.
 Remaining arguments form a sequence of PROPERTY VALUE pairs for text
 properties to add to the result.
+
+See Info node `(elisp) Text Properties' for more information.
 usage: (propertize STRING &rest PROPERTIES)  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
@@ -3386,12 +3388,11 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	      else
 		{
 		  ptrdiff_t nch, nby;
-		  width = lisp_string_width (arg, prec, &nch, &nby);
+		  nchars_string = SCHARS (arg);
+		  width = lisp_string_width (arg, 0, nchars_string, prec,
+					     &nch, &nby, false);
 		  if (prec < 0)
-		    {
-		      nchars_string = SCHARS (arg);
-		      nbytes = SBYTES (arg);
-		    }
+		    nbytes = SBYTES (arg);
 		  else
 		    {
 		      nchars_string = nch;

@@ -2023,8 +2023,8 @@ the @sc{cdr} of the cell is either @code{t} or @code{top-only}.
 
 The parameters described below provide support for resizing a frame by
 dragging its internal borders with the mouse.  They also allow moving a
-frame with the mouse by dragging the header line of its topmost or the
-mode line of its bottommost window.
+frame with the mouse by dragging the header or tab line of its topmost
+or the mode line of its bottommost window.
 
 These parameters are mostly useful for child frames (@pxref{Child
 Frames}) that come without window manager decorations.  If necessary,
@@ -2040,6 +2040,11 @@ borders, if present, with the mouse.
 @item drag-with-header-line
 If non-@code{nil}, the frame can be moved with the mouse by dragging the
 header line of its topmost window.
+
+@vindex drag-with-tab-line@r{, a frame parameter}
+@item drag-with-tab-line
+If non-@code{nil}, the frame can be moved with the mouse by dragging the
+tab line of its topmost window.
 
 @vindex drag-with-mode-line@r{, a frame parameter}
 @item drag-with-mode-line
@@ -2628,7 +2633,7 @@ When Emacs gets one of these commands, it generates a
 @code{delete-frame} event, whose normal definition is a command that
 calls the function @code{delete-frame}.  @xref{Misc Events}.
 
-@deffn Command delete-other-frames &optional frame
+@deffn Command delete-other-frames &optional frame iconify
 This command deletes all frames on @var{frame}'s terminal, except
 @var{frame}.  If @var{frame} uses another frame's minibuffer, that
 minibuffer frame is left untouched.  The argument @var{frame} must
@@ -2639,6 +2644,9 @@ this command works by calling @code{delete-frame} with @var{force}
 This function does not delete any of @var{frame}'s child frames
 (@pxref{Child Frames}).  If @var{frame} is a child frame, it deletes
 @var{frame}'s siblings only.
+
+With the prefix argument @var{iconify}, the frames are iconified rather
+than deleted.
 @end deffn
 
 

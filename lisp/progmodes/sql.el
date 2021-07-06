@@ -484,6 +484,7 @@ file.  Since that is a plaintext file, this could be dangerous."
      :prompt-regexp "^[[:alnum:]_]*=[#>] "
      :prompt-length 5
      :prompt-cont-regexp "^[[:alnum:]_]*[-(][#>] "
+     :statement sql-postgres-statement-starters
      :input-filter sql-remove-tabs-filter
      :terminator ("\\(^\\s-*\\\\g\\|;\\)" . "\\g"))
 
@@ -997,20 +998,6 @@ for the first time."
   :version "24.1"
   :type 'hook)
 
-;; Customization for ANSI
-
-(defcustom sql-ansi-statement-starters
-  (regexp-opt '("create" "alter" "drop"
-                "select" "insert" "update" "delete" "merge"
-                "grant" "revoke"))
-  "Regexp of keywords that start SQL commands.
-
-All products share this list; products should define a regexp to
-identify additional keywords in a variable defined by
-the :statement feature."
-  :version "24.1"
-  :type 'regexp)
-
 ;; Customization for Oracle
 
 (defcustom sql-oracle-program "sqlplus"
@@ -1032,12 +1019,6 @@ You will find the file in your Orant\\bin directory."
   "List of login parameters needed to connect to Oracle."
   :type 'sql-login-params
   :version "24.1")
-
-(defcustom sql-oracle-statement-starters
-  (regexp-opt '("declare" "begin" "with"))
-  "Additional statement starting keywords in Oracle."
-  :version "24.1"
-  :type 'string)
 
 (defcustom sql-oracle-scan-on t
   "Non-nil if placeholders should be replaced in Oracle SQLi.
@@ -1502,6 +1483,26 @@ Based on `comint-mode-map'.")
     table)
   "Syntax table used in `sql-mode' and `sql-interactive-mode'.")
 
+;; Motion Function Keywords
+
+(defvar sql-ansi-statement-starters
+  (regexp-opt '("create" "alter" "drop"
+                "select" "insert" "update" "delete" "merge"
+                "grant" "revoke"))
+  "Regexp of keywords that start SQL commands.
+
+All products share this list; products should define a regexp to
+identify additional keywords in a variable defined by
+the :statement feature.")
+
+(defvar sql-oracle-statement-starters
+  (regexp-opt '("declare" "begin" "with"))
+  "Additional statement-starting keywords in Oracle.")
+
+(defvar sql-postgres-statement-starters
+  (regexp-opt '("with"))
+  "Additional statement-starting keywords in Postgres.")
+
 ;; Font lock support
 
 (defvar sql-mode-font-lock-object-name
@@ -1545,9 +1546,7 @@ statement.  The format of variable should be a valid
 ;; `sql-font-lock-keywords-builder' function and follow the
 ;; implementation pattern used for the other products in this file.
 
-(eval-when-compile
-  (defvar sql-mode-ansi-font-lock-keywords)
-  (setq sql-mode-ansi-font-lock-keywords nil))
+(defvar sql-mode-ansi-font-lock-keywords)
 
 (eval-and-compile
   (defun sql-font-lock-keywords-builder (face boundaries &rest keywords)
@@ -3725,8 +3724,7 @@ to avoid deleting non-prompt output."
 
           ;; If we've found all the expected prompts, stop looking
           (if (= sql-output-newline-count 0)
-              (setq sql-output-newline-count nil
-                    oline (concat "\n" oline))
+              (setq sql-output-newline-count nil)
 
             ;; Still more possible prompts, leave them for the next pass
             (setq sql-preoutput-hold oline
@@ -3771,6 +3769,8 @@ to avoid deleting non-prompt output."
 	    (with-current-buffer sql-buffer
               (when sql-debug-send
                 (message ">>SQL> %S" s))
+              (insert "\n")
+              (comint-set-process-mark)
 
 	      ;; Send the string (trim the trailing whitespace)
 	      (sql-input-sender (get-buffer-process (current-buffer)) s)
@@ -5608,7 +5608,7 @@ The default value disables the internal pager."
 
 (provide 'sql)
 
-;;; sql.el ends here
-
 ; LocalWords:  sql SQL SQLite sqlite Sybase Informix MySQL
 ; LocalWords:  Postgres SQLServer SQLi
+
+;;; sql.el ends here

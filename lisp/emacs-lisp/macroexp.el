@@ -319,14 +319,16 @@ Assumes the caller has bound `macroexpand-all-environment'."
       (`(,(and fun (or 'let 'let*)) . ,(or `(,bindings . ,body)
                                            pcase--dontcare))
        (macroexp--cons fun
-                       (macroexp--cons (macroexp--all-clauses bindings 1)
-                                       (if (null body)
-                                           (macroexp-unprogn
-                                            (macroexp-warn-and-return
-                                             (format "Empty %s body" fun)
-                                             nil t))
-                                         (macroexp--all-forms body))
-                                       (cdr form))
+                       (macroexp--cons
+                        (macroexp--all-clauses bindings 1)
+                        (if (null body)
+                            (macroexp-unprogn
+                             (macroexp-warn-and-return
+                              (and (byte-compile-warning-enabled-p t)
+                                   (format "Empty %s body" fun))
+                              nil t))
+                          (macroexp--all-forms body))
+                        (cdr form))
                        form))
       (`(,(and fun `(lambda . ,_)) . ,args)
        ;; Embedded lambda in function position.
@@ -394,7 +396,8 @@ Assumes the caller has bound `macroexpand-all-environment'."
 
 ;; Record which arguments expect functions, so we can warn when those
 ;; are accidentally quoted with ' rather than with #'
-(dolist (f '(funcall apply mapcar mapatoms mapconcat mapc cl-mapcar maphash))
+(dolist (f '( funcall apply mapcar mapatoms mapconcat mapc cl-mapcar maphash
+              map-char-table map-keymap map-keymap-internal))
   (put f 'funarg-positions '(1)))
 (dolist (f '( add-hook remove-hook advice-remove advice--remove-function
               defalias fset global-set-key run-after-idle-timeout

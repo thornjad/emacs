@@ -123,10 +123,18 @@ should insert the feature name."
   :group 'xref
   :version "25.1")
 
+(defun find-function--defface (symbol)
+  (catch 'found
+    (while (re-search-forward (format find-face-regexp symbol) nil t)
+      (unless (ppss-comment-or-string-start
+               (save-excursion (syntax-ppss (match-beginning 0))))
+        ;; We're not in a comment or a string.
+        (throw 'found t)))))
+
 (defvar find-function-regexp-alist
   '((nil . find-function-regexp)
     (defvar . find-variable-regexp)
-    (defface . find-face-regexp)
+    (defface . find-function--defface)
     (feature . find-feature-regexp)
     (defalias . find-alias-regexp))
   "Alist mapping definition types into regexp variables.
@@ -178,13 +186,18 @@ See the functions `find-function' and `find-variable'."
             (setq name rel))))
     (unless (equal name library) name)))
 
+(defvar comp-eln-to-el-h)
+
 (defun find-library-name (library)
   "Return the absolute file name of the Emacs Lisp source of LIBRARY.
 LIBRARY should be a string (the name of the library)."
   ;; If the library is byte-compiled, try to find a source library by
   ;; the same name.
-  (when (string-match "\\.el\\(c\\(\\..*\\)?\\)\\'" library)
+  (cond
+   ((string-match "\\.el\\(c\\(\\..*\\)?\\)\\'" library)
     (setq library (replace-match "" t t library)))
+   ((string-match "\\.eln\\'" library)
+    (setq library (gethash (file-name-nondirectory library) comp-eln-to-el-h))))
   (or
    (locate-file library
                 (or find-function-source-path load-path)
@@ -203,7 +216,7 @@ LIBRARY should be a string (the name of the library)."
                        (or find-function-source-path load-path)
                        load-file-rep-suffixes)))))
    (find-library--from-load-history library)
-   (error "Can't find library %s" library)))
+   (signal 'file-error (list "Can't find library" library))))
 
 (defun find-library--from-load-history (library)
   ;; In `load-history', the file may be ".elc", ".el", ".el.gz", and
@@ -491,7 +504,7 @@ message about the whole chain of aliases."
     (cons function
           (cond
            ((autoloadp def) (nth 1 def))
-           ((subrp def)
+           ((subr-primitive-p def)
             (if lisp-only
                 (error "%s is a built-in function" function))
             (help-C-file-name def 'subr))

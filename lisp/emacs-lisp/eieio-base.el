@@ -1,7 +1,6 @@
 ;;; eieio-base.el --- Base classes for EIEIO.  -*- lexical-binding:t -*-
 
-;;; Copyright (C) 2000-2002, 2004-2005, 2007-2021 Free Software
-;;; Foundation, Inc.
+;; Copyright (C) 2000-2021  Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: OO, lisp
@@ -157,7 +156,7 @@ only one object ever exists."
   ;; NOTE TO SELF: In next version, make `slot-boundp' support classes
   ;; with class allocated slots or default values.
   (let ((old (oref-default class singleton)))
-    (if (eq old eieio-unbound)
+    (if (eq old eieio--unbound)
 	(oset-default class singleton (cl-call-next-method))
       old)))
 

@@ -494,10 +494,11 @@ for preventing Firefox from stealing the keyboard focus."
   :type 'boolean)
 
 (defcustom js-js-tmpdir
-  "~/.emacs.d/js/js"
+  (locate-user-emacs-file "js/js")
   "Temporary directory used by `js-mode' to communicate with Mozilla.
 This directory must be readable and writable by both Mozilla and Emacs."
-  :type 'directory)
+  :type 'directory
+  :version "28.1")
 
 (defcustom js-js-timeout 5
   "Reply timeout for executing commands in Mozilla via `js-mode'.
@@ -1059,7 +1060,7 @@ Return the pitem of the function we went to the beginning of."
             (t
              (js--beginning-of-defun-nested))))))
 
-(defun js--flush-caches (&optional beg ignored)
+(defun js--flush-caches (&optional beg _ignored)
   "Flush the `js-mode' syntax cache after position BEG.
 BEG defaults to `point-min', meaning to flush the entire cache."
   (interactive)
@@ -1339,7 +1340,6 @@ LIMIT defaults to point."
 
 (defun js--end-of-defun-nested ()
   "Helper function for `js-end-of-defun'."
-  (message "test")
   (let* (pitem
          (this-end (save-excursion
                      (and (setq pitem (js--beginning-of-defun-nested))
@@ -1473,11 +1473,10 @@ LIMIT defaults to point."
   "Helper function for building `js--font-lock-keywords'.
 Create a byte-compiled function for matching a concatenation of
 REGEXPS, but only if FRAMEWORK is in `js-enabled-frameworks'."
-  (setq regexps (apply #'concat regexps))
-  (byte-compile
-   `(lambda (limit)
-      (when (memq (quote ,framework) js-enabled-frameworks)
-        (re-search-forward ,regexps limit t)))))
+  (let ((regexp (apply #'concat regexps)))
+    (lambda (limit)
+      (when (memq framework js-enabled-frameworks)
+        (re-search-forward regexp limit t)))))
 
 (defvar-local js--tmp-location nil)
 
@@ -2861,7 +2860,11 @@ return nil."
           ((nth 3 parse-status) 0) ; inside string
           ((when (and js-jsx-syntax (not js-jsx--indent-col))
              (save-excursion (js-jsx--indentation parse-status))))
-          ((eq (char-after) ?#) 0)
+          ((and (eq (char-after) ?#)
+                (save-excursion
+                  (forward-char 1)
+                  (looking-at-p cpp-font-lock-keywords-source-directives)))
+           0)
           ((save-excursion (js--beginning-of-macro)) 4)
           ;; Indent array comprehension continuation lines specially.
           ((let ((bracket (nth 1 parse-status))
@@ -4177,8 +4180,9 @@ browser, respectively."
                        "style" "")
                      cmds)))
 
-             (eval (list 'with-js
-                         (cons 'js-list (nreverse cmds))))))
+             (eval `(with-js
+                        (js-list ,@(nreverse cmds)))
+                   t)))
 
           (command-hook
            ()
@@ -4654,4 +4658,4 @@ one of the aforementioned options instead of using this mode."
 
 (provide 'js)
 
-;; js.el ends here
+;;; js.el ends here

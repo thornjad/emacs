@@ -138,15 +138,14 @@
 ;; the user to enter strokes which "remove the pencil from the paper"
 ;; so to speak, so one character can have multiple strokes.
 
-;; NOTE (Oct 7, 2006): The URLs below seem to be invalid!!!
-
 ;; You can read more about strokes at:
 
-;; http://www.mit.edu/people/cadet/strokes-help.html
+;; https://web.archive.org/web/20041209171947/http://www.mit.edu/people/cadet/strokes-help.html
 
 ;; If you're interested in using strokes for writing English into Emacs
 ;; using strokes, then you'll want to read about it on the web page above
-;; or just download from http://www.mit.edu/people/cadet/strokes-abc.el,
+;; or just download from:
+;; https://web.archive.org/web/20041204163338/http://www.mit.edu/people/cadet/strokes-abc.el
 ;; which is nothing but a file with some helper commands for inserting
 ;; alphanumerics and punctuation.
 
@@ -306,12 +305,6 @@ the corresponding interactive function.")
 ;;    ))
 
 ;;; Macros...
-
-;; unused
-;; (defmacro strokes-while-inhibiting-garbage-collector (&rest forms)
-;;   "Execute FORMS without interference from the garbage collector."
-;;   `(let ((gc-cons-threshold 134217727))
-;;      ,@forms))
 
 (defsubst strokes-click-p (stroke)
   "Non-nil if STROKE is really click."
@@ -1393,7 +1386,7 @@ Encode/decode your strokes with \\[strokes-encode-buffer],
 \\[strokes-decode-buffer].
 
 \\{strokes-mode-map}"
-  nil strokes-lighter strokes-mode-map :global t
+  :lighter strokes-lighter :global t
   (cond ((not (display-mouse-p))
 	 (error "Can't use Strokes without a mouse"))
 	(strokes-mode			; turn on strokes

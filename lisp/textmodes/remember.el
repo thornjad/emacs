@@ -1,4 +1,4 @@
-;;; remember --- a mode for quickly jotting down things to remember  -*- lexical-binding: t; -*-
+;;; remember.el --- a mode for quickly jotting down things to remember  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 1999-2001, 2003-2021 Free Software Foundation, Inc.
 
@@ -607,7 +607,7 @@ This sets `buffer-save-without-query' so that `save-some-buffers' will
 save the notes buffer without asking.
 
 \\{remember-notes-mode-map}"
-  nil nil nil
+  :lighter nil
   (cond
    (remember-notes-mode
     (add-hook 'kill-buffer-query-functions

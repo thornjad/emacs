@@ -215,20 +215,6 @@ wset_combination (struct window *w, bool horflag, Lisp_Object val)
     w->horizontal = horflag;
 }
 
-static void
-wset_update_mode_line (struct window *w)
-{
-  /* If this window is the selected window on its frame, set the
-     global variable update_mode_lines, so that gui_consider_frame_title
-     will consider this frame's title for redisplay.  */
-  Lisp_Object fselected_window = XFRAME (WINDOW_FRAME (w))->selected_window;
-
-  if (WINDOWP (fselected_window) && XWINDOW (fselected_window) == w)
-    update_mode_lines = 42;
-  else
-    w->update_mode_line = true;
-}
-
 /* True if leaf window W doesn't reflect the actual state
    of displayed buffer due to its text or overlays change.  */
 
@@ -482,6 +468,7 @@ Return WINDOW.  */)
   else
     {
       fset_selected_window (XFRAME (frame), window);
+      /* Don't clear FRAME's select_mini_window_flag here.  */
       return window;
     }
 }
@@ -518,10 +505,21 @@ select_window (Lisp_Object window, Lisp_Object norecord,
 {
   struct window *w;
   struct frame *sf;
+  Lisp_Object frame;
+  struct frame *f;
 
   CHECK_LIVE_WINDOW (window);
 
   w = XWINDOW (window);
+  frame = WINDOW_FRAME (w);
+  f = XFRAME (frame);
+
+  if (FRAME_TOOLTIP_P (f))
+    /* Do not select a tooltip window (Bug#47207).  */
+    error ("Cannot select a tooltip window");
+
+  /* We deinitely want to select WINDOW, not the mini-window.  */
+  f->select_mini_window_flag = false;
 
   /* Make the selected window's buffer current.  */
   Fset_buffer (w->contents);
@@ -542,14 +540,14 @@ select_window (Lisp_Object window, Lisp_Object norecord,
     redisplay_other_windows ();
 
   sf = SELECTED_FRAME ();
-  if (XFRAME (WINDOW_FRAME (w)) != sf)
+  if (f != sf)
     {
-      fset_selected_window (XFRAME (WINDOW_FRAME (w)), window);
+      fset_selected_window (f, window);
       /* Use this rather than Fhandle_switch_frame
 	 so that FRAME_FOCUS_FRAME is moved appropriately as we
 	 move around in the state where a minibuffer in a separate
 	 frame is active.  */
-      Fselect_frame (WINDOW_FRAME (w), norecord);
+      Fselect_frame (frame, norecord);
       /* Fselect_frame called us back so we've done all the work already.  */
       eassert (EQ (window, selected_window));
       return window;
@@ -2556,8 +2554,13 @@ window_list (void)
   if (!CONSP (Vwindow_list))
     {
       Lisp_Object tail, frame;
+      ptrdiff_t count = SPECPDL_INDEX ();
 
       Vwindow_list = Qnil;
+      /*  Don't allow quitting in Fnconc.  Otherwise we might end up
+	  with a too short Vwindow_list and Fkill_buffer not being able
+	  to replace a buffer in all windows showing it (Bug#47244).  */
+      specbind (Qinhibit_quit, Qt);
       FOR_EACH_FRAME (tail, frame)
 	{
 	  Lisp_Object arglist = Qnil;
@@ -2569,6 +2572,8 @@ window_list (void)
 	  arglist = Fnreverse (arglist);
 	  Vwindow_list = nconc2 (Vwindow_list, arglist);
 	}
+
+      unbind_to (count, Qnil);
     }
 
   return Vwindow_list;
@@ -2603,7 +2608,7 @@ candidate_window_p (Lisp_Object window, Lisp_Object owindow,
     candidate_p = false;
   else if (MINI_WINDOW_P (w)
            && (EQ (minibuf, Qlambda)
-	       || (WINDOWP (minibuf) && !EQ (minibuf, window))))
+	       || (WINDOW_LIVE_P (minibuf) && !EQ (minibuf, window))))
     {
       /* If MINIBUF is `lambda' don't consider any mini-windows.
          If it is a window, consider only that one.  */
@@ -2647,7 +2652,8 @@ candidate_window_p (Lisp_Object window, Lisp_Object owindow,
     candidate_p = ((EQ (XWINDOW (all_frames)->frame, w->frame)
                     || (EQ (f->minibuffer_window, all_frames)
                         && EQ (XWINDOW (all_frames)->frame, FRAME_FOCUS_FRAME (f))))
-                   && !is_minibuffer (0, XWINDOW (all_frames)->contents));
+                   && (EQ (minibuf, Qt)
+		       || !is_minibuffer (0, XWINDOW (all_frames)->contents)));
   else if (FRAMEP (all_frames))
     candidate_p = EQ (all_frames, w->frame);
 
@@ -2666,12 +2672,12 @@ decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object 
   Lisp_Object miniwin = XFRAME (w->frame)->minibuffer_window;
 
   XSETWINDOW (*window, w);
-  /* MINIBUF nil may or may not include minibuffers.  Decide if it
-     does.  */
-  if (NILP (*minibuf))
-    *minibuf = this_minibuffer_depth (XWINDOW (miniwin)->contents)
-      ? miniwin
-      : Qlambda;
+  /* MINIBUF nil may or may not include minibuffer windows.  Decide if
+     it does.  But first make sure that this frame's minibuffer window
+     is live (Bug#47207).  */
+  if (WINDOW_LIVE_P (miniwin) && NILP (*minibuf))
+    *minibuf = (this_minibuffer_depth (XWINDOW (miniwin)->contents)
+		? miniwin : Qlambda);
   else if (!EQ (*minibuf, Qt))
     *minibuf = Qlambda;
 
@@ -2682,9 +2688,10 @@ decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object 
   /* ALL_FRAMES nil doesn't specify which frames to include.  */
   if (NILP (*all_frames))
     *all_frames
-      = (!EQ (*minibuf, Qlambda)
-	 ? FRAME_MINIBUF_WINDOW (XFRAME (w->frame))
-	 : Qnil);
+      /* Once more make sure that this frame's minibuffer window is live
+	 before including it (Bug#47207).  */
+      = ((WINDOW_LIVE_P (miniwin) && !EQ (*minibuf, Qlambda))
+	 ? miniwin : Qnil);
   else if (EQ (*all_frames, Qvisible))
     ;
   else if (EQ (*all_frames, make_fixnum (0)))
@@ -2705,6 +2712,8 @@ static Lisp_Object
 next_window (Lisp_Object window, Lisp_Object minibuf, Lisp_Object all_frames,
 	     bool next_p)
 {
+  ptrdiff_t count = SPECPDL_INDEX ();
+
   decode_next_window_args (&window, &minibuf, &all_frames);
 
   /* If ALL_FRAMES is a frame, and WINDOW isn't on that frame, just
@@ -2712,6 +2721,9 @@ next_window (Lisp_Object window, Lisp_Object minibuf, Lisp_Object all_frames,
   if (FRAMEP (all_frames)
       && !EQ (all_frames, XWINDOW (window)->frame))
     return Fframe_first_window (all_frames);
+
+  /*  Don't allow quitting in Fmemq.  */
+  specbind (Qinhibit_quit, Qt);
 
   if (next_p)
     {
@@ -2761,6 +2773,8 @@ next_window (Lisp_Object window, Lisp_Object minibuf, Lisp_Object all_frames,
       if (WINDOWP (candidate))
 	window = candidate;
     }
+
+  unbind_to (count, Qnil);
 
   return window;
 }
@@ -2852,9 +2866,13 @@ static Lisp_Object
 window_list_1 (Lisp_Object window, Lisp_Object minibuf, Lisp_Object all_frames)
 {
   Lisp_Object tail, list, rest;
+  ptrdiff_t count = SPECPDL_INDEX ();
 
   decode_next_window_args (&window, &minibuf, &all_frames);
   list = Qnil;
+
+  /*  Don't allow quitting in Fmemq and Fnconc.  */
+  specbind (Qinhibit_quit, Qt);
 
   for (tail = window_list (); CONSP (tail); tail = XCDR (tail))
     if (candidate_window_p (XCAR (tail), window, minibuf, all_frames))
@@ -2870,6 +2888,9 @@ window_list_1 (Lisp_Object window, Lisp_Object minibuf, Lisp_Object all_frames)
       XSETCDR (tail, Qnil);
       list = nconc2 (rest, list);
     }
+
+  unbind_to (count, Qnil);
+
   return list;
 }
 
@@ -3225,6 +3246,9 @@ window-start value is reasonable when this function is called.  */)
 	  if (EQ (selected_frame, w->frame))
 	    Fselect_window (window, Qnil);
 	  else
+	    /* Do not clear f->select_mini_window_flag here.  If the
+	       last selected window on F was an active minibuffer, we
+	       want to return to it on a later Fselect_frame.  */
 	    fset_selected_window (f, window);
 	}
     }
@@ -5124,37 +5148,23 @@ Signal an error when WINDOW is the only window on its frame.  */)
       adjust_frame_glyphs (f);
 
       if (!WINDOW_LIVE_P (FRAME_SELECTED_WINDOW (f)))
-	/* We deleted the frame's selected window.  */
+	/* We apparently deleted the frame's selected window; use the
+	   frame's first window as substitute but don't record it yet.
+	   `delete-window' may have something better up its sleeves.  */
 	{
 	  /* Use the frame's first window as fallback ...  */
 	  Lisp_Object new_selected_window = Fframe_first_window (frame);
-	  /* ... but preferably use its most recently used window.  */
-	  Lisp_Object mru_window;
 
-	  /* `get-mru-window' might fail for some reason so play it safe
-	  - promote the first window _without recording it_ first.  */
 	  if (EQ (FRAME_SELECTED_WINDOW (f), selected_window))
 	    Fselect_window (new_selected_window, Qt);
 	  else
-	    fset_selected_window (f, new_selected_window);
-
-	  unblock_input ();
-
-	  /* Now look whether `get-mru-window' gets us something.  */
-	  mru_window = call1 (Qget_mru_window, frame);
-	  if (WINDOW_LIVE_P (mru_window)
-	      && EQ (XWINDOW (mru_window)->frame, frame))
-	    new_selected_window = mru_window;
-
-	  /* If all ended up well, we now promote the mru window.  */
-	  if (EQ (FRAME_SELECTED_WINDOW (f), selected_window))
-	    Fselect_window (new_selected_window, Qnil);
-	  else
+	    /* Do not clear f->select_mini_window_flag here.  If the
+	       last selected window on F was an active minibuffer, we
+	       want to return to it on a later Fselect_frame.  */
 	    fset_selected_window (f, new_selected_window);
 	}
-      else
-	unblock_input ();
 
+      unblock_input ();
       FRAME_WINDOW_CHANGE (f) = true;
     }
   else
@@ -6864,19 +6874,22 @@ DEFUN ("window-configuration-frame", Fwindow_configuration_frame, Swindow_config
 }
 
 DEFUN ("set-window-configuration", Fset_window_configuration,
-       Sset_window_configuration, 1, 2, 0,
+       Sset_window_configuration, 1, 3, 0,
        doc: /* Set the configuration of windows and buffers as specified by CONFIGURATION.
 CONFIGURATION must be a value previously returned
 by `current-window-configuration' (which see).
 
 Normally, this function selects the frame of the CONFIGURATION, but if
 DONT-SET-FRAME is non-nil, it leaves selected the frame which was
-current at the start of the function.
+current at the start of the function.  If DONT-SET-MINIWINDOW is non-nil,
+the mini-window of the frame doesn't get set to the corresponding element
+of CONFIGURATION.
 
 If CONFIGURATION was made from a frame that is now deleted,
 only frame-independent values can be restored.  In this case,
 the return value is nil.  Otherwise the value is t.  */)
-  (Lisp_Object configuration, Lisp_Object dont_set_frame)
+  (Lisp_Object configuration, Lisp_Object dont_set_frame,
+   Lisp_Object dont_set_miniwindow)
 {
   register struct save_window_data *data;
   struct Lisp_Vector *saved_windows;
@@ -7087,8 +7100,10 @@ the return value is nil.  Otherwise the value is t.  */)
 		}
 	    }
 
-	  if (BUFFERP (p->buffer) && BUFFER_LIVE_P (XBUFFER (p->buffer)))
-	    /* If saved buffer is alive, install it.  */
+	  if ((NILP (dont_set_miniwindow) || !MINI_WINDOW_P (w))
+	      && BUFFERP (p->buffer) && BUFFER_LIVE_P (XBUFFER (p->buffer)))
+	    /* If saved buffer is alive, install it, unless it's a
+	       minibuffer we explicitly prohibit.  */
 	    {
 	      wset_buffer (w, p->buffer);
 	      w->start_at_line_beg = !NILP (p->start_at_line_beg);
@@ -7241,9 +7256,11 @@ void
 restore_window_configuration (Lisp_Object configuration)
 {
   if (CONSP (configuration))
-    Fset_window_configuration (XCDR (configuration), XCAR (configuration));
+    Fset_window_configuration (XCAR (configuration),
+			       Fcar_safe (XCDR (configuration)),
+			       Fcar_safe (Fcdr_safe (XCDR (configuration))));
   else
-    Fset_window_configuration (configuration, Qnil);
+    Fset_window_configuration (configuration, Qnil, Qnil);
 }
 
 
@@ -8135,7 +8152,7 @@ init_window_once (void)
   minibuf_selected_window = Qnil;
   staticpro (&minibuf_selected_window);
 
-  pdumper_do_now_and_after_load (init_window_once_for_pdumper);
+  pdumper_do_now_and_after_late_load (init_window_once_for_pdumper);
 }
 
 static void init_window_once_for_pdumper (void)
@@ -8225,6 +8242,7 @@ syms_of_window (void)
   DEFSYM (Qmode_line_format, "mode-line-format");
   DEFSYM (Qheader_line_format, "header-line-format");
   DEFSYM (Qtab_line_format, "tab-line-format");
+  DEFSYM (Qno_other_window, "no-other-window");
 
   DEFVAR_LISP ("temp-buffer-show-function", Vtemp_buffer_show_function,
 	       doc: /* Non-nil means call as function to display a help buffer.

@@ -1701,7 +1701,7 @@ w32_change_tab_bar_height (struct frame *f, int height)
   int unit = FRAME_LINE_HEIGHT (f);
   int old_height = FRAME_TAB_BAR_HEIGHT (f);
   int lines = (height + unit - 1) / unit;
-  Lisp_Object fullscreen;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
 
   /* Make sure we redisplay all windows in this frame.  */
   fset_redisplay (f);
@@ -1728,25 +1728,21 @@ w32_change_tab_bar_height (struct frame *f, int height)
   if ((height < old_height) && WINDOWP (f->tab_bar_window))
     clear_glyph_matrix (XWINDOW (f->tab_bar_window)->current_matrix);
 
-  /* Recalculate tabbar height.  */
-  f->n_tab_bar_rows = 0;
-  if (old_height == 0
-      && (!f->after_make_frame
-	  || NILP (frame_inhibit_implied_resize)
-	  || (CONSP (frame_inhibit_implied_resize)
-	      && NILP (Fmemq (Qtab_bar_lines, frame_inhibit_implied_resize)))))
-    f->tab_bar_redisplayed = f->tab_bar_resized = false;
+  if (!f->tab_bar_resized)
+    {
+      /* As long as tab_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtab_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtab_bar_lines);
 
-  adjust_frame_size (f, -1, -1,
-		     ((!f->tab_bar_resized
-		       && (NILP (fullscreen =
-				 get_frame_param (f, Qfullscreen))
-			   || EQ (fullscreen, Qfullwidth))) ? 1
-		      : (old_height == 0 || height == 0) ? 2
-		      : 4),
-		     false, Qtab_bar_lines);
-
-  f->tab_bar_resized = f->tab_bar_redisplayed;
+      f->tab_bar_resized = f->tab_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtab_bar_lines);
 
   /* adjust_frame_size might not have done anything, garbage frame
      here.  */
@@ -1790,7 +1786,7 @@ w32_change_tool_bar_height (struct frame *f, int height)
   int unit = FRAME_LINE_HEIGHT (f);
   int old_height = FRAME_TOOL_BAR_HEIGHT (f);
   int lines = (height + unit - 1) / unit;
-  Lisp_Object fullscreen;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
 
   /* Make sure we redisplay all windows in this frame.  */
   windows_or_buffers_changed = 23;
@@ -1811,25 +1807,21 @@ w32_change_tool_bar_height (struct frame *f, int height)
   if ((height < old_height) && WINDOWP (f->tool_bar_window))
     clear_glyph_matrix (XWINDOW (f->tool_bar_window)->current_matrix);
 
-  /* Recalculate toolbar height.  */
-  f->n_tool_bar_rows = 0;
-  if (old_height == 0
-      && (!f->after_make_frame
-	  || NILP (frame_inhibit_implied_resize)
-	  || (CONSP (frame_inhibit_implied_resize)
-	      && NILP (Fmemq (Qtool_bar_lines, frame_inhibit_implied_resize)))))
-    f->tool_bar_redisplayed = f->tool_bar_resized = false;
+  if (!f->tool_bar_resized)
+    {
+      /* As long as tool_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtool_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtool_bar_lines);
 
-  adjust_frame_size (f, -1, -1,
-		     ((!f->tool_bar_resized
-		       && (NILP (fullscreen =
-				 get_frame_param (f, Qfullscreen))
-			   || EQ (fullscreen, Qfullwidth))) ? 1
-		      : (old_height == 0 || height == 0) ? 2
-		      : 4),
-		     false, Qtool_bar_lines);
-
-  f->tool_bar_resized = f->tool_bar_redisplayed;
+      f->tool_bar_resized =  f->tool_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtool_bar_lines);
 
   /* adjust_frame_size might not have done anything, garbage frame
      here.  */
@@ -5718,7 +5710,6 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   struct w32_display_info *dpyinfo = NULL;
   Lisp_Object parent, parent_frame;
   struct kboard *kb;
-  int x_width = 0, x_height = 0;
 
   if (!FRAME_W32_P (SELECTED_FRAME ())
       && !FRAME_INITIAL_P (SELECTED_FRAME ()))
@@ -6045,8 +6036,7 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
 
   f->output_data.w32->current_cursor = f->output_data.w32->nontext_cursor;
 
-  window_prompting = gui_figure_window_size (f, parameters, true, true,
-                                             &x_width, &x_height);
+  window_prompting = gui_figure_window_size (f, parameters, true, true);
 
   tem = gui_display_get_arg (dpyinfo, parameters, Qunsplittable, 0, 0,
                              RES_TYPE_BOOLEAN);
@@ -6081,11 +6071,6 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   /* Allow set_window_size_hook, now.  */
   f->can_set_window_size = true;
 
-  if (x_width > 0)
-    SET_FRAME_WIDTH (f, x_width);
-  if (x_height > 0)
-    SET_FRAME_HEIGHT (f, x_height);
-
   /* Tell the server what size and position, etc, we want, and how
      badly we want them.  This should be done after we have the menu
      bar so that its size can be taken into account.  */
@@ -6093,8 +6078,8 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   w32_wm_set_size_hint (f, window_prompting, false);
   unblock_input ();
 
-  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f), 0, true,
-		     Qx_create_frame_2);
+  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+		     0, true, Qx_create_frame_2);
 
   /* Process fullscreen parameter here in the hope that normalizing a
      fullheight/fullwidth frame will produce the size set by the last
@@ -6122,6 +6107,8 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
 
 	  if (!NILP (visibility))
 	    w32_make_frame_visible (f);
+	  else
+	    f->was_invisible = true;
 	}
 
       store_frame_param (f, Qvisibility, visibility);
@@ -6888,11 +6875,9 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
   struct frame *f;
   Lisp_Object frame;
   Lisp_Object name;
-  int width, height;
   ptrdiff_t count = SPECPDL_INDEX ();
   struct kboard *kb;
   bool face_change_before = face_change;
-  int x_width = 0, x_height = 0;
 
   /* Use this general default value to start with until we know if
      this frame has a specified name.  */
@@ -7013,7 +6998,7 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
   f->output_data.w32->parent_desc = FRAME_DISPLAY_INFO (f)->root_window;
   f->output_data.w32->explicit_parent = false;
 
-  gui_figure_window_size (f, parms, true, true, &x_width, &x_height);
+  gui_figure_window_size (f, parms, true, true);
 
   /* No fringes on tip frame.  */
   f->fringe_cols = 0;
@@ -7039,15 +7024,6 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
   gui_default_parameter (f, parms, Qalpha, Qnil,
                          "alpha", "Alpha", RES_TYPE_NUMBER);
 
-  /* Dimensions, especially FRAME_LINES (f), must be done via
-     change_frame_size.  Change will not be effected unless different
-     from the current FRAME_LINES (f).  */
-  width = FRAME_COLS (f);
-  height = FRAME_LINES (f);
-  SET_FRAME_COLS (f, 0);
-  SET_FRAME_LINES (f, 0);
-  adjust_frame_size (f, width * FRAME_COLUMN_WIDTH (f),
-		     height * FRAME_LINE_HEIGHT (f), 0, true, Qtip_frame);
   /* Add `tooltip' frame parameter's default value. */
   if (NILP (Fframe_parameter (frame, Qtooltip)))
     Fmodify_frame_parameters (frame, Fcons (Fcons (Qtooltip, Qt), Qnil));
@@ -7088,6 +7064,8 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
      visible won't work.  */
   Vframe_list = Fcons (frame, Vframe_list);
   f->can_set_window_size = true;
+  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+		     0, true, Qtip_frame);
 
   /* Setting attributes of faces of the tooltip frame from resources
      and similar will set face_change, which leads to the
@@ -7434,6 +7412,8 @@ DEFUN ("x-show-tip", Fx_show_tip, Sx_show_tip, 1, 6, 0,
   set_window_buffer (window, tip_buf, false, false);
   w = XWINDOW (window);
   w->pseudo_window_p = true;
+  /* Try to avoid that `other-window' select us (Bug#47207).  */
+  Fset_window_parameter (window, Qno_other_window, Qt);
 
   /* Set up the frame's root window.  Note: The following code does not
      try to size the window or its frame correctly.  Its only purpose is
@@ -8013,7 +7993,7 @@ DEFUN ("system-move-file-to-trash", Fsystem_move_file_to_trash,
 
       /* The Unicode version of SHFileOperation is not supported on
 	 Windows 9X. */
-      if (w32_unicode_filenames && os_subtype != OS_9X)
+      if (w32_unicode_filenames && os_subtype != OS_SUBTYPE_9X)
 	{
 	  SHFILEOPSTRUCTW file_op_w;
 	  /* We need one more element beyond MAX_PATH because this is
@@ -9142,7 +9122,7 @@ The coordinates X and Y are interpreted in pixels relative to a position
   /* When "mouse trails" are in effect, moving the mouse cursor
      sometimes leaves behind an annoying "ghost" of the pointer.
      Avoid that by momentarily switching off mouse trails.  */
-  if (os_subtype == OS_NT
+  if (os_subtype == OS_SUBTYPE_NT
       && w32_major_version + w32_minor_version >= 6)
     ret = SystemParametersInfo (SPI_GETMOUSETRAILS, 0, &trail_num, 0);
   SetCursorPos (xval, yval);
@@ -9317,7 +9297,7 @@ DEFUN ("default-printer-name", Fdefault_printer_name, Sdefault_printer_name,
   if (!OpenPrinter (pname_buf, &hPrn, NULL))
     return Qnil;
   /* GetPrinterW is not supported by unicows.dll.  */
-  if (w32_unicode_filenames && os_subtype != OS_9X)
+  if (w32_unicode_filenames && os_subtype != OS_SUBTYPE_9X)
     GetPrinterW (hPrn, 2, NULL, 0, &dwNeeded);
   else
     GetPrinterA (hPrn, 2, NULL, 0, &dwNeeded);
@@ -9327,7 +9307,7 @@ DEFUN ("default-printer-name", Fdefault_printer_name, Sdefault_printer_name,
       return Qnil;
     }
   /* Call GetPrinter again with big enough memory block.  */
-  if (w32_unicode_filenames && os_subtype != OS_9X)
+  if (w32_unicode_filenames && os_subtype != OS_SUBTYPE_9X)
     {
       /* Allocate memory for the PRINTER_INFO_2 struct.  */
       ppi2w = xmalloc (dwNeeded);
@@ -9463,9 +9443,9 @@ cache_system_info (void)
   w32_minor_version = version.info.minor;
 
   if (version.info.platform & 0x8000)
-    os_subtype = OS_9X;
+    os_subtype = OS_SUBTYPE_9X;
   else
-    os_subtype = OS_NT;
+    os_subtype = OS_SUBTYPE_NT;
 
   /* Cache page size, allocation unit, processor type, etc.  */
   GetSystemInfo (&sysinfo_cache);
@@ -9476,7 +9456,7 @@ cache_system_info (void)
   GetVersionEx (&osinfo_cache);
 
   w32_build_number = osinfo_cache.dwBuildNumber;
-  if (os_subtype == OS_9X)
+  if (os_subtype == OS_SUBTYPE_9X)
     w32_build_number &= 0xffff;
 
   w32_num_mouse_buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
@@ -9655,7 +9635,7 @@ w32_kbd_patch_key (KEY_EVENT_RECORD *event, int cpId)
 
   /* On NT, call ToUnicode instead and then convert to the current
      console input codepage.  */
-  if (os_subtype == OS_NT)
+  if (os_subtype == OS_SUBTYPE_NT)
     {
       WCHAR buf[128];
 
@@ -11069,7 +11049,7 @@ see `w32-ansi-code-page'.  */);
   w32_multibyte_code_page = _getmbcp ();
 #endif
 
-  if (os_subtype == OS_NT)
+  if (os_subtype == OS_SUBTYPE_NT)
     w32_unicode_gui = 1;
   else
     w32_unicode_gui = 0;

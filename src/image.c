@@ -511,7 +511,7 @@ image_create_bitmap_from_file (struct frame *f, Lisp_Object file)
 
   /* Search bitmap-file-path for the file, if appropriate.  */
   if (openp (Vx_bitmap_file_path, file, Qnil, &found,
-	     make_fixnum (R_OK), false)
+	     make_fixnum (R_OK), false, false)
       < 0)
     return -1;
 
@@ -1987,46 +1987,68 @@ scale_image_size (int size, size_t divisor, size_t multiplier)
   return INT_MAX;
 }
 
+/* Return a size, in pixels, from the value specified by SYMBOL, which
+   may be an integer or a pair of the form (VALUE . 'em) where VALUE
+   is a float that is multiplied by the font size to get the final
+   dimension.
+
+   If the value doesn't exist in the image spec, or is invalid, return
+   -1.
+*/
+static int
+image_get_dimension (struct image *img, Lisp_Object symbol)
+{
+  Lisp_Object value = image_spec_value (img->spec, symbol, NULL);
+
+  if (FIXNATP (value))
+    return min (XFIXNAT (value), INT_MAX);
+  if (CONSP (value) && NUMBERP (CAR (value)) && EQ (Qem, CDR (value)))
+    return min (img->face_font_size * XFLOATINT (CAR (value)), INT_MAX);
+
+  return -1;
+}
+
 /* Compute the desired size of an image with native size WIDTH x HEIGHT.
    Use SPEC to deduce the size.  Store the desired size into
    *D_WIDTH x *D_HEIGHT.  Store -1 x -1 if the native size is OK.  */
 static void
 compute_image_size (size_t width, size_t height,
-		    Lisp_Object spec,
+		    struct image *img,
 		    int *d_width, int *d_height)
 {
   Lisp_Object value;
+  int int_value;
   int desired_width = -1, desired_height = -1, max_width = -1, max_height = -1;
   double scale = 1;
 
-  value = image_spec_value (spec, QCscale, NULL);
+  value = image_spec_value (img->spec, QCscale, NULL);
   if (NUMBERP (value))
     scale = XFLOATINT (value);
 
-  value = image_spec_value (spec, QCmax_width, NULL);
-  if (FIXNATP (value))
-    max_width = min (XFIXNAT (value), INT_MAX);
+  int_value = image_get_dimension (img, QCmax_width);
+  if (int_value >= 0)
+    max_width = int_value;
 
-  value = image_spec_value (spec, QCmax_height, NULL);
-  if (FIXNATP (value))
-    max_height = min (XFIXNAT (value), INT_MAX);
+  int_value = image_get_dimension (img, QCmax_height);
+  if (int_value >= 0)
+    max_height = int_value;
 
   /* If width and/or height is set in the display spec assume we want
      to scale to those values.  If either h or w is unspecified, the
      unspecified should be calculated from the specified to preserve
      aspect ratio.  */
-  value = image_spec_value (spec, QCwidth, NULL);
-  if (FIXNATP (value))
+  int_value = image_get_dimension (img, QCwidth);
+  if (int_value >= 0)
     {
-      desired_width = min (XFIXNAT (value) * scale, INT_MAX);
+      desired_width = int_value * scale;
       /* :width overrides :max-width. */
       max_width = -1;
     }
 
-  value = image_spec_value (spec, QCheight, NULL);
-  if (FIXNATP (value))
+  int_value = image_get_dimension (img, QCheight);
+  if (int_value >= 0)
     {
-      desired_height = min (XFIXNAT (value) * scale, INT_MAX);
+      desired_height = int_value * scale;
       /* :height overrides :max-height. */
       max_height = -1;
     }
@@ -2216,7 +2238,7 @@ image_set_transform (struct frame *f, struct image *img)
     }
   else
 #endif
-    compute_image_size (img->width, img->height, img->spec, &width, &height);
+    compute_image_size (img->width, img->height, img, &width, &height);
 
   /* Determine rotation.  */
   double rotation = 0.0;
@@ -3130,20 +3152,17 @@ image_find_image_fd (Lisp_Object file, int *pfd)
 
   /* Try to find FILE in data-directory/images, then x-bitmap-file-path.  */
   fd = openp (search_path, file, Qnil, &file_found,
-	      pfd ? Qt : make_fixnum (R_OK), false);
-  if (fd >= 0 || fd == -2)
+	      pfd ? Qt : make_fixnum (R_OK), false, false);
+  if (fd == -2)
     {
-      file_found = ENCODE_FILE (file_found);
-      if (fd == -2)
-	{
-	  /* The file exists locally, but has a file name handler.
-	     (This happens, e.g., under Auto Image File Mode.)
-	     'openp' didn't open the file, so we should, because the
-	     caller expects that.  */
-	  fd = emacs_open (SSDATA (file_found), O_RDONLY, 0);
-	}
+      /* The file exists locally, but has a file name handler.
+	 (This happens, e.g., under Auto Image File Mode.)
+	 'openp' didn't open the file, so we should, because the
+	 caller expects that.  */
+      Lisp_Object encoded_name = ENCODE_FILE (file_found);
+      fd = emacs_open (SSDATA (encoded_name), O_RDONLY, 0);
     }
-  else	/* fd < 0, but not -2 */
+  else if (fd < 0)
     return Qnil;
   if (pfd)
     *pfd = fd;
@@ -3151,8 +3170,8 @@ image_find_image_fd (Lisp_Object file, int *pfd)
 }
 
 /* Find image file FILE.  Look in data-directory/images, then
-   x-bitmap-file-path.  Value is the encoded full name of the file
-   found, or nil if not found.  */
+   x-bitmap-file-path.  Value is the full name of the file found, or
+   nil if not found.  */
 
 Lisp_Object
 image_find_image_file (Lisp_Object file)
@@ -4039,6 +4058,7 @@ enum xpm_keyword_index
   XPM_LAST
 };
 
+#if defined HAVE_XPM || defined HAVE_NS
 /* Vector of image_keyword structures describing the format
    of valid XPM image specifications.  */
 
@@ -4056,6 +4076,7 @@ static const struct image_keyword xpm_format[XPM_LAST] =
   {":color-symbols",	IMAGE_DONT_CHECK_VALUE_TYPE,		0},
   {":background",	IMAGE_STRING_OR_NIL_VALUE,		0}
 };
+#endif	/* HAVE_XPM || HAVE_NS */
 
 #if defined HAVE_X_WINDOWS && !defined USE_CAIRO
 
@@ -4279,6 +4300,7 @@ init_xpm_functions (void)
 
 #endif /* WINDOWSNT */
 
+#if defined HAVE_XPM || defined HAVE_NS
 /* Value is true if COLOR_SYMBOLS is a valid color symbols list
    for XPM images.  Such a list must consist of conses whose car and
    cdr are strings.  */
@@ -4299,7 +4321,6 @@ xpm_valid_color_symbols_p (Lisp_Object color_symbols)
   return NILP (color_symbols);
 }
 
-
 /* Value is true if OBJECT is a valid XPM image specification.  */
 
 static bool
@@ -4315,6 +4336,7 @@ xpm_image_p (Lisp_Object object)
 	  && (! fmt[XPM_COLOR_SYMBOLS].count
 	      || xpm_valid_color_symbols_p (fmt[XPM_COLOR_SYMBOLS].value)));
 }
+#endif	/* HAVE_XPM || HAVE_NS */
 
 #endif /* HAVE_XPM || USE_CAIRO || HAVE_NS */
 
@@ -4684,10 +4706,11 @@ xpm_load (struct frame *f, struct image *img)
 
 #endif /* HAVE_XPM && !USE_CAIRO */
 
-#if defined USE_CAIRO || (defined HAVE_NS && !defined HAVE_XPM)
+#if (defined USE_CAIRO && defined HAVE_XPM)	\
+  || (defined HAVE_NS && !defined HAVE_XPM)
 
-/* XPM support functions for NS where libxpm is not available.
-   Only XPM version 3 (without any extensions) is supported.  */
+/* XPM support functions for NS where libxpm is not available, and for
+   Cairo.  Only XPM version 3 (without any extensions) is supported.  */
 
 static void xpm_put_color_table_v (Lisp_Object, const char *,
                                    int, Lisp_Object);
@@ -9210,7 +9233,7 @@ imagemagick_load_image (struct frame *f, struct image *img,
 
   compute_image_size (MagickGetImageWidth (image_wand),
 		      MagickGetImageHeight (image_wand),
-		      img->spec, &desired_width, &desired_height);
+		      img, &desired_width, &desired_height);
 
   if (desired_width != -1 && desired_height != -1)
     {
@@ -10068,7 +10091,7 @@ svg_load_image (struct frame *f, struct image *img, char *contents,
     viewbox_height = dimension_data.height;
   }
 
-  compute_image_size (viewbox_width, viewbox_height, img->spec,
+  compute_image_size (viewbox_width, viewbox_height, img,
                       &width, &height);
 
   width *= FRAME_SCALE_FACTOR (f);
@@ -10776,6 +10799,8 @@ non-numeric, there is no explicit limit on the size of images.  */);
   DEFSYM (Qpostscript, "postscript");
   DEFSYM (QCmax_width, ":max-width");
   DEFSYM (QCmax_height, ":max-height");
+
+  DEFSYM (Qem, "em");
 
 #ifdef HAVE_NATIVE_TRANSFORMS
   DEFSYM (Qscale, "scale");

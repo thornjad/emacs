@@ -190,8 +190,19 @@ This takes effect when first loading the `sgml-mode' library.")
   "Syntax table used in SGML mode.  See also `sgml-specials'.")
 
 (defconst sgml-tag-syntax-table
-  (let ((table (sgml-make-syntax-table sgml-specials)))
-    (dolist (char '(?\( ?\) ?\{ ?\} ?\[ ?\] ?$ ?% ?& ?* ?+ ?/))
+  (let ((table (sgml-make-syntax-table sgml-specials))
+	brackets)
+    (map-char-table
+     (lambda (key value)
+       (setq brackets (cons (list
+			     (if (consp key)
+				 (list (car key) (cdr key))
+			       key)
+			     value)
+			    brackets)))
+     (unicode-property-table-internal 'paired-bracket))
+    (setq brackets (delete-dups (flatten-tree brackets)))
+    (dolist (char (append brackets (list ?$ ?% ?& ?* ?+ ?/)))
       (modify-syntax-entry char "." table))
     (unless (memq ?' sgml-specials)
       ;; Avoid that skipping a tag backwards skips any "'" prefixing it.
@@ -623,7 +634,8 @@ Do \\[describe-key] on the following bindings to discover what they do.
   (setq-local syntax-propertize-function #'sgml-syntax-propertize)
   (setq-local syntax-ppss-table sgml-tag-syntax-table)
   (setq-local facemenu-add-face-function 'sgml-mode-facemenu-add-face-function)
-  (setq-local sgml-xml-mode (sgml-xml-guess))
+  (when (sgml-xml-guess)
+    (setq-local sgml-xml-mode t))
   (unless sgml-xml-mode
     (setq-local skeleton-transformation-function sgml-transformation-function))
   ;; This will allow existing comments within declarations to be
@@ -2440,7 +2452,7 @@ The third `match-string' will be the used in the menu.")
 HTML Autoview mode is a buffer-local minor mode for use with
 `html-mode'.  If enabled, saving the file automatically runs
 `browse-url-of-buffer' to view it."
-  nil nil nil
+  :lighter nil
   (if html-autoview-mode
       (add-hook 'after-save-hook #'browse-url-of-buffer nil t)
     (remove-hook 'after-save-hook #'browse-url-of-buffer t)))

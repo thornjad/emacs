@@ -39,8 +39,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "puresize.h"
 #include "gnutls.h"
 
-static void sort_vector_copy (Lisp_Object, ptrdiff_t,
-			      Lisp_Object *restrict, Lisp_Object *restrict);
+static void sort_vector_copy (Lisp_Object pred, ptrdiff_t len,
+			      Lisp_Object src[restrict VLA_ELEMS (len)],
+			      Lisp_Object dest[restrict VLA_ELEMS (len)]);
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -4492,6 +4493,15 @@ check_mutable_hash_table (Lisp_Object obj, struct Lisp_Hash_Table *h)
   eassert (!PURE_P (h));
 }
 
+static void
+collect_interval (INTERVAL interval, Lisp_Object collector)
+{
+  nconc2 (collector,
+	  list1(list3 (make_fixnum (interval->position),
+		       make_fixnum (interval->position + LENGTH (interval)),
+		       interval->plist)));
+}
+
 /* Put an entry into hash table H that associates KEY with VALUE.
    HASH is a previously computed hash code of KEY.
    Value is the index of the entry in H matching KEY.  */
@@ -4946,6 +4956,30 @@ If (equal A B), then (= (sxhash-equal A) (sxhash-equal B)).
 Hash codes are not guaranteed to be preserved across Emacs sessions.  */)
   (Lisp_Object obj)
 {
+  return hashfn_equal (obj, NULL);
+}
+
+DEFUN ("sxhash-equal-including-properties", Fsxhash_equal_including_properties,
+       Ssxhash_equal_including_properties, 1, 1, 0,
+       doc: /* Return an integer hash code for OBJ suitable for
+`equal-including-properties'.
+If (sxhash-equal-including-properties A B), then
+(= (sxhash-equal-including-properties A) (sxhash-equal-including-properties B)).
+
+Hash codes are not guaranteed to be preserved across Emacs sessions.  */)
+  (Lisp_Object obj)
+{
+  if (STRINGP (obj))
+    {
+      Lisp_Object collector = Fcons (Qnil, Qnil);
+      traverse_intervals (string_intervals (obj), 0, collect_interval,
+			  collector);
+      return
+	make_ufixnum (
+	  SXHASH_REDUCE (sxhash_combine (sxhash (obj),
+					 sxhash (CDR (collector)))));
+    }
+
   return hashfn_equal (obj, NULL);
 }
 
@@ -5832,15 +5866,6 @@ Case is always significant and text properties are ignored. */)
   return make_int (string_byte_to_char (haystack, res - SSDATA (haystack)));
 }
 
-static void
-collect_interval (INTERVAL interval, Lisp_Object collector)
-{
-  nconc2 (collector,
-	  list1(list3 (make_fixnum (interval->position),
-		       make_fixnum (interval->position + LENGTH (interval)),
-		       interval->plist)));
-}
-
 DEFUN ("object-intervals", Fobject_intervals, Sobject_intervals, 1, 1, 0,
        doc: /* Return a copy of the text properties of OBJECT.
 OBJECT must be a buffer or a string.
@@ -5868,12 +5893,14 @@ in OBJECT.  */)
 
 DEFUN ("line-number-at-pos", Fline_number_at_pos,
        Sline_number_at_pos, 0, 2, 0,
-       doc: /* Return the line number at POSITION.
-If POSITION is nil, use the current buffer location.
+       doc: /* Return the line number at POSITION in the current buffer.
+If POSITION is nil or omitted, it defaults to point's position in the
+current buffer.
 
-If the buffer is narrowed, the position returned is the position in the
-visible part of the buffer.  If ABSOLUTE is non-nil, count the lines
-from the absolute start of the buffer.  */)
+If the buffer is narrowed, the return value by default counts the lines
+from the beginning of the accessible portion of the buffer.  But if the
+second optional argument ABSOLUTE is non-nil, the value counts the lines
+from the absolute start of the buffer, disregarding the narrowing.  */)
   (register Lisp_Object position, Lisp_Object absolute)
 {
   ptrdiff_t pos, start = BEGV_BYTE;
@@ -5891,9 +5918,9 @@ from the absolute start of the buffer.  */)
   if (!NILP (absolute))
     start = BEG_BYTE;
 
-  /* Check that POSITION is n the visible range of the buffer. */
+  /* Check that POSITION is in the accessible range of the buffer. */
   if (pos < BEGV || pos > ZV)
-    args_out_of_range (make_int (start), make_int (ZV));
+    args_out_of_range_3 (make_int (pos), make_int (BEGV), make_int (ZV));
 
   return make_int (count_lines (start, CHAR_TO_BYTE (pos)) + 1);
 }
@@ -5922,6 +5949,7 @@ syms_of_fns (void)
   defsubr (&Ssxhash_eq);
   defsubr (&Ssxhash_eql);
   defsubr (&Ssxhash_equal);
+  defsubr (&Ssxhash_equal_including_properties);
   defsubr (&Smake_hash_table);
   defsubr (&Scopy_hash_table);
   defsubr (&Shash_table_count);

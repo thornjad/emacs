@@ -382,7 +382,7 @@ cf. Bug#25477."
   "Test for https://debbugs.gnu.org/22027 ."
   (let ((default "foo") res)
     (cl-letf (((symbol-function 'read-string)
-               (lambda (_prompt _init _hist def) def)))
+               (lambda (_prompt &optional _init _hist def _inher-input) def)))
       (setq res (read-passwd "pass: " 'confirm (mapconcat #'string default "")))
       (should (string= default res)))))
 
@@ -477,7 +477,7 @@ See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=19350."
   (add-hook 'subr-tests--hook 'f7 90)
   (add-hook 'subr-tests--hook 'f8 t)
   (should (equal subr-tests--hook '(f5 f6 f2 f1 f4 f3 f7 f8)))
-  ;; Make sue `nil' is equivalent to 0.
+  ;; Make sure `nil' is equivalent to 0.
   (add-hook 'subr-tests--hook 'f9 0)
   (add-hook 'subr-tests--hook 'f10)
   (should (equal subr-tests--hook '(f5 f10 f9 f6 f2 f1 f4 f3 f7 f8)))
@@ -683,6 +683,16 @@ See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=19350."
   (should (equal (apropos-internal "^next-line$" #'commandp) '(next-line)))
   (should (>= (length (apropos-internal "^help" #'commandp)) 15))
   (should-not (apropos-internal "^next-line$" #'keymapp)))
+
+
+(ert-deftest test-buffer-local-boundp ()
+  (let ((buf (generate-new-buffer "boundp")))
+    (with-current-buffer buf
+      (setq-local test-boundp t))
+    (setq test-global-boundp t)
+    (should (buffer-local-boundp 'test-boundp buf))
+    (should-not (buffer-local-boundp 'test-not-boundp buf))
+    (should (buffer-local-boundp 'test-global-boundp buf))))
 
 (provide 'subr-tests)
 ;;; subr-tests.el ends here

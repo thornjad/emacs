@@ -1,4 +1,4 @@
-;; bug-reference.el --- buttonize bug references  -*- lexical-binding: t; -*-
+;;; bug-reference.el --- buttonize bug references  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
 
@@ -25,10 +25,13 @@
 
 ;; This file provides minor modes for putting clickable overlays on
 ;; references to bugs.  A bug reference is text like "PR foo/29292";
-;; this is mapped to a URL using a user-supplied format.
+;; this is mapped to a URL using a user-supplied format; see
+;; `bug-reference-url-format' and `bug-reference-bug-regexp'. More
+;; extensive documentation is in (info "(emacs) Bug Reference").
 
 ;; Two minor modes are provided.  One works on any text in the buffer;
-;; the other operates only on comments and strings.
+;; the other operates only on comments and strings. By default, the
+;; URL link is followed by invoking C-c RET or mouse-2.
 
 ;;; Code:
 
@@ -126,6 +129,9 @@ The second subexpression should match the bug reference (usually a number)."
   "Open URL corresponding to the bug reference at POS."
   (interactive
    (list (if (integerp last-command-event) (point) last-command-event)))
+  (when (null bug-reference-url-format)
+    (user-error
+     "You must customize some bug-reference variables; see Emacs info node Bug Reference"))
   (if (and (not (integerp pos)) (eventp pos))
       ;; POS is a mouse event; switch to the proper window/buffer
       (let ((posn (event-start pos)))
@@ -138,7 +144,7 @@ The second subexpression should match the bug reference (usually a number)."
 	(when url
 	  (browse-url url))))))
 
-(defun bug-reference--maybe-setup-from-vc (url url-rx bug-rx bug-url-fmt)
+(defun bug-reference-maybe-setup-from-vc (url url-rx bug-rx bug-url-fmt)
   (when (string-match url-rx url)
     (setq-local bug-reference-bug-regexp bug-rx)
     (setq-local bug-reference-url-format
@@ -224,7 +230,7 @@ and apply it if applicable."
         (when url
           (catch 'found
             (dolist (config bug-reference-setup-from-vc-alist)
-              (when (apply #'bug-reference--maybe-setup-from-vc
+              (when (apply #'bug-reference-maybe-setup-from-vc
                            url config)
                 (throw 'found t)))))))))
 
@@ -238,8 +244,8 @@ and apply it if applicable."
   "An alist for setting up `bug-reference-mode' in mail modes.
 
 This takes action if `bug-reference-mode' is enabled in group and
-message buffers of Emacs mail clients.  Currently, only Gnus is
-supported.
+message buffers of Emacs mail clients.  Currently, Gnus and Rmail
+are supported.
 
 Each element has the form
 
@@ -258,7 +264,7 @@ same `bug-reference-url-format' and `bug-reference-url-format'.")
 
 (defvar gnus-newsgroup-name)
 
-(defun bug-reference--maybe-setup-from-mail (group header-values)
+(defun bug-reference-maybe-setup-from-mail (group header-values)
   "Set up according to mail GROUP or HEADER-VALUES.
 Group is a mail group/folder name and HEADER-VALUES is a list of
 mail header values, e.g., the values of From, To, Cc, List-ID,
@@ -294,65 +300,82 @@ and set it if applicable."
     ;; article changes.
     (add-hook 'gnus-article-prepare-hook
               #'bug-reference--try-setup-gnus-article)
-    (bug-reference--maybe-setup-from-mail gnus-newsgroup-name nil)))
+    (bug-reference-maybe-setup-from-mail gnus-newsgroup-name nil)))
 
 (defvar gnus-article-buffer)
 (defvar gnus-original-article-buffer)
 (defvar gnus-summary-buffer)
 
 (defun bug-reference--try-setup-gnus-article ()
-  (with-demoted-errors
-      "Error in bug-reference--try-setup-gnus-article: %S"
-    (when (and bug-reference-mode ;; Only if enabled in article buffers.
-               (derived-mode-p
-                'gnus-article-mode
-                ;; Apparently, gnus-article-prepare-hook is run in the
-                ;; summary buffer...
-                'gnus-summary-mode)
-               gnus-article-buffer
-               gnus-original-article-buffer
-               (buffer-live-p (get-buffer gnus-article-buffer))
-               (buffer-live-p (get-buffer gnus-original-article-buffer)))
-      (with-current-buffer gnus-article-buffer
-        (catch 'setup-done
-          ;; Copy over the values from the summary buffer.
-          (when (and gnus-summary-buffer
-                     (buffer-live-p gnus-summary-buffer))
-            (setq-local bug-reference-bug-regexp
-                        (with-current-buffer gnus-summary-buffer
-                          bug-reference-bug-regexp))
-            (setq-local bug-reference-url-format
-                        (with-current-buffer gnus-summary-buffer
-                          bug-reference-url-format))
-            (when (and bug-reference-bug-regexp
-                       bug-reference-url-format)
-              (throw 'setup-done t)))
-          ;; If the summary had no values, try setting according to
-          ;; the values of the From, To, and Cc headers.
-          (let (header-values)
-            (with-current-buffer
-                (get-buffer gnus-original-article-buffer)
-              (save-excursion
-                (goto-char (point-min))
-                ;; The Newsgroup is omitted because we already matched
-                ;; based on group name in the summary buffer.
-                (dolist (field '("list-id" "to" "from" "cc"))
-                  (let ((val (mail-fetch-field field)))
-                    (when val
-                      (push val header-values))))))
-            (bug-reference--maybe-setup-from-mail nil header-values)))))))
+  (when (and bug-reference-mode ;; Only if enabled in article buffers.
+             (derived-mode-p
+              'gnus-article-mode
+              ;; Apparently, gnus-article-prepare-hook is run in the
+              ;; summary buffer...
+              'gnus-summary-mode)
+             gnus-article-buffer
+             gnus-original-article-buffer
+             (buffer-live-p (get-buffer gnus-article-buffer))
+             (buffer-live-p (get-buffer gnus-original-article-buffer)))
+    (with-current-buffer gnus-article-buffer
+      (catch 'setup-done
+        ;; Copy over the values from the summary buffer.
+        (when (and gnus-summary-buffer
+                   (buffer-live-p gnus-summary-buffer))
+          (setq-local bug-reference-bug-regexp
+                      (with-current-buffer gnus-summary-buffer
+                        bug-reference-bug-regexp))
+          (setq-local bug-reference-url-format
+                      (with-current-buffer gnus-summary-buffer
+                        bug-reference-url-format))
+          (when (and bug-reference-bug-regexp
+                     bug-reference-url-format)
+            (throw 'setup-done t)))
+        ;; If the summary had no values, try setting according to
+        ;; the values of the From, To, and Cc headers.
+        (let (header-values)
+          (with-current-buffer
+              (get-buffer gnus-original-article-buffer)
+            (save-excursion
+              (goto-char (point-min))
+              ;; The Newsgroup is omitted because we already matched
+              ;; based on group name in the summary buffer.
+              (dolist (field '("list-id" "to" "from" "cc"))
+                (let ((val (mail-fetch-field field)))
+                  (when val
+                    (push val header-values))))))
+          (bug-reference-maybe-setup-from-mail nil header-values))))))
+
+(defun bug-reference-try-setup-from-rmail ()
+  "Try setting up `bug-reference-mode' from the current rmail mail.
+Guesses suitable `bug-reference-bug-regexp' and
+`bug-reference-url-format' values by matching the current Rmail
+file's name against GROUP-REGEXP and the values of List-Id, To,
+From, and Cc against HEADER-REGEXP in
+`bug-reference-setup-from-mail-alist'."
+  (when (and bug-reference-mode
+             (derived-mode-p 'rmail-mode))
+    (let (header-values)
+      (save-excursion
+        (goto-char (point-min))
+        (dolist (field '("list-id" "to" "from" "cc"))
+          (let ((val (mail-fetch-field field)))
+            (when val
+              (push val header-values)))))
+      (bug-reference-maybe-setup-from-mail
+       (buffer-file-name) header-values))))
 
 (defvar bug-reference-setup-from-irc-alist
   `((,(concat "#" (regexp-opt '("emacs" "gnus" "org-mode" "rcirc"
                                 "erc") 'words))
-     "freenode"
+     "Libera.Chat"
      "\\([Bb]ug ?#?\\)\\([0-9]+\\(?:#[0-9]+\\)?\\)"
      "https://debbugs.gnu.org/%s"))
   "An alist for setting up `bug-reference-mode' in IRC modes.
 
 This takes action if `bug-reference-mode' is enabled in IRC
-channels using one of Emacs' IRC clients (rcirc and ERC).
-Currently, rcirc and ERC are supported.
+channels using one of Emacs' IRC clients.  Currently, rcirc and
+ERC are supported.
 
 Each element has the form
 
@@ -360,12 +383,12 @@ Each element has the form
 
 CHANNEL-REGEXP is a regexp matched against the current IRC
 channel name (e.g. #emacs).  NETWORK-REGEXP is matched against
-the IRC network name (e.g. freenode).  Both entries are optional.
-If all given entries match, BUG-REGEXP is set as
+the IRC network name (e.g. Libera.Chat).  Both entries are
+optional.  If all given entries match, BUG-REGEXP is set as
 `bug-reference-bug-regexp' and URL-FORMAT is set as
 `bug-reference-url-format'.")
 
-(defun bug-reference--maybe-setup-from-irc (channel network)
+(defun bug-reference-maybe-setup-from-irc (channel network)
   "Set up according to IRC CHANNEL or NETWORK.
 CHANNEL is an IRC channel name (or generally a target, i.e., it
 could also be a user name) and NETWORK is that channel's network
@@ -401,7 +424,7 @@ corresponding BUG-REGEXP and URL-FORMAT are set."
 Test each configuration in `bug-reference-setup-from-irc-alist'
 and set it if applicable."
   (when (derived-mode-p 'rcirc-mode)
-    (bug-reference--maybe-setup-from-irc
+    (bug-reference-maybe-setup-from-irc
      rcirc-target
      (and rcirc-server-buffer
           (buffer-live-p rcirc-server-buffer)
@@ -416,9 +439,28 @@ and set it if applicable."
 Test each configuration in `bug-reference-setup-from-irc-alist'
 and set it if applicable."
   (when (derived-mode-p 'erc-mode)
-    (bug-reference--maybe-setup-from-irc
+    (bug-reference-maybe-setup-from-irc
      (erc-format-target)
      (erc-network-name))))
+
+(defvar bug-reference-auto-setup-functions
+  (list #'bug-reference-try-setup-from-vc
+        #'bug-reference-try-setup-from-gnus
+        #'bug-reference-try-setup-from-rmail
+        #'bug-reference-try-setup-from-rcirc
+        #'bug-reference-try-setup-from-erc)
+  "Functions trying to auto-setup `bug-reference-mode'.
+These functions are run after `bug-reference-mode' has been
+activated in a buffer and try to guess suitable values for
+`bug-reference-bug-regexp' and `bug-reference-url-format'.  Their
+guesswork is based on these variables:
+
+- `bug-reference-setup-from-vc-alist' for guessing based on
+  version control, e.g., URL of repository.
+- `bug-reference-setup-from-mail-alist' for guessing based on
+  mail group names or mail header values.
+- `bug-reference-setup-from-irc-alist' for guessing based on IRC
+  channel or network names.")
 
 (defun bug-reference--run-auto-setup ()
   (when (or bug-reference-mode
@@ -430,19 +472,13 @@ and set it if applicable."
       (with-demoted-errors
           "Error during bug-reference auto-setup: %S"
         (catch 'setup
-          (dolist (f (list #'bug-reference-try-setup-from-vc
-                           #'bug-reference-try-setup-from-gnus
-                           #'bug-reference-try-setup-from-rcirc
-                           #'bug-reference-try-setup-from-erc))
+          (dolist (f bug-reference-auto-setup-functions)
             (when (funcall f)
               (throw 'setup t))))))))
 
 ;;;###autoload
 (define-minor-mode bug-reference-mode
   "Toggle hyperlinking bug references in the buffer (Bug Reference mode)."
-  nil
-  ""
-  nil
   :after-hook (bug-reference--run-auto-setup)
   (if bug-reference-mode
       (jit-lock-register #'bug-reference-fontify)
@@ -451,12 +487,21 @@ and set it if applicable."
       (widen)
       (bug-reference-unfontify (point-min) (point-max)))))
 
+(defun bug-reference-mode-force-auto-setup ()
+  "Enable `bug-reference-mode' and force auto-setup.
+Enabling `bug-reference-mode' runs its auto-setup only if
+`bug-reference-bug-regexp' and `bug-reference-url-format' are not
+set already.  This function sets the latter to `nil'
+buffer-locally, so that the auto-setup will always run.
+
+This is mostly intended for MUA modes like `rmail-mode' where the
+same buffer is re-used for different contexts."
+  (setq-local bug-reference-url-format nil)
+  (bug-reference-mode))
+
 ;;;###autoload
 (define-minor-mode bug-reference-prog-mode
   "Like `bug-reference-mode', but only buttonize in comments and strings."
-  nil
-  ""
-  nil
   :after-hook (bug-reference--run-auto-setup)
   (if bug-reference-prog-mode
       (jit-lock-register #'bug-reference-fontify)

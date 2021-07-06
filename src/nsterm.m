@@ -277,11 +277,9 @@ static NSView *focus_view = NULL;
 #endif
 static int ns_window_num = 0;
 static BOOL gsaved = NO;
-static BOOL ns_fake_keydown = NO;
 #ifdef NS_IMPL_COCOA
 static BOOL ns_menu_bar_is_hidden = NO;
 #endif
-/* static int debug_lock = 0; */
 
 /* event loop */
 static BOOL send_appdefined = YES;
@@ -499,118 +497,37 @@ append2 (Lisp_Object list, Lisp_Object item)
 
 
 const char *
-ns_etc_directory (void)
-/* If running as a self-contained app bundle, return as a string the
-   filename of the etc directory, if present; else nil.  */
+ns_relocate (const char *epath)
+/* If we're running in a self-contained app bundle some hard-coded
+   paths are relative to the root of the bundle, so work out the full
+   path.
+
+   FIXME: I think this should be able to handle cases where multiple
+   directories are separated by colons.  */
 {
+#ifdef NS_SELF_CONTAINED
   NSBundle *bundle = [NSBundle mainBundle];
-  NSString *resourceDir = [bundle resourcePath];
-  NSString *resourcePath;
+  NSString *root = [bundle bundlePath];
+  NSString *original = [NSString stringWithUTF8String:epath];
+  NSString *fixedPath = [NSString pathWithComponents:
+                                    [NSArray arrayWithObjects:
+                                               root, original, nil]];
   NSFileManager *fileManager = [NSFileManager defaultManager];
-  BOOL isDir;
 
-  resourcePath = [resourceDir stringByAppendingPathComponent: @"etc"];
-  if ([fileManager fileExistsAtPath: resourcePath isDirectory: &isDir])
-    {
-      if (isDir) return [resourcePath UTF8String];
-    }
-  return NULL;
-}
+  if (![original isAbsolutePath]
+      && [fileManager fileExistsAtPath:fixedPath isDirectory:NULL])
+    return [fixedPath UTF8String];
 
+  /* If we reach here either the path is absolute and therefore we
+     don't need to complete it, or we're unable to relocate the
+     file/directory.  If it's the latter it may be because the user is
+     trying to use a bundled app as though it's a Unix style install
+     and we have no way to guess what was intended, so return the
+     original string unaltered.  */
 
-const char *
-ns_exec_path (void)
-/* If running as a self-contained app bundle, return as a path string
-   the filenames of the libexec and bin directories, ie libexec:bin.
-   Otherwise, return nil.
-   Normally, Emacs does not add its own bin/ directory to the PATH.
-   However, a self-contained NS build has a different layout, with
-   bin/ and libexec/ subdirectories in the directory that contains
-   Emacs.app itself.
-   We put libexec first, because init_callproc_1 uses the first
-   element to initialize exec-directory.  An alternative would be
-   for init_callproc to check for invocation-directory/libexec.
-*/
-{
-  NSBundle *bundle = [NSBundle mainBundle];
-  NSString *resourceDir = [bundle resourcePath];
-  NSString *binDir = [bundle bundlePath];
-  NSString *resourcePath, *resourcePaths;
-  NSRange range;
-  NSString *pathSeparator = [NSString stringWithFormat: @"%c", SEPCHAR];
-  NSFileManager *fileManager = [NSFileManager defaultManager];
-  NSArray *paths;
-  NSEnumerator *pathEnum;
-  BOOL isDir;
-
-  range = [resourceDir rangeOfString: @"Contents"];
-  if (range.location != NSNotFound)
-    {
-      binDir = [binDir stringByAppendingPathComponent: @"Contents"];
-#ifdef NS_IMPL_COCOA
-      binDir = [binDir stringByAppendingPathComponent: @"MacOS"];
 #endif
-    }
 
-  paths = [binDir stringsByAppendingPaths:
-                [NSArray arrayWithObjects: @"libexec", @"bin", nil]];
-  pathEnum = [paths objectEnumerator];
-  resourcePaths = @"";
-
-  while ((resourcePath = [pathEnum nextObject]))
-    {
-      if ([fileManager fileExistsAtPath: resourcePath isDirectory: &isDir])
-        if (isDir)
-          {
-            if ([resourcePaths length] > 0)
-              resourcePaths
-                = [resourcePaths stringByAppendingString: pathSeparator];
-            resourcePaths
-              = [resourcePaths stringByAppendingString: resourcePath];
-          }
-    }
-  if ([resourcePaths length] > 0) return [resourcePaths UTF8String];
-
-  return NULL;
-}
-
-
-const char *
-ns_load_path (void)
-/* If running as a self-contained app bundle, return as a path string
-   the filenames of the site-lisp and lisp directories.
-   Ie, site-lisp:lisp.  Otherwise, return nil.  */
-{
-  NSBundle *bundle = [NSBundle mainBundle];
-  NSString *resourceDir = [bundle resourcePath];
-  NSString *resourcePath, *resourcePaths;
-  NSString *pathSeparator = [NSString stringWithFormat: @"%c", SEPCHAR];
-  NSFileManager *fileManager = [NSFileManager defaultManager];
-  BOOL isDir;
-  NSArray *paths = [resourceDir stringsByAppendingPaths:
-                              [NSArray arrayWithObjects:
-                                         @"site-lisp", @"lisp", nil]];
-  NSEnumerator *pathEnum = [paths objectEnumerator];
-  resourcePaths = @"";
-
-  /* Hack to skip site-lisp.  */
-  if (no_site_lisp) resourcePath = [pathEnum nextObject];
-
-  while ((resourcePath = [pathEnum nextObject]))
-    {
-      if ([fileManager fileExistsAtPath: resourcePath isDirectory: &isDir])
-        if (isDir)
-          {
-            if ([resourcePaths length] > 0)
-              resourcePaths
-                = [resourcePaths stringByAppendingString: pathSeparator];
-            resourcePaths
-              = [resourcePaths stringByAppendingString: resourcePath];
-          }
-    }
-  if ([resourcePaths length] > 0) return [resourcePaths UTF8String];
-
-  return NULL;
+  return epath;
 }
 
 
@@ -1640,8 +1557,6 @@ ns_make_frame_visible (struct frame *f)
          fullscreen also.  So skip handleFS as this will print an error.  */
       if ([view fsIsNative] && [view isFullscreen])
         {
-          // maybe it is not necessary to wait
-          [view waitFullScreenTransition];
           return;
         }
 
@@ -1876,10 +1791,9 @@ static void
 ns_set_window_size (struct frame *f,
                     bool change_gravity,
                     int width,
-                    int height,
-                    bool pixelwise)
+                    int height)
 /* --------------------------------------------------------------------------
-     Adjust window pixel size based on given character grid size
+     Adjust window pixel size based on native sizes WIDTH and HEIGHT.
      Impl is a bit more complex than other terms, need to do some
      internal clipping.
    -------------------------------------------------------------------------- */
@@ -1887,7 +1801,6 @@ ns_set_window_size (struct frame *f,
   EmacsView *view = FRAME_NS_VIEW (f);
   NSWindow *window = [view window];
   NSRect wr = [window frame];
-  int pixelwidth, pixelheight;
   int orig_height = wr.size.height;
 
   NSTRACE ("ns_set_window_size");
@@ -1896,24 +1809,13 @@ ns_set_window_size (struct frame *f,
     return;
 
   NSTRACE_RECT ("current", wr);
-  NSTRACE_MSG ("Width:%d Height:%d Pixelwise:%d", width, height, pixelwise);
+  NSTRACE_MSG ("Width:%d Height:%d", width, height);
   NSTRACE_MSG ("Font %d x %d", FRAME_COLUMN_WIDTH (f), FRAME_LINE_HEIGHT (f));
 
   block_input ();
 
-  if (pixelwise)
-    {
-      pixelwidth = FRAME_TEXT_TO_PIXEL_WIDTH (f, width);
-      pixelheight = FRAME_TEXT_TO_PIXEL_HEIGHT (f, height);
-    }
-  else
-    {
-      pixelwidth =  FRAME_TEXT_COLS_TO_PIXEL_WIDTH   (f, width);
-      pixelheight = FRAME_TEXT_LINES_TO_PIXEL_HEIGHT (f, height);
-    }
-
-  wr.size.width = pixelwidth + f->border_width;
-  wr.size.height = pixelheight;
+  wr.size.width = width + f->border_width;
+  wr.size.height = height;
   if (! [view isFullscreen])
     wr.size.height += FRAME_NS_TITLEBAR_HEIGHT (f)
       + FRAME_TOOLBAR_HEIGHT (f);
@@ -1926,21 +1828,10 @@ ns_set_window_size (struct frame *f,
  else
    wr.origin.y += orig_height - wr.size.height;
 
- frame_size_history_add
-   (f, Qx_set_window_size_1, width, height,
-    list5 (Fcons (make_fixnum (pixelwidth), make_fixnum (pixelheight)),
-	   Fcons (make_fixnum (wr.size.width), make_fixnum (wr.size.height)),
-	   make_fixnum (f->border_width),
-	   make_fixnum (FRAME_NS_TITLEBAR_HEIGHT (f)),
-	   make_fixnum (FRAME_TOOLBAR_HEIGHT (f))));
-
  /* Usually it seems safe to delay changing the frame size, but when a
     series of actions are taken with no redisplay between them then we
     can end up using old values so don't delay here.  */
- change_frame_size (f,
-                    FRAME_PIXEL_TO_TEXT_WIDTH (f, pixelwidth),
-                    FRAME_PIXEL_TO_TEXT_HEIGHT (f, pixelheight),
-                    0, NO, 0, 1);
+ change_frame_size (f, width, height, false, NO, false);
 
   [window setFrame:wr display:NO];
 
@@ -2081,11 +1972,7 @@ ns_set_parent_frame (struct frame *f, Lisp_Object new_value, Lisp_Object old_val
 #if defined (NS_IMPL_COCOA) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
           // child frame must not be in fullscreen
           if ([view fsIsNative] && [view isFullscreen])
-            {
-              // in case child is going fullscreen
-              [view waitFullScreenTransition];
-              [view toggleFullScreen:child];
-            }
+            [view toggleFullScreen:child];
           NSTRACE ("child setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary");
           [child setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary];
 #endif
@@ -6404,9 +6291,7 @@ not_in_argv (NSString *arg)
   NSTRACE ("[EmacsView keyDown:]");
 
   /* Rhapsody and macOS give up and down events for the arrow keys.  */
-  if (ns_fake_keydown == YES)
-    ns_fake_keydown = NO;
-  else if ([theEvent type] != NSEventTypeKeyDown)
+  if ([theEvent type] != NSEventTypeKeyDown)
     return;
 
   if (!emacs_event)
@@ -7320,49 +7205,50 @@ not_in_argv (NSString *arg)
 - (void)viewDidResize:(NSNotification *)notification
 {
   NSRect frame = [self frame];
-  int neww, newh;
+  int neww, newh, oldw, oldh;
 
   if (! FRAME_LIVE_P (emacsframe))
     return;
 
   NSTRACE ("[EmacsView viewDidResize]");
 
-  neww = (int)NSWidth (frame);
-  newh = (int)NSHeight (frame);
-  NSTRACE_SIZE ("New size", NSMakeSize (neww, newh));
-
 #ifdef NS_DRAW_TO_BUFFER
-  if ([self wantsUpdateLayer])
+  /* If the buffer size doesn't match the view's backing size, destroy
+     the buffer and let it be recreated at the correct size later.  */
+  if ([self wantsUpdateLayer] && surface)
     {
-      CGFloat scale = [[self window] backingScaleFactor];
-      NSSize size = [surface getSize];
-      int oldw = size.width / scale;
-      int oldh = size.height / scale;
+      NSRect surfaceRect = {{0, 0}, [surface getSize]};
+      NSRect frameRect = [[self window] convertRectToBacking:frame];
 
-      NSTRACE_SIZE ("Original size", NSMakeSize (oldw, oldh));
-
-      /* Don't want to do anything when the view size hasn't changed. */
-      if ((oldh == newh && oldw == neww))
+      if (!NSEqualRects (frameRect, surfaceRect))
         {
-          NSTRACE_MSG ("No change");
-          return;
+          [surface release];
+          surface = nil;
+
+          [self setNeedsDisplay:YES];
         }
-
-      [surface release];
-      surface = nil;
-
-      [self setNeedsDisplay:YES];
     }
 #endif
 
-  /* I'm not sure if it's safe to call this every time the view
-     changes size, as Emacs may already know about the change.
-     Unfortunately there doesn't seem to be a bullet-proof method of
-     determining whether we need to call it or not.  */
-  change_frame_size (emacsframe,
-                     FRAME_PIXEL_TO_TEXT_WIDTH (emacsframe, neww),
-                     FRAME_PIXEL_TO_TEXT_HEIGHT (emacsframe, newh),
-                     0, YES, 0, 1);
+  neww = (int)NSWidth (frame);
+  newh = (int)NSHeight (frame);
+  oldw = FRAME_PIXEL_WIDTH (emacsframe);
+  oldh = FRAME_PIXEL_HEIGHT (emacsframe);
+
+  /* Don't want to do anything when the view size hasn't changed. */
+  if (emacsframe->new_size_p
+      ? (newh == emacsframe->new_height
+         && neww == emacsframe->new_width)
+      : (oldh == newh && oldw == neww))
+    {
+      NSTRACE_MSG ("No change");
+      return;
+    }
+
+  NSTRACE_SIZE ("New size", NSMakeSize (neww, newh));
+  NSTRACE_SIZE ("Original size", NSMakeSize (oldw, oldh));
+
+  change_frame_size (emacsframe, neww, newh, false, YES, false);
 
   SET_FRAME_GARBAGED (emacsframe);
   cancel_mouse_face (emacsframe);
@@ -7512,7 +7398,6 @@ not_in_argv (NSString *arg)
 #endif
     fs_is_native = ns_use_native_fullscreen;
 #endif
-  in_fullscreen_transition = NO;
 
   maximized_width = maximized_height = -1;
   nonfs_window = nil;
@@ -7885,7 +7770,6 @@ not_in_argv (NSString *arg)
 - (void)windowWillEnterFullScreen:(NSNotification *)notification
 {
   NSTRACE ("[EmacsView windowWillEnterFullScreen:]");
-  in_fullscreen_transition = YES;
   [self windowWillEnterFullScreen];
 }
 - (void)windowWillEnterFullScreen /* provided for direct calls */
@@ -7898,7 +7782,6 @@ not_in_argv (NSString *arg)
 {
   NSTRACE ("[EmacsView windowDidEnterFullScreen:]");
   [self windowDidEnterFullScreen];
-  in_fullscreen_transition = NO;
 }
 
 - (void)windowDidEnterFullScreen /* provided for direct calls */
@@ -7937,7 +7820,6 @@ not_in_argv (NSString *arg)
 - (void)windowWillExitFullScreen:(NSNotification *)notification
 {
   NSTRACE ("[EmacsView windowWillExitFullScreen:]");
-  in_fullscreen_transition = YES;
   [self windowWillExitFullScreen];
 }
 
@@ -7957,7 +7839,6 @@ not_in_argv (NSString *arg)
 {
   NSTRACE ("[EmacsView windowDidExitFullScreen:]");
   [self windowDidExitFullScreen];
-  in_fullscreen_transition = NO;
 }
 
 - (void)windowDidExitFullScreen /* provided for direct calls */
@@ -7984,22 +7865,6 @@ not_in_argv (NSString *arg)
 
   if (next_maximized != -1)
     [[self window] performZoom:self];
-}
-
-- (BOOL)inFullScreenTransition
-{
-  return in_fullscreen_transition;
-}
-
-- (void)waitFullScreenTransition
-{
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-  while ([self inFullScreenTransition])
-    {
-      NSTRACE ("wait for fullscreen");
-      wait_reading_process_output (0, 300000000, 0, 1, Qnil, NULL, 0);
-    }
-#endif
 }
 
 - (BOOL)fsIsNative
@@ -8081,14 +7946,8 @@ not_in_argv (NSString *arg)
 #if defined (NS_IMPL_COCOA) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
       if ([[self window] respondsToSelector: @selector(toggleFullScreen:)])
-        {
 #endif
-          [[self window] toggleFullScreen:sender];
-          // wait for fullscreen animation complete (bug#28496)
-          [self waitFullScreenTransition];
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
-        }
-#endif
+        [[self window] toggleFullScreen:sender];
 #endif
       return;
     }
@@ -8376,18 +8235,16 @@ not_in_argv (NSString *arg)
 
       surface = [[EmacsSurface alloc] initWithSize:s
                                         ColorSpace:[[[self window] colorSpace]
-                                                     CGColorSpace]];
+                                                     CGColorSpace]
+                                             Scale:scale];
 
       /* Since we're using NSViewLayerContentsRedrawOnSetNeedsDisplay
          the layer's scale factor is not set automatically, so do it
          now.  */
-      [[self layer] setContentsScale:[[self window] backingScaleFactor]];
+      [[self layer] setContentsScale:scale];
     }
 
   CGContextRef context = [surface getContext];
-
-  CGContextTranslateCTM(context, 0, [surface getSize].height);
-  CGContextScaleCTM(context, scale, -scale);
 
   [NSGraphicsContext
     setCurrentContext:[NSGraphicsContext
@@ -8401,7 +8258,6 @@ not_in_argv (NSString *arg)
   NSTRACE ("[EmacsView unfocusDrawingBuffer]");
 
   [NSGraphicsContext setCurrentContext:nil];
-  [surface releaseContext];
   [self setNeedsDisplay:YES];
 }
 
@@ -8539,7 +8395,11 @@ not_in_argv (NSString *arg)
      There's a private method, -[CALayer setContentsChanged], that we
      could use to force it, but we shouldn't often get the same
      surface twice in a row.  */
+  [surface releaseContext];
   [[self layer] setContents:(id)[surface getSurface]];
+  [surface performSelectorOnMainThread:@selector (getContext)
+                            withObject:nil
+                         waitUntilDone:NO];
 }
 #endif
 
@@ -8816,6 +8676,16 @@ not_in_argv (NSString *arg)
   else
     [super makeKeyAndOrderFront:sender];
 }
+
+
+#ifdef NS_IMPL_GNUSTEP
+/* orderedIndex isn't yet available in GNUstep, but it seems pretty
+   easy to implement.  */
+- (NSInteger) orderedIndex
+{
+  return [[NSApp orderedWindows] indexOfObjectIdenticalTo:self];
+}
+#endif
 
 
 /* The array returned by [NSWindow parentWindow] may already be
@@ -9740,17 +9610,20 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
    probably be some sort of pruning job that removes excess
    surfaces.  */
 
+#define CACHE_MAX_SIZE 2
 
 - (id) initWithSize: (NSSize)s
          ColorSpace: (CGColorSpaceRef)cs
+              Scale: (CGFloat)scl
 {
   NSTRACE ("[EmacsSurface initWithSize:ColorSpace:]");
 
   [super init];
 
-  cache = [[NSMutableArray arrayWithCapacity:3] retain];
+  cache = [[NSMutableArray arrayWithCapacity:CACHE_MAX_SIZE] retain];
   size = s;
   colorSpace = cs;
+  scale = scl;
 
   return self;
 }
@@ -9763,8 +9636,6 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
 
   if (currentSurface)
     CFRelease (currentSurface);
-  if (lastSurface)
-    CFRelease (lastSurface);
 
   for (id object in cache)
     CFRelease ((IOSurfaceRef)object);
@@ -9787,50 +9658,66 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
    calls cannot be nested.  */
 - (CGContextRef) getContext
 {
-  IOSurfaceRef surface = NULL;
+  NSTRACE ("[EmacsSurface getContext]");
 
-  NSTRACE ("[EmacsSurface getContextWithSize:]");
-  NSTRACE_MSG ("IOSurface count: %lu", [cache count] + (lastSurface ? 1 : 0));
-
-  for (id object in cache)
+  if (!context)
     {
-      if (!IOSurfaceIsInUse ((IOSurfaceRef)object))
-      {
-        surface = (IOSurfaceRef)object;
-        [cache removeObject:object];
-        break;
-      }
+      IOSurfaceRef surface = NULL;
+
+      NSTRACE_MSG ("IOSurface count: %lu", [cache count] + (lastSurface ? 1 : 0));
+
+      for (id object in cache)
+        {
+          if (!IOSurfaceIsInUse ((IOSurfaceRef)object))
+            {
+              surface = (IOSurfaceRef)object;
+              [cache removeObject:object];
+              break;
+            }
+        }
+
+      if (!surface && [cache count] >= CACHE_MAX_SIZE)
+        {
+          /* Just grab the first one off the cache.  This may result
+             in tearing effects.  The alternative is to wait for one
+             of the surfaces to become free.  */
+          surface = (IOSurfaceRef)[cache firstObject];
+          [cache removeObject:(id)surface];
+        }
+      else if (!surface)
+        {
+          int bytesPerRow = IOSurfaceAlignProperty (kIOSurfaceBytesPerRow,
+                                                    size.width * 4);
+
+          surface = IOSurfaceCreate
+            ((CFDictionaryRef)@{(id)kIOSurfaceWidth:[NSNumber numberWithInt:size.width],
+                (id)kIOSurfaceHeight:[NSNumber numberWithInt:size.height],
+                (id)kIOSurfaceBytesPerRow:[NSNumber numberWithInt:bytesPerRow],
+                (id)kIOSurfaceBytesPerElement:[NSNumber numberWithInt:4],
+                (id)kIOSurfacePixelFormat:[NSNumber numberWithUnsignedInt:'BGRA']});
+        }
+
+      IOReturn lockStatus = IOSurfaceLock (surface, 0, nil);
+      if (lockStatus != kIOReturnSuccess)
+        NSLog (@"Failed to lock surface: %x", lockStatus);
+
+      [self copyContentsTo:surface];
+
+      currentSurface = surface;
+
+      context = CGBitmapContextCreate (IOSurfaceGetBaseAddress (currentSurface),
+                                       IOSurfaceGetWidth (currentSurface),
+                                       IOSurfaceGetHeight (currentSurface),
+                                       8,
+                                       IOSurfaceGetBytesPerRow (currentSurface),
+                                       colorSpace,
+                                       (kCGImageAlphaPremultipliedFirst
+                                        | kCGBitmapByteOrder32Host));
+
+      CGContextTranslateCTM(context, 0, size.height);
+      CGContextScaleCTM(context, scale, -scale);
     }
 
-  if (!surface)
-    {
-      int bytesPerRow = IOSurfaceAlignProperty (kIOSurfaceBytesPerRow,
-                                                size.width * 4);
-
-      surface = IOSurfaceCreate
-        ((CFDictionaryRef)@{(id)kIOSurfaceWidth:[NSNumber numberWithInt:size.width],
-            (id)kIOSurfaceHeight:[NSNumber numberWithInt:size.height],
-            (id)kIOSurfaceBytesPerRow:[NSNumber numberWithInt:bytesPerRow],
-            (id)kIOSurfaceBytesPerElement:[NSNumber numberWithInt:4],
-            (id)kIOSurfacePixelFormat:[NSNumber numberWithUnsignedInt:'BGRA']});
-    }
-
-  IOReturn lockStatus = IOSurfaceLock (surface, 0, nil);
-  if (lockStatus != kIOReturnSuccess)
-    NSLog (@"Failed to lock surface: %x", lockStatus);
-
-  [self copyContentsTo:surface];
-
-  currentSurface = surface;
-
-  context = CGBitmapContextCreate (IOSurfaceGetBaseAddress (currentSurface),
-                                   IOSurfaceGetWidth (currentSurface),
-                                   IOSurfaceGetHeight (currentSurface),
-                                   8,
-                                   IOSurfaceGetBytesPerRow (currentSurface),
-                                   colorSpace,
-                                   (kCGImageAlphaPremultipliedFirst
-                                    | kCGBitmapByteOrder32Host));
   return context;
 }
 
@@ -9841,6 +9728,9 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
 {
   NSTRACE ("[EmacsSurface releaseContextAndGetSurface]");
 
+  if (!context)
+    return;
+
   CGContextRelease (context);
   context = NULL;
 
@@ -9848,11 +9738,8 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
   if (lockStatus != kIOReturnSuccess)
     NSLog (@"Failed to unlock surface: %x", lockStatus);
 
-  /* Put lastSurface back on the end of the cache.  It may not have
-     been displayed on the screen yet, but we probably want the new
-     data and not some stale data anyway.  */
-  if (lastSurface)
-    [cache addObject:(id)lastSurface];
+  /* Put currentSurface back on the end of the cache.  */
+  [cache addObject:(id)currentSurface];
   lastSurface = currentSurface;
   currentSurface = NULL;
 }
@@ -9877,7 +9764,7 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
 
   NSTRACE ("[EmacsSurface copyContentsTo:]");
 
-  if (! lastSurface)
+  if (!lastSurface || lastSurface == destination)
     return;
 
   lockStatus = IOSurfaceLock (lastSurface, kIOSurfaceLockReadOnly, nil);
@@ -9897,6 +9784,7 @@ nswindow_orderedIndex_sort (id w1, id w2, void *c)
     NSLog (@"Failed to unlock source surface: %x", lockStatus);
 }
 
+#undef CACHE_MAX_SIZE
 
 @end /* EmacsSurface */
 

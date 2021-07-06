@@ -1,4 +1,4 @@
-;;; eieio-custom.el -- eieio object customization  -*- lexical-binding:t -*-
+;;; eieio-custom.el --- eieio object customization  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 1999-2001, 2005, 2007-2021 Free Software Foundation,
 ;; Inc.
@@ -46,7 +46,7 @@
 	     :documentation "A string for testing custom.
 This is the next line of documentation.")
    (listostuff :initarg :listostuff
-	       :initform ("1" "2" "3")
+	       :initform '("1" "2" "3")
 	       :type list
 	       :custom (repeat (string :tag "Stuff"))
 	       :label "List of Strings"

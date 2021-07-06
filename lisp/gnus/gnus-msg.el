@@ -415,11 +415,12 @@ only affect the Gcc copy, but not the original message."
 			     gnus-article-reply)))
 	   (,oarticle gnus-article-reply)
 	   (,yanked gnus-article-yanked-articles)
-	   (,group (when gnus-article-reply
-		     (or (nnselect-article-group
-			  (or (car-safe gnus-article-reply)
-			      gnus-article-reply))
-			 gnus-newsgroup-name)))
+           (,group (if gnus-article-reply
+		       (or (nnselect-article-group
+			    (or (car-safe gnus-article-reply)
+			        gnus-article-reply))
+                           gnus-newsgroup-name)
+                     gnus-newsgroup-name))
 	   (message-header-setup-hook
 	    (copy-sequence message-header-setup-hook))
 	   (mbl mml-buffer-list)
@@ -1596,6 +1597,10 @@ this is a reply."
 		  (if (stringp gnus-gcc-externalize-attachments)
 		      (string-match gnus-gcc-externalize-attachments group)
 		    gnus-gcc-externalize-attachments))
+            ;; If we want to externalize stuff when GCC-ing, then we
+            ;; can't use the cache, because that has all the contents.
+            (when mml-externalize-attachments
+              (setq encoded-cache nil))
 	    (save-excursion
 	      (nnheader-set-temp-buffer " *acc*")
 	      (setq message-options (with-current-buffer cur message-options))

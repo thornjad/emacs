@@ -1941,11 +1941,10 @@ buf_prev (int from)
   return prev_idx;
 }
 
-static void
-sample_system_load (ULONGLONG *idle, ULONGLONG *kernel, ULONGLONG *user)
+unsigned
+w32_get_nproc (void)
 {
   SYSTEM_INFO sysinfo;
-  FILETIME ft_idle, ft_user, ft_kernel;
 
   /* Initialize the number of processors on this machine.  */
   if (num_of_processors <= 0)
@@ -1960,6 +1959,15 @@ sample_system_load (ULONGLONG *idle, ULONGLONG *kernel, ULONGLONG *user)
       if (num_of_processors <= 0)
 	num_of_processors = 1;
     }
+  return num_of_processors;
+}
+
+static void
+sample_system_load (ULONGLONG *idle, ULONGLONG *kernel, ULONGLONG *user)
+{
+  FILETIME ft_idle, ft_user, ft_kernel;
+
+  (void) w32_get_nproc ();
 
   /* TODO: Take into account threads that are ready to run, by
      sampling the "\System\Processor Queue Length" performance
@@ -4739,7 +4747,7 @@ sys_rename_replace (const char *oldname, const char *newname, BOOL force)
   /* volume_info is set indirectly by map_w32_filename.  */
   oldname_dev = volume_info.serialnum;
 
-  if (os_subtype == OS_9X)
+  if (os_subtype == OS_SUBTYPE_9X)
     {
       char * o;
       char * p;
@@ -10247,7 +10255,8 @@ check_windows_init_file (void)
 	 need to ENCODE_FILE here, but we do need to convert the file
 	 names from UTF-8 to ANSI.  */
       init_file = build_string ("term/w32-win");
-      fd = openp (Vload_path, init_file, Fget_load_suffixes (), NULL, Qnil, 0);
+      fd =
+	openp (Vload_path, init_file, Fget_load_suffixes (), NULL, Qnil, 0, 0);
       if (fd < 0)
 	{
 	  Lisp_Object load_path_print = Fprin1_to_string (Vload_path, Qnil);
@@ -10439,6 +10448,13 @@ shutdown_handler (DWORD type)
       || type == CTRL_LOGOFF_EVENT    /* User logs off.  */
       || type == CTRL_SHUTDOWN_EVENT) /* User shutsdown.  */
     {
+      /* If we are being shut down in noninteractive mode, we don't
+	 care about the message stack, so clear it to avoid abort in
+	 shut_down_emacs.  This happens when an noninteractive Emacs
+	 is invoked as a subprocess of Emacs, and the parent wants to
+	 kill us, e.g. because it's about to exit.  */
+      if (noninteractive)
+	clear_message_stack ();
       /* Shut down cleanly, making sure autosave files are up to date.  */
       shut_down_emacs (0, Qnil);
     }
@@ -10452,7 +10468,7 @@ shutdown_handler (DWORD type)
 HANDLE
 maybe_load_unicows_dll (void)
 {
-  if (os_subtype == OS_9X)
+  if (os_subtype == OS_SUBTYPE_9X)
     {
       HANDLE ret = LoadLibrary ("Unicows.dll");
       if (ret)
@@ -10571,6 +10587,45 @@ w32_my_exename (void)
   return exename;
 }
 
+/* Emulate Posix 'realpath'.  This is needed in
+   comp-el-to-eln-rel-filename.  */
+char *
+realpath (const char *file_name, char *resolved_name)
+{
+  char *tgt = chase_symlinks (file_name);
+  char target[MAX_UTF8_PATH];
+
+  if (tgt == file_name)
+    {
+      /* If FILE_NAME is not a symlink, chase_symlinks returns its
+	 argument, possibly not in canonical absolute form.  Make sure
+	 we return a canonical file name.  */
+      if (w32_unicode_filenames)
+	{
+	  wchar_t file_w[MAX_PATH], tgt_w[MAX_PATH];
+
+	  filename_to_utf16 (file_name, file_w);
+	  if (GetFullPathNameW (file_w, MAX_PATH, tgt_w, NULL) == 0)
+	    return NULL;
+	  filename_from_utf16 (tgt_w, target);
+	}
+      else
+	{
+	  char file_a[MAX_PATH], tgt_a[MAX_PATH];
+
+	  filename_to_ansi (file_name, file_a);
+	  if (GetFullPathNameA (file_a, MAX_PATH, tgt_a, NULL) == 0)
+	    return NULL;
+	  filename_from_ansi (tgt_a, target);
+	}
+      tgt = target;
+    }
+
+  if (resolved_name)
+    return strcpy (resolved_name, tgt);
+  return xstrdup (tgt);
+}
+
 /*
 	globals_of_w32 is used to initialize those global variables that
 	must always be initialized on startup even when the global variable
@@ -10657,6 +10712,10 @@ globals_of_w32 (void)
 #endif
 
   w32_crypto_hprov = (HCRYPTPROV)0;
+
+  /* We need to forget about libraries that were loaded during the
+     dumping process (e.g. libgccjit) */
+  Vlibrary_cache = Qnil;
 }
 
 /* For make-serial-process  */

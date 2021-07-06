@@ -1029,14 +1029,21 @@ clashes (Bug#41853)."
                                     inner@cl-flet@10002
                                     edebug-tests-cl-flet-2)))))))
 
+(defmacro edebug-tests--duplicate-symbol-backtrack (arg)
+  "Helper macro that exemplifies Bug#42701.
+ARG is either (FORM) or (FORM IGNORED)."
+  (declare (debug ([&or (form) (form sexp)])))
+  (car arg))
+
 (ert-deftest edebug-tests-duplicate-symbol-backtrack ()
   "Check that Edebug doesn't create duplicate symbols when
 backtracking (Bug#42701)."
   (with-temp-buffer
-    (dolist (form '((require 'subr-x)
-                    (defun edebug-tests-duplicate-symbol-backtrack ()
-                      (if-let (x (funcall (lambda (y) 1) 2)) 3 4))))
-      (print form (current-buffer)))
+    (print '(defun edebug-tests-duplicate-symbol-backtrack ()
+              (edebug-tests--duplicate-symbol-backtrack
+               ;; Passing (FORM IGNORED) forces backtracking.
+               ((lambda () 123) ignored)))
+           (current-buffer))
     (let* ((edebug-all-defs t)
            (edebug-initial-mode 'Go-nonstop)
            (instrumented-names ())
@@ -1060,6 +1067,31 @@ backtracking (Bug#42701)."
                      '("edebug-anon10000"
                        "edebug-anon10001"
                        "edebug-tests-duplicate-symbol-backtrack"))))))
+
+(defmacro edebug-tests--duplicate-&define (_arg)
+  "Helper macro for the ERT test `edebug-tests-duplicate-&define'.
+The Edebug specification is similar to the one used by `cl-flet'
+previously; see Bug#41988."
+  (declare (debug (&or (&define name function-form) (defun)))))
+
+(ert-deftest edebug-tests-duplicate-&define ()
+  "Check that Edebug doesn't backtrack out of `&define' forms.
+This avoids potential duplicate definitions (Bug#41988)."
+  (with-temp-buffer
+    (print '(defun edebug-tests-duplicate-&define ()
+              (edebug-tests--duplicate-&define
+               (edebug-tests-duplicate-&define-inner () nil)))
+           (current-buffer))
+    (let* ((edebug-all-defs t)
+           (edebug-initial-mode 'Go-nonstop)
+           (instrumented-names ())
+           (edebug-new-definition-function
+            (lambda (name)
+              (when (memq name instrumented-names)
+                (error "Duplicate definition of `%s'" name))
+              (push name instrumented-names)
+              (edebug-new-definition name))))
+      (should-error (eval-buffer) :type 'invalid-read-syntax))))
 
 (provide 'edebug-tests)
 ;;; edebug-tests.el ends here

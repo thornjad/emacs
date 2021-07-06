@@ -1,4 +1,4 @@
-;;; cconv.el --- Closure conversion for statically scoped Emacs lisp. -*- lexical-binding: t -*-
+;;; cconv.el --- Closure conversion for statically scoped Emacs Lisp. -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2021 Free Software Foundation, Inc.
 
@@ -259,7 +259,8 @@ Returns a form where all lambdas don't have any free variables."
               (not (intern-soft var))
               (eq ?_ (aref (symbol-name var) 0))
 	      ;; As a special exception, ignore "ignore".
-	      (eq var 'ignored))
+	      (eq var 'ignored)
+              (not (byte-compile-warning-enabled-p 'unbound var)))
        (let ((suggestions (help-uni-confusable-suggestions (symbol-name var))))
          (format "Unused lexical %s `%S'%s"
                  varkind var
@@ -498,7 +499,7 @@ places where they originally did not directly appear."
      (let* ((class (and var (cconv--var-classification (list var) form)))
             (newenv
              (cond ((eq class :captured+mutated)
-                    (cons `(,var . (car-save ,var)) env))
+                    (cons `(,var . (car-safe ,var)) env))
                    ((assq var env) (cons `(,var) env))
                    (t env)))
             (msg (when (eq class :unused)
