@@ -430,6 +430,28 @@ optional argument @code{stringp} is non-@code{nil}, it instead returns
 the shadowed files as a string.
 @end deffn
 
+  If Emacs was compiled with support for native compilation
+(@pxref{Native Compilation}), then when a @samp{.elc} byte-compiled
+file is found by searching @code{load-path}, Emacs will try to look
+for a corresponding @samp{.eln} file holding the corresponding
+natively-compiled code.  The natively-compiled files are looked up in
+the directories listed by the @code{native-comp-eln-load-path}.
+
+@vindex comp-native-version-dir
+@defvar native-comp-eln-load-path
+This variable holds a list of directories where Emacs looks for
+natively-compiled @samp{.eln} files.  File names in the list that are
+not absolute are interpreted as relative to @code{invocation-directory}
+(@pxref{System Environment}).  The last directory in the list is the
+system directory, i.e.@: the directory with @samp{.eln} files
+installed by the Emacs build and installation procedure.  In each of
+the directories in the list, Emacs looks for @samp{.eln} files in a
+subdirectory whose name is constructed from the Emacs version and an
+8-character hash that depends on the current native-compilation
+@acronym{ABI}; the name of this subdirectory is stored in the variable
+@code{comp-native-version-dir}.
+@end defvar
+
 @node Loading Non-ASCII
 @section Loading Non-@acronym{ASCII} Characters
 @cindex loading, and non-ASCII characters
