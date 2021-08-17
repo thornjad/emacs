@@ -2328,6 +2328,25 @@ variables.")
   (setq deactivate-mark nil)
   (throw 'exit nil))
 
+(defun minibuffer-restore-windows ()
+  "Restore some windows on exit from minibuffer.
+When `read-minibuffer-restore-windows' is nil, then this function
+added to `minibuffer-exit-hook' will remove at least the window
+that displays the \"*Completions*\" buffer."
+  (unless read-minibuffer-restore-windows
+    (minibuffer-hide-completions)))
+
+(add-hook 'minibuffer-exit-hook 'minibuffer-restore-windows)
+
+(defun minibuffer-quit-recursive-edit ()
+  "Quit the command that requested this recursive edit without error.
+Like `abort-recursive-edit' without aborting keyboard macro
+execution."
+  ;; See Info node `(elisp)Recursive Editing' for an explanation of
+  ;; throwing a function to `exit'.
+  (throw 'exit (lambda ()
+                 (signal 'minibuffer-quit nil))))
+
 (defun self-insert-and-exit ()
   "Terminate minibuffer input."
   (interactive)
@@ -2685,7 +2704,15 @@ not active.")
   :abbrev-table nil          ;abbrev.el is not loaded yet during dump.
   ;; Note: this major mode is called from minibuf.c.
   "Major mode to use in the minibuffer when it is not active.
-This is only used when the minibuffer area has no active minibuffer.")
+This is only used when the minibuffer area has no active minibuffer.
+
+Note that the minibuffer may change to this mode more often than
+you might expect.  For instance, typing `M-x' may change the
+buffer to this mode, then to a different mode, and then back
+again to this mode upon exit.  Code running from
+`minibuffer-inactive-mode-hook' has to be prepared to run
+multiple times per minibuffer invocation.  Also see
+`minibuffer-exit-hook'.")
 
 (defvaralias 'minibuffer-mode-map 'minibuffer-local-map)
 
@@ -2720,7 +2747,7 @@ Useful to give the user default values that won't be substituted."
 
 (defun completion--make-envvar-table ()
   (mapcar (lambda (enventry)
-            (substring enventry 0 (string-match-p "=" enventry)))
+            (substring enventry 0 (string-search "=" enventry)))
           process-environment))
 
 (defconst completion--embedded-envvar-re
@@ -2789,7 +2816,7 @@ same as `substitute-in-file-name'."
                                        pred action))
        ((eq (car-safe action) 'boundaries)
         (let ((start (length (file-name-directory string)))
-              (end (string-match-p "/" (cdr action))))
+              (end (string-search "/" (cdr action))))
           `(boundaries
             ;; if `string' is "C:" in w32, (file-name-directory string)
             ;; returns "C:/", so `start' is 3 rather than 2.
@@ -3076,7 +3103,7 @@ See `read-file-name' for the meaning of the arguments."
                     (minibuffer-maybe-quote-filename dir)))
                  (initial (cons (minibuffer-maybe-quote-filename initial) 0)))))
 
-    (let ((completion-ignore-case read-file-name-completion-ignore-case)
+    (let ((ignore-case read-file-name-completion-ignore-case)
           (minibuffer-completing-file-name t)
           (pred (or predicate 'file-exists-p))
           (add-to-history nil))
@@ -3104,6 +3131,7 @@ See `read-file-name' for the meaning of the arguments."
                                            minibuffer-default))
                             (setq minibuffer-default
                                   (cdr-safe minibuffer-default)))
+                          (setq-local completion-ignore-case ignore-case)
                           ;; On the first request on `M-n' fill
                           ;; `minibuffer-default' with a list of defaults
                           ;; relevant for file-name reading.
@@ -3917,27 +3945,39 @@ that is non-nil."
       ((compose-flex-sort-fn
         (existing-sort-fn) ; wish `cl-flet' had proper indentation...
         (lambda (completions)
-          (let ((pre-sorted
-                 (if existing-sort-fn
-                     (funcall existing-sort-fn completions)
-                   completions)))
-            (cond
-             ((or (not (window-minibuffer-p))
-                  ;; JT@2019-12-23: FIXME: this is still wrong.  What
-                  ;; we need to test here is "some input that actually
-                  ;; leads to flex filtering", not "something after
-                  ;; the minibuffer prompt".  Among other
-                  ;; inconsistencies, the latter is always true for
-                  ;; file searches, meaning the next clauses will be
-                  ;; ignored.
-                  (> (point-max) (minibuffer-prompt-end)))
-              (sort
-               pre-sorted
-               (lambda (c1 c2)
-                 (let ((s1 (get-text-property 0 'completion-score c1))
-                       (s2 (get-text-property 0 'completion-score c2)))
-                   (> (or s1 0) (or s2 0))))))
-             (t pre-sorted))))))
+          (cond
+           (;; Sort by flex score whenever outside the minibuffer or
+            ;; in the minibuffer with some input.  JT@2019-12-23:
+            ;; FIXME: this is still wrong.  What we need to test here
+            ;; is "some input that actually leads to flex filtering",
+            ;; not "something after the minibuffer prompt".  Among
+            ;; other inconsistencies, the latter is always true for
+            ;; file searches, meaning the next clauses in this cond
+            ;; will be ignored.
+            (or (not (window-minibuffer-p))
+                (> (point-max) (minibuffer-prompt-end)))
+            (sort
+             (if existing-sort-fn
+                 (funcall existing-sort-fn completions)
+               completions)
+             (lambda (c1 c2)
+               (let ((s1 (get-text-property 0 'completion-score c1))
+                     (s2 (get-text-property 0 'completion-score c2)))
+                 (> (or s1 0) (or s2 0))))))
+           (;; If no existing sort fn and nothing flexy happening, use
+            ;; the customary sorting strategy.
+            ;;
+            ;; JT@2021-08-15: FIXME: ideally this wouldn't repeat
+            ;; logic in `completion-all-sorted-completions', but that
+            ;; logic has other context that is either expensive to
+            ;; compute or not easy to access here.
+            (not existing-sort-fn)
+            (let ((lalpha (minibuffer--sort-by-length-alpha completions))
+                  (hist (and (minibufferp)
+                             (and (not (eq minibuffer-history-variable t))
+                                  (symbol-value minibuffer-history-variable)))))
+              (if hist (minibuffer--sort-by-position hist lalpha) lalpha)))
+           (t (funcall existing-sort-fn completions))))))
     `(metadata
       (display-sort-function
        . ,(compose-flex-sort-fn
@@ -3966,7 +4006,7 @@ which is at the core of flex logic.  The extra
 
 (defun completion-flex-try-completion (string table pred point)
   "Try to flex-complete STRING in TABLE given PRED and POINT."
-  (unless (and completion-flex-nospace (string-match-p " " string))
+  (unless (and completion-flex-nospace (string-search " " string))
     (pcase-let ((`(,all ,pattern ,prefix ,suffix ,_carbounds)
                  (completion-substring--all-completions
                   string table pred point
@@ -3983,7 +4023,7 @@ which is at the core of flex logic.  The extra
 
 (defun completion-flex-all-completions (string table pred point)
   "Get flex-completions of STRING in TABLE, given PRED and POINT."
-  (unless (and completion-flex-nospace (string-match-p " " string))
+  (unless (and completion-flex-nospace (string-search " " string))
     (pcase-let ((`(,all ,pattern ,prefix ,_suffix ,_carbounds)
                  (completion-substring--all-completions
                   string table pred point

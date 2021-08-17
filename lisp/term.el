@@ -864,8 +864,30 @@ is buffer-local."
     ["Paging" term-pager-toggle :style toggle :selected term-pager-count
      :help "Toggle paging feature"]))
 
+(defun term--update-term-menu (&optional force)
+  (when (and (lookup-key term-mode-map [menu-bar terminal])
+             (or force (frame-or-buffer-changed-p)))
+    (let ((buffer-list
+           (seq-filter
+            (lambda (buffer)
+              (provided-mode-derived-p (buffer-local-value 'major-mode buffer)
+                                       'term-mode))
+            (buffer-list))))
+      (easy-menu-change
+       '("Terminal")
+       "Terminal Buffers"
+       (mapcar
+        (lambda (buffer)
+          (vector (format "%s (%s)" (buffer-name buffer)
+                          (abbreviate-file-name
+                           (buffer-local-value 'default-directory buffer)))
+                  (lambda ()
+                    (interactive)
+                    (switch-to-buffer buffer))))
+        buffer-list)))))
+
 (easy-menu-define term-signals-menu
-  (list term-mode-map term-raw-map term-pager-break-map)
+ (list term-mode-map term-raw-map term-pager-break-map)
   "Signals menu for Term mode."
   '("Signals"
     ["BREAK" term-interrupt-subjob :active t
@@ -1076,6 +1098,7 @@ Entry to this mode runs the hooks on `term-mode-hook'."
   (setq-local term-pending-delete-marker (make-marker))
   (make-local-variable 'term-current-face)
   (term-ansi-reset)
+  (add-hook 'menu-bar-update-hook 'term--update-term-menu)
   (setq-local term-pending-frame nil)
   ;; Cua-mode's keybindings interfere with the term keybindings, disable it.
   (setq-local cua-mode nil)
@@ -1275,7 +1298,10 @@ without any interpretation."
 (defun term-char-mode ()
   "Switch to char (\"raw\") sub-mode of term mode.
 Each character you type is sent directly to the inferior without
-intervention from Emacs, except for the escape character (usually C-c)."
+intervention from Emacs, except for the escape character (usually C-c).
+
+This command will send existing partial lines to the terminal
+process."
   (interactive)
   ;; FIXME: Emit message? Cfr ilisp-raw-message
   (when (term-in-line-mode)
@@ -3462,9 +3488,9 @@ The top-most line is line 0."
 	((= (aref string 0) ?\032)
 	 ;; gdb (when invoked with -fullname) prints:
 	 ;; \032\032FULLFILENAME:LINENUMBER:CHARPOS:BEG_OR_MIDDLE:PC\n
-	 (let* ((first-colon (string-match ":" string 1))
+	 (let* ((first-colon (string-search ":" string 1))
 		(second-colon
-		 (string-match ":" string (1+ first-colon)))
+		 (string-search ":" string (1+ first-colon)))
 		(filename (substring string 1 first-colon))
 		(fileline (string-to-number
 			   (substring string (1+ first-colon) second-colon))))
@@ -4281,7 +4307,7 @@ well as the newer ports COM10 and higher."
     (when (or (null x) (and (stringp x) (zerop (length x))))
       (error "No serial port selected"))
     (when (not (or (serial-port-is-file-p)
-                   (string-match "\\\\" x)))
+                   (string-search "\\" x)))
       (setq x (concat "\\\\.\\" x)))
     x))
 

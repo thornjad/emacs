@@ -616,7 +616,7 @@ while a list of strings is used as a word list."
                              (if (eq doc 'error)
                                  "(documentation error)"
 			       (setq score (+ score (apropos-score-doc doc)))
-			       (substring doc 0 (string-match "\n" doc)))
+			       (substring doc 0 (string-search "\n" doc)))
 			   "(not documented)")))
 		   (and var-predicate
 			(funcall var-predicate symbol)
@@ -625,7 +625,7 @@ while a list of strings is used as a word list."
 			     (progn
 			       (setq score (+ score (apropos-score-doc doc)))
 			       (substring doc 0
-					  (string-match "\n" doc)))))))
+					  (string-search "\n" doc)))))))
 	(setcar (cdr (car p)) score)
 	(setq p (cdr p))))
     (and (let ((apropos-multi-type do-all))
@@ -639,7 +639,7 @@ while a list of strings is used as a word list."
   "Like (documentation-property SYMBOL PROPERTY RAW) but handle errors."
   (condition-case ()
       (let ((doc (documentation-property symbol property raw)))
-	(if doc (substring doc 0 (string-match "\n" doc))
+	(if doc (substring doc 0 (string-search "\n" doc))
 	  "(not documented)"))
     (error "(error retrieving documentation)")))
 
@@ -724,22 +724,27 @@ the output includes key-bindings of commands."
 	;; (autoload (push (cdr x) autoloads))
 	('require (push (cdr x) requires))
 	('provide (push (cdr x) provides))
-        ('t nil) ; Skip "was an autoload" entries.
+        ('t nil)                     ; Skip "was an autoload" entries.
         ;; FIXME: Print information about each individual method: both
         ;; its docstring and specializers (bug#21422).
         ('cl-defmethod (push (cadr x) provides))
 	(_ (push (or (cdr-safe x) x) symbols))))
-    (let ((apropos-pattern "")) ;Dummy binding for apropos-symbols-internal.
-      (apropos-symbols-internal
-       symbols apropos-do-all
-       (concat
-        (format-message
-                "Library `%s' provides: %s\nand requires: %s"
-                file
-                (mapconcat #'apropos-library-button
-                           (or provides '(nil)) " and ")
-                (mapconcat #'apropos-library-button
-                           (or requires '(nil)) " and ")))))))
+    (let ((apropos-pattern "") ;Dummy binding for apropos-symbols-internal.
+          (text
+           (concat
+            (format-message
+             "Library `%s' provides: %s\nand requires: %s"
+             file
+             (mapconcat #'apropos-library-button
+                        (or provides '(nil)) " and ")
+             (mapconcat #'apropos-library-button
+                        (or requires '(nil)) " and ")))))
+      (if (null symbols)
+          (with-output-to-temp-buffer "*Apropos*"
+	    (with-current-buffer standard-output
+	      (apropos-mode)
+              (apropos--preamble text)))
+        (apropos-symbols-internal symbols apropos-do-all text)))))
 
 (defun apropos-symbols-internal (symbols keys &optional text)
   ;; Filter out entries that are marked as apropos-inhibit.
@@ -762,7 +767,7 @@ the output includes key-bindings of commands."
 				  "(alias for undefined function)")
 				 (error
 				  "(can't retrieve function documentation)")))
-		     (substring doc 0 (string-match "\n" doc))
+		     (substring doc 0 (string-search "\n" doc))
 		   "(not documented)"))
 	       (when (boundp symbol)
 		 (apropos-documentation-property
@@ -1154,10 +1159,7 @@ as a heading."
 	    symbol item)
 	(set-buffer standard-output)
 	(apropos-mode)
-	(insert (substitute-command-keys "Type \\[apropos-follow] on ")
-		(if apropos-multi-type "a type label" "an entry")
-		" to view its full documentation.\n\n")
-	(if text (insert text "\n\n"))
+        (apropos--preamble text)
 	(dolist (apropos-item p)
 	  (when (and spacing (not (bobp)))
 	    (princ spacing))
@@ -1286,6 +1288,14 @@ as a heading."
 	      (fill-prefix (make-string ocol ?\s)))
 	  (fill-region opoint (point) nil t)))
       (or (bolp) (terpri)))))
+
+(defun apropos--preamble (text)
+  (let ((inhibit-read-only t))
+    (insert (substitute-command-keys "Type \\[apropos-follow] on ")
+	    (if apropos-multi-type "a type label" "an entry")
+	    " to view its full documentation.\n\n")
+    (when text
+      (insert text "\n\n"))))
 
 (defun apropos-follow ()
   "Invokes any button at point, otherwise invokes the nearest label button."

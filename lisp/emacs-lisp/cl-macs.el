@@ -3331,14 +3331,16 @@ Of course, we really can't know that for sure, so it's just a heuristic."
                '((array		. arrayp)
                  (atom		. atom)
                  (base-char	. characterp)
+                 (bignum	. bignump)
                  (boolean	. booleanp)
                  (bool-vector	. bool-vector-p)
                  (buffer	. bufferp)
                  (character	. natnump)
                  (char-table	. char-table-p)
+                 (command	. commandp)
                  (hash-table	. hash-table-p)
                  (cons		. consp)
-                 (fixnum	. integerp)
+                 (fixnum	. fixnump)
                  (float		. floatp)
                  (function	. functionp)
                  (integer	. integerp)
@@ -3596,8 +3598,6 @@ The type name can then be used in `cl-typecase', `cl-check-type', etc."
 (cl-deftype extended-char () '(and character (not base-char)))
 ;; Define fixnum so `cl-typep' recognize it and the type check emitted
 ;; by `cl-the' is effective.
-(cl-deftype fixnum () 'fixnump)
-(cl-deftype bignum () 'bignump)
 
 ;;; Additional functions that we can now define because we've defined
 ;;; `cl-defsubst' and `cl-typep'.
@@ -3621,6 +3621,14 @@ STRUCT and SLOT-NAME are symbols.  INST is a structure instance."
 (make-obsolete-variable 'cl-macs-load-hook
                         "use `with-eval-after-load' instead." "28.1")
 (run-hooks 'cl-macs-load-hook)
+
+;;; Pcase type pattern.
+
+;;;###autoload
+(pcase-defmacro cl-type (type)
+  "Pcase pattern that matches objects of TYPE.
+TYPE is a type descriptor as accepted by `cl-typep', which see."
+  `(pred (pcase--flip cl-typep ',type)))
 
 ;; Local variables:
 ;; generated-autoload-file: "cl-loaddefs.el"

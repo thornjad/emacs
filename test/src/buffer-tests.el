@@ -754,7 +754,7 @@ with parameters from the *Messages* buffer modification."
       (should-length 2 (overlays-in 1 (point-max)))
       (should-length 1 (overlays-in (point-max) (point-max)))
       (narrow-to-region 1 50)
-      (should-length 0 (overlays-in 1 (point-max)))
+      (should-length 1 (overlays-in 1 (point-max)))
       (should-length 1 (overlays-in (point-max) (point-max))))))
 
 
@@ -1345,8 +1345,8 @@ with parameters from the *Messages* buffer modification."
             (add-hook 'kill-buffer-hook kbh nil t)
             (add-hook 'kill-buffer-query-functions kbqf nil t)
             (kill-buffer))
-          (with-temp-buffer)
-          (with-output-to-string)
+          (with-temp-buffer (ignore))
+          (with-output-to-string (ignore))
           (should-not run-bluh)
           (should-not run-kbh)
           (should-not run-kbqf)
@@ -1360,5 +1360,64 @@ with parameters from the *Messages* buffer modification."
           (should run-kbh)
           (should run-kbqf))
       (remove-hook 'buffer-list-update-hook bluh))))
+
+(ert-deftest buffer-tests-inhibit-buffer-hooks-indirect ()
+  "Indirect buffers do not call `get-buffer-create'."
+  (dolist (inhibit '(nil t))
+    (let ((base (get-buffer-create "foo" inhibit)))
+      (unwind-protect
+          (dotimes (_i 11)
+            (let* (flag*
+                   (flag (lambda () (prog1 t (setq flag* t))))
+                   (indirect (make-indirect-buffer base "foo[indirect]" nil
+                                                   inhibit)))
+              (unwind-protect
+                  (progn
+                    (with-current-buffer indirect
+                      (add-hook 'kill-buffer-query-functions flag nil t))
+                    (kill-buffer indirect)
+                    (if inhibit
+                        (should-not flag*)
+                      (should flag*)))
+                (let (kill-buffer-query-functions)
+                  (when (buffer-live-p indirect)
+                    (kill-buffer indirect))))))
+        (let (kill-buffer-query-functions)
+          (when (buffer-live-p base)
+            (kill-buffer base)))))))
+
+(ert-deftest zero-length-overlays-and-not ()
+  (with-temp-buffer
+    (insert "hello")
+    (let ((long-overlay (make-overlay 2 4))
+          (zero-overlay (make-overlay 3 3)))
+      ;; Exclude.
+      (should (= (length (overlays-at 3)) 1))
+      (should (eq (car (overlays-at 3)) long-overlay))
+      ;; Include.
+      (should (= (length (overlays-in 3 3)) 2))
+      (should (memq long-overlay (overlays-in 3 3)))
+      (should (memq zero-overlay (overlays-in 3 3))))))
+
+(ert-deftest test-remove-overlays ()
+  (with-temp-buffer
+    (insert "foo")
+    (make-overlay (point) (point))
+    (should (= (length (overlays-in (point-min) (point-max))) 1))
+    (remove-overlays)
+    (should (= (length (overlays-in (point-min) (point-max))) 0)))
+
+  (with-temp-buffer
+    (insert "foo")
+    (goto-char 2)
+    (make-overlay (point) (point))
+    ;; We only count zero-length overlays at the end of the buffer.
+    (should (= (length (overlays-in 1 2)) 0))
+    (narrow-to-region 1 2)
+    ;; We've now narrowed, so the zero-length overlay is at the end of
+    ;; the (accessible part of the) buffer.
+    (should (= (length (overlays-in 1 2)) 1))
+    (remove-overlays)
+    (should (= (length (overlays-in (point-min) (point-max))) 0))))
 
 ;;; buffer-tests.el ends here

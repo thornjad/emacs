@@ -2519,7 +2519,7 @@ If PROMPT (the prefix), prompt for a coding system to use."
 	      format (and ctl (mail-content-type-get ctl 'format)))
 	(when cte
 	  (setq cte (mail-header-strip-cte cte)))
-	(if (and ctl (not (string-match "/" (car ctl))))
+	(if (and ctl (not (string-search "/" (car ctl))))
 	    (setq ctl nil))
 	(goto-char (point-max)))
       (forward-line 1)
@@ -6039,7 +6039,28 @@ If nil, don't show those extra buttons."
 	(ignored gnus-ignored-mime-types)
 	(mm-inline-font-lock (gnus-visual-p 'article-highlight 'highlight))
 	(not-attachment t)
-	display text)
+        ;; Arrange a callback from `mm-inline-message' if we're
+        ;; displaying a message/rfc822 part.
+        (mm-inline-message-prepare-function
+         (lambda (charset)
+           (let ((handles
+                  (let (gnus-article-mime-handles
+	                ;; disable prepare hook
+	                gnus-article-prepare-hook
+	                (gnus-newsgroup-charset
+                         ;; mm-uu might set it.
+	                 (unless (eq charset 'gnus-decoded)
+		           (or charset gnus-newsgroup-charset))))
+	            (let ((gnus-original-article-buffer
+                           (mm-handle-buffer handle)))
+	              (run-hooks 'gnus-article-decode-hook))
+	            (gnus-article-prepare-display)
+                    gnus-article-mime-handles)))
+	     (when handles
+	       (setq gnus-article-mime-handles
+		     (mm-merge-handles gnus-article-mime-handles handles))))))
+	display text
+        gnus-displaying-mime)
     (catch 'ignored
       (progn
 	(while ignored
@@ -6217,8 +6238,9 @@ If nil, don't show those extra buttons."
 	      (gnus-display-mime preferred)
 	    (let ((mail-parse-charset gnus-newsgroup-charset)
 		  (mail-parse-ignored-charsets
-		   (with-current-buffer gnus-summary-buffer
-		     gnus-newsgroup-ignored-charsets)))
+                   (and (buffer-live-p gnus-summary-buffer)
+		        (with-current-buffer gnus-summary-buffer
+		          gnus-newsgroup-ignored-charsets))))
 	      (gnus-bind-mm-vars (mm-display-part preferred))
 	      ;; Do highlighting.
 	      (save-excursion
@@ -8266,7 +8288,7 @@ url is put as the `gnus-button-url' overlay property on the button."
 	     ")" (gnus-url-unhex-string (match-string 2 url)))))
    ((string-match "([^)\"]+)[^\"]+" url)
     (setq url
-	  (replace-regexp-in-string
+	  (string-replace
 	   "\"" "" (replace-regexp-in-string "[\n\t ]+" " " url)))
     (gnus-info-find-node url))
    (t (error "Can't parse %s" url))))

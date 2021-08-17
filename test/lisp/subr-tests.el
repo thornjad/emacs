@@ -477,7 +477,7 @@ See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=19350."
   (add-hook 'subr-tests--hook 'f7 90)
   (add-hook 'subr-tests--hook 'f8 t)
   (should (equal subr-tests--hook '(f5 f6 f2 f1 f4 f3 f7 f8)))
-  ;; Make sue `nil' is equivalent to 0.
+  ;; Make sure `nil' is equivalent to 0.
   (add-hook 'subr-tests--hook 'f9 0)
   (add-hook 'subr-tests--hook 'f10)
   (should (equal subr-tests--hook '(f5 f10 f9 f6 f2 f1 f4 f3 f7 f8)))
@@ -693,6 +693,52 @@ See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=19350."
     (should (buffer-local-boundp 'test-boundp buf))
     (should-not (buffer-local-boundp 'test-not-boundp buf))
     (should (buffer-local-boundp 'test-global-boundp buf))))
+
+(ert-deftest test-replace-string-in-region ()
+  (with-temp-buffer
+    (insert "foo bar zot foobar")
+    (should (= (replace-string-in-region "foo" "new" (point-min) (point-max))
+               2))
+    (should (equal (buffer-string) "new bar zot newbar")))
+
+  (with-temp-buffer
+    (insert "foo bar zot foobar")
+    (should (= (replace-string-in-region "foo" "new" (point-min) 14)
+               1))
+    (should (equal (buffer-string) "new bar zot foobar")))
+
+  (with-temp-buffer
+    (insert "foo bar zot foobar")
+    (should-error (replace-string-in-region "foo" "new" (point-min) 30)))
+
+  (with-temp-buffer
+    (insert "Foo bar zot foobar")
+    (should (= (replace-string-in-region "Foo" "new" (point-min))
+               1))
+    (should (equal (buffer-string) "new bar zot foobar"))))
+
+(ert-deftest test-replace-regexp-in-region ()
+  (with-temp-buffer
+    (insert "foo bar zot foobar")
+    (should (= (replace-regexp-in-region "fo+" "new" (point-min) (point-max))
+               2))
+    (should (equal (buffer-string) "new bar zot newbar")))
+
+  (with-temp-buffer
+    (insert "foo bar zot foobar")
+    (should (= (replace-regexp-in-region "fo+" "new" (point-min) 14)
+               1))
+    (should (equal (buffer-string) "new bar zot foobar")))
+
+  (with-temp-buffer
+    (insert "foo bar zot foobar")
+    (should-error (replace-regexp-in-region "fo+" "new" (point-min) 30)))
+
+  (with-temp-buffer
+    (insert "Foo bar zot foobar")
+    (should (= (replace-regexp-in-region "Fo+" "new" (point-min))
+               1))
+    (should (equal (buffer-string) "new bar zot foobar"))))
 
 (provide 'subr-tests)
 ;;; subr-tests.el ends here

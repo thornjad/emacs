@@ -257,6 +257,14 @@ return a string which is inserted.  It may set `facemenu-end-add-face'."
 			     'facemenu-face-menu)))
 (defalias 'facemenu-menu facemenu-menu)
 
+;;;###autoload (autoload 'facemenu-menu "facemenu" nil nil 'keymap)
+;;;###autoload
+(define-key global-map [C-down-mouse-2] 'facemenu-menu)
+
+(easy-menu-add-item
+ menu-bar-edit-menu nil
+ ["Text Properties" facemenu-menu])
+
 (defvar facemenu-keymap
   (let ((map (make-sparse-keymap "Set face")))
     (define-key map "o" (cons (purecopy "Other...") 'facemenu-set-face))
@@ -723,7 +731,13 @@ they are used to set the face information.
 As a special case, if FACE is `default', then the region is left with NO face
 text property.  Otherwise, selecting the default face would not have any
 effect.  See `facemenu-remove-face-function'."
-  (interactive "*xFace: \nr")
+  (interactive (list (progn
+		       (barf-if-buffer-read-only)
+		       (read-face-name "Use face" (face-at-point t)))
+		     (if (and mark-active (not current-prefix-arg))
+			 (region-beginning))
+		     (if (and mark-active (not current-prefix-arg))
+			 (region-end))))
   (cond
    ((and (eq face 'default)
          (not (eq facemenu-remove-face-function t)))

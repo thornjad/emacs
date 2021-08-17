@@ -755,7 +755,12 @@ the message being processed."
 				   (forward-char -1)
 				   (skip-chars-backward " \t")
 				   (point))))))
-		    len mch lo)
+		    len mch lo newline)
+               ;; If there are multiple lines in FROM,
+               ;; discard up to the last newline in it.
+               (while (and (stringp from)
+                           (setq newline (string-search "\n" from)))
+                 (setq from (substring from (1+ newline))))
 	       (if (or (null from)
 		       (string-match
 			(or rmail-user-mail-address-regexp

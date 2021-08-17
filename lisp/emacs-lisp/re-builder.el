@@ -350,11 +350,16 @@ matching parts of the target buffer will be highlighted."
       (reb-delete-overlays))
     (setq reb-target-buffer (current-buffer)
           reb-target-window (selected-window))
-    (select-window (or (get-buffer-window reb-buffer)
-		       (progn
-			 (setq reb-window-config (current-window-configuration))
-			 (split-window (selected-window) (- (window-height) 4)))))
-    (switch-to-buffer (get-buffer-create reb-buffer))
+    (select-window
+     (or (get-buffer-window reb-buffer)
+         (let ((dir (if (window-parameter nil 'window-side)
+                        'bottom 'down)))
+           (setq reb-window-config (current-window-configuration))
+           (display-buffer
+            (get-buffer-create reb-buffer)
+            `((display-buffer-in-direction)
+              (direction . ,dir)
+              (dedicated . t))))))
     (font-lock-mode 1)
     (reb-initialize-buffer)))
 
@@ -426,7 +431,7 @@ matching parts of the target buffer will be highlighted."
   (let ((re (with-output-to-string
 	      (print (reb-target-binding reb-regexp)))))
     (setq re (substring re 1 (1- (length re))))
-    (setq re (replace-regexp-in-string "\n" "\\n" re nil t))
+    (setq re (string-replace "\n" "\\n" re))
     (kill-new re)
     (message "Copied regexp `%s' to kill-ring" re)))
 

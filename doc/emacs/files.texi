@@ -227,6 +227,15 @@ File Names}, for information on how to visit a file whose name
 actually contains wildcard characters.  You can disable the wildcard
 feature by customizing @code{find-file-wildcards}.
 
+@vindex query-about-changed-file
+  If you're asking to visit a file that's already visited in a buffer,
+but the file has changed externally, Emacs normally asks you whether
+you want to re-read the file from disk.  But if you set
+@code{query-about-changed-file} to @code{nil}, Emacs won't query you,
+but will instead just display the buffer's contents before the
+changes, and show an echo-area message telling you how to revert the
+buffer from the file.
+
 @kindex C-x C-v
 @findex find-alternate-file
   If you visit the wrong file unintentionally by typing its name
@@ -789,7 +798,9 @@ Emacs buffer visiting it has unsaved changes.
 @vindex create-lockfiles
   You can prevent the creation of lock files by setting the variable
 @code{create-lockfiles} to @code{nil}.  @strong{Caution:} by
-doing so you will lose the benefits that this feature provides.
+doing so you will lose the benefits that this feature provides.  You
+can also control where lock files are written by using the
+@code{lock-file-name-transforms} variable.
 
 @cindex collision
   If you begin to modify the buffer while the visited file is locked by
@@ -833,6 +844,14 @@ warning message and asks for confirmation before saving; answer
   If you are notified that simultaneous editing has already taken
 place, one way to compare the buffer to its file is the @kbd{M-x
 diff-buffer-with-file} command.  @xref{Comparing Files}.
+
+@vindex remote-file-name-inhibit-locks
+  You can prevent the creation of remote lock files by setting the
+variable @code{remote-file-name-inhibit-locks} to @code{t}.
+
+@cindex lock-file-mode
+  The minor mode @code{lock-file-mode}, called interactively, toggles
+the local value of @code{create-lockfiles} in the current buffer.
 
 @node File Shadowing
 @subsection Shadowing Files
@@ -929,7 +948,7 @@ Manual}).  For customizations, see the Custom group @code{time-stamp}.
 then change your mind, you can @dfn{revert} the changes and go back to
 the saved version of the file.  To do this, type @kbd{C-x x g}.  Since
 reverting unintentionally could lose a lot of work, Emacs asks for
-confirmation first.
+confirmation first if the buffer is modified.
 
   The @code{revert-buffer} command tries to position point in such a
 way that, if the file was edited only slightly, you will be at
@@ -971,6 +990,17 @@ regular expressions, @code{find-file} and @code{revert-buffer} will
 revert it automatically if it has changed---provided the buffer itself
 is not modified.  (If you have edited the text, it would be wrong to
 discard your changes.)
+
+@vindex revert-buffer-quick-short-answers
+@findex revert-buffer-quick
+  The @kbd{C-x x g} keystroke is bound to the
+@code{revert-buffer-quick} command.  This is like the
+@code{revert-buffer} command, but prompts less.  Unlike
+@code{revert-buffer}, it will not prompt if the current buffer visits
+a file, and the buffer is not modified.  It also respects the
+@code{revert-buffer-quick-short-answers} user option.  If this option
+is non-@code{nil}, use a shorter @kbd{y/n} query instead of a longer
+@kbd{yes/no} query.
 
   You can also tell Emacs to revert buffers automatically when their
 visited files change on disk; @pxref{Auto Revert}.

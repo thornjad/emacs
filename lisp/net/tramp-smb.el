@@ -247,6 +247,7 @@ See `tramp-actions-before-shell' for more info.")
     (file-exists-p . tramp-handle-file-exists-p)
     (file-in-directory-p . tramp-handle-file-in-directory-p)
     (file-local-copy . tramp-smb-handle-file-local-copy)
+    (file-locked-p . tramp-handle-file-locked-p)
     (file-modes . tramp-handle-file-modes)
     (file-name-all-completions . tramp-smb-handle-file-name-all-completions)
     (file-name-as-directory . tramp-handle-file-name-as-directory)
@@ -273,9 +274,11 @@ See `tramp-actions-before-shell' for more info.")
     (insert-directory . tramp-smb-handle-insert-directory)
     (insert-file-contents . tramp-handle-insert-file-contents)
     (load . tramp-handle-load)
+    (lock-file . tramp-handle-lock-file)
     (make-auto-save-file-name . tramp-handle-make-auto-save-file-name)
     (make-directory . tramp-smb-handle-make-directory)
     (make-directory-internal . tramp-smb-handle-make-directory-internal)
+    (make-lock-file-name . tramp-handle-make-lock-file-name)
     (make-nearby-temp-file . tramp-handle-make-nearby-temp-file)
     (make-process . ignore)
     (make-symbolic-link . tramp-smb-handle-make-symbolic-link)
@@ -294,6 +297,7 @@ See `tramp-actions-before-shell' for more info.")
     (tramp-get-remote-uid . ignore)
     (tramp-set-file-uid-gid . ignore)
     (unhandled-file-name-directory . ignore)
+    (unlock-file . tramp-handle-unlock-file)
     (vc-registered . ignore)
     (verify-visited-file-modtime . tramp-handle-verify-visited-file-modtime)
     (write-region . tramp-smb-handle-write-region))
@@ -532,7 +536,7 @@ arguments to pass to the OPERATION."
 		      (tramp-process-actions p v nil tramp-smb-actions-with-tar)
 
 		      (while (process-live-p p)
-			(sit-for 0.1))
+			(sleep-for 0.1))
 		      (tramp-message v 6 "\n%s" (buffer-string))))
 
 		;; Reset the transfer process properties.
@@ -718,7 +722,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
   (when (zerop (length name)) (setq name "."))
   ;; Unless NAME is absolute, concat DIR and NAME.
   (unless (file-name-absolute-p name)
-    (setq name (concat (file-name-as-directory dir) name)))
+    (setq name (tramp-compat-file-name-concat dir name)))
   ;; If NAME is not a Tramp file, run the real handler.
   (if (not (tramp-tramp-file-p name))
       (tramp-run-real-handler #'expand-file-name (list name nil))
@@ -845,7 +849,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 
 	    ;; Check result.
 	    (when entry
-	      (list (and (string-match-p "d" (nth 1 entry))
+	      (list (and (tramp-compat-string-search "d" (nth 1 entry))
 			 t)              ;0 file type
 		    -1	                 ;1 link count
 		    uid	                 ;2 uid
@@ -978,7 +982,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 	(mapcar
 	 (lambda (x)
 	   (list
-	    (if (string-match-p "d" (nth 1 x))
+	    (if (tramp-compat-string-search "d" (nth 1 x))
 		(file-name-as-directory (nth 0 x))
 	      (nth 0 x))))
 	 (tramp-smb-get-file-entries directory)))))))
@@ -1017,7 +1021,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 (defun tramp-smb-handle-file-writable-p (filename)
   "Like `file-writable-p' for Tramp files."
   (if (file-exists-p filename)
-      (string-match-p
+      (tramp-compat-string-search
        "w"
        (or (tramp-compat-file-attribute-modes (file-attributes filename)) ""))
     (let ((dir (file-name-directory filename)))
@@ -1072,9 +1076,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 		     ;; Check for matching entries.
 		     (mapcar
 		      (lambda (x)
-			(when (string-match-p
-			       (format "^%s" base) (nth 0 x))
-			  x))
+			(when (string-match-p (format "^%s" base) (nth 0 x)) x))
 		      entries)
 		   ;; We just need the only and only entry FILENAME.
 		   (list (assoc base entries)))))
@@ -1084,14 +1086,14 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 		(sort
 		 entries
 		 (lambda (x y)
-		   (if (string-match-p "t" switches)
+		   (if (tramp-compat-string-search "t" switches)
 		       ;; Sort by date.
 		       (time-less-p (nth 3 y) (nth 3 x))
 		     ;; Sort by name.
 		     (string-lessp (nth 0 x) (nth 0 y))))))
 
 	  ;; Handle "-F" switch.
-	  (when (string-match-p "F" switches)
+	  (when (tramp-compat-string-search "F" switches)
 	    (mapc
 	     (lambda (x)
 	       (unless (zerop (length (car x)))
@@ -1120,7 +1122,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 			   (expand-file-name
 			    (nth 0 x) (file-name-directory filename))
 			   'string)))))
-		 (when (string-match-p "l" switches)
+		 (when (tramp-compat-string-search "l" switches)
 		   (insert
 		    (format
 		     "%10s %3d %-8s %-8s %8s %s "
@@ -1149,7 +1151,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 		   (put-text-property start (point) 'dired-filename t))
 
 		 ;; Insert symlink.
-		 (when (and (string-match-p "l" switches)
+		 (when (and (tramp-compat-string-search "l" switches)
 			    (stringp (tramp-compat-file-attribute-type attr)))
 		   (insert " -> " (tramp-compat-file-attribute-type attr))))
 
@@ -1255,7 +1257,7 @@ component is used as the target of the symlink."
   (when (and (numberp destination) (zerop destination))
     (error "Implementation does not handle immediate return"))
 
-  (with-parsed-tramp-file-name default-directory nil
+  (with-parsed-tramp-file-name (expand-file-name default-directory) nil
     (let* ((name (file-name-nondirectory program))
 	   (name1 name)
 	   (i 0)
@@ -1547,7 +1549,7 @@ component is used as the target of the symlink."
 
 	;; Save exit.
 	(with-current-buffer (tramp-get-connection-buffer v)
-	  (if (string-match-p tramp-temp-buffer-name (buffer-name))
+	  (if (tramp-compat-string-search tramp-temp-buffer-name (buffer-name))
 	      (progn
 		(set-process-buffer (tramp-get-connection-process v) nil)
 		(kill-buffer (current-buffer)))
@@ -1575,7 +1577,8 @@ errors for shares like \"C$/\", which are common in Microsoft Windows."
 (defun tramp-smb-handle-write-region
   (start end filename &optional append visit lockname mustbenew)
   "Like `write-region' for Tramp files."
-  (setq filename (expand-file-name filename))
+  (setq filename (expand-file-name filename)
+	lockname (file-truename (or lockname filename)))
   (with-parsed-tramp-file-name filename nil
     (when (and mustbenew (file-exists-p filename)
 	       (or (eq mustbenew 'excl)
@@ -1584,15 +1587,25 @@ errors for shares like \"C$/\", which are common in Microsoft Windows."
 		     (format "File %s exists; overwrite anyway? " filename)))))
       (tramp-error v 'file-already-exists filename))
 
-    (let ((curbuf (current-buffer))
+    (let ((file-locked (eq (file-locked-p lockname) t))
+	  (curbuf (current-buffer))
 	  (tmpfile (tramp-compat-make-temp-file filename)))
+
+      ;; Lock file.
+      (when (and (not (auto-save-file-name-p (file-name-nondirectory filename)))
+		 (file-remote-p lockname)
+		 (not file-locked))
+	(setq file-locked t)
+	;; `lock-file' exists since Emacs 28.1.
+	(tramp-compat-funcall 'lock-file lockname))
+
       (when (and append (file-exists-p filename))
 	(copy-file filename tmpfile 'ok))
       ;; We say `no-message' here because we don't want the visited file
       ;; modtime data to be clobbered from the temp file.  We call
       ;; `set-visited-file-modtime' ourselves later on.
-      (tramp-run-real-handler
-       #'write-region (list start end tmpfile append 'no-message lockname))
+      (let (create-lockfiles)
+        (write-region start end tmpfile append 'no-message))
 
       (with-tramp-progress-reporter
 	  v 3 (format "Moving tmp file %s to %s" tmpfile filename)
@@ -1618,6 +1631,11 @@ errors for shares like \"C$/\", which are common in Microsoft Windows."
 	 (or (tramp-compat-file-attribute-modification-time
 	      (file-attributes filename))
 	     (current-time))))
+
+      ;; Unlock file.
+      (when file-locked
+	;; `unlock-file' exists since Emacs 28.1.
+	(tramp-compat-funcall 'unlock-file lockname))
 
       ;; The end.
       (when (and (null noninteractive)
@@ -1837,10 +1855,12 @@ are listed.  Result is the list (LOCALNAME MODE SIZE MTIME)."
 	     mode (or (match-string 1 line) "")
 	     mode (format
 		    "%s%s"
-		    (if (string-match-p "D" mode) "d" "-")
+		    (if (tramp-compat-string-search "D" mode) "d" "-")
 		    (mapconcat
 		     (lambda (_x) "") "    "
-		     (concat "r" (if (string-match-p "R" mode) "-" "w") "x")))
+		     (format
+		      "r%sx"
+		      (if (tramp-compat-string-search "R" mode) "-" "w"))))
 	     line (substring line 0 -6))
 	  (cl-return))
 

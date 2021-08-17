@@ -142,7 +142,8 @@ Configuring @value{tramp} for use
 * Remote shell setup::          Remote shell setup hints.
 * FUSE setup::                  @acronym{FUSE} setup hints.
 * Android shell setup::         Android shell setup hints.
-* Auto-save and Backup::        Auto-save and Backup.
+* Auto-save File Lock and Backup::
+                                Auto-save, File Lock and Backup.
 * Keeping files encrypted::     Protect remote files by encryption.
 * Windows setup hints::         Issues with Cygwin ssh.
 
@@ -691,7 +692,8 @@ may be used in your init file:
 * Remote shell setup::          Remote shell setup hints.
 * FUSE setup::                  @acronym{FUSE} setup hints.
 * Android shell setup::         Android shell setup hints.
-* Auto-save and Backup::        Auto-save and Backup.
+* Auto-save File Lock and Backup::
+                                Auto-save, File Lock and Backup.
 * Keeping files encrypted::     Protect remote files by encryption.
 * Windows setup hints::         Issues with Cygwin ssh.
 @end menu
@@ -1288,7 +1290,7 @@ they are added here for the benefit of @ref{Archive file names}.
 
 If you want to use @acronym{GVFS}-based @option{ftp} or @option{smb}
 methods, you must add them to @code{tramp-gvfs-methods}, and you must
-disable the corresponding Tramp package by setting
+disable the corresponding @value{tramp} package by setting
 @code{tramp-ftp-method} or @code{tramp-smb-method} to @code{nil},
 respectively:
 
@@ -2120,9 +2122,9 @@ to construct these lists.
 
 @item @t{"remote-shell"}
 
-This property tells Tramp which remote shell to apply on the remote
-host.  It is used in all connection methods of @file{tramp-sh.el}.
-The default value is @t{"/bin/sh"}.
+This property tells @value{tramp} which remote shell to apply on the
+remote host.  It is used in all connection methods of
+@file{tramp-sh.el}.  The default value is @t{"/bin/sh"}.
 
 @item @t{"remote-shell-login"}
 
@@ -2308,9 +2310,9 @@ trouble with the shell prompt due to set zle options will be avoided.
 For @command{bash}, loading @file{~/.editrc} or @file{~/.inputrc} is
 suppressed.
 
-Similar problems can happen with the local shell Tramp uses to create
-a process.  By default, it uses the command @command{/bin/sh} for
-this, which could also be a link to another shell.  In order to
+Similar problems can happen with the local shell @value{tramp} uses to
+create a process.  By default, it uses the command @command{/bin/sh}
+for this, which could also be a link to another shell.  In order to
 overwrite this, you might apply
 
 @vindex tramp-encoding-shell
@@ -2745,9 +2747,10 @@ Open a remote connection with a more concise command @kbd{C-x C-f
 @end itemize
 
 
-@node Auto-save and Backup
-@section Auto-save and Backup configuration
+@node Auto-save File Lock and Backup
+@section Auto-save, File Lock and Backup configuration
 @cindex auto-save
+@cindex file-lock
 @cindex backup
 
 @vindex backup-directory-alist
@@ -2842,11 +2845,28 @@ auto-saved files to the same directory as the original file.
 Alternatively, set the user option @code{tramp-auto-save-directory}
 to direct all auto saves to that location.
 
+@vindex lock-file-name-transforms
+And still more issues to handle.  Since @w{Emacs 28}, file locks use a
+similar user option as auto-save files, called
+@code{lock-file-name-transforms}.  By default this user option is
+@code{nil}, meaning to keep file locks in the same directory as the
+original file.
+
+If you change @code{lock-file-name-transforms} in order to keep file
+locks for remote files somewhere else, you will loose Emacs' feature
+to warn you, if a file is changed in parallel from different Emacs
+sessions, or via different remote connections.  Be careful with such
+settings.
+
+@vindex remote-file-name-inhibit-locks
+Setting @code{remote-file-name-inhibit-locks} to non-@code{nil}
+prevents the creation of remote lock files at all.
+
 @vindex tramp-allow-unsafe-temporary-files
 Per default, @value{tramp} asks for confirmation if a
-@samp{root}-owned backup or auto-save remote file has to be written to
-your local temporary directory.  If you want to suppress this
-confirmation question, set user option
+@samp{root}-owned remote backup, auto-save or lock file has to be
+written to your local temporary directory.  If you want to suppress
+this confirmation question, set user option
 @code{tramp-allow-unsafe-temporary-files} to @code{t}.
 
 
@@ -3714,6 +3734,32 @@ To open @command{powershell} as a remote shell, use this:
 @end lisp
 
 
+@subsection Remote process connection type
+@vindex process-connection-type
+@cindex tramp-process-connection-type
+
+Asynchronous processes differ in the way, whether they use a pseudo
+tty, or not.  This is controlled by the variable
+@code{process-connection-type}, which can be @code{t} or @code{pty}
+(use a pseudo tty), or @code{nil} or @code{pipe} (don't use it).
+@value{tramp} is based on running shells on the remote host, which
+require a pseudo tty.  Therefore, it declares the variable
+@code{tramp-process-connection-type}, which carries this information
+for remote processes.  Per default, its value is @code{t}.  The name
+of the remote pseudo tty is returned by the function
+@code{process-tty-name}.
+
+If a remote process, started by @code{start-file-process}, shouldn't
+use a pseudo tty, this is emulated by let-binding this variable to
+@code{nil} or @code{pipe}.  There is still a pseudo tty for the
+started process, but some terminal properties are changed, like
+suppressing translation of carriage return characters into newline.
+
+The function @code{make-process} allows an explicit setting by the
+@code{:connection-type} keyword.  If this keyword is not used, the
+value of @code{tramp-process-connection-type} is applied instead.
+
+
 @anchor{Improving performance of asynchronous remote processes}
 @subsection Improving performance of asynchronous remote processes
 @cindex Asynchronous remote processes
@@ -4235,7 +4281,9 @@ test, @ref{Cleanup remote connections}.  Alternatively, and often
 better for analysis, reproduce the problem in a clean Emacs session
 started with @command{emacs -Q}.  Then, @value{tramp} does not load
 the persistency file (@pxref{Connection caching}), and it does not use
-passwords from @file{auth-source.el} (@pxref{Password handling}).
+passwords from @file{auth-source.el} (@pxref{Password handling}).  The
+latter does not happen for the @option{sudoedit} method, otherwise it
+would be unusable.
 
 When including @value{tramp}'s messages in the bug report, increase
 the verbosity level to 6 (@pxref{Traces and Profiles, Traces}) in the
@@ -4549,6 +4597,16 @@ Host *
 
 Check the @samp{ssh_config(5)} man page whether these options are
 supported on your proxy host.
+
+
+@item
+Does @value{tramp} support @acronym{SSH} security keys?
+
+Yes.  @command{OpenSSH} has added support for @acronym{FIDO} hardware
+devices via special key types @option{*-sk}.  @value{tramp} supports
+the additional handshaking messages for them.  This requires at least
+@command{OpenSSH} 8.2, and a @acronym{FIDO} @acronym{U2F} compatible
+security key, like yubikey, solokey, or nitrokey.
 
 
 @item

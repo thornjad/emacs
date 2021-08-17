@@ -44,6 +44,8 @@ by counted more than once."
   (pop-to-buffer "*Memory Report*")
   (special-mode)
   (button-mode 1)
+  (setq-local revert-buffer-function (lambda (_ignore-auto _noconfirm)
+                                       (memory-report)))
   (setq truncate-lines t)
   (message "Gathering data...")
   (let ((reports (append (memory-report--garbage-collect)
@@ -228,8 +230,7 @@ by counted more than once."
   (let ((total (+ (memory-report--size 'vector)
                   (* (memory-report--size 'object) (length value)))))
     (cl-loop for elem across value
-             do (setf (gethash elem counted) t)
-             (cl-incf total (memory-report--object-size counted elem)))
+             do (cl-incf total (memory-report--object-size counted elem)))
     total))
 
 (cl-defmethod memory-report--object-size-1 (counted (value hash-table))
@@ -237,8 +238,6 @@ by counted more than once."
                   (* (memory-report--size 'object) (hash-table-size value)))))
     (maphash
      (lambda (key elem)
-       (setf (gethash key counted) t)
-       (setf (gethash elem counted) t)
        (cl-incf total (memory-report--object-size counted key))
        (cl-incf total (memory-report--object-size counted elem)))
      value)
