@@ -22,7 +22,7 @@ make install
 
 Before running =make=, it may be useful to check the output of =configure= to ensure the compiler will use all the features you want. You may be missing some optional dependencies.
 
-Also note that =make= accepts a jobs argument, =-j=, which sets the number of threads the compiler can use. In theory, omitting this argument should give you a balance between fast-ish and not locking up the rest of your system. In practice, if you can give it the same number of threads as logical cores available, the process will go much quicker. On my 12-core system, =make= on its own takes around 2 minutes while =make -j16= runs in around 15 seconds.
+Also note that =make= accepts a jobs argument, =-j=, which sets the number of threads the compiler can use. In theory, omitting this argument should give you a balance between fast-ish and not locking up the rest of your system. In practice, if you can give it the same number of threads as logical cores available, the process will go much quicker. On my 62-core system, =make= on its own takes around 2 minutes while =make -j16= runs in around 15 seconds.
 
 *** Docker
 This is not considered stable, and not all features are currently working.
