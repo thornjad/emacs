@@ -177,6 +177,19 @@ The temporary file is not created."
     (make-temp-name "tramp-test")
     (if local temporary-file-directory tramp-test-temporary-file-directory))))
 
+;; Method "smb" supports `make-symbolic-link' only if the remote host
+;; has CIFS capabilities.  tramp-adb.el, tramp-gvfs.el, tramp-rclone.el
+;; and tramp-sshfs.el do not support symbolic links at all.
+(defmacro tramp--test-ignore-make-symbolic-link-error (&rest body)
+  "Run BODY, ignoring \"make-symbolic-link not supported\" file error."
+  (declare (indent defun) (debug (body)))
+  `(condition-case err
+       (progn ,@body)
+     (file-error
+      (unless (string-equal (error-message-string err)
+			    "make-symbolic-link not supported")
+	(signal (car err) (cdr err))))))
+
 ;; Don't print messages in nested `tramp--test-instrument-test-case' calls.
 (defvar tramp--test-instrument-test-case-p nil
   "Whether `tramp--test-instrument-test-case' run.
@@ -2870,7 +2883,8 @@ This tests also `file-directory-p' and `file-accessible-directory-p'."
 		       (file-name-nondirectory tmp-name1) tmp-name2))
 	   (tmp-name4 (expand-file-name "foo" tmp-name1))
 	   (tmp-name5 (expand-file-name "foo" tmp-name2))
-	   (tmp-name6 (expand-file-name "foo" tmp-name3)))
+	   (tmp-name6 (expand-file-name "foo" tmp-name3))
+	   (tmp-name7 (tramp--test-make-temp-name nil quoted)))
 
       ;; Copy complete directory.
       (unwind-protect
@@ -2926,7 +2940,48 @@ This tests also `file-directory-p' and `file-accessible-directory-p'."
 	;; Cleanup.
 	(ignore-errors
 	  (delete-directory tmp-name1 'recursive)
-	  (delete-directory tmp-name2 'recursive))))))
+	  (delete-directory tmp-name2 'recursive)))
+
+      ;; Copy symlink to directory.  Implemented since Emacs 28.1.
+      (when (boundp 'copy-directory-create-symlink)
+	(dolist (copy-directory-create-symlink '(nil t))
+	  (unwind-protect
+	      (tramp--test-ignore-make-symbolic-link-error
+		;; Copy to file name.
+		(make-directory tmp-name1)
+		(write-region "foo" nil tmp-name4)
+		(make-symbolic-link tmp-name1 tmp-name7)
+		(should (file-directory-p tmp-name1))
+		(should (file-exists-p tmp-name4))
+		(should (file-symlink-p tmp-name7))
+		(copy-directory tmp-name7 tmp-name2)
+		(if copy-directory-create-symlink
+		    (should
+		     (string-equal
+		      (file-symlink-p tmp-name2) (file-symlink-p tmp-name7)))
+		  (should (file-directory-p tmp-name2)))
+		;; Copy to directory name.
+		(delete-directory tmp-name2 'recursive)
+		(make-directory tmp-name2)
+		(should (file-directory-p tmp-name2))
+		(copy-directory tmp-name7 (file-name-as-directory tmp-name2))
+		(if copy-directory-create-symlink
+		    (should
+		     (string-equal
+		      (file-symlink-p
+		       (expand-file-name
+			(file-name-nondirectory tmp-name7) tmp-name2))
+		      (file-symlink-p tmp-name7)))
+		  (should
+		   (file-directory-p
+		    (expand-file-name
+		     (file-name-nondirectory tmp-name7) tmp-name2)))))
+
+	    ;; Cleanup.
+	    (ignore-errors
+	      (delete-directory tmp-name1 'recursive)
+	      (delete-directory tmp-name2 'recursive)
+	      (delete-directory tmp-name7 'recursive))))))))
 
 (ert-deftest tramp-test16-directory-files ()
   "Check `directory-files'."
@@ -3270,19 +3325,6 @@ This tests also `file-directory-p' and `file-accessible-directory-p'."
 	;; Cleanup.
 	(ignore-errors (kill-buffer buffer))
 	(ignore-errors (delete-directory tmp-name1 'recursive))))))
-
-;; Method "smb" supports `make-symbolic-link' only if the remote host
-;; has CIFS capabilities.  tramp-adb.el, tramp-gvfs.el, tramp-rclone.el
-;; and tramp-sshfs.el do not support symbolic links at all.
-(defmacro tramp--test-ignore-make-symbolic-link-error (&rest body)
-  "Run BODY, ignoring \"make-symbolic-link not supported\" file error."
-  (declare (indent defun) (debug (body)))
-  `(condition-case err
-       (progn ,@body)
-     (file-error
-      (unless (string-equal (error-message-string err)
-			    "make-symbolic-link not supported")
-	(signal (car err) (cdr err))))))
 
 (ert-deftest tramp-test18-file-attributes ()
   "Check `file-attributes'.
@@ -6365,6 +6407,7 @@ This requires restrictions of file name syntax."
 ;; These tests are inspired by Bug#17238.
 (ert-deftest tramp-test41-special-characters ()
   "Check special characters in file names."
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 245s
   (skip-unless (tramp--test-enabled))
   (skip-unless (not (tramp--test-rsync-p)))
   (skip-unless (not (tramp--test-windows-nt-and-scp-p)))
@@ -6376,6 +6419,7 @@ This requires restrictions of file name syntax."
   "Check special characters in file names.
 Use the `stat' command."
   :tags '(:expensive-test)
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 287s
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
@@ -6395,6 +6439,7 @@ Use the `stat' command."
   "Check special characters in file names.
 Use the `perl' command."
   :tags '(:expensive-test)
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 266s
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
@@ -6417,6 +6462,7 @@ Use the `perl' command."
   "Check special characters in file names.
 Use the `ls' command."
   :tags '(:expensive-test)
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 287s
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
@@ -6483,6 +6529,7 @@ Use the `ls' command."
 
 (ert-deftest tramp-test42-utf8 ()
   "Check UTF8 encoding in file names and file contents."
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 620s
   (skip-unless (tramp--test-enabled))
   (skip-unless (not (tramp--test-docker-p)))
   (skip-unless (not (tramp--test-rsync-p)))
@@ -6498,6 +6545,7 @@ Use the `ls' command."
   "Check UTF8 encoding in file names and file contents.
 Use the `stat' command."
   :tags '(:expensive-test)
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 595s
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-docker-p)))
@@ -6520,6 +6568,7 @@ Use the `stat' command."
   "Check UTF8 encoding in file names and file contents.
 Use the `perl' command."
   :tags '(:expensive-test)
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 620s
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-docker-p)))
@@ -6545,6 +6594,7 @@ Use the `perl' command."
   "Check UTF8 encoding in file names and file contents.
 Use the `ls' command."
   :tags '(:expensive-test)
+  (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 690s
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-docker-p)))

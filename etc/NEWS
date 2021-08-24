@@ -134,6 +134,15 @@ file:
 It used to be enabled when Emacs is started in GUI mode but not when started
 in text mode.  The cursor still only actually blinks in GUI frames.
 
+---
+** 'auto-composition-mode' can now be selectively disabled on some TTYs.
+Some text-mode terminals produce display glitches trying to compose
+characters.  The 'auto-composition-mode' can now have a string value
+that names a terminal type; if the value returned by the 'tty-type'
+function compares equal with that string, automatic composition will
+be disabled in windows shown on that terminal.  The Linux terminal
+sets this up by default.
+
 +++
 ** Etags now supports the Mercury programming language.
 See https://mercurylang.org.
@@ -387,9 +396,9 @@ onto 'file-name-history'.
 *** New minor mode 'context-menu-mode' for context menus popped by 'mouse-3'.
 When this mode is enabled, clicking 'down-mouse-3' anywhere in the buffer
 pops up a menu whose contents depends on surrounding context near the
-mouse click.  You can customize the order of the default sub-menus in
-the context menu by customizing the user option
-'context-menu-functions'.
+mouse click.  You can change the order of the default sub-menus in the
+context menu by customizing the user option 'context-menu-functions'.
+You can also invoke the context menu by pressing 'S-<F10>'.
 
 +++
 *** The "Edit => Clear" menu item now obeys a rectangular region.
@@ -666,13 +675,12 @@ prompt prefix.
 
 +++
 *** New minor modes 'icomplete-vertical-mode' and 'fido-vertical-mode'
-These modes are modify Icomplete ('M-x icomplete-mode') and Fido ('M-x
+These modes modify Icomplete ('M-x icomplete-mode') and Fido ('M-x
 fido-mode'), to display completions candidates vertically instead of
 horizontally.  In Icomplete, completions are rotated and selection
 kept at the top.  In Fido, completions scroll like a typical dropdown
 widget.  Both these new minor modes will first turn on their
-respective non-vertical counterparts first, if they are not on
-already.
+non-vertical counterparts first, if they are not on already.
 
 ---
 *** Default value of 'icomplete-compute-delay' has been changed to 0.15 s.
@@ -2448,11 +2456,21 @@ This command, called interactively, toggles the local value of
 If non-nil (the default), use 'image-dired-thumb-mark' to say what
 images are marked.
 
-*** New command 'image-dired-tag-marked-thumbnails'.
-
+---
 *** New command 'image-dired-delete-marked'.
 
 ** Miscellaneous
+
++++
+*** New user option 'file-preserve-symlinks-on-save'.
+This controls what Emacs does when saving buffers that visit files via
+symbolic links, and 'file-precious-flag' is non-nil.
+
++++
+*** New user option 'copy-directory-create-symlink'.
+If non-nil, will make `copy-directory' (when used on a symbolic
+link) copy the link instead of following the link.  The default is
+nil, so the default behavior is unchanged.
 
 +++
 *** New function 'replace-regexp-in-region'.
@@ -3091,6 +3109,12 @@ This is to keep the same behavior as Eshell.
 
 * Incompatible Lisp Changes in Emacs 28.1
 
+---
+** 'parse-partial-sexp' now signals an error if TO is smaller than FROM.
+Previously this would lead to the function interpreting FROM as TO and
+vice versa, which would be confusing when passing in OLDSTATE, which
+refers to the old state at FROM.
+
 +++
 ** 'overlays-in' now handles zero-length overlays slightly differently.
 Previosly, zero-length overlays at the end of the buffer were included
@@ -3571,8 +3595,10 @@ supporting Lisp files when 'require' is unsuitable.
 ** New function 'file-modes-number-to-symbolic' to convert a numeric
 file mode specification into symbolic form.
 
++++
 ** New macro 'dlet' to dynamically bind variables.
 
+---
 ** The variable 'force-new-style-backquotes' has been removed.
 This removes the final remaining trace of old-style backquotes.
 
@@ -3599,32 +3625,39 @@ displaying data "smushed together" on the mode line.
 
 ** Changes in handling dynamic modules
 
++++
 *** The module header 'emacs-module.h' now contains type aliases
 'emacs_function' and 'emacs_finalizer' for module functions and
 finalizers, respectively.
 
++++
 *** Module functions can now be made interactive.
 Use 'make_interactive' to give a module function an interactive
 specification.
 
++++
 *** Module functions can now install an optional finalizer that is
 called when the function object is garbage-collected.  Use
 'set_function_finalizer' to set the finalizer and
 'get_function_finalizer' to retrieve it.
 
++++
 *** Modules can now open a channel to an existing pipe process using
 the new module function 'open_channel'.  Modules can use this
 functionality to asynchronously send data back to Emacs.
 
++++
 *** A new module API 'make_unibyte_string' is provided.
 It can be used to create Lisp strings with arbitrary byte sequences
 (a.k.a. "raw bytes").
 
++++
 ** 'file-modes', 'set-file-modes', and 'set-file-times' now have an
 optional argument specifying whether to follow symbolic links.
 
-** 'parse-time-string' can now parse ISO 8601 format strings,
-such as "2020-01-15T16:12:21-08:00".
++++
+** 'parse-time-string' can now parse ISO 8601 format strings.
+These have the format like "2020-01-15T16:12:21-08:00".
 
 ---
 ** The new function 'decoded-time-period' has been added.
@@ -3713,10 +3746,11 @@ file can affect code in another.  For details, see the manual section
 *** 'byte-recompile-directory' can now compile symlinked ".el" files.
 This is achieved by giving a non-nil FOLLOW-SYMLINKS parameter.
 
+---
 *** The byte-compiler now warns about too wide documentation strings.
 By default, it will warn if a documentation string is wider than the
-largest of 80 characters or 'fill-column'.  This is controlled by the
-new user option 'byte-compile-docstring-max-column'.
+largest of 'byte-compile-docstring-max-column' or 'fill-column'
+characters.
 
 +++
 *** 'byte-compile-file' optional argument LOAD is now obsolete.
@@ -3765,6 +3799,7 @@ presented to users or passed on to other applications.
 ** 'start-process-shell-command' and 'start-file-process-shell-command'
 do not support the old calling conventions any longer.
 
+---
 ** Functions operating on local file names now check that the file names
 don't contain any NUL bytes.  This avoids subtle bugs caused by
 silently using only the part of the file name until the first NUL byte.
@@ -3790,16 +3825,32 @@ whenever the protected form terminates without error, with the
 specified variable bound to the the value of the protected form.
 
 +++
-** 'The 'uniquify' argument in 'auto-save-file-name-transforms' can be a symbol.
+** The 'uniquify' argument in 'auto-save-file-name-transforms' can be a symbol.
 If this symbol is one of the members of 'secure-hash-algorithms',
 Emacs constructs the nondirectory part of the auto-save file name by
 applying that 'secure-hash' to the buffer file name.  This avoids any
 risk of excessively long file names.
 
++++
+** New user option 'kill-buffer-delete-auto-save-files'.
+If non-nil, killing a buffer that has an auto-save file will prompt
+the user for whether that buffer should be deleted.  (Note that
+'delete-auto-save-files', if non-nil, was previously documented to
+result in deletion of auto-save files when killing a buffer without
+unsaved changes, but this has apparently not worked for several
+decades, so the documented semantics of this variable has been changed
+to match the behaviour.)
+
 ---
 ** New user option 'etags-xref-prefer-current-file'.
 When non-nil, matches for identifiers in the file visited by the
 current buffer will be shown first in the "*xref*" buffer.
+
+---
+** New variable 'inhibit-mouse-event-check'.
+If bound to non-nil, a command with '(interactive "e")' doesn't signal
+an error when invoked by input event that is not a mouse click (e.g.,
+a key sequence).
 
 
 * Changes in Emacs 28.1 on Non-Free Operating Systems
@@ -3810,14 +3861,19 @@ If Emacs was built with xwidget support, you can access the embedded
 webkit browser with 'M-x xwidget-webkit-browse-url'.  Viewing two
 instances of xwidget webkit is not supported.
 
+---
 *** Downloading files from xwidget-webkit is now supported.
 The new variable 'xwidget-webkit-download-dir' says where to download to.
 
-*** New functions for xwidget-webkit mode
-'xwidget-webkit-clone-and-split-below',
-'xwidget-webkit-clone-and-split-right'.
+---
+*** New command 'xwidget-webkit-clone-and-split-below'.
+*** New command 'xwidget-webkit-clone-and-split-right'.
+These are used in 'xwidget-webkit-mode'.
 
+---
 *** New variable 'xwidget-webkit-enable-plugins'.
+If non-nil, enable plugins in xwidget.  (This is only available on
+macOS.)
 
 +++
 ** On macOS, Emacs can now load dynamic modules with a ".dylib" suffix.
