@@ -2052,9 +2052,9 @@ saving the buffer."
       ;; here, this way the *vc-diff* buffer is setup correctly, so
       ;; relative file names work.
       (let ((default-directory rootdir))
-	(vc-diff-internal
-	 t (list backend (list (expand-file-name rootdir)) working-revision) nil nil
-	 (called-interactively-p 'interactive))))))
+        (vc-diff-internal
+         t (list backend (list rootdir) working-revision) nil nil
+         (called-interactively-p 'interactive))))))
 
 ;;;###autoload
 (defun vc-root-dir ()
@@ -2600,8 +2600,8 @@ with its diffs (if the underlying VCS supports that)."
       (setq backend (vc-responsible-backend rootdir))
       (unless backend
         (error "Directory is not version controlled")))
-    (setq default-directory (expand-file-name rootdir))
-    (vc-print-log-internal backend (list default-directory) revision revision limit
+    (setq default-directory rootdir)
+    (vc-print-log-internal backend (list rootdir) revision revision limit
                            (when with-diff 'with-diff))))
 
 ;;;###autoload
@@ -3068,20 +3068,6 @@ log entries should be gathered."
 	  nil)))
   (vc-call-backend (vc-responsible-backend default-directory)
                    'update-changelog args))
-
-;; functions that operate on RCS revision numbers.  This code should
-;; also be moved into the backends.  It stays for now, however, since
-;; it is used in code below.
-(defun vc-branch-p (rev)
-  "Return t if REV is a branch revision."
-  (not (eq nil (string-match "\\`[0-9]+\\(\\.[0-9]+\\.[0-9]+\\)*\\'" rev))))
-
-;;;###autoload
-(defun vc-branch-part (rev)
-  "Return the branch part of a revision number REV."
-  (let ((index (string-match "\\.[0-9]+\\'" rev)))
-    (when index
-      (substring rev 0 index))))
 
 (defun vc-default-responsible-p (_backend _file)
   "Indicate whether BACKEND is responsible for FILE.

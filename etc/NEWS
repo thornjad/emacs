@@ -343,6 +343,11 @@ commands.  The new keystrokes are 'C-x x g' ('revert-buffer-quick'),
 ** Commands 'set-frame-width' and 'set-frame-height' can now get their
 input using the minibuffer.
 
++++
+** New command 'clone-frame' (bound to 'C-x 5 c').
+This is like 'C-x 5 2', but uses the frame parameters of the current
+frame instead of 'default-frame-alist'.
+
 ---
 ** New help window when Emacs prompts before opening a large file.
 Commands like 'find-file' or 'visit-tags-table' ask to visit a file
@@ -908,6 +913,12 @@ time zones will use a form like "+0100" instead of "CET".
 *** New user option 'dired-kill-when-opening-new-dired-buffer'.
 If non-nil, Dired will kill the current buffer when selecting a new
 directory to display.
+
++++
+*** Behavior change on 'dired-do-chmod'.
+As a security precaution, Dired's M command no longer follows symbolic
+links.  Instead, it changes the symbolic link's own mode; this always
+fails on platforms where such modes are immutable.
 
 ---
 *** Behavior change on 'dired-clean-confirm-killing-deleted-buffers'.
@@ -1483,6 +1494,13 @@ deleting.
 +++
 **** The spec element 'function-form' is obsolete, use 'form' instead.
 
+---
+*** rfc2368.el is now obsolete.
+Use rfc6068.el instead.  The main difference is that
+'rfc2368-parse-mailto-url' and 'rfc2368-unhexify-string' assumed that
+the strings were all-ASCII, while 'rfc6068-parse-mailto-url' and
+'rfc6068-unhexify-string' parse UTF-8 strings.
+
 +++
 *** New function 'def-edebug-elem-spec' to define Edebug spec elements.
 These used to be defined with 'def-edebug-spec' thus conflating the
@@ -1554,10 +1572,6 @@ command line under point (and any following output).
 If non-nil, 'shell-mode' handles implicit "cd" commands, changing the
 directory if the command is a directory.  Useful for shells like "zsh"
 that has this feature.
-
-+++
-*** 'comint-delete-output' can now save deleted text in the kill-ring.
-Interactively, 'C-u C-c C-o' triggers this new optional behavior.
 
 ** Eshell
 
@@ -2416,6 +2430,12 @@ that makes it a valid button.
 *** New variable 'thing-at-point-provider-alist'.
 This allows mode-specific alterations to how 'thing-at-point' works.
 
+---
+*** thingatpt now respects fields.
+'thing-at-point' (and all functions that use it, like
+'symbol-at-point') will narrow to the current field (if any) before
+trying to identify the thing at point.
+
 ** Enriched mode
 
 ---
@@ -2867,8 +2887,7 @@ like 'flymake-mode-line-error-counter',
 When Flyspell mode highlights a word as misspelled, you can click on
 it to display a menu of possible corrections and actions.  You can now
 easily bind this menu to 'down-mouse-3' (usually the right mouse button)
-instead of 'mouse-2' (the default) by customizing the new user option
-'flyspell-use-mouse-3-for-menu'.
+instead of 'mouse-2' (the default) by enabling 'context-menu-mode'.
 
 ---
 *** The current dictionary is now displayed in the minor mode lighter.
@@ -3020,6 +3039,22 @@ default are unaffected.)
 states to be maintained if 'so-long-mode' replaces the original major
 mode.  By default, these new options support 'view-mode'.
 
+** Comint
+
++++
+*** Support for OSC escape sequences.
+Adding the new 'comint-osc-process-output' to
+'comint-output-filter-functions' enables the interpretation of OSC
+("Operating System Command") escape sequences in comint buffers.  By
+default, only OSC 8, for hyperlinks, and OSC 7, for directory
+tracking, are acted upon.  Adding more entries to
+`comint-osc-handlers' allows a customized treatment of further escape
+sequences.
+
++++
+*** 'comint-delete-output' can now save deleted text in the kill-ring.
+Interactively, 'C-u C-c C-o' triggers this new optional behavior.
+
 
 * New Modes and Packages in Emacs 28.1
 
@@ -3106,8 +3141,25 @@ directory instead of the default directory.
 ** 'project-shell' and 'shell' now use 'pop-to-buffer-same-window'.
 This is to keep the same behavior as Eshell.
 
+** The escape sequence '\e[29~' in Xterm is now mapped to 'menu'.
+Xterm sends this sequence for both 'F16' and 'Menu' keys
+It used to be mapped to 'print' but we couldn't find a terminal
+that uses this sequence for any kind of 'Print' key.
+This makes the Menu key (see https://en.wikipedia.org/wiki/Menu_key)
+work for `context-menu-mode` in Xterm.
 
 * Incompatible Lisp Changes in Emacs 28.1
+
+---
+** 'run-at-time' now tries harder to implement the t TIME parameter.
+If TIME is t, the timer runs at an integral multiple of REPEAT.
+(I.e., if given a REPEAT of 60, it'll run at 08:11:00, 08:12:00,
+08:13:00.)  However, when a machine goes to sleep (or otherwise didn't
+get a time slot to run when the timer was scheduled), the timer would
+then fire every 60 seconds after the time the timer was fired.  This
+has now changed, and the timer code now recomputes the integral
+multiple every time it runs, which means that if the laptop wakes at
+08:16:43, it'll fire at that time, but then at 08:17:00, 08:18:00...
 
 ---
 ** 'parse-partial-sexp' now signals an error if TO is smaller than FROM.
@@ -3346,7 +3398,10 @@ back in Emacs 23.1.  The affected functions are: 'make-obsolete',
 
 ** The variable 'keyboard-type' is obsolete and not dynamically scoped any more.
 
++++
 ** The 'values' variable is now obsolete.
+Using it just contributes to the growth of the Emacs memory
+footprint.
 
 +++
 ** The '&define' keyword in an Edebug specification now disables backtracking.
@@ -3366,6 +3421,11 @@ The former is now declared obsolete.
 
 
 * Lisp Changes in Emacs 28.1
+
++++
+*** New macro 'with-existing-directory'.
+This macro binds 'default-directory' to some other existing directory
+if 'default-directory' doesn't exist, and then executes the body forms.
 
 +++
 *** New function 'file-name-concat'.
@@ -3814,6 +3874,11 @@ locales.  They are also available as aliases 'ebcdic-cp-*' (e.g.,
 support these coding-systems.
 
 ---
+** New function 'get-locale-names'.
+This utility function returns a list of locale names on the current
+system.
+
+---
 ** 'while-no-input-ignore-events' accepts more special events.
 The special events 'dbus-event' and 'file-notify' are now ignored in
 'while-no-input' when added to this variable.
@@ -3834,7 +3899,7 @@ risk of excessively long file names.
 +++
 ** New user option 'kill-buffer-delete-auto-save-files'.
 If non-nil, killing a buffer that has an auto-save file will prompt
-the user for whether that buffer should be deleted.  (Note that
+the user for whether that file should be deleted.  (Note that
 'delete-auto-save-files', if non-nil, was previously documented to
 result in deletion of auto-save files when killing a buffer without
 unsaved changes, but this has apparently not worked for several

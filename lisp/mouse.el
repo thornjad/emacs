@@ -293,6 +293,7 @@ the same menu with changes such as added new menu items."
                   (function-item context-menu-global)
                   (function-item context-menu-local)
                   (function-item context-menu-minor)
+                  (function-item context-menu-buffers)
                   (function-item context-menu-vc)
                   (function-item context-menu-ffap)
                   (function :tag "Custom function")))
@@ -306,10 +307,15 @@ the same menu with changes such as added new menu items."
 (defun context-menu-map ()
   "Return composite menu map."
   (let ((menu (make-sparse-keymap (propertize "Context Menu" 'hide t))))
-    (run-hook-wrapped 'context-menu-functions
-                      (lambda (fun)
-                        (setq menu (funcall fun menu))
-                        nil))
+    (let ((fun (mouse-posn-property (event-start last-input-event)
+                                    'context-menu-function)))
+      (if (functionp fun)
+          (setq menu (funcall fun menu))
+        (run-hook-wrapped 'context-menu-functions
+                          (lambda (fun)
+                            (setq menu (funcall fun menu))
+                            nil))))
+    ;; TODO: remove double separators
     (when (functionp context-menu-filter-function)
       (setq menu (funcall context-menu-filter-function menu)))
     menu))
@@ -360,6 +366,17 @@ the same menu with changes such as added new menu items."
                       (define-key-after menu (vector key)
                         (copy-sequence binding))))
                   (cdr mode))))
+  menu)
+
+(defun context-menu-buffers (menu)
+  "Submenus with buffers."
+  (run-hooks 'activate-menubar-hook 'menu-bar-update-hook)
+  (define-key-after menu [separator-buffers] menu-bar-separator)
+  (map-keymap (lambda (key binding)
+                (when (consp binding)
+                  (define-key-after menu (vector key)
+                    (copy-sequence binding))))
+              (mouse-buffer-menu-keymap))
   menu)
 
 (defun context-menu-vc (menu)
@@ -456,6 +473,9 @@ the same menu with changes such as added new menu items."
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-3] nil)
     (define-key map [down-mouse-3] context-menu-entry)
+    (define-key map [menu] #'context-menu-open)
+    (if (featurep 'w32)
+        (define-key map [apps] #'context-menu-open))
     (when (featurep 'ns)
       (define-key map [C-mouse-1] nil)
       (define-key map [C-down-mouse-1] context-menu-entry))
