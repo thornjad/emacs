@@ -985,12 +985,7 @@ TAGS tags: lib lib-src # src
 CHECK_TARGETS = check check-maybe check-expensive check-all
 .PHONY: $(CHECK_TARGETS)
 $(CHECK_TARGETS): all
-ifeq ($(wildcard test),test)
 	$(MAKE) -C test $@
-else
-	@echo "You do not seem to have the test/ directory."
-	@echo "Maybe you used a release tarfile that lacks tests."
-endif
 
 test/%:
 	$(MAKE) -C test $*
@@ -1214,6 +1209,3 @@ gitmerge:
 	${GITMERGE_EMACS} -batch --no-site-file --no-site-lisp \
 	  -l ${srcdir}/admin/gitmerge.el \
 	  --eval '(setq gitmerge-minimum-missing ${GITMERGE_NMIN})' -f gitmerge
-
-build-docker:
-	docker build -t aero-emacs .

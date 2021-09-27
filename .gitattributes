@@ -73,7 +73,7 @@ etc/e/eterm-color binary
 *[Mm]akefile diff=make
 Makefile.in diff=make
 *[-.]sh diff=shell
-*.texi diff=texinfo conflict-marker-size=10
+*.texi diff=texinfo
 #
 # Diff hunk header special-case file names.
 admin/build-configs diff=perl
