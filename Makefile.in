@@ -298,8 +298,6 @@ LN_S_FILEONLY = @LN_S_FILEONLY@
 # We use gzip to compress installed .el and some .txt files.
 GZIP_PROG = @GZIP_PROG@
 
-GLIB_COMPILE_SCHEMAS = glib-compile-schemas
-
 # ============================= Targets ==============================
 
 # Program name transformation.
@@ -887,7 +885,6 @@ mostlyclean_dirs = src oldXMenu lwlib lib lib-src nt doc/emacs doc/misc \
 $(foreach dir,$(mostlyclean_dirs),$(eval $(call submake_template,$(dir),mostlyclean)))
 
 mostlyclean: $(mostlyclean_dirs:=_mostlyclean)
-	[ ! -d test ] || $(MAKE) -C test $@
 
 ### 'clean'
 ###      Delete all files from the current directory that are normally
@@ -927,7 +924,6 @@ distclean_dirs = $(clean_dirs) leim lisp admin/grammars
 $(foreach dir,$(distclean_dirs),$(eval $(call submake_template,$(dir),distclean)))
 
 distclean: $(distclean_dirs:=_distclean)
-	[ ! -d test ] || $(MAKE) -C test $@
 	${top_distclean}
 
 ### 'bootstrap-clean'
@@ -936,7 +932,6 @@ distclean: $(distclean_dirs:=_distclean)
 $(foreach dir,$(distclean_dirs),$(eval $(call submake_template,$(dir),bootstrap-clean)))
 
 bootstrap-clean: $(distclean_dirs:=_bootstrap-clean)
-	[ ! -d test ] || $(MAKE) -C test $@
 	[ ! -f config.log ] || mv -f config.log config.log~
 	rm -rf ${srcdir}/info
 	rm -f ${srcdir}/etc/refcards/emacsver.tex
@@ -957,32 +952,23 @@ top_maintainer_clean=\
 	${top_distclean}; \
 	rm -fr ${srcdir}/autom4te.cache
 
-maintainer_clean_dirs = src leim lisp admin/charsets admin/grammars \
-  admin/unidata
+$(foreach dir,$(distclean_dirs),$(eval $(call submake_template,$(dir),maintainer-clean)))
 
-$(foreach dir,$(maintainer_clean_dirs),$(eval $(call submake_template,$(dir),maintainer-clean)))
-
-maintainer-clean: bootstrap-clean $(maintainer_clean_dirs:=_maintainer-clean)
-	[ ! -d test ] || $(MAKE) -C test $@
+maintainer-clean: $(distclean_dirs:=_maintainer-clean)
+	rm -rf ${srcdir}/info
+	rm -f ${srcdir}/etc/refcards/emacsver.tex
 	${top_maintainer_clean}
 
 ### This doesn't actually appear in the coding standards, but Karl
 ### says GCC supports it, and that's where the configuration part of
 ### the coding standards seem to come from.  It's like distclean, but
 ### it deletes backup and autosave files too.
-### Note that we abuse this in some subdirectories (eg leim),
-### to delete some generated files that are slow to rebuild.
-extraclean_dirs = ${NTDIR} lib-src src leim \
-  admin/charsets admin/grammars admin/unidata lisp lib lwlib
-
-$(foreach dir,$(extraclean_dirs),$(eval $(call submake_template,$(dir),extraclean)))
-
-extraclean: $(extraclean_dirs:=_extraclean)
-	${top_maintainer_clean}
-	-rm -f config-tmp-* aclocal.m4 configure
-	-rm -f ./*~ \#* etc/refcards/emacsver.tex doc/emacs/emacsver.texi
-	-rm -f info/*.info info/dir
-	-rmdir info 2>/dev/null
+extraclean: maintainer-clean
+	-rm -f config-tmp-* ${srcdir}/aclocal.m4 ${srcdir}/configure \
+	  ${srcdir}/src/config.in
+	-[ "${srcdir}" = "." ] || \
+	  find ${srcdir} '(' -name '*~' -o -name '#*' ')' ${FIND_DELETE}
+	-find . '(' -name '*~' -o -name '#*' ')' ${FIND_DELETE}
 
 # The src subdir knows how to do the right thing
 # even when the build directory and source dir are different.

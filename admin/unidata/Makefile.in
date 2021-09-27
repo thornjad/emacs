@@ -94,7 +94,7 @@ zwj = ${srcdir}/emoji-zwj.awk
 ${unidir}/emoji-zwj.el: ${srcdir}/emoji-zwj-sequences.txt $(srcdir)/emoji-sequences.txt ${zwj}
 	$(AM_V_GEN)$(AWK) -f ${zwj} $^ > $@
 
-.PHONY: clean bootstrap-clean distclean maintainer-clean extraclean gen-clean
+.PHONY: clean bootstrap-clean distclean maintainer-clean gen-clean
 
 clean:
 	rm -f ${srcdir}/*.elc unidata.txt
@@ -116,5 +116,3 @@ gen-clean:
 ## ref: https://lists.gnu.org/r/emacs-devel/2013-11/msg01029.html
 
 maintainer-clean: gen-clean distclean
-
-extraclean: maintainer-clean

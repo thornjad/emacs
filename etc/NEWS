@@ -529,12 +529,14 @@ the mouse pointer is in the tab line by scrolling left or right.
 *** New tab-line faces and options.
 The face 'tab-line-tab-special' is used for tabs whose buffers are
 special, i.e. buffers that don't visit a file.  The face
-'tab-line-tab-inactive-alternate' is used to display inactive tabs
-with an alternating background color, making them easier to
-distinguish, especially if the face 'tab-line-tab' is configured to
-not display with a box; this alternate face is only applied when the
-option 'tab-line-tab-face-functions' is so configured.  That option
-may also be used to customize tab-line faces in other ways.
+'tab-line-tab-modified' is used to display modified, file-backed
+buffers.  The face 'tab-line-tab-inactive-alternate' is used to
+display inactive tabs with an alternating background color, making
+them easier to distinguish, especially if the face 'tab-line-tab' is
+configured to not display with a box; this alternate face is only
+applied when the option 'tab-line-tab-face-functions' is so
+configured.  That option may also be used to customize tab-line faces
+in other ways.
 
 ** Mouse wheel
 
@@ -745,18 +747,21 @@ Applies to headings of shortdoc sections.
 *** New face 'separator-line'.
 This is used by 'make-separator-line' (see below).
 
++++
 *** 'redisplay-skip-fontification-on-input' helps Emacs keep up with fast input.
 This is another attempt to solve the problem of handling high key repeat rate
 and other "slow scrolling" situations.  It is hoped it behaves better
 than 'fast-but-imprecise-scrolling' and 'jit-lock-defer-time'.
 It is not enabled by default.
 
+---
 *** Obsolete aliases are no longer hidden from command completion.
 Completion of command names now considers obsolete aliases as
 candidates, if they were marked obsolete in the current major version
 of Emacs.  Invoking a command via an obsolete alias now mentions the
 obsolescence fact and shows the new name of the command.
 
++++
 *** Support for '(box . SIZE)' 'cursor-type'.
 By default, 'box' cursor always has a filled box shape.  But if you
 specify 'cursor-type' to be '(box . SIZE)', the cursor becomes a hollow
@@ -998,10 +1003,10 @@ If nil, Emacs does not prompt, but instead shows the buffer with its
 contents before the change, and provides instructions how to revert
 the buffer.
 
+---
 ** New value 'save-some-buffers-root' of 'save-some-buffers-default-predicate'.
-They allow to ask about saving only those files that are under the
-project root or in subdirectories of the directory that was default
-during command invocation.
+When using this predicate, only buffers under the current project root
+will be considered when saving buffers with 'save-some-buffers'.
 
 ---
 ** New user option 'save-place-abbreviate-file-names'.
@@ -1255,6 +1260,10 @@ These arguments default to active region when used interactively.
 
 +++
 *** New command 'ispell-comment-or-string-at-point'.
+
+---
+*** New user option 'ispell-help-timeout'.
+This controls how long the ispell help (on the '?' key) is displayed.
 
 ** Flyspell mode
 
@@ -1696,8 +1705,10 @@ work as before.
 
 ** Emacs Lisp mode
 
+---
 *** The mode-line now indicates whether we're using lexical or dynamic scoping.
 
++++
 *** A space between an open paren and a symbol changes the indentation rule.
 The presence of a space between an open paren and a symbol now is
 taken as a statement by the programmer that this should be indented
@@ -2467,6 +2478,7 @@ visit. 'xref-auto-jump-to-first-xref' changes their behavior much in
 the same way as 'xref-auto-jump-to-first-definition' affects the
 "find-definitions" commands.
 
+---
 *** New user options 'xref-search-program' and 'xref-search-program-alist'.
 So far 'grep' and 'ripgrep' are supported.  'ripgrep' seems to offer better
 performance in certain cases, in particular for case-insensitive
@@ -2477,9 +2489,11 @@ searches.
 These commands are bound respectively to 'P' and 'N', and navigate to
 the first item of the previous or next group in the "*xref*" buffer.
 
+---
 *** New alternative value for 'xref-show-definitions-function':
 'xref-show-definitions-completing-read'.
 
+---
 *** The two existing alternatives for 'xref-show-definitions-function'
 have been renamed to have "proper" public names and documented
 ('xref-show-definitions-buffer' and
@@ -2593,6 +2607,7 @@ This new command (bound to 'C-c C-l') regenerates the current hunk.
 This is like 'filename', but is a full path, and is nil if the file
 doesn't exist.
 
++++
 *** New 'thing-at-point' target: 'string'.
 If point is inside a string, it returns that string.
 
@@ -2802,6 +2817,7 @@ declared obsolete and rewritten as 'erc-track-select-mode-line-face',
 with different expected arguments (the current and old faces are now
 separated) and clearer documentation.
 
+---
 *** Add '/opme' and '/deopme' convenience commands.
 The new '/opme' convenience command asks ChanServ to set the operator
 status for the current nick in the current channel, and '/deopme'
@@ -3259,6 +3275,13 @@ local variable would not be heeded.  This has now changed, and a file
 with a 'lexical-binding' cookie is always heeded.  To revert to the
 old behavior, set 'permanently-enabled-local-variables' to nil.
 
++++
+** '&rest' in argument lists must always be followed by a variable name.
+Omitting the variable name after '&rest' was previously tolerated in
+some cases but not consistently so; it could lead to crashes or
+outright wrong results.  Since the utility was marginal at best, it is
+now an error to omit the variable.
+
 ---
 ** 'kill-all-local-variables' has changed how it handles non-symbol hooks.
 The function is documented to eliminate all buffer-local bindings
@@ -3660,7 +3683,7 @@ used in.
 ** 'condition-case' now allows for a success handler.
 It is written as '(:success BODY...)' where BODY is executed
 whenever the protected form terminates without error, with the
-specified variable bound to the the value of the protected form.
+specified variable bound to the value of the protected form.
 
 +++
 ** New function 'benchmark-call' to measure the execution time of a function.
@@ -3703,7 +3726,7 @@ customization group.
 
 +++
 ** Doc strings can now link to man pages.
-Text like "man page `chmod'" will be made into a button.  When
+Text like "man page `chmod(1)'" will be made into a button.  When
 clicked, it will open a Man mode buffer displaying that man page.
 
 +++
@@ -4393,6 +4416,11 @@ This new system is provided by the new macro 'bindat-type' and
 obsoletes the old data layout specifications.  It supports
 arbitrary-size integers, recursive types, and more.  See the Info node
 "(elisp) Byte Packing" in the ELisp manual for more details.
+
++++
+** New macro 'with-environment-variables'.
+This macro allows setting environment variables temporarily when
+executing a form.
 
 
 * Changes in Emacs 28.1 on Non-Free Operating Systems
