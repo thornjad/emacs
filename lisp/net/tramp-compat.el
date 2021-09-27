@@ -395,6 +395,9 @@ CONDITION can also be a list of error conditions."
 	     (concat (file-name-as-directory directory) (car components))
 	     (cdr components))))))))
 
+(dolist (elt (all-completions "tramp-compat-" obarray 'functionp))
+  (put (intern elt) 'tramp-suppress-trace t))
+
 (add-hook 'tramp-unload-hook
 	  (lambda ()
 	    (unload-feature 'tramp-loaddefs 'force)

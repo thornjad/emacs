@@ -55,7 +55,7 @@
     (mouse-wheel-mode 1)))
 
 (defcustom mouse-wheel-down-event
-  (if (or (featurep 'w32-win) (featurep 'ns-win) (featurep 'pgtk))
+  (if (or (featurep 'w32-win) (featurep 'ns-win))
       'wheel-up
     'mouse-4)
   "Event used for scrolling down."
@@ -64,7 +64,7 @@
   :set 'mouse-wheel-change-button)
 
 (defcustom mouse-wheel-up-event
-  (if (or (featurep 'w32-win) (featurep 'ns-win) (featurep 'pgtk))
+  (if (or (featurep 'w32-win) (featurep 'ns-win))
       'wheel-down
     'mouse-5)
   "Event used for scrolling up."
@@ -135,7 +135,10 @@ scrolling."
   :version "28.1")
 
 (defcustom mouse-wheel-progressive-speed t
-  "If non-nil, the faster the user moves the wheel, the faster the scrolling.
+  "If nil, scrolling speed is proportional to the wheel speed.
+If non-nil, moving the wheel faster will make scrolling
+progressively faster.
+
 Note that this has no effect when `mouse-wheel-scroll-amount' specifies
 a \"near full screen\" scroll or when the mouse wheel sends key instead
 of button events."
@@ -218,13 +221,13 @@ Also see `mouse-wheel-tilt-scroll'."
   "Function that does the job of scrolling right.")
 
 (defvar mouse-wheel-left-event
-  (if (or (featurep 'w32-win) (featurep 'ns-win) (featurep 'pgtk))
+  (if (or (featurep 'w32-win) (featurep 'ns-win))
       'wheel-left
     'mouse-6)
   "Event used for scrolling left.")
 
 (defvar mouse-wheel-right-event
-  (if (or (featurep 'w32-win) (featurep 'ns-win) (featurep 'pgtk))
+  (if (or (featurep 'w32-win) (featurep 'ns-win))
       'wheel-right
     'mouse-7)
   "Event used for scrolling right.")

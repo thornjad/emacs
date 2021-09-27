@@ -1096,7 +1096,8 @@ as a regexp.  See the command `isearch-forward' for more information.
 In incremental searches, a space or spaces normally matches any
 whitespace defined by the variable `search-whitespace-regexp'.
 To search for a literal space and nothing else, enter C-q SPC.
-To toggle whitespace matching, use `isearch-toggle-lax-whitespace'.
+To toggle whitespace matching, use `isearch-toggle-lax-whitespace',
+usually bound to `M-s SPC' during isearch.
 This command does not support character folding."
   (interactive "P\np")
   (isearch-mode t (null not-regexp) nil (not no-recursive-edit)))
@@ -3579,9 +3580,8 @@ Optional third argument, if t, means if fail just return nil (no error).
     (when pos1
       ;; When using multiple buffers isearch, switch to the new buffer here,
       ;; because `save-excursion' above doesn't allow doing it inside funcall.
-      (if (and multi-isearch-next-buffer-current-function
-	       (buffer-live-p multi-isearch-current-buffer))
-	  (switch-to-buffer multi-isearch-current-buffer))
+      (when multi-isearch-next-buffer-current-function
+        (multi-isearch-switch-buffer))
       (goto-char pos1)
       pos1)))
 

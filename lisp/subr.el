@@ -2051,7 +2051,7 @@ FUN is then called once."
 
 (defmacro subr--with-wrapper-hook-no-warnings (hook args &rest body)
   "Like (with-wrapper-hook HOOK ARGS BODY), but without warnings."
-  (declare (debug (form sexp body)))
+  (declare (debug (form sexp def-body)))
   ;; We need those two gensyms because CL's lexical scoping is not available
   ;; for function arguments :-(
   (let ((funs (make-symbol "funs"))
@@ -4073,7 +4073,7 @@ If you quit, the process is killed with SIGINT, or SIGKILL if you quit again."
 Within a `track-mouse' form, mouse motion generates input events that
  you can read with `read-event'.
 Normally, mouse motion is ignored."
-  (declare (debug t) (indent 0))
+  (declare (debug (def-body)) (indent 0))
   `(internal--track-mouse (lambda () ,@body)))
 
 (defmacro with-current-buffer (buffer-or-name &rest body)
@@ -4577,7 +4577,7 @@ change `before-change-functions' or `after-change-functions'.
 Additionally, the buffer modifications of BODY are recorded on
 the buffer's undo list as a single \(apply ...) entry containing
 the function `undo--wrap-and-run-primitive-undo'."
-  (declare (debug t) (indent 2))
+  (declare (debug (form form def-body)) (indent 2))
   `(combine-change-calls-1 ,beg ,end (lambda () ,@body)))
 
 (defun undo--wrap-and-run-primitive-undo (beg end list)
@@ -5193,7 +5193,7 @@ See also `with-eval-after-load'."
 FILE is normally a feature name, but it can also be a file name,
 in case that file does not provide any feature.  See `eval-after-load'
 for more details about the different forms of FILE and their semantics."
-  (declare (indent 1) (debug t))
+  (declare (indent 1) (debug (form def-body)))
   `(eval-after-load ,file (lambda () ,@body)))
 
 (defvar after-load-functions nil
@@ -6419,12 +6419,19 @@ seconds."
 This is intended for very simple filling while bootstrapping
 Emacs itself, and does not support all the customization options
 of fill.el (for example `fill-region')."
-  (if (< (string-width str) fill-column)
+  (if (< (length str) fill-column)
       str
-    (let ((fst (substring str 0 fill-column))
-          (lst (substring str fill-column)))
-      (if (string-match ".*\\( \\(.+\\)\\)$" fst)
-          (setq fst (replace-match "\n\\2" nil nil fst 1)))
+    (let* ((limit (min fill-column (length str)))
+           (fst (substring str 0 limit))
+           (lst (substring str limit)))
+      (cond ((string-match "\\( \\)$" fst)
+             (setq fst (replace-match "\n" nil nil fst 1)))
+            ((string-match "^ \\(.*\\)" lst)
+             (setq fst (concat fst "\n"))
+             (setq lst (match-string 1 lst)))
+            ((string-match ".*\\( \\(.+\\)\\)$" fst)
+             (setq lst (concat (match-string 2 fst) lst))
+             (setq fst (replace-match "\n" nil nil fst 1))))
       (concat fst (internal--fill-string-single-line lst)))))
 
 (defun internal--format-docstring-line (string &rest objects)

@@ -1171,14 +1171,13 @@ an integer value."
            (:height
             'integerp)
            (:stipple
-            (and (memq (window-system frame) '(x ns pgtk)) ; No stipple on w32
-                 (mapcar (lambda (f)
-                           (cons (file-name-base f) f))
+            (and (memq (window-system frame) '(x ns)) ; No stipple on w32
+                 (mapcar #'list
                          (apply #'nconc
                                 (mapcar (lambda (dir)
                                           (and (file-readable-p dir)
                                                (file-directory-p dir)
-                                               (directory-files dir 'full)))
+                                               (directory-files dir)))
                                         x-bitmap-file-path)))))
            (:inherit
             (cons '("none" . nil)
@@ -1516,7 +1515,7 @@ If FRAME is nil, the current FRAME is used."
 	    match (cond ((eq req 'type)
 			 (or (memq (window-system frame) options)
 			     (and (memq 'graphic options)
-				  (memq (window-system frame) '(x w32 ns pgtk)))
+				  (memq (window-system frame) '(x w32 ns)))
 			     ;; FIXME: This should be revisited to use
 			     ;; display-graphic-p, provided that the
 			     ;; color selection depends on the number
@@ -2148,7 +2147,23 @@ the X resource \"reverseVideo\" is present, handle that."
 	  (x-handle-reverse-video frame parameters)
 	  (frame-set-background-mode frame t)
 	  (face-set-after-frame-default frame parameters)
-	  (if (null visibility-spec)
+          ;; Mark frame as 'was-invisible' when it was created as
+          ;; invisible or iconified and PARAMETERS contains either a
+          ;; width or height specification.  This should be sufficient
+          ;; to handle Bug#24526 (where a frame is initially iconified
+          ;; to allow manipulating its size in a non-obtrusive way) and
+          ;; avoid that a tiling window manager for GTK3 gets a resize
+          ;; request it cannot handle (Bug#48268).  The 'was-invisible'
+          ;; flag is eventually processed in xterm.c after we receive a
+          ;; MapNotify event; non-X builds ignore it.
+          (frame--set-was-invisible
+           frame
+           (and visibility-spec
+                (memq (cdr visibility-spec) '(nil icon))
+                (or (assq 'width parameters)
+                    (assq 'height parameters))))
+
+          (if (null visibility-spec)
 	      (make-frame-visible frame)
 	    (modify-frame-parameters frame (list visibility-spec)))
 	  (setq success t))
@@ -2804,7 +2819,7 @@ Note: Other faces cannot inherit from the cursor face."
   '((default
      :box (:line-width 1 :style released-button)
      :foreground "black")
-    (((type x w32 ns pgtk) (class color))
+    (((type x w32 ns) (class color))
      :background "grey75")
     (((type x) (class mono))
      :background "grey"))

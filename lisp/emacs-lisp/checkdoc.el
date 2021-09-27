@@ -2385,8 +2385,13 @@ Code:, and others referenced in the style guide."
        err
        (or
 	;; * Commentary Section
-	(if (not (lm-commentary-mark))
-	    (progn
+        (if (and (not (lm-commentary-mark))
+                 ;; No need for a commentary section in test files.
+                 (not (string-match
+                       (rx (or (seq (or "-test.el" "-tests.el") string-end)
+                               "/test/" "/tests/"))
+                       (buffer-file-name))))
+            (progn
 	      (goto-char (point-min))
 	      (cond
 	       ((re-search-forward
@@ -2474,10 +2479,9 @@ Code:, and others referenced in the style guide."
 	(save-excursion
 	  (goto-char (point-max))
 	  (if (not (re-search-backward
-		    (concat "^;;;[ \t]+" (regexp-quote fn) "\\(" (regexp-quote fe)
-			    "\\)?[ \t]+ends here[ \t]*$"
-			    "\\|^;;;[ \t]+ End of file[ \t]+"
-			    (regexp-quote fn) "\\(" (regexp-quote fe) "\\)?")
+                    ;; This should match the requirement in
+                    ;; `package-buffer-info'.
+                    (concat "^;;; " (regexp-quote (concat fn fe)) " ends here")
 		    nil t))
               (if (checkdoc-y-or-n-p "No identifiable footer!  Add one?")
 		  (progn

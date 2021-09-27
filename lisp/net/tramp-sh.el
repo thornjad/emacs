@@ -125,6 +125,15 @@ depends on the installed local ssh version.
 
 The string is used in `tramp-methods'.")
 
+(defvar tramp-scp-strict-file-name-checking nil
+  "Which scp strict file name checking argument to use.
+
+It is the string \"-T\" if supported by the local scp (since
+release 8.0), otherwise the string \"\".  If it is nil, it will
+be auto-detected by Tramp.
+
+The string is used in `tramp-methods'.")
+
 ;; Initialize `tramp-methods' with the supported methods.
 ;;;###tramp-autoload
 (tramp--with-startup
@@ -160,8 +169,8 @@ The string is used in `tramp-methods'.")
                 (tramp-remote-shell-login   ("-l"))
                 (tramp-remote-shell-args    ("-c"))
                 (tramp-copy-program         "scp")
-                (tramp-copy-args            (("-P" "%p") ("-p" "%k") ("-q")
-					     ("-r") ("%c")))
+                (tramp-copy-args            (("-P" "%p") ("-p" "%k")
+					     ("%x") ("-q") ("-r") ("%c")))
                 (tramp-copy-keep-date       t)
                 (tramp-copy-recursive       t)))
  (add-to-list 'tramp-methods
@@ -177,7 +186,7 @@ The string is used in `tramp-methods'.")
                 (tramp-remote-shell-args    ("-c"))
                 (tramp-copy-program         "scp")
                 (tramp-copy-args            (("-P" "%p") ("-p" "%k")
-				             ("-q") ("-r") ("%c")))
+				             ("%x") ("-q") ("-r") ("%c")))
                 (tramp-copy-keep-date       t)
                 (tramp-copy-recursive       t)))
  (add-to-list 'tramp-methods
@@ -1619,9 +1628,7 @@ ID-FORMAT valid values are `string' and `integer'."
 		 ;; On BSD-derived systems files always inherit the
                  ;; parent directory's group, so skip the group-gid
                  ;; test.
-		 (string-match-p
-		  "BSD\\|DragonFly\\|Darwin"
-		  (tramp-get-connection-property v "uname" ""))
+                 (tramp-check-remote-uname v "BSD\\|DragonFly\\|Darwin")
 		 (= (tramp-compat-file-attribute-group-id attributes)
 		    (tramp-get-remote-gid v 'integer)))))))))
 
@@ -1692,7 +1699,7 @@ ID-FORMAT valid values are `string' and `integer'."
 ;; FIXME: Fix function to work with count parameter.
 (defun tramp-do-directory-files-and-attributes-with-stat
   (vec localname &optional id-format)
-  "Implement `directory-files-and-attributes' for Tramp files using stat(1) command."
+  "Implement `directory-files-and-attributes' for Tramp files with stat(1) command."
   (tramp-message vec 5 "directory-files-and-attributes with stat: %s" localname)
   (tramp-send-command-and-read
    vec
@@ -2298,7 +2305,8 @@ The method used must be an out-of-band method."
 	      spec (list
 		    ?h (or host "") ?u (or user "") ?p (or port "")
 		    ?r listener ?c options ?k (if keep-date " " "")
-                    ?n (concat "2>" (tramp-get-remote-null-device v)))
+                    ?n (concat "2>" (tramp-get-remote-null-device v))
+		    ?x (tramp-scp-strict-file-name-checking v))
 	      copy-program (tramp-get-method-parameter v 'tramp-copy-program)
 	      copy-keep-date (tramp-get-method-parameter
 			      v 'tramp-copy-keep-date)
@@ -2741,13 +2749,12 @@ the result will be a local, non-Tramp, file name."
 ;; We use BUFFER also as connection buffer during setup.  Because of
 ;; this, its original contents must be saved, and restored once
 ;; connection has been setup.
-;; The complete STDERR buffer is available only when the process has
-;; terminated.
 (defun tramp-sh-handle-make-process (&rest args)
   "Like `make-process' for Tramp files.
-STDERR can also be a file name.  If method parameter `tramp-direct-async'
-and connection property \"direct-async-process\" are non-nil, an
-alternative implementation will be used."
+STDERR can also be a remote file name.  If method parameter
+`tramp-direct-async' and connection property
+\"direct-async-process\" are non-nil, an alternative
+implementation will be used."
   (if (tramp-direct-async-process-p args)
       (apply #'tramp-handle-make-process args)
     (when args
@@ -2784,7 +2791,7 @@ alternative implementation will be used."
 	    (signal 'wrong-type-argument (list #'functionp sentinel)))
 	  (unless (or (null stderr) (bufferp stderr) (stringp stderr))
 	    (signal 'wrong-type-argument (list #'bufferp stderr)))
-	  (when (and (stringp stderr) (tramp-tramp-file-p stderr)
+	  (when (and (stringp stderr)
 		     (not (tramp-equal-remote default-directory stderr)))
 	    (signal 'file-error (list "Wrong stderr" stderr)))
 
@@ -2796,9 +2803,9 @@ alternative implementation will be used."
 		 ;; STDERR can also be a file name.
 		 (tmpstderr
 		  (and stderr
-		       (if (and (stringp stderr) (tramp-tramp-file-p stderr))
-			   (tramp-unquote-file-local-name stderr)
-			 (tramp-make-tramp-temp-file v))))
+		       (tramp-unquote-file-local-name
+			(if (stringp stderr)
+			    stderr (tramp-make-tramp-temp-name v)))))
 		 (remote-tmpstderr
 		  (and tmpstderr (tramp-make-tramp-file-name v tmpstderr)))
 		 (program (car command))
@@ -2807,7 +2814,8 @@ alternative implementation will be used."
 		 ;; "-c", it might be that the arguments exceed the
 		 ;; command line length.  Therefore, we modify the
 		 ;; command.
-		 (heredoc (and (stringp program)
+		 (heredoc (and (not (bufferp stderr))
+			       (stringp program)
 			       (string-match-p "sh$" program)
 			       (= (length args) 2)
 			       (string-equal "-c" (car args))
@@ -2920,18 +2928,18 @@ alternative implementation will be used."
 			     (if (symbolp coding) coding (cdr coding))))
 			(clear-visited-file-modtime)
 			(narrow-to-region (point-max) (point-max))
-			;; We call `tramp-maybe-open-connection', in
-			;; order to cleanup the prompt afterwards.
 			(catch 'suppress
-			  (tramp-maybe-open-connection v)
-			  (setq p (tramp-get-connection-process v))
 			  ;; Set the pid of the remote shell.  This is
 			  ;; needed when sending signals remotely.
 			  (let ((pid (tramp-send-command-and-read v "echo $$")))
+			    (setq p (tramp-get-connection-process v))
 			    (process-put p 'remote-pid pid)
 			    (tramp-set-connection-property p "remote-pid" pid))
-			  ;; Disable carriage return to newline translation.
-			  (when (memq connection-type '(nil pipe))
+			  ;; Disable carriage return to newline
+			  ;; translation.  This does not work on
+			  ;; macOS, see Bug#50748.
+			  (when (and (memq connection-type '(nil pipe))
+                                     (not (tramp-check-remote-uname v "Darwin")))
 			    (tramp-send-command v "stty -icrnl"))
 			  ;; `tramp-maybe-open-connection' and
 			  ;; `tramp-send-command-and-read' could have
@@ -2962,20 +2970,14 @@ alternative implementation will be used."
 			  (set-marker (process-mark p) (point)))
 			;; Kill stderr process and delete named pipe.
 			(when (bufferp stderr)
-			  (with-current-buffer stderr
-			    ;; There's a mysterious error, see
-			    ;; <https://github.com/joaotavora/eglot/issues/662>.
-			    (ignore-errors
-			      (insert-file-contents-literally remote-tmpstderr)))
-			  ;; Delete tmpstderr file.
 			  (add-function
 			   :after (process-sentinel p)
 			   (lambda (_proc _msg)
-			     (when (file-exists-p remote-tmpstderr)
-			       (with-current-buffer stderr
-				 (ignore-errors
-				   (insert-file-contents-literally
-				    remote-tmpstderr nil nil nil 'replace)))
+			     (ignore-errors
+			       (while (accept-process-output
+				       (get-buffer-process stderr) 0 nil t))
+			       (delete-process (get-buffer-process stderr)))
+			     (ignore-errors
 			       (delete-file remote-tmpstderr)))))
 			;; Return process.
 			p)))
@@ -4007,10 +4009,7 @@ This function expects to be in the right *tramp* buffer."
       ;; number of words it returns.  "SunOS 5.10" (and maybe "SunOS
       ;; 5.11") have problems with this command, we disable the call
       ;; therefore.
-      (unless (or ignore-path
-		  (string-match-p
-		   tramp-sunos-unames
-		   (tramp-get-connection-property vec "uname" "")))
+      (unless (or ignore-path (tramp-check-remote-uname vec tramp-sunos-unames))
 	(tramp-send-command vec (format "which \\%s | wc -w" progname))
 	(goto-char (point-min))
 	(if (looking-at-p "^\\s-*1$")
@@ -4220,9 +4219,7 @@ file exists and nonzero exit status otherwise."
 			;; The default shell (ksh93) of OpenSolaris
 			;; and Solaris is buggy.  We've got reports
 			;; for "SunOS 5.10" and "SunOS 5.11" so far.
-			(string-match-p
-			 tramp-sunos-unames
-			 (tramp-get-connection-property vec "uname" "")))
+                        (tramp-check-remote-uname vec tramp-sunos-unames))
 
 		    (or (tramp-find-executable
 			 vec "bash" (tramp-get-remote-path vec) t t)
@@ -4877,10 +4874,12 @@ connection if a previous connection has died for some reason."
 	  (with-tramp-progress-reporter
 	      vec 3
 	      (if (zerop (length (tramp-file-name-user vec)))
-		  (format "Opening connection for %s using %s"
+		  (format "Opening connection %s for %s using %s"
+			  process-name
 			  (tramp-file-name-host vec)
 			  (tramp-file-name-method vec))
-		(format "Opening connection for %s@%s using %s"
+		(format "Opening connection %s for %s@%s using %s"
+			process-name
 			(tramp-file-name-user vec)
 			(tramp-file-name-host vec)
 			(tramp-file-name-method vec)))
@@ -5311,12 +5310,11 @@ Return ATTR."
 	 (directory-file-name (tramp-file-name-unquote-localname vec))))
     (when (string-match-p tramp-ipv6-regexp host)
       (setq host (format "[%s]" host)))
-    ;; This does not work yet for MS Windows scp, if there are
-    ;; characters to be quoted.  Win32 OpenSSH 7.9 is said to support
-    ;; this, see
-    ;; <https://github.com/PowerShell/Win32-OpenSSH/releases/tag/v7.9.0.0p1-Beta>
+    ;; This does not work for MS Windows scp, if there are characters
+    ;; to be quoted.  OpenSSH 8 supports disabling of strict file name
+    ;; checking in scp, we use it when available.
     (unless (string-match-p "ftp$" method)
-      (setq localname (tramp-shell-quote-argument localname)))
+      (setq localname (tramp-unquote-shell-quote-argument localname)))
     (cond
      ((tramp-get-method-parameter vec 'tramp-remote-copy-program)
       localname)
@@ -5337,6 +5335,10 @@ Return ATTR."
        (null (tramp-get-inline-coding vec "remote-encoding" size)))))
 
 ;; Variables local to connection.
+
+(defun tramp-check-remote-uname (vec regexp)
+  "Check whether REGEXP matches the connection property \"uname\"."
+  (string-match-p regexp (tramp-get-connection-property vec "uname" "")))
 
 (defun tramp-get-remote-path (vec)
   "Compile list of remote directories for PATH.
@@ -5562,8 +5564,7 @@ Nonexistent directories are removed from spec."
   (with-tramp-connection-property vec "stat"
     ;; stat on Solaris is buggy.  We've got reports for "SunOS 5.10"
     ;; and "SunOS 5.11" so far.
-    (unless (string-match-p
-	     tramp-sunos-unames (tramp-get-connection-property vec "uname" ""))
+    (unless (tramp-check-remote-uname vec tramp-sunos-unames)
       (tramp-message vec 5 "Finding a suitable `stat' command")
       (let ((result (tramp-find-executable
 		     vec "stat" (tramp-get-remote-path vec)))
@@ -6004,8 +6005,6 @@ function cell is returned to be applied on a buffer."
 ;;   session could be reused after a connection loss.  Use dtach, or
 ;;   screen, or tmux, or mosh.
 ;;
-;; * Implement `:stderr' of `make-process' as pipe process.
-
 ;; * One interesting solution (with other applications as well) would
 ;;   be to stipulate, as a directory or connection-local variable, an
 ;;   additional rc file on the remote machine that is sourced every

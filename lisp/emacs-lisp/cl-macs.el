@@ -1925,7 +1925,8 @@ from OBARRAY.
 
 \(fn (VAR [OBARRAY [RESULT]]) BODY...)"
   (declare (indent 1)
-           (debug ((symbolp &optional form form) cl-declarations body)))
+           (debug ((symbolp &optional form form) cl-declarations
+                   def-body)))
   ;; Apparently this doesn't have an implicit block.
   `(cl-block nil
      (let (,(car spec))
@@ -1965,7 +1966,7 @@ Each symbol in the first list is bound to the corresponding value in the
 second list (or to nil if VALUES is shorter than SYMBOLS); then the
 BODY forms are executed and their result is returned.  This is much like
 a `let' form, except that the list of symbols can be computed at run-time."
-  (declare (indent 2) (debug (form form body)))
+  (declare (indent 2) (debug (form form def-body)))
   (let ((bodyfun (make-symbol "body"))
         (binds (make-symbol "binds"))
         (syms (make-symbol "syms"))
@@ -3082,9 +3083,10 @@ Supported keywords for slots are:
 	      ;; The arg "cl-x" is referenced by name in eg pred-form
 	      ;; and pred-check, so changing it is not straightforward.
 	      (push `(,defsym ,accessor (cl-x)
-                       ,(format "Access slot \"%s\" of `%s' struct CL-X.%s"
-                                slot name
-                                (if doc (concat "\n" doc) ""))
+                       ,(internal--format-docstring-line
+                         "Access slot \"%s\" of `%s' struct CL-X.%s"
+                         slot name
+                         (if doc (concat "\n" doc) ""))
                        (declare (side-effect-free t))
                        ,access-body)
                     forms)

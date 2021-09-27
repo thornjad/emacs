@@ -3677,8 +3677,10 @@ Prepare every function for final compilation and drive the C back-end."
                            comp-libgccjit-reproducer ,comp-libgccjit-reproducer
                            comp-ctxt ,comp-ctxt
                            native-comp-eln-load-path ',native-comp-eln-load-path
-                           native-comp-compiler-options ',native-comp-compiler-options
-                           native-comp-driver-options ',native-comp-driver-options
+                           native-comp-compiler-options
+                           ',native-comp-compiler-options
+                           native-comp-driver-options
+                           ',native-comp-driver-options
                            load-path ',load-path)
                      ,native-comp-async-env-modifier-form
                      (message "Compiling %s..." ',output)
@@ -3941,8 +3943,10 @@ display a message."
                                  comp-libgccjit-reproducer ,comp-libgccjit-reproducer
                                  comp-async-compilation t
                                  native-comp-eln-load-path ',native-comp-eln-load-path
-                                 native-comp-compiler-options ',native-comp-compiler-options
-                                 native-comp-driver-options ',native-comp-driver-options
+                                 native-comp-compiler-options
+                                 ',native-comp-compiler-options
+                                 native-comp-driver-options
+                                 ',native-comp-driver-options
                                  load-path ',load-path
                                  warning-fill-column most-positive-fixnum)
                            ,native-comp-async-env-modifier-form

@@ -255,7 +255,7 @@ CODE should be a function of no arguments."
   nil)
 
 (defmacro vc-run-delayed (&rest body)
-  (declare (indent 0) (debug t))
+  (declare (indent 0) (debug (def-body)))
   `(vc-exec-after (lambda () ,@body)))
 
 (defvar vc-post-command-functions nil
@@ -404,7 +404,7 @@ Display the buffer in some window, but don't select it."
 (defvar compilation-error-regexp-alist)
 
 (defun vc-compilation-mode (backend)
-  "Setup `compilation-mode' after with the appropriate `compilation-error-regexp-alist'."
+  "Setup `compilation-mode' with the appropriate `compilation-error-regexp-alist'."
   (require 'compile)
   (let* ((error-regexp-alist
           (vc-make-backend-sym backend 'error-regexp-alist))

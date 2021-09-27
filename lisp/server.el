@@ -413,9 +413,14 @@ If CLIENT is non-nil, add a description of it to the logged message."
   ;; for possible servers before doing anything, so it *should* be ours.
   (and (process-contact proc :server)
        (eq (process-status proc) 'closed)
+       ;; If this variable is non-nil, the socket was passed in to
+       ;; Emacs, and not created by Emacs itself (for instance,
+       ;; created by systemd).  In that case, don't delete the socket.
+       (not internal--daemon-sockname)
        (ignore-errors
 	 (delete-file (process-get proc :server-file))))
-  (server-log (format "Status changed to %s: %s" (process-status proc) msg) proc)
+  (server-log (format "Status changed to %s: %s"
+                      (process-status proc) msg) proc)
   (server-delete-client proc))
 
 (defun server--on-display-p (frame display)
@@ -895,17 +900,12 @@ This handles splitting the command if it would be bigger than
       )
 
     (cond (w
-           (condition-case nil
-               (server--create-frame
-                nowait proc
-                `((display . ,display)
-                  ,@(if parent-id
-                        `((parent-id . ,(string-to-number parent-id))))
-                  ,@parameters))
-             (error
-              (server-log "Window system unsupported" proc)
-              (server-send-string proc "-window-system-unsupported \n")
-              nil)))
+           (server--create-frame
+            nowait proc
+            `((display . ,display)
+              ,@(if parent-id
+                    `((parent-id . ,(string-to-number parent-id))))
+              ,@parameters)))
 
           (t
            (server-log "Window system unsupported" proc)

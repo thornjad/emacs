@@ -1118,7 +1118,7 @@ is wrapped around any parts requiring it."
 
 (declare-function lm-header "lisp-mnt" (header))
 (declare-function lm-header-multiline "lisp-mnt" (header))
-(declare-function lm-homepage "lisp-mnt" (&optional file))
+(declare-function lm-website "lisp-mnt" (&optional file))
 (declare-function lm-keywords-list "lisp-mnt" (&optional file))
 (declare-function lm-maintainers "lisp-mnt" (&optional file))
 (declare-function lm-authors "lisp-mnt" (&optional file))
@@ -1153,7 +1153,7 @@ boundaries."
             (or (lm-header "package-version") (lm-header "version")))
            (pkg-version (package-strip-rcs-id version-info))
            (keywords (lm-keywords-list))
-           (homepage (lm-homepage)))
+           (website (lm-website)))
       (unless pkg-version
          (if version-info
              (error "Unrecognized package version: %s" version-info)
@@ -1164,7 +1164,7 @@ boundaries."
          (package--prepare-dependencies
           (package-read-from-string (mapconcat #'identity require-lines " "))))
        :kind 'single
-       :url homepage
+       :url website
        :keywords keywords
        :maintainer
        ;; For backward compatibility, use a single string if there's only
@@ -1308,7 +1308,10 @@ is non-nil, don't propagate connection errors (does not apply to
 errors signaled by ERROR-FORM or by BODY).
 
 \(fn URL &key ASYNC FILE ERROR-FORM NOERROR &rest BODY)"
-  (declare (indent defun) (debug t))
+  (declare (indent defun)
+           ;; FIXME: This should be something like
+           ;; `form def-body &rest form', but that doesn't work.
+           (debug (form &rest sexp)))
   (while (keywordp (car body))
     (setq body (cdr (cdr body))))
   `(package--with-response-buffer-1 ,url (lambda () ,@body)
@@ -2167,7 +2170,7 @@ Otherwise return nil."
       ;; to make sure we use a "canonical name"!
       (if l (package-version-join l)))))
 
-(declare-function lm-homepage "lisp-mnt" (&optional file))
+(declare-function lm-website "lisp-mnt" (&optional file))
 
 ;;;###autoload
 (defun package-install-from-buffer ()
@@ -2287,7 +2290,7 @@ Clean-up the corresponding .eln files if Emacs is native
 compiled."
   (when (featurep 'native-compile)
     (cl-loop
-     for file in (directory-files-recursively dir ".el\\'")
+     for file in (directory-files-recursively dir "\\.el\\'")
      do (comp-clean-up-stale-eln (comp-el-to-eln-filename file))))
   (delete-directory dir t))
 
@@ -2503,7 +2506,7 @@ Helper function for `describe-package'."
          (version (if desc (package-desc-version desc)))
          (archive (if desc (package-desc-archive desc)))
          (extras (and desc (package-desc-extras desc)))
-         (homepage (cdr (assoc :url extras)))
+         (website (cdr (assoc :url extras)))
          (commit (cdr (assoc :commit extras)))
          (keywords (if desc (package-desc--keywords desc)))
          (built-in (eq pkg-dir 'builtin))
@@ -2616,15 +2619,20 @@ Helper function for `describe-package'."
             (help-insert-xref-button text 'help-package
                                      (package-desc-name pkg))))
         (insert "\n")))
-    (when homepage
-      ;; Prefer https for the homepage of packages on gnu.org.
-      (if (string-match-p "^http://\\(elpa\\|www\\)\\.gnu\\.org/" homepage)
-          (let ((gnu (cdr (assoc "gnu" package-archives))))
-            (and gnu (string-match-p "^https" gnu)
-                 (setq homepage
-                       (replace-regexp-in-string "^http" "https" homepage)))))
-      (package--print-help-section "Homepage")
-      (help-insert-xref-button homepage 'help-url homepage)
+    (when website
+      ;; Prefer https for the website of packages on common domains.
+      (when (string-match-p (rx bol "http://" (or "elpa." "www." "git." "")
+                                (or "nongnu.org" "gnu.org" "sr.ht"
+                                    "emacswiki.org" "gitlab.com" "github.com")
+                                "/")
+                            website)
+        ;; But only if the user has "https" in `package-archives'.
+        (let ((gnu (cdr (assoc "gnu" package-archives))))
+          (and gnu (string-match-p "^https" gnu)
+               (setq website
+                     (replace-regexp-in-string "^http" "https" website)))))
+      (package--print-help-section "Website")
+      (help-insert-xref-button website 'help-url website)
       (insert "\n"))
     (when keywords
       (package--print-help-section "Keywords")

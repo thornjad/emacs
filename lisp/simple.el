@@ -2031,7 +2031,29 @@ This function uses the `read-extended-command-predicate' user option."
 	     '(metadata
 	       (affixation-function . read-extended-command--affixation)
 	       (category . command))
-           (complete-with-action action obarray string pred)))
+           (let ((pred
+                  (if (memq action '(nil t))
+                      ;; Exclude from completions obsolete commands
+                      ;; lacking a `current-name', or where `when' is
+                      ;; not the current major version.
+                      (lambda (sym)
+                        (let ((obsolete (get sym 'byte-obsolete-info)))
+                          (and (funcall pred sym)
+                               (or (equal string (symbol-name sym))
+                                   (not obsolete)
+                                   (and
+                                    ;; Has a current-name.
+                                    (functionp (car obsolete))
+                                    ;; when >= emacs-major-version
+                                    (condition-case nil
+                                        (>= (car (version-to-list
+                                                  (caddr obsolete)))
+                                            emacs-major-version)
+                                      ;; If the obsoletion version isn't
+                                      ;; valid, include the command.
+                                      (error t)))))))
+                    pred)))
+             (complete-with-action action obarray string pred))))
        (lambda (sym)
          (and (commandp sym)
               (cond ((null read-extended-command-predicate))
@@ -5614,26 +5636,25 @@ Normally set from the UNDO element of a yank-handler; see `insert-for-yank'.")
   "Replace just-yanked stretch of killed text with a different stretch.
 The main use of this command is immediately after a `yank' or a
 `yank-pop'.  At such a time, the region contains a stretch of
-reinserted previously-killed text.  `yank-pop' deletes that text
-and inserts in its place a different stretch of killed text by
-traversing the value of the `kill-ring' variable.
+reinserted (\"pasted\") previously-killed text.  `yank-pop' deletes
+that text and inserts in its place a different stretch of killed text
+by traversing the value of the `kill-ring' variable and selecting
+another kill from there.
 
 With no argument, the previous kill is inserted.
 With argument N, insert the Nth previous kill.
-If N is negative, this is a more recent kill.
+If N is negative, it means to use a more recent kill.
 
-The sequence of kills wraps around, so that after the oldest one
-comes the newest one.
+The sequence of kills wraps around, so if you keep invoking this command
+time after time, and pass the oldest kill, you get the newest one.
+
+You can also invoke this command after a command other than `yank'
+or `yank-pop'.  This is the same as invoking `yank-from-kill-ring',
+including the effect of the prefix argument; see there for the details.
 
 This command honors the `yank-handled-properties' and
 `yank-excluded-properties' variables, and the `yank-handler' text
-property, in the way that `yank' does.
-
-When this command is called not immediately after a `yank' or a
-`yank-pop', then it activates the minibuffer with its completion
-and history filled with previously-killed items from the
-`kill-ring' variable, and reads a string to yank at point.
-See `yank-from-kill-ring' for more details."
+property, in the way that `yank' does."
   (interactive "p")
   (if (not (eq last-command 'yank))
       (yank-from-kill-ring (read-from-kill-ring "Yank from kill-ring: ")
@@ -7043,11 +7064,13 @@ The value is a floating-point number."
 	       (or (null rbot) (= rbot 0)))
 	  nil)
 	 ;; If cursor is not in the bottom scroll margin, and the
-	 ;; current line is not too tall, move forward.
+	 ;; current line is not too tall, or if there's a continuation
+	 ;; line below this one, move forward.
 	 ((and (or (null this-height) (<= this-height winh))
 	       vpos
 	       (> vpos 0)
-	       (< py last-line))
+	       (or (< py last-line)
+                   (display--line-is-continued-p)))
 	  nil)
 	 ;; When already vscrolled, we vscroll some more if we can,
 	 ;; or clear vscroll and move forward at end of tall image.
@@ -9558,7 +9581,7 @@ call `normal-erase-is-backspace-mode' (which see) instead."
        (if (if (eq normal-erase-is-backspace 'maybe)
                (and (not noninteractive)
                     (or (memq system-type '(ms-dos windows-nt))
-			(memq window-system '(w32 ns pgtk))
+			(memq window-system '(w32 ns))
                         (and (eq window-system 'x)
                              (fboundp 'x-backspace-delete-keys-p)
                              (x-backspace-delete-keys-p))
