@@ -1723,8 +1723,7 @@ For example:
 \(setq gnus-newsgroup-variables
      \\='(message-use-followup-to
        (gnus-visible-headers .
-	 \"^From:\\\\|^Newsgroups:\\\\|^Subject:\\\\|^Date:\\\\|^To:\")))
-")
+         \"^From:\\\\|^Newsgroups:\\\\|^Subject:\\\\|^Date:\\\\|^To:\")))")
 
 (eval-when-compile
   ;; Bind features so that require will believe that gnus-sum has
@@ -2252,6 +2251,7 @@ increase the score of each group you read."
   "s" gnus-treat-smiley
   "D" gnus-article-remove-images
   "W" gnus-article-show-images
+  "F" gnus-article-toggle-fonts
   "f" gnus-treat-from-picon
   "m" gnus-treat-mail-picon
   "n" gnus-treat-newsgroups-picon
@@ -2561,6 +2561,7 @@ gnus-summary-show-article-from-menu-as-charset-%s" cs))))
 	      ["Unfold headers" gnus-article-treat-unfold-headers t]
 	      ["Fold newsgroups" gnus-article-treat-fold-newsgroups t]
 	      ["Html" gnus-article-wash-html t]
+	      ["Toggle HTML fonts" gnus-article-toggle-fonts t]
 	      ["Unsplit URLs" gnus-article-unsplit-urls t]
 	      ["Verify X-PGP-Sig" gnus-article-verify-x-pgp-sig t]
 	      ["Decode HZ" gnus-article-decode-HZ t]
@@ -3144,8 +3145,9 @@ You can also post articles and send mail from this buffer.  To
 follow up an article, type `\\[gnus-summary-followup]'.  To mail a reply to the author
 of an article, type `\\[gnus-summary-reply]'.
 
-There are approx. one gazillion commands you can execute in this
-buffer; read the Info manual for more information (`\\[gnus-info-find-node]').
+There are approximately one gazillion commands you can execute in
+this buffer; read the Info manual for more
+information (`\\[gnus-info-find-node]').
 
 The following commands are available:
 
@@ -6841,7 +6843,7 @@ Also do horizontal recentering."
 
 (defun gnus-forward-line-ignore-invisible (n)
   "Move N lines forward (backward if N is negative).
-Like forward-line, but skip over (and don't count) invisible lines."
+Like `forward-line', but skip over (and don't count) invisible lines."
   (let (done)
     (while (and (> n 0) (not done))
       ;; If the following character is currently invisible,
@@ -9837,11 +9839,11 @@ article currently."
   "Force redisplaying of the current article.
 If ARG (the prefix) is a number, show the article with the charset
 defined in `gnus-summary-show-article-charset-alist', or the charset
-input.
+input.\\<gnus-summary-mode-map>
 If ARG (the prefix) is non-nil and not a number, show the article,
 but without running any of the article treatment functions
-article.  Normally, the keystroke is `C-u g'.  When using `C-u
-C-u g', show the raw article."
+article.  Normally, the keystroke is `\\[universal-argument] \\[gnus-summary-show-article]'.  When using `\\[universal-argument]
+\\[universal-argument] \\[gnus-summary-show-article]', show the raw article."
   (interactive "P" gnus-summary-mode)
   (cond
    ((numberp arg)

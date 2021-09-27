@@ -32,7 +32,7 @@
 ;; Here is a brief explanation how this code works.
 ;; Firstly, we analyze the tree by calling cconv-analyze-form.
 ;; This function finds all mutated variables, all functions that are suitable
-;; for lambda lifting and all variables captured by closure. It passes the tree
+;; for lambda lifting and all variables captured by closure.  It passes the tree
 ;; once, returning a list of three lists.
 ;;
 ;; Then we calculate the intersection of the first and third lists returned by
@@ -794,6 +794,8 @@ This function does not return anything but instead fills the
     ;; (`(declare . ,_) nil)               ;The args don't contain code.
 
     (`(,_ . ,body-forms)    ; First element is a function or whatever.
+     (unless (listp body-forms)
+       (signal 'wrong-type-argument (list 'proper-list-p form)))
      (dolist (form body-forms) (cconv-analyze-form form env)))
 
     ((pred symbolp)

@@ -22,7 +22,7 @@
 
 ;;; Commentary:
 
-;; The kmacro package provides the user interface to emacs' basic
+;; The kmacro package provides the user interface to Emacs' basic
 ;; keyboard macro functionality.  With kmacro, two function keys are
 ;; dedicated to keyboard macros, by default F3 and F4.
 
@@ -144,7 +144,7 @@ macro to be executed before appending to it."
 
 
 (defcustom kmacro-repeat-no-prefix t
-  "Allow repeating certain macro commands without entering the C-x C-k prefix."
+  "Allow repeating certain macro commands without entering the \\[kmacro-keymap] prefix."
   :type 'boolean)
 
 (defcustom kmacro-call-repeat-key t
@@ -172,7 +172,7 @@ macro to be executed before appending to it."
     (define-key map "\C-k" #'kmacro-end-or-call-macro-repeat)
     (define-key map "r"    #'apply-macro-to-region-lines)
     (define-key map "q"    #'kbd-macro-query)  ;; Like C-x q
-    (define-key map "Q"    #'kdb-macro-redisplay)
+    (define-key map "d"    #'kdb-macro-redisplay)
 
     ;; macro ring
     (define-key map "\C-n" #'kmacro-cycle-ring-next)
@@ -728,7 +728,7 @@ With \\[universal-argument], call second macro in macro ring."
 
 
 (defun kmacro-end-or-call-macro-repeat (arg)
-  "As `kmacro-end-or-call-macro' but allows repeat without repeating prefix."
+  "As `kmacro-end-or-call-macro' but allow repeat without repeating prefix."
   (interactive "P")
   (let ((keys (kmacro-get-repeat-prefix)))
     (kmacro-end-or-call-macro arg t)
@@ -820,8 +820,8 @@ If kbd macro currently being defined end it before activating it."
 
 (defun kmacro-bind-to-key (_arg)
   "When not defining or executing a macro, offer to bind last macro to a key.
-The key sequences [C-x C-k 0] through [C-x C-k 9] and [C-x C-k A]
-through [C-x C-k Z] are reserved for user bindings, and to bind to
+The key sequences `C-x C-k 0' through `C-x C-k 9' and `C-x C-k A'
+through `C-x C-k Z' are reserved for user bindings, and to bind to
 one of these sequences, just enter the digit or letter, rather than
 the whole sequence.
 

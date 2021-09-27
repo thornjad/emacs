@@ -426,7 +426,7 @@ synchronously."
   :version "28.1")
 
 (defcustom package-archive-column-width 8
-  "Column width for the Package status in the package menu."
+  "Column width for the Package archive in the package menu."
   :type 'number
   :version "28.1")
 
@@ -1583,7 +1583,7 @@ If the archive version is too new, signal an error."
         (if package
             (package--add-to-archive-contents package archive)
           (lwarn '(package refresh) :warning
-                 "Ignoring `nil' package on `%s' package archive" archive))))))
+                 "Ignoring nil package on `%s' package archive" archive))))))
 
 (defvar package--old-archive-priorities nil
   "Store currently used `package-archive-priorities'.
@@ -2265,7 +2265,9 @@ confirmation to install packages."
                            (mapconcat #'symbol-name available " "))))
           (mapc (lambda (p) (package-install p 'dont-select)) available)))
        ((> difference 0)
-        (message "Packages that are not available: %d (the rest is already installed), maybe you need to `M-x package-refresh-contents'"
+        (message (substitute-command-keys
+                  "Packages that are not available: %d (the rest is already \
+installed), maybe you need to \\[package-refresh-contents]")
                  difference))
        (t
         (message "All your packages are already installed"))))))
@@ -2804,8 +2806,8 @@ either a full name or nil, and EMAIL is a valid email address."
   "Menu for `package-menu-mode'."
   '("Package"
     ["Describe Package" package-menu-describe-package :help "Display information about this package"]
-    ["Open Package Homepage" package-browse-url
-     :help "Open the homepage of this package"]
+    ["Open Package Website" package-browse-url
+     :help "Open the website of this package"]
     ["Help" package-menu-quick-help :help "Show short key binding help for package-menu-mode"]
     "--"
     ["Refresh Package List" revert-buffer
@@ -3598,8 +3600,10 @@ packages list, respectively."
 
 (defun package-menu-execute (&optional noquery)
   "Perform marked Package Menu actions.
-Packages marked for installation are downloaded and installed;
-packages marked for deletion are removed.
+Packages marked for installation are downloaded and installed,
+packages marked for deletion are removed,
+and packages marked for upgrading are downloaded and upgraded.
+
 Optional argument NOQUERY non-nil means do not ask the user to confirm."
   (interactive nil package-menu-mode)
   (package--ensure-package-menu-mode)
@@ -4225,7 +4229,7 @@ beginning of the line."
             (package-desc-summary package-desc))))
 
 (defun package-browse-url (desc &optional secondary)
-  "Open the home page of the package under point in a browser.
+  "Open the website of the package under point in a browser.
 `browse-url' is used to determine the browser to be used.
 If SECONDARY (interactively, the prefix), use the secondary browser."
   (interactive (list (tabulated-list-get-id)
@@ -4235,7 +4239,7 @@ If SECONDARY (interactively, the prefix), use the secondary browser."
     (user-error "No package here"))
   (let ((url (cdr (assoc :url (package-desc-extras desc)))))
     (unless url
-      (user-error "No home page for %s" (package-desc-name desc)))
+      (user-error "No website for %s" (package-desc-name desc)))
     (if secondary
 	(funcall browse-url-secondary-browser-function url)
       (browse-url url))))

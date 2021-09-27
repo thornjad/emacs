@@ -247,7 +247,7 @@ from; the default is `load-path'."
 		  ;; The idea here is that eg calc.el gets to define
 		  ;; the description of the calc package.
 		  ;; This does not work for eg nxml-mode.el.
-		  ((or (eq base-name package) version)
+		  ((eq base-name package)
 		   (setq desc (cdr entry))
 		   (aset desc 0 version)
 		   (aset desc 2 summary)))
@@ -379,7 +379,7 @@ FILE should be in a form suitable for passing to `locate-library'."
    (list
     (completing-read "Library name: "
 		     (apply-partially 'locate-file-completion-table
-                                      (or find-function-source-path load-path)
+                                      (or find-library-source-path load-path)
                                       (find-library-suffixes)))))
   (let ((str (lm-commentary (find-library-name file))))
     (or str (error "Can't find any Commentary section"))

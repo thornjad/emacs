@@ -5,7 +5,7 @@
 ;; Author: Vinicius Jose Latorre <viniciusjl.gnu@gmail.com>
 ;; Keywords: wp, ebnf, PostScript
 ;; Version: 4.4
-;; X-URL: https://www.emacswiki.org/cgi-bin/wiki/ViniciusJoseLatorre
+;; URL: https://www.emacswiki.org/cgi-bin/wiki/ViniciusJoseLatorre
 
 ;; This file is part of GNU Emacs.
 
@@ -1165,7 +1165,7 @@ Please send all bug fixes and enhancements to
 ;;; Interface to the command system
 
 (defgroup postscript nil
-  "Printing with PostScript"
+  "Printing with PostScript."
   :tag "PostScript"
   :version "20"
   :group 'environment)
@@ -2248,9 +2248,7 @@ number, prompt the user for the name of the file to save in."
              ;; Make non-ASCII work (sort of).
              (lambda (string)
                (ps-output t (and string
-                                 (encode-coding-string
-                                  (decode-coding-string string 'utf-8)
-                                  'iso-8859-1))))))
+                                 (encode-coding-string string 'iso-8859-1))))))
     (ebnf-print-region (point-min) (point-max) filename)))
 
 ;;;###autoload

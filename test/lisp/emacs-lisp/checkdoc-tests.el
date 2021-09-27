@@ -122,4 +122,63 @@ See the comments in Bug#24998."
     (should (looking-at-p "\"baz\")"))
     (should-not (checkdoc-next-docstring))))
 
+(defun checkdoc-tests--abbrev-test (buffer-contents goto-string)
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (insert buffer-contents)
+    (goto-char (point-min))
+    (re-search-forward goto-string)
+    (checkdoc-in-abbreviation-p (point))))
+
+(ert-deftest checkdoc-tests-in-abbrevation-p/basic-case ()
+  (should (checkdoc-tests--abbrev-test "foo bar e.g. baz" "e.g"))
+  (should (checkdoc-tests--abbrev-test "behavior/errors etc. that" "etc"))
+  (should (checkdoc-tests--abbrev-test "foo vs. bar" "vs"))
+  (should (checkdoc-tests--abbrev-test "spy a.k.a. spy" "a.k.a")))
+
+(ert-deftest checkdoc-tests-in-abbrevation-p/with-parens ()
+  (should (checkdoc-tests--abbrev-test "foo bar (e.g. baz)" "e.g")))
+
+(ert-deftest checkdoc-tests-in-abbrevation-p/with-escaped-parens ()
+  (should (checkdoc-tests--abbrev-test "foo\n\\(e.g. baz)" "e.g")))
+
+(ert-deftest checkdoc-tests-in-abbrevation-p/single-char ()
+  (should (checkdoc-tests--abbrev-test "a. foo bar" "a")))
+
+(ert-deftest checkdoc-tests-in-abbrevation-p/with-em-dash ()
+  (should (checkdoc-tests--abbrev-test "foo bar baz---e.g." "e.g")))
+
+(ert-deftest checkdoc-tests-in-abbrevation-p/incorrect-abbreviation ()
+  (should-not (checkdoc-tests--abbrev-test "foo bar a.b.c." "a.b.c")))
+
+(ert-deftest checkdoc-tests-fix-y-or-n-p ()
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (let ((standard-output (current-buffer))
+          (checkdoc-autofix-flag 'automatic))
+      (prin1 '(y-or-n-p "foo"))         ; "foo"
+      (goto-char (length "(y-or-n-p "))
+      (checkdoc--fix-y-or-n-p)
+      (should (equal (buffer-string) "(y-or-n-p \"foo?\")")))))
+
+(ert-deftest checkdoc-tests-fix-y-or-n-p/no-change ()
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (let ((standard-output (current-buffer))
+          (checkdoc-autofix-flag 'automatic))
+      (prin1 '(y-or-n-p "foo?"))        ; "foo?"
+      (goto-char (length "(y-or-n-p "))
+      (checkdoc--fix-y-or-n-p)
+      (should (equal (buffer-string) "(y-or-n-p \"foo?\")")))))
+
+(ert-deftest checkdoc-tests-fix-y-or-n-p/with-space ()
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (let ((standard-output (current-buffer))
+          (checkdoc-autofix-flag 'automatic))
+      (prin1 '(y-or-n-p "foo? "))       ; "foo? "
+      (goto-char (length "(y-or-n-p "))
+      (checkdoc--fix-y-or-n-p)
+      (should (equal (buffer-string) "(y-or-n-p \"foo? \")")))))
+
 ;;; checkdoc-tests.el ends here

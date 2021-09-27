@@ -1,7 +1,7 @@
 ;;; xref.el --- Cross-referencing commands              -*-lexical-binding:t-*-
 
 ;; Copyright (C) 2014-2021 Free Software Foundation, Inc.
-;; Version: 1.1.0
+;; Version: 1.2.2
 ;; Package-Requires: ((emacs "26.1"))
 
 ;; This is a GNU ELPA :core package.  Avoid functionality that is not
@@ -71,7 +71,7 @@
 (require 'ring)
 (require 'project)
 
-(defgroup xref nil "Cross-referencing commands"
+(defgroup xref nil "Cross-referencing commands."
   :version "25.1"
   :group 'tools)
 
@@ -86,7 +86,10 @@
 
 (cl-defgeneric xref-location-group (location)
   "Return a string used to group a set of locations.
-This is typically the filename.")
+This is typically a file name, but can also be a package name, or
+some other label.
+
+When it is a file name, it should be the \"expanded\" version.")
 
 (cl-defgeneric xref-location-line (_location)
   "Return the line number corresponding to the location."
@@ -119,7 +122,7 @@ in its full absolute form."
 ;; FIXME: might be useful to have an optional "hint" i.e. a string to
 ;; search for in case the line number is slightly out of date.
 (defclass xref-file-location (xref-location)
-  ((file :type string :initarg :file)
+  ((file :type string :initarg :file :reader xref-location-group)
    (line :type fixnum :initarg :line :reader xref-location-line)
    (column :type fixnum :initarg :column :reader xref-file-location-column))
   :documentation "A file location is a file/line/column triple.
@@ -147,32 +150,6 @@ Line numbers start from 1 and columns from 0.")
             (beginning-of-line line)
             (forward-char column))
           (point-marker))))))
-
-(defvar xref--project-root-memo nil
-  "Cons mapping `default-directory' value to the search root.")
-
-(cl-defmethod xref-location-group ((l xref-file-location))
-  (cl-ecase xref-file-name-display
-    (abs
-     (oref l file))
-    (nondirectory
-     (file-name-nondirectory (oref l file)))
-    (project-relative
-     (unless (and xref--project-root-memo
-                  (equal (car xref--project-root-memo)
-                         default-directory))
-       (setq xref--project-root-memo
-             (cons default-directory
-                   (let ((root
-                          (let ((pr (project-current)))
-                            (and pr (xref--project-root pr)))))
-                     (and root (expand-file-name root))))))
-     (let ((file (oref l file))
-           (search-root (cdr xref--project-root-memo)))
-       (if (and search-root
-                (string-prefix-p search-root file))
-           (substring file (length search-root))
-         file)))))
 
 (defclass xref-buffer-location (xref-location)
   ((buffer :type buffer :initarg :buffer)
@@ -270,7 +247,7 @@ generic functions.")
 
 The result must be a list of xref objects.  If IDENTIFIER
 contains sufficient information to determine a unique definition,
-return only that definition. If there are multiple possible
+return only that definition.  If there are multiple possible
 definitions, return all of them.  If no definitions can be found,
 return nil.
 
@@ -330,20 +307,19 @@ recognize and then delegate the work to an external process."
 
 
 ;;; misc utilities
-(defun xref--alistify (list key test)
+(defun xref--alistify (list key)
   "Partition the elements of LIST into an alist.
-KEY extracts the key from an element and TEST is used to compare
-keys."
-  (let ((alist '()))
+KEY extracts the key from an element."
+  (let ((table (make-hash-table :test #'equal)))
     (dolist (e list)
       (let* ((k (funcall key e))
-             (probe (cl-assoc k alist :test test)))
+             (probe (gethash k table)))
         (if probe
-            (setcdr probe (cons e (cdr probe)))
-          (push (cons k (list e)) alist))))
+            (puthash k (cons e probe) table)
+          (puthash k (list e) table))))
     ;; Put them back in order.
-    (cl-loop for (key . value) in (reverse alist)
-             collect (cons key (reverse value)))))
+    (cl-loop for key being hash-keys of table using (hash-values value)
+             collect (cons key (nreverse value)))))
 
 (defun xref--insert-propertized (props &rest strings)
   "Insert STRINGS with text properties PROPS."
@@ -416,6 +392,38 @@ elements is negated: these commands will NOT prompt."
   :version "28.1"
   :package-version '(xref . "1.0.4"))
 
+(defcustom xref-auto-jump-to-first-definition nil
+  "If t, `xref-find-definitions' always jumps to the first result.
+`show' means to show the first result's location, but keep the
+focus on the Xref buffer's window.
+`move' means to only move point to the first result.
+This variable also affects the variants of `xref-find-definitions',
+such as `xref-find-definitions-other-window'."
+  :type '(choice (const :tag "Jump" t)
+                 (const :tag "Show" show)
+                 (const :tag "Move point only" move)
+                 (const :tag "No auto-jump" nil))
+  :version "28.1"
+  :package-version '(xref . "1.2.0"))
+
+(defcustom xref-auto-jump-to-first-xref nil
+  "If t, `xref-find-references' always jumps to the first result.
+`show' means to show the first result's location, but keep the
+focus on the Xref buffer's window.
+`move' means to only move point to the first result.
+This variable also affects commands similar to `xref-find-references',
+such as `xref-find-references-at-mouse', `xref-find-apropos',
+and `project-find-regexp'.
+
+Please be careful when changing the value if you are using Emacs 27
+or earlier: it can break `dired-do-find-regexp-and-replace'."
+  :type '(choice (const :tag "Jump" t)
+                 (const :tag "Show" show)
+                 (const :tag "Move point only" move)
+                 (const :tag "No auto-jump" nil))
+  :version "28.1"
+  :package-version '(xref . "1.2.0"))
+
 (defvar xref--marker-ring (make-ring xref-marker-ring-length)
   "Ring of markers to implement the marker stack.")
 
@@ -482,7 +490,7 @@ value."
   (goto-char pos))
 
 (defun xref--goto-location (location)
-  "Set buffer and point according to xref-location LOCATION."
+  "Set buffer and point according to `xref-location' LOCATION."
   (let ((marker (xref-location-marker location)))
     (set-buffer (marker-buffer marker))
     (xref--goto-char marker)))
@@ -490,9 +498,9 @@ value."
 (defun xref-pop-to-location (item &optional action)
   "Go to the location of ITEM and display the buffer.
 ACTION controls how the buffer is displayed:
-  nil      -- switch-to-buffer
-  `window' -- pop-to-buffer (other window)
-  `frame'  -- pop-to-buffer (other frame)
+  nil      -- `switch-to-buffer'
+  `window' -- `pop-to-buffer' (other window)
+  `frame'  -- `pop-to-buffer' (other frame)
 If SELECT is non-nil, select the target window."
   (let* ((marker (save-excursion
                    (xref-location-marker (xref-item-location item))))
@@ -751,7 +759,7 @@ references displayed in the current *xref* buffer."
 
 (defun xref--outdated-p (item)
   "Check that the match location at current position is up-to-date.
-ITEMS is an xref item which "
+ITEMS is an xref item which " ; FIXME: Expand documentation.
   ;; FIXME: The check should most likely be a generic function instead
   ;; of the assumption that all matches' summaries relate to the
   ;; buffer text in a particular way.
@@ -898,10 +906,10 @@ beginning of the line."
 (defvar xref--button-map
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-1] #'xref-goto-xref)
-    (define-key map [mouse-2] #'xref-select-and-goto-xref)
+    (define-key map [mouse-2] #'xref-select-and-show-xref)
     map))
 
-(defun xref-select-and-goto-xref (event)
+(defun xref-select-and-show-xref (event)
   "Move point to the button and show the xref definition.
 The window showing the xref buffer will be selected."
   (interactive "e")
@@ -910,8 +918,9 @@ The window showing the xref buffer will be selected."
   (or (get-text-property (point) 'xref-item)
       (xref--search-property 'xref-item))
   (xref-show-location-at-point))
+
 (define-obsolete-function-alias
-  'xref--mouse-2 #'xref-select-and-goto-xref "28.1")
+  'xref--mouse-2 #'xref-select-and-show-xref "28.1")
 
 (defcustom xref-truncation-width 400
   "The column to visually \"truncate\" each Xref buffer line to."
@@ -952,25 +961,30 @@ The window showing the xref buffer will be selected."
         (put-text-property (+ pos xref-truncation-width) eol 'invisible 'ellipsis))))))
 
 (defun xref--insert-xrefs (xref-alist)
-  "Insert XREF-ALIST in the current-buffer.
+  "Insert XREF-ALIST in the current buffer.
 XREF-ALIST is of the form ((GROUP . (XREF ...)) ...), where
 GROUP is a string for decoration purposes and XREF is an
 `xref-item' object."
   (require 'compile) ; For the compilation faces.
-  (cl-loop for ((group . xrefs) . more1) on xref-alist
+  (cl-loop for (group . xrefs) in xref-alist
            for max-line-width =
            (cl-loop for xref in xrefs
                     maximize (let ((line (xref-location-line
                                           (oref xref location))))
-                               (length (and line (format "%d" line)))))
+                               (and line (1+ (floor (log line 10))))))
            for line-format = (and max-line-width
                                   (format "%%%dd: " max-line-width))
+           with item-text-props = (list 'mouse-face 'highlight
+                                        'keymap xref--button-map
+                                        'help-echo
+                                        (concat "mouse-2: display in another window, "
+                                                "RET or mouse-1: follow reference"))
            with prev-group = nil
            with prev-line = nil
            do
            (xref--insert-propertized '(face xref-file-header xref-group t)
                                      group "\n")
-           (cl-loop for (xref . more2) on xrefs do
+           (cl-loop for xref in xrefs do
                     (with-slots (summary location) xref
                       (let* ((line (xref-location-line location))
                              (prefix
@@ -986,14 +1000,9 @@ GROUP is a string for decoration purposes and XREF is an
                                    (or (null line)
                                        (not (equal prev-line line))))
                           (insert "\n"))
-                        (xref--insert-propertized
-                         (list 'xref-item xref
-                               'mouse-face 'highlight
-                               'keymap xref--button-map
-                               'help-echo
-                               (concat "mouse-2: display in another window, "
-                                       "RET or mouse-1: follow reference"))
-                         prefix summary)
+                        (xref--insert-propertized (nconc (list 'xref-item xref)
+                                                         item-text-props)
+                                                  prefix summary)
                         (setq prev-line line
                               prev-group group))))
            (insert "\n"))
@@ -1004,13 +1013,49 @@ GROUP is a string for decoration purposes and XREF is an
       (xref--apply-truncation)))
   (run-hooks 'xref-after-update-hook))
 
+(defun xref--group-name-for-display (group project-root)
+  "Return GROUP formatted in the prefered style.
+
+The style is determined by the value of `xref-file-name-display'.
+If GROUP looks like a file name, its value is formatted according
+to that style.  Otherwise it it returned unchanged."
+  ;; XXX: The way we verify that it's indeed a file name and not some
+  ;; other kind of string, e.g. Java package name or TITLE from
+  ;; `tags-apropos-additional-actions', is pretty lax.  But we don't
+  ;; want to use `file-exists-p' for performance reasons.  If this
+  ;; ever turns out to be a problem, some other alternatives are to
+  ;; either have every location class which uses file names format the
+  ;; values themselves (e.g. by piping through some public function),
+  ;; or adding a new accessor to locations, like GROUP-TYPE.
+  (cl-ecase xref-file-name-display
+    (abs group)
+    (nondirectory
+     (if (string-match-p "\\`~?/" group)
+         (file-name-nondirectory group)
+       group))
+    (project-relative
+     (if (and project-root
+              (string-prefix-p project-root group))
+         (substring group (length project-root))
+       group))))
+
 (defun xref--analyze (xrefs)
-  "Find common filenames in XREFS.
-Return an alist of the form ((FILENAME . (XREF ...)) ...)."
-  (xref--alistify xrefs
-                  (lambda (x)
-                    (xref-location-group (xref-item-location x)))
-                  #'equal))
+  "Find common groups in XREFS and format group names.
+Return an alist of the form ((GROUP . (XREF ...)) ...)."
+  (let* ((alist
+          (xref--alistify xrefs
+                          (lambda (x)
+                            (xref-location-group (xref-item-location x)))))
+         (project (and
+                   (eq xref-file-name-display 'project-relative)
+                   (project-current)))
+         (project-root (and project
+                            (expand-file-name (project-root project)))))
+    (mapcar
+     (lambda (pair)
+       (cons (xref--group-name-for-display (car pair) project-root)
+             (cdr pair)))
+     alist)))
 
 (defun xref--show-xref-buffer (fetcher alist)
   (cl-assert (functionp fetcher))
@@ -1019,13 +1064,16 @@ Return an alist of the form ((FILENAME . (XREF ...)) ...)."
            (assoc-default 'fetched-xrefs alist)
            (funcall fetcher)))
          (xref-alist (xref--analyze xrefs))
-         (dd default-directory))
+         (dd default-directory)
+         buf)
     (with-current-buffer (get-buffer-create xref-buffer-name)
       (setq default-directory dd)
       (xref--xref-buffer-mode)
       (xref--show-common-initialize xref-alist fetcher alist)
       (pop-to-buffer (current-buffer))
-      (current-buffer))))
+      (setq buf (current-buffer)))
+    (xref--auto-jump-first buf (assoc-default 'auto-jump alist))
+    buf))
 
 (defun xref--project-root (project)
   (if (fboundp 'project-root)
@@ -1036,7 +1084,8 @@ Return an alist of the form ((FILENAME . (XREF ...)) ...)."
 (defun xref--show-common-initialize (xref-alist fetcher alist)
   (setq buffer-undo-list nil)
   (let ((inhibit-read-only t)
-        (buffer-undo-list t))
+        (buffer-undo-list t)
+        (inhibit-modification-hooks t))
     (erase-buffer)
     (setq overlay-arrow-position nil)
     (xref--insert-xrefs xref-alist)
@@ -1050,7 +1099,8 @@ Return an alist of the form ((FILENAME . (XREF ...)) ...)."
   "Refresh the search results in the current buffer."
   (interactive)
   (let ((inhibit-read-only t)
-        (buffer-undo-list t))
+        (buffer-undo-list t)
+        (inhibit-modification-hooks t))
     (save-excursion
       (condition-case err
           (let ((alist (xref--analyze (funcall xref--fetcher))))
@@ -1063,19 +1113,36 @@ Return an alist of the form ((FILENAME . (XREF ...)) ...)."
            (error-message-string err)
            'face 'error)))))))
 
+(defun xref--auto-jump-first (buf value)
+  (when value
+    (select-window (get-buffer-window buf))
+    (goto-char (point-min)))
+  (cond
+   ((eq value t)
+    (xref-next-line-no-show)
+    (xref-goto-xref))
+   ((eq value 'show)
+    (xref-next-line))
+   ((eq value 'move)
+    (forward-line 1))))
+
 (defun xref-show-definitions-buffer (fetcher alist)
   "Show the definitions list in a regular window.
 
 When only one definition found, jump to it right away instead."
-  (let ((xrefs (funcall fetcher)))
+  (let ((xrefs (funcall fetcher))
+        buf)
     (cond
      ((not (cdr xrefs))
       (xref-pop-to-location (car xrefs)
                             (assoc-default 'display-action alist)))
      (t
-      (xref--show-xref-buffer fetcher
-                              (cons (cons 'fetched-xrefs xrefs)
-                                    alist))))))
+      (setq buf
+            (xref--show-xref-buffer fetcher
+                                    (cons (cons 'fetched-xrefs xrefs)
+                                          alist)))
+      (xref--auto-jump-first buf (assoc-default 'auto-jump alist))
+      buf))))
 
 (define-obsolete-function-alias
   'xref--show-defs-buffer #'xref-show-definitions-buffer "28.1")
@@ -1091,7 +1158,8 @@ local keymap that binds `RET' to `xref-quit-and-goto-xref'."
          ;; XXX: Make percentage customizable maybe?
          (max-height (/ (window-height) 2))
          (size-fun (lambda (window)
-                     (fit-window-to-buffer window max-height))))
+                     (fit-window-to-buffer window max-height)))
+         buf)
     (cond
      ((not (cdr xrefs))
       (xref-pop-to-location (car xrefs)
@@ -1104,7 +1172,9 @@ local keymap that binds `RET' to `xref-quit-and-goto-xref'."
         (pop-to-buffer (current-buffer)
                        `(display-buffer-in-direction . ((direction . below)
                                                         (window-height . ,size-fun))))
-        (current-buffer))))))
+        (setq buf (current-buffer)))
+      (xref--auto-jump-first buf (assoc-default 'auto-jump alist))
+      buf))))
 
 (define-obsolete-function-alias 'xref--show-defs-buffer-at-bottom
   #'xref-show-definitions-buffer-at-bottom "28.1")
@@ -1233,13 +1303,15 @@ definitions."
                   (setq xrefs 'called-already)))))))
   (funcall xref-show-xrefs-function fetcher
            `((window . ,(selected-window))
-             (display-action . ,display-action))))
+             (display-action . ,display-action)
+             (auto-jump . ,xref-auto-jump-to-first-xref))))
 
 (defun xref--show-defs (xrefs display-action)
   (xref--push-markers)
   (funcall xref-show-definitions-function xrefs
            `((window . ,(selected-window))
-             (display-action . ,display-action))))
+             (display-action . ,display-action)
+             (auto-jump . ,xref-auto-jump-to-first-definition))))
 
 (defun xref--push-markers ()
   (unless (region-active-p) (push-mark nil t))
@@ -1387,7 +1459,9 @@ This command is intended to be bound to a mouse event."
 ;;;###autoload
 (defun xref-find-apropos (pattern)
   "Find all meaningful symbols that match PATTERN.
-The argument has the same meaning as in `apropos'."
+The argument has the same meaning as in `apropos'.
+See `tags-apropos-additional-actions' for how to augment the
+output of this command when the backend is etags."
   (interactive (list (read-string
                       "Search for pattern (word list or regexp): "
                       nil 'xref--read-pattern-history
@@ -1503,18 +1577,18 @@ IGNORES is a list of glob patterns for files to ignore."
        ;; do that reliably enough, without creating false negatives?
        (command (xref--rgrep-command (xref--regexp-to-extended regexp)
                                      files
-                                     (directory-file-name
-                                      (file-name-unquote
-                                       (file-local-name (expand-file-name dir))))
+                                     "."
                                      ignores))
-       (def default-directory)
+       (local-dir (directory-file-name
+                   (file-name-unquote
+                    (file-local-name (expand-file-name dir)))))
        (buf (get-buffer-create " *xref-grep*"))
        (`(,grep-re ,file-group ,line-group . ,_) (car grep-regexp-alist))
        (status nil)
        (hits nil))
     (with-current-buffer buf
       (erase-buffer)
-      (setq default-directory def)
+      (setq default-directory dir)
       (setq status
             (process-file-shell-command command nil t))
       (goto-char (point-min))
@@ -1527,7 +1601,7 @@ IGNORES is a list of glob patterns for files to ignore."
         (user-error "Search failed with status %d: %s" status (buffer-string)))
       (while (re-search-forward grep-re nil t)
         (push (list (string-to-number (match-string line-group))
-                    (match-string file-group)
+                    (concat local-dir (substring (match-string file-group) 1))
                     (buffer-substring-no-properties (point) (line-end-position)))
               hits)))
     (xref--convert-hits (nreverse hits) regexp)))
@@ -1548,16 +1622,11 @@ IGNORES is a list of glob patterns for files to ignore."
   '((grep
      .
      ;; '-s' because 'git ls-files' can output broken symlinks.
-     "xargs -0 grep <C> -snHE -e <R>")
+     "xargs -0 grep <C> --null -snHE -e <R>")
     (ripgrep
      .
-     ;; Note: by default, ripgrep's output order is non-deterministic
-     ;; (https://github.com/BurntSushi/ripgrep/issues/152)
-     ;; because it does the search in parallel.  You can use the template
-     ;; without the '| sort ...' part if GNU sort is not available on
-     ;; your system and/or stable ordering is not important to you.
-     ;; Note#2: '!*/' is there to filter out dirs (e.g. submodules).
-     "xargs -0 rg <C> -nH --no-messages -g '!*/' -e <R> | sort -t: -k1,1 -k2n,2"
+     ;; '!*/' is there to filter out dirs (e.g. submodules).
+     "xargs -0 rg <C> --null -nH --no-messages -g '!*/' -e <R>"
      ))
   "Associative list mapping program identifiers to command templates.
 
@@ -1580,7 +1649,7 @@ The template should have the following fields:
   "The program to use for regexp search inside files.
 
 This must reference a corresponding entry in `xref-search-program-alist'."
-  :type `(choice
+  :type '(choice
           (const :tag "Use Grep" grep)
           (const :tag "Use ripgrep" ripgrep)
           (symbol :tag "User defined"))
@@ -1649,7 +1718,16 @@ FILES must be a list of absolute file names."
                     (match-string file-group)
                     (buffer-substring-no-properties (point) (line-end-position)))
               hits)))
-    (xref--convert-hits (nreverse hits) regexp)))
+    ;; By default, ripgrep's output order is non-deterministic
+    ;; (https://github.com/BurntSushi/ripgrep/issues/152)
+    ;; because it does the search in parallel.
+    ;; Grep's output also comes out in seemingly arbitrary order,
+    ;; though stable one. Let's sort both for better UI.
+    (setq hits
+          (sort (nreverse hits)
+                (lambda (h1 h2)
+                  (string< (cadr h1) (cadr h2)))))
+    (xref--convert-hits hits regexp)))
 
 (defun xref--process-file-region ( start end program
                                    &optional buffer display
@@ -1696,6 +1774,11 @@ directory, used as the root of the ignore globs."
   (cl-assert (not (string-match-p "\\`~" dir)))
   (if (not ignores)
       ""
+    ;; TODO: All in-tree callers are passing in just "." or "./".
+    ;; We can simplify.
+    ;; And, if we ever end up deleting xref-matches-in-directory, move
+    ;; this function to the project package.
+    (setq dir (file-name-as-directory dir))
     (concat
      (shell-quote-argument "(")
      " -path "
@@ -1748,18 +1831,20 @@ Such as the current syntax table and the applied syntax properties."
 
 (defun xref--convert-hits (hits regexp)
   (let (xref--last-file-buffer
-        (tmp-buffer (generate-new-buffer " *xref-temp*")))
+        (tmp-buffer (generate-new-buffer " *xref-temp*"))
+        (remote-id (file-remote-p default-directory))
+        (syntax-needed (xref--regexp-syntax-dependent-p regexp)))
     (unwind-protect
-        (mapcan (lambda (hit) (xref--collect-matches hit regexp tmp-buffer))
+        (mapcan (lambda (hit)
+                  (xref--collect-matches hit regexp tmp-buffer remote-id syntax-needed))
                 hits)
       (kill-buffer tmp-buffer))))
 
-(defun xref--collect-matches (hit regexp tmp-buffer)
+(defun xref--collect-matches (hit regexp tmp-buffer remote-id syntax-needed)
   (pcase-let* ((`(,line ,file ,text) hit)
-               (remote-id (file-remote-p default-directory))
                (file (and file (concat remote-id file)))
                (buf (xref--find-file-buffer file))
-               (syntax-needed (xref--regexp-syntax-dependent-p regexp)))
+               (inhibit-modification-hooks t))
     (if buf
         (with-current-buffer buf
           (save-excursion

@@ -241,7 +241,7 @@ all other buffers."
 (defun next-error-buffer-on-selected-frame (&optional _avoid-current
                                                       extra-test-inclusive
                                                       extra-test-exclusive)
-  "Return a single visible next-error buffer on the selected frame."
+  "Return a single visible `next-error' buffer on the selected frame."
   (let ((window-buffers
          (delete-dups
           (delq nil (mapcar (lambda (w)
@@ -259,7 +259,7 @@ all other buffers."
                                                         extra-test-exclusive)
   "Try the current buffer when outside navigation.
 But return nil if we navigated to the current buffer by the means
-of `next-error' command.  Otherwise, return it if it's next-error
+of `next-error' command.  Otherwise, return it if it's `next-error'
 capable."
   ;; Check that next-error-buffer has no buffer-local value
   ;; (i.e. we never navigated to the current buffer from another),
@@ -2111,21 +2111,23 @@ or (if one of MODES is a minor mode), if it is switched on in BUFFER."
      command-names)))
 
 (defcustom suggest-key-bindings t
-  "Non-nil means show the equivalent key-binding when M-x command has one.
+  "Non-nil means show the equivalent keybinding when \
+\\[execute-extended-command] has one.
 The value can be a length of time to show the message for.
 If the value is non-nil and not a number, we wait 2 seconds.
 
 Also see `extended-command-suggest-shorter'.
 
 Equivalent key-bindings are also shown in the completion list of
-M-x for all commands that have them."
+\\[execute-extended-command] for all commands that have them."
   :group 'keyboard
   :type '(choice (const :tag "off" nil)
-                 (integer :tag "time" 2)
+                 (natnum :tag "time" 2)
                  (other :tag "on")))
 
 (defcustom extended-command-suggest-shorter t
-  "If non-nil, show a shorter M-x invocation when there is one.
+  "If non-nil, show a shorter \\[execute-extended-command] invocation \
+when there is one.
 
 Also see `suggest-key-bindings'."
   :group 'keyboard
@@ -3500,7 +3502,7 @@ with < or <= based on USE-<."
 ;; called or in some cases on a timer called after a change is made in
 ;; any buffer.
 (defvar-local undo-auto--last-boundary-cause nil
-  "Describe the cause of the last undo-boundary.
+  "Describe the cause of the last `undo-boundary'.
 
 If `explicit', the last boundary was caused by an explicit call to
 `undo-boundary', that is one not called by the code in this
@@ -6490,13 +6492,13 @@ Display `Mark set' unless the optional second arg NOMSG is non-nil."
 
 (defcustom set-mark-command-repeat-pop nil
   "Non-nil means repeating \\[set-mark-command] after popping mark pops it again.
-That means that C-u \\[set-mark-command] \\[set-mark-command]
+That means that \\[universal-argument] \\[set-mark-command] \\[set-mark-command]
 will pop the mark twice, and
-C-u \\[set-mark-command] \\[set-mark-command] \\[set-mark-command]
+\\[universal-argument] \\[set-mark-command] \\[set-mark-command] \\[set-mark-command]
 will pop the mark three times.
 
 A value of nil means \\[set-mark-command]'s behavior does not change
-after C-u \\[set-mark-command]."
+after \\[universal-argument] \\[set-mark-command]."
   :type 'boolean
   :group 'editing-basics)
 
@@ -6601,7 +6603,6 @@ Does not set point.  Does nothing if mark ring is empty."
     (setq mark-ring (nconc mark-ring (list (copy-marker (mark-marker)))))
     (set-marker (mark-marker) (car mark-ring))
     (set-marker (car mark-ring) nil)
-    (unless (mark t) (ding))
     (pop mark-ring))
   (deactivate-mark))
 
@@ -7754,7 +7755,9 @@ other purposes."
 When Visual Line mode is enabled, `word-wrap' is turned on in
 this buffer, and simple editing commands are redefined to act on
 visual lines, not logical lines.  See Info node `Visual Line
-Mode' for details."
+Mode' for details.
+Turning on this mode disables line truncation set up by
+variables `truncate-lines' and `truncate-partial-width-windows'."
   :keymap visual-line-mode-map
   :group 'visual-line
   :lighter " Wrap"
@@ -7887,8 +7890,8 @@ With argument 0, interchanges line point is in with line mark is in."
 (defun transpose-subr (mover arg &optional special)
   "Subroutine to do the work of transposing objects.
 Works for lines, sentences, paragraphs, etc.  MOVER is a function that
-moves forward by units of the given object (e.g. forward-sentence,
-forward-paragraph).  If ARG is zero, exchanges the current object
+moves forward by units of the given object (e.g. `forward-sentence',
+`forward-paragraph').  If ARG is zero, exchanges the current object
 with the one containing mark.  If ARG is an integer, moves the
 current object past ARG following (if ARG is positive) or
 preceding (if ARG is negative) objects, leaving point after the
@@ -8283,8 +8286,13 @@ non-nil."
 		      (if (eq buffer (window-buffer window))
 			  (set-window-hscroll window 0)))
 		    nil t)))
-  (message "Truncate long lines %s"
-	   (if truncate-lines "enabled" "disabled")))
+  (message "Truncate long lines %s%s"
+	   (if truncate-lines "enabled" "disabled")
+           (if (and truncate-lines visual-line-mode)
+               (progn
+                 (visual-line-mode -1)
+                 (format-message " and `visual-line-mode' disabled"))
+             "")))
 
 (defun toggle-word-wrap (&optional arg)
   "Toggle whether to use word-wrapping for continuation lines.
@@ -8700,7 +8708,7 @@ See also `read-mail-command' concerning reading mail."
 		(function-item :tag "Message with full Gnus features"
 			       :format "%t\n"
 			       gnus-user-agent)
-		(function :tag "Other"))
+		(symbol :tag "Other"))
   :version "23.2"                       ; sendmail->message
   :group 'mail)
 
@@ -9788,11 +9796,13 @@ warning using STRING as the message.")
 
 The argument `COMMAND' should be a symbol.
 
-Running `M-x COMMAND RET' for the first time prompts for which
+Running `\\[execute-extended-command] COMMAND RET' for \
+the first time prompts for which
 alternative to use and records the selected command as a custom
 variable.
 
-Running `C-u M-x COMMAND RET' prompts again for an alternative
+Running `\\[universal-argument] \\[execute-extended-command] COMMAND RET' \
+prompts again for an alternative
 and overwrites the previous choice.
 
 The variable `COMMAND-alternatives' contains an alist with

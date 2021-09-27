@@ -184,8 +184,8 @@ mouse-3: Remove current window from display"))
 (defvar mode-line-front-space '(:eval (if (display-graphic-p) " " "-"))
   "Mode line construct to put at the front of the mode line.
 By default, this construct is displayed right at the beginning of
-the mode line, except that if there is a memory-full message, it
-is displayed first.")
+the mode line, except that if there is a \"memory full\" message,
+it is displayed first.")
 (put 'mode-line-front-space 'risky-local-variable t)
 
 (defun mode-line-mule-info-help-echo (window _object _point)
@@ -381,7 +381,8 @@ Keymap to display on major mode.")
 Keymap to display on minor modes.")
 
 (defvar mode-line-modes
-  (let ((recursive-edit-help-echo "Recursive edit, type C-M-c to get out"))
+  (let ((recursive-edit-help-echo
+         "Recursive edit, type M-C-c to get out"))
     (list (propertize "%[" 'help-echo recursive-edit-help-echo)
 	  "("
 	  `(:propertize ("" mode-name)
@@ -614,20 +615,20 @@ By default, this shows the information specified by `global-mode-string'.")
        (list `(quote ,standard-mode-line-format))))
 
 
-(defun mode-line-unbury-buffer (event) "\
-Call `unbury-buffer' in this window."
+(defun mode-line-unbury-buffer (event)
+  "Call `unbury-buffer' in this window."
   (interactive "e")
   (with-selected-window (posn-window (event-start event))
     (unbury-buffer)))
 
-(defun mode-line-bury-buffer (event) "\
-Like `bury-buffer', but temporarily select EVENT's window."
+(defun mode-line-bury-buffer (event)
+  "Like `bury-buffer', but temporarily select EVENT's window."
   (interactive "e")
   (with-selected-window (posn-window (event-start event))
     (bury-buffer)))
 
-(defun mode-line-other-buffer () "\
-Switch to the most recently selected buffer other than the current one."
+(defun mode-line-other-buffer ()
+  "Switch to the most recently selected buffer other than the current one."
   (interactive)
   (switch-to-buffer (other-buffer) nil t))
 
@@ -1085,7 +1086,7 @@ if `inhibit-field-text-motion' is non-nil."
     (define-key map    "p" 'previous-error)
     (define-key map "\M-p" 'previous-error)
     map)
-  "Keymap to repeat next-error key sequences.  Used in `repeat-mode'.")
+  "Keymap to repeat `next-error' key sequences.  Used in `repeat-mode'.")
 (put 'next-error 'repeat-map 'next-error-repeat-map)
 (put 'previous-error 'repeat-map 'next-error-repeat-map)
 

@@ -49,7 +49,7 @@
 (declare-function math-to-percentsigns "calccomp" (x))
 
 (defvar calc-quick-calc-history nil
-  "The history list for quick-calc.")
+  "The history list for `quick-calc'.")
 
 ;;;###autoload
 (defun calc-do-quick-calc (&optional insert)
@@ -537,8 +537,7 @@ The value t means abort and give an error message.")
     ("₋"  "-")  ; -
     ("₍"  "(")  ; (
     ("₎"  ")"))  ; )
-  "A list whose elements (old new) indicate replacements to make
-in Calc algebraic input.")
+  "A list indicating replacements to make in Calc algebraic input.")
 
 (defvar math-read-superscripts
   "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾ⁿⁱ" ; 0123456789+-()ni

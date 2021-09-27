@@ -191,7 +191,7 @@ wish to put something like the following in your init file:
             (define-key comint-mode-map [remap kill-whole-line]
               \\='comint-kill-whole-line)))
 
-If you sometimes use comint-mode on text-only terminals or with `emacs -nw',
+If you sometimes use `comint-mode' on text-only terminals or with `emacs -nw',
 you might wish to use another binding for `comint-kill-whole-line'."
   :type 'boolean
   :group 'comint
@@ -479,6 +479,15 @@ executed once, when the buffer is created."
   :group 'comint
   :version "26.1")
 
+(defconst comint-max-line-length
+  (pcase system-type
+    ('gnu/linux 4096)
+    ('windows-nt 8196)
+    (_ 1024))
+  "Maximum line length, in bytes, accepted by the inferior process.
+This setting is only meaningful when communicating with subprocesses
+via PTYs.")
+
 (defvar comint-mode-map
   (let ((map (make-sparse-keymap)))
     ;; Keys:
@@ -665,7 +674,8 @@ to continue it.
 \\{comint-mode-map}
 
 Entry to this mode runs the hooks on `comint-mode-hook'."
-  (setq mode-line-process '(":%s"))
+  (setq mode-line-process
+        (list (propertize ":%s" 'help-echo "Process status")))
   (setq-local window-point-insertion-type t)
   (setq-local comint-last-input-start (point-min-marker))
   (setq-local comint-last-input-end (point-min-marker))
@@ -2820,7 +2830,7 @@ if necessary."
     (when (>= count 0) (comint-update-fence))))
 
 (defun comint-kill-region (beg end)
-  "Like `kill-region', but ignores read-only properties, if safe.
+  "Like `kill-region', but ignore read-only properties, if safe.
 This command assumes that the buffer contains read-only
 \"prompts\" which are regions with front-sticky read-only
 properties at the beginning of a line, with the preceding newline

@@ -470,7 +470,7 @@ See also `flyspell-duplicate-distance'."
 
 (defvar flyspell-overlay nil)
 
-(defun flyspell-context-menu (_menu)
+(defun flyspell-context-menu (_menu _click)
   "Context menu for `context-menu-mode'."
   ;; TODO: refactor `flyspell-correct-word' and related functions to return
   ;; a keymap menu where every menu item is bound to a lambda that calls
@@ -546,7 +546,7 @@ in your init file.
 (custom-add-option 'text-mode-hook 'turn-on-flyspell)
 
 (defvar flyspell-buffers nil
-  "For remembering buffers running flyspell")
+  "For remembering buffers running flyspell.")
 (make-obsolete-variable 'flyspell-buffers "not used." "28.1")
 
 ;;*---------------------------------------------------------------------*/
@@ -702,8 +702,8 @@ has been used, the current word is not checked."
 ;;*    has to be spell checked.                                         */
 ;;*---------------------------------------------------------------------*/
 (defvar flyspell-pre-buffer     nil "Buffer current before `this-command'.")
-(defvar flyspell-pre-point      nil "Point before running `this-command'")
-(defvar flyspell-pre-column     nil "Column before running `this-command'")
+(defvar flyspell-pre-point      nil "Point before running `this-command'.")
+(defvar flyspell-pre-column     nil "Column before running `this-command'.")
 (defvar flyspell-pre-pre-buffer nil)
 (defvar flyspell-pre-pre-point  nil)
 (make-variable-buffer-local 'flyspell-pre-point) ;Why??  --Stef
@@ -1746,7 +1746,7 @@ FLYSPELL-BUFFER."
 ;;*    flyspell-overlay-p ...                                           */
 ;;*---------------------------------------------------------------------*/
 (defun flyspell-overlay-p (o)
-  "Return true if O is an overlay used by flyspell."
+  "Return non-nil if O is an overlay used by flyspell."
   (and (overlayp o) (overlay-get o 'flyspell-overlay)))
 
 ;;*---------------------------------------------------------------------*/
@@ -1861,7 +1861,7 @@ is itself incorrect, but suspiciously repeated."
 ;;*    flyspell-highlight-duplicate-region ...                          */
 ;;*---------------------------------------------------------------------*/
 (defun flyspell-highlight-duplicate-region (beg end poss)
-  "Set up an overlay on a duplicate misspelled word, in the buffer from BEG to END.
+  "Set up overlay on duplicate misspelled word, in the buffer from BEG to END.
 POSS is a list of possible spelling/correction lists,
 as returned by `ispell-parse-output'."
   (let ((inhibit-read-only t))

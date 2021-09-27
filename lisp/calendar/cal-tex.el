@@ -263,7 +263,7 @@ Optional string ARGS are included as options for the article
 document class with inclusion of default values \"12pt\" for
 size, and \"a4paper\" for paper unless size or paper are already
 specified in ARGS.  When ARGS is omitted, by default the option
-\"12pt,a4paper\" is passed. When ARGS has any other value, then
+\"12pt,a4paper\" is passed.  When ARGS has any other value, then
 no option is passed to the class.
 
 Insert the \"\\usepackage{geometry}\" directive when ARGS
@@ -1648,10 +1648,10 @@ informative header, and run HOOK."
   (goto-char (point-min))
   ;; FIXME auctex equivalents?
   (cal-tex-comment
-   (format "\tThis buffer was produced by cal-tex.el.
+   "\tThis buffer was produced by cal-tex.el.
 \tTo print a calendar, type
 \t\tM-x tex-buffer RET
-\t\tM-x tex-print  RET")))
+\t\tM-x tex-print  RET"))
 
 (defun cal-tex-insert-preamble (weeks &optional class-options append)
   "Initialize the output LaTeX calendar buffer, `cal-tex-buffer'.

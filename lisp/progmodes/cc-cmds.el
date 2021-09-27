@@ -497,7 +497,7 @@ function to control that."
 
 (defvar c--unsafe-post-self-insert-hook-functions
   '(electric-pair-post-self-insert-function)
-    "Known unsafe functions when members of `post-self-insert-hook' in CC Mode")
+    "Known unsafe functions when members of `post-self-insert-hook' in CC Mode.")
 
 (defun c--call-post-self-insert-hook-more-safely-1 ()
   ;; Call post-self-insert-hook, having removed from `post-self-insert-hook'
@@ -2059,7 +2059,7 @@ the open-parenthesis that starts a defun; see `beginning-of-defun'."
 
 (defun c-defun-name-1 ()
   "Return the name of the current defun, at the current narrowing,
-or NIL if there isn't one.  \"Defun\" here means a function, or
+or nil if there isn't one.  \"Defun\" here means a function, or
 other top level construct with a brace block."
   (c-save-buffer-state
       (beginning-of-defun-function end-of-defun-function
@@ -3383,12 +3383,12 @@ directives."
 
 (defun c-backward-conditional (count &optional target-depth with-else)
   "Move back across a preprocessor conditional, leaving mark behind.
-A prefix argument acts as a repeat count.  With a negative argument,
+A prefix argument acts as a repeat COUNT.  With a negative argument,
 move forward across a preprocessor conditional.
 
 The optional arguments TARGET-DEPTH and WITH-ELSE are historical,
 and have the same meanings as in `c-scan-conditionals'.  If you
-are calling c-forward-conditional from a program, you might want
+are calling `c-forward-conditional' from a program, you might want
 to call `c-scan-conditionals' directly instead."
   (interactive "p")
   (let ((new-point (c-scan-conditionals (- count) target-depth with-else)))
@@ -5113,8 +5113,9 @@ inside a preprocessor directive."
 
 (defun c-context-open-line ()
   "Insert a line break suitable to the context and leave point before it.
-This is the `c-context-line-break' equivalent to `open-line', which is
-normally bound to C-o.  See `c-context-line-break' for the details."
+This is the `c-context-line-break' equivalent to `open-line'
+\(bound to \\[open-line]).  See `c-context-line-break' for the
+details."
   (interactive "*")
   (let ((here (point)))
     (unwind-protect

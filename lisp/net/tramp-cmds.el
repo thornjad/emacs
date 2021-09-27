@@ -129,6 +129,8 @@ When called interactively, a Tramp connection has to be selected."
 	(buf (list (get-buffer (tramp-buffer-name vec))
 		   (unless keep-debug
 		     (get-buffer (tramp-debug-buffer-name vec)))
+		   (unless keep-debug
+		     (get-buffer (tramp-trace-buffer-name vec)))
 		   (tramp-get-connection-property vec "process-buffer" nil)))
       (when (bufferp buf) (kill-buffer buf)))
 
@@ -310,7 +312,7 @@ The remote connection identified by SOURCE is flushed by
      (if (null connections)
 	 (tramp-user-error nil "There are no remote connections.")
        (setq source
-	     ;; Likely, the source remote connection is broken. So we
+	     ;; Likely, the source remote connection is broken.  So we
 	     ;; shall avoid any action on it.
 	     (let (non-essential)
 	       (completing-read-default
@@ -715,7 +717,7 @@ the debug buffer(s).")
 	(setq buffer-read-only t)
 	(goto-char (point-min))
 
-	(when (y-or-n-p "Do you want to append the buffer(s)? ")
+	(when (y-or-n-p "Do you want to append the buffer(s)?")
 	  ;; OK, let's send.  First we delete the buffer list.
 	  (kill-buffer nil)
 	  (switch-to-buffer curbuf)

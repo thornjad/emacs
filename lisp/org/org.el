@@ -15215,9 +15215,9 @@ This function is useful in a setup where one tracks Org files
 with a version control system, to revert on one machine after pulling
 changes from another.  I believe the procedure must be like this:
 
-1. M-x org-save-all-org-buffers
+1. \\[org-save-all-org-buffers]
 2. Pull changes from the other machine, resolve conflicts
-3. M-x org-revert-all-org-buffers"
+3. \\[org-revert-all-org-buffers]"
   (interactive)
   (unless (yes-or-no-p "Revert all Org buffers from their files? ")
     (user-error "Abort"))
@@ -19651,15 +19651,15 @@ When BLOCK-REGEXP is non-nil, use this regexp to find blocks."
 ;; example-block) don't accept comments.  Usual Emacs comment commands
 ;; cannot cope with those requirements.  Therefore, Org replaces them.
 
-;; Org still relies on `comment-dwim', but cannot trust
-;; `comment-only-p'.  So, `comment-region-function' and
-;; `uncomment-region-function' both point
-;; to`org-comment-or-uncomment-region'.  Eventually,
-;; `org-insert-comment' takes care of insertion of comments at the
+;; Org still relies on 'comment-dwim', but cannot trust
+;; 'comment-only-p'.  So, 'comment-region-function' and
+;; 'uncomment-region-function' both point
+;; to 'org-comment-or-uncomment-region'.  Eventually,
+;; 'org-insert-comment' takes care of insertion of comments at the
 ;; beginning of line.
 
-;; `org-setup-comments-handling' install comments related variables
-;; during `org-mode' initialization.
+;; 'org-setup-comments-handling' install comments related variables
+;; during 'org-mode' initialization.
 
 (defun org-setup-comments-handling ()
   (interactive)

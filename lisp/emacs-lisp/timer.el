@@ -34,7 +34,7 @@
 (cl-defstruct (timer
                (:constructor nil)
                (:copier nil)
-               (:constructor timer-create ())
+               (:constructor timer--create ())
                (:type vector)
                (:conc-name timer--))
   ;; nil if the timer is active (waiting to be triggered),
@@ -49,15 +49,24 @@
   function args                         ;What to do when triggered.
   idle-delay                            ;If non-nil, this is an idle-timer.
   psecs
-  ;; A timer may be created with `t' as the TIME, which means that we
+  ;; A timer may be created with t as the TIME, which means that we
   ;; want to run at specific integral multiples of `repeat-delay'.  We
   ;; then have to recompute this (because the machine may have gone to
   ;; sleep, etc).
   integral-multiple)
 
+(defun timer-create ()
+  ;; BEWARE: This is not an eta-redex, because `timer--create' is inlinable
+  ;; whereas `timer-create' should not be because we don't want to
+  ;; hardcode the shape of timers in other .elc files.
+  (timer--create))
+
 (defun timerp (object)
   "Return t if OBJECT is a timer."
-  (and (vectorp object) (= (length object) 10)))
+  (and (vectorp object)
+       ;; Timers are now ten elements, but old .elc code may have
+       ;; shorter versions of `timer-create'.
+       (<= 9 (length object) 10)))
 
 (defsubst timer--check (timer)
   (or (timerp timer) (signal 'wrong-type-argument (list #'timerp timer))))
@@ -293,7 +302,8 @@ This function is called, by name, directly by the C code."
                                                  repeats)))))
               ;; If we want integral multiples, we have to recompute
               ;; the repetition.
-              (when (and (timer--integral-multiple timer)
+              (when (and (> (length timer) 9) ; Backwards compatible.
+                         (timer--integral-multiple timer)
                          (not (timer--idle-delay timer)))
                 (setf (timer--time timer)
                       (timer-next-integral-multiple-of-time

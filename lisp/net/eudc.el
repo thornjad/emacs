@@ -25,7 +25,7 @@
 ;;; Commentary:
 ;;    This package provides a common interface to query directory servers using
 ;;    different protocols such as LDAP, CCSO PH/QI or BBDB.  Queries can be
-;;    made through an interactive form or inline. Inline query strings in
+;;    made through an interactive form or inline.  Inline query strings in
 ;;    buffers are expanded with appropriately formatted query results
 ;;    (especially used to expand email addresses in message buffers).  EUDC
 ;;    also interfaces with the BBDB package to let you register query results
@@ -664,7 +664,7 @@ If ERROR is non-nil, report an error if there is none."
   (let ((result (eudc-query (list (cons 'name name)) '(email)))
 	email)
     (if (null (cdr result))
-	(setq email (cl-cdaar result))
+        (setq email (cdaar result))
       (error "Multiple match--use the query form"))
     (if error
 	(if email
@@ -682,7 +682,7 @@ If ERROR is non-nil, report an error if there is none."
   (let ((result (eudc-query (list (cons 'name name)) '(phone)))
 	phone)
     (if (null (cdr result))
-	(setq phone (cl-cdaar result))
+        (setq phone (cdaar result))
       (error "Multiple match--use the query form"))
     (if error
 	(if phone

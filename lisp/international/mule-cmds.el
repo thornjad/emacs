@@ -662,6 +662,26 @@ overrides that argument.")
                   (delq 'no-conversion (copy-sequence codings))))
       codings))
 
+(defun select-safe-coding-system--format-list (list)
+  (let ((spec1 "  %-20s %6s  %-10s %s\n")
+        (spec2 "  %-20s %6s  #x%-8X %c\n")
+        (nmax 5))
+    (insert (format spec1 "Coding System" "Pos" "Codepoint" "Char"))
+    (cl-loop for (coding . pairs) in list
+             do (cl-loop for pair in pairs
+                         ;; If there's a lot, only do the first five.
+                         for i from 1 upto nmax
+                         do (insert
+                             (format spec2
+                                     (if (= i 1) coding "")
+                                     (car pair)
+                                     (cdr pair)
+                                     (cdr pair))))
+             (if (> (length pairs) nmax)
+                 (insert (format spec1 "" "..." "" "")))))
+
+  (insert "\n"))
+
 (defun select-safe-coding-system-interactively (from to codings unsafe
 						&optional rejected default)
   "Select interactively a coding system for the region FROM ... TO.
@@ -720,21 +740,18 @@ DEFAULT is the coding system to use by default in the query."
 		 (concat " \"" (if (> (length from) 10)
 				   (concat (substring from 0 10) "...\"")
 				 (concat from "\"")))
-	       (format-message " text\nin the buffer `%s'" bufname))
+	       (format-message
+                " the following\nproblematic characters in the buffer `%s'"
+                bufname))
 	     ":\n")
-	    (let ((pos (point))
-		  (fill-prefix "  "))
-	      (dolist (x (append rejected unsafe))
-		(princ "  ") (princ x))
-	      (insert "\n")
-	      (fill-region-as-paragraph pos (point)))
+            (select-safe-coding-system--format-list unsafe)
 	    (when rejected
 	      (insert "These safely encode the text in the buffer,
 but are not recommended for encoding text in this context,
 e.g., for sending an email message.\n ")
-	      (dolist (x rejected)
-		(princ " ") (princ x))
-	      (insert "\n"))
+              (dolist (x rejected)
+                (princ " ") (princ x))
+              (insert "\n"))
 	    (when unsafe
 	      (insert (if rejected "The other coding systems"
 			"However, each of them")
@@ -3061,15 +3078,15 @@ on encoding."
                ;; (#x18800 . #x18AFF) Tangut Components
                ;; (#x18B00 . #x18CFF) Khitan Small Script
                ;; (#x18D00 . #x18D0F) Tangut Ideograph Supplement
-	       ;; (#x18D10 . #x1AFFF) unused
-	       (#x1B000 . #x1B11F)
-               ;; (#x1B120 . #x1B14F) unused
+	       ;; (#x18D10 . #x1AFEF) unused
+	       (#x1AFF0 . #x1B12F)
+               ;; (#x1B130 . #x1B14F) unused
                (#x1B150 . #x1B16F)
                (#x1B170 . #x1B2FF)
 	       ;; (#x1B300 . #x1BBFF) unused
                (#x1BC00 . #x1BCAF)
-	       ;; (#x1BCB0 . #x1CFFF) unused
-	       (#x1D000 . #x1FFFF)
+	       ;; (#x1BCB0 . #x1CEFF) unused
+	       (#x1CF00 . #x1FFFF)
 	       ;; (#x20000 . #xDFFFF) CJK Ideograph Extension A, B, etc, unused
 	       (#xE0000 . #xE01FF)))
             (gc-cons-threshold (max gc-cons-threshold 10000000))

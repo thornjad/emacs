@@ -493,8 +493,7 @@ are supported.  Type M-n to pull the file attributes of the file
 at point into the minibuffer.
 
 See Info node `(coreutils)File permissions' for more information.
-Alternatively, see the man page for \"chmod\", using the command
-\\[man] in Emacs.
+Alternatively, see the man page for \"chmod\".
 
 Note that on MS-Windows only the `w' (write) bit is meaningful:
 resetting it makes the file read-only.  Changing any other bit
@@ -1245,7 +1244,7 @@ and `dired-compress-files-alist'."
                                   (?i . ,(mapconcat
                                           (lambda (in-file)
                                             (shell-quote-argument
-                                             (file-name-nondirectory in-file)))
+                                             (file-relative-name in-file)))
                                           in-files " "))))))
              (message (ngettext "Compressed %d file to %s"
 			        "Compressed %d files to %s"
@@ -1326,7 +1325,7 @@ Return nil if no change in files."
                        (user-error
                         "No compression rule found for \
 `dired-compress-directory-default-suffix' %s, see `dired-compress-files-alist' for\
- the supported suffixes list."
+ the supported suffixes list"
                         dired-compress-directory-default-suffix)))
                  (let* ((suffix (or dired-compress-file-default-suffix ".gz"))
                         (out-name (concat file suffix))
@@ -1335,7 +1334,7 @@ Return nil if no change in files."
                                dired-compress-file-alist)))
                    (if (not rule)
                        (user-error "No compression rule found for suffix %s, \
-see `dired-compress-file-alist' for the supported suffixes list."
+see `dired-compress-file-alist' for the supported suffixes list"
                                    dired-compress-file-default-suffix)
                      (and (file-exists-p file)
                           (or (not (file-exists-p out-name))
@@ -2340,9 +2339,9 @@ If DIRECTORY already exists, signal an error."
 ;;;###autoload
 (defun dired-create-empty-file (file)
   "Create an empty file called FILE.
- Add a new entry for the new file in the Dired buffer.
- Parent directories of FILE are created as needed.
- If FILE already exists, signal an error."
+Add a new entry for the new file in the Dired buffer.
+Parent directories of FILE are created as needed.
+If FILE already exists, signal an error."
   (interactive (list (read-file-name "Create empty file: ")))
   (let* ((expanded (expand-file-name file))
          new)
@@ -3245,10 +3244,13 @@ REGEXP should use constructs supported by your local `grep' command."
      (list (nth 0 common) (nth 1 common))))
   (require 'xref)
   (defvar xref-show-xrefs-function)
+  (defvar xref-auto-jump-to-first-xref)
   (with-current-buffer
       (let ((xref-show-xrefs-function
              ;; Some future-proofing (bug#44905).
-             (custom--standard-value 'xref-show-xrefs-function)))
+             (custom--standard-value 'xref-show-xrefs-function))
+            ;; Disable auto-jumping, it will mess up replacement logic.
+            xref-auto-jump-to-first-xref)
         (dired-do-find-regexp from))
     (xref-query-replace-in-results from to)))
 

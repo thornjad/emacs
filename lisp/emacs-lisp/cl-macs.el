@@ -1762,7 +1762,7 @@ Once the END-TEST becomes true, the RESULT forms are evaluated (with
 the VARs still bound to their values) to produce the result
 returned by `cl-do'.
 
-Note that the entire loop is enclosed in an implicit `nil' block, so
+Note that the entire loop is enclosed in an implicit nil block, so
 that you can use `cl-return' to exit at any time.
 
 Also note that END-TEST is checked before evaluating BODY.  If END-TEST
@@ -1791,7 +1791,7 @@ Once the END-TEST becomes true, the RESULT forms are evaluated (with
 the VARs still bound to their values) to produce the result
 returned by `cl-do*'.
 
-Note that the entire loop is enclosed in an implicit `nil' block, so
+Note that the entire loop is enclosed in an implicit nil block, so
 that you can use `cl-return' to exit at any time.
 
 Also note that END-TEST is checked before evaluating BODY.  If END-TEST
@@ -2070,7 +2070,7 @@ Like `cl-flet' but the definitions can refer to previous ones.
   ;; even handle mutually recursive functions.
   (letrec
       ((done nil) ;; Non-nil if some TCO happened.
-       ;; This var always holds the value `nil' until (just before) we
+       ;; This var always holds the value nil until (just before) we
        ;; exit the loop.
        (retvar (make-symbol "retval"))
        (ofargs (mapcar (lambda (s) (if (memq s cl--lambda-list-keywords) s
@@ -3276,7 +3276,7 @@ the form NAME which is a shorthand for (NAME NAME)."
 (defun cl-struct-sequence-type (struct-type)
   "Return the sequence used to build STRUCT-TYPE.
 STRUCT-TYPE is a symbol naming a struct type.  Return `record',
-`vector`, or `list' if STRUCT-TYPE is a struct type, nil otherwise."
+`vector', or `list' if STRUCT-TYPE is a struct type, nil otherwise."
   (declare (side-effect-free t) (pure t))
   (cl--struct-class-type (cl--struct-get-class struct-type)))
 
@@ -3287,6 +3287,7 @@ STRUCT-TYPE is a symbol naming a struct type.  Return `record',
       (push (cdr x) res))
     (nreverse res)))
 
+;;;###autoload
 (defun cl-struct-slot-info (struct-type)
   "Return a list of slot names of struct STRUCT-TYPE.
 Each entry is a list (SLOT-NAME . OPTS), where SLOT-NAME is a

@@ -634,7 +634,7 @@ Returns nil if unable to find this information."
     (error "Don't know how to compute the next revision of %s" rev)))
 
 (defun vc-bzr-register (files &optional _comment)
-  "Register FILES under bzr. COMMENT is ignored."
+  "Register FILES under bzr.  COMMENT is ignored."
   (vc-bzr-command "add" nil 0 files))
 
 ;; Could run `bzr status' in the directory and see if it succeeds, but
@@ -1054,7 +1054,8 @@ stream.  Standard error output is discarded."
 	      (vc-bzr-command "info" t 0 dir)
 	      (buffer-string)))
        (shelve (vc-bzr-shelve-list))
-       (shelve-help-echo "Use M-x vc-bzr-shelve to create shelves")
+       (shelve-help-echo (substitute-command-keys
+                          "Use \\[vc-bzr-shelve] to create shelves"))
        (root-dir (vc-bzr-root dir))
        (pending-merge
 	;; FIXME: looking for .bzr/checkout/merge-hashes is not a

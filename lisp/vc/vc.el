@@ -431,7 +431,7 @@
 ;;   and displays a file name and a revision, then return a cons
 ;;   (REVISION . FILENAME).
 ;;
-;; - region-history (FILE BUFFER LFROM LTO)
+;; - region-history (file buffer lfrom lto)
 ;;
 ;;   Insert into BUFFER the history (log comments and diffs) of the content of
 ;;   FILE between lines LFROM and LTO.  This is typically done asynchronously.
@@ -496,7 +496,7 @@
 ;;   `.bzrignore'.  The default behavior is to read the contents of
 ;;   the file returned by the `find-ignore-file' function.
 ;;
-;; - find-ignore-file
+;; - find-ignore-file (file)
 ;;
 ;;   Return the ignore file that controls FILE, e.g. `.gitignore' or
 ;;   `.bzrignore'.
@@ -515,7 +515,7 @@
 ;;
 ;;   Turn on the mode used for editing the check in log.  This
 ;;   defaults to `log-edit-mode'.  If changed, it should use a mode
-;;   derived from`log-edit-mode'.
+;;   derived from `log-edit-mode'.
 ;;
 ;; - check-headers ()
 ;;
@@ -860,7 +860,9 @@ See `run-hooks'."
 
 (defcustom vc-revert-show-diff t
   "If non-nil, `vc-revert' shows a `vc-diff' buffer before querying."
-  :type 'boolean
+  :type '(choice (const :tag "Show and bury afterwards" t)
+                 (const :tag "Show and kill afterwards" kill)
+                 (const :tag "Don't show" nil))
   :version "24.1")
 
 ;; Header-insertion hair
@@ -1007,7 +1009,7 @@ responsible for the given file."
         (error "No VC backend is responsible for %s" file))))
 
 (defun vc-expand-dirs (file-or-dir-list backend)
-  "Expands directories in a file list specification.
+  "Expand directories in a file list specification.
 Within directories, only files already under version control are noticed."
   (let ((flattened '()))
     (dolist (node file-or-dir-list)
@@ -1147,15 +1149,17 @@ BEWARE: this function may change the current buffer."
              (memq (vc-state file) '(edited needs-merge conflict))))))
 
 (defun vc-compatible-state (p q)
-  "Controls which states can be in the same commit."
+  "Control which states can be in the same commit."
   (or
    (eq p q)
    (and (member p '(edited added removed)) (member q '(edited added removed)))))
 
-(defun vc-read-backend (prompt)
-  (intern
-   (completing-read prompt (mapcar #'symbol-name vc-handled-backends)
-                    nil 'require-match)))
+(defun vc-read-backend (prompt &optional backends default)
+  (let ((backends (or backends vc-handled-backends))
+        (completion-ignore-case t))
+    (intern
+     (completing-read prompt (mapcar #'symbol-name backends)
+                      nil 'require-match nil nil default))))
 
 ;; Here's the major entry point.
 
@@ -1209,7 +1213,11 @@ For old-style locking-based version control systems, like RCS:
      ((eq state 'ignored)
       (error "Fileset files are ignored by the version-control system"))
      ((or (null state) (eq state 'unregistered))
-      (vc-register vc-fileset))
+      (cond (verbose
+             (let ((backend (vc-read-backend "Backend to register to: ")))
+               (vc-register (cons backend (cdr vc-fileset)))))
+            (t
+             (vc-register vc-fileset))))
      ;; Files are up-to-date, or need a merge and user specified a revision
      ((or (eq state 'up-to-date) (and verbose (eq state 'needs-update)))
       (cond
@@ -1364,14 +1372,7 @@ For old-style locking-based version control systems, like RCS:
 
 (defun vc-create-repo (backend)
   "Create an empty repository in the current directory."
-  (interactive
-   (list
-    (intern
-     (upcase
-      (completing-read
-       "Create repository for: "
-       (mapcar (lambda (b) (list (downcase (symbol-name b)))) vc-handled-backends)
-       nil t)))))
+  (interactive (list (vc-read-backend "Create repository for: ")))
   (vc-call-backend backend 'create-repo))
 
 ;;;###autoload
@@ -2754,7 +2755,7 @@ to the working revision (except for keyword expansion)."
 				       (if (= nfiles 1) "" "s"))))))
 	    (error "Revert canceled")))
       (when diff-buffer
-	(quit-windows-on diff-buffer)))
+	(quit-windows-on diff-buffer (eq vc-revert-show-diff 'kill))))
     (dolist (file files)
       (message "Reverting %s..." (vc-delistify files))
       (vc-revert-file file)
@@ -2879,12 +2880,7 @@ To get a prompt, use a prefix argument."
 	(cond
 	 ((null others) (error "No other backend to switch to"))
 	 (current-prefix-arg
-	  (intern
-	   (upcase
-	    (completing-read
-	     (format "Switch to backend [%s]: " def)
-	     (mapcar (lambda (b) (list (downcase (symbol-name b)))) backends)
-	     nil t nil nil (downcase (symbol-name def))))))
+          (vc-read-backend "Switch to backend: " backends (symbol-name def)))
 	 (t def))))))
   (unless (eq backend (vc-backend file))
     (vc-file-clearprops file)

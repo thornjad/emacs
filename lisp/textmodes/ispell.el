@@ -60,7 +60,7 @@
 ;; `a': Accept word for this session.
 ;; `A': Accept word and place in buffer-local dictionary.
 ;; `r': Replace word with typed-in value.  Rechecked.
-;; `R': Replace word with typed-in value. Query-replaced in buffer. Rechecked.
+;; `R': Replace word with typed-in value.  Query-replaced in buffer.  Rechecked.
 ;; `?': Show these commands
 ;; `x': Exit spelling buffer.  Move cursor to original point.
 ;; `X': Exit spelling buffer.  Leaves cursor at the current point, and permits
@@ -621,7 +621,7 @@ this would require some extra guessing in `ispell-aspell-find-dictionary'.")
     ("svenska"       "sv_SE")
     ("hebrew"        "he_IL"))
   "Alist with known matching locales for standard dict names in
-  `ispell-dictionary-base-alist'.")
+`ispell-dictionary-base-alist'.")
 
 
 ;;; **********************************************************************
@@ -731,8 +731,7 @@ Otherwise returns the library directory name, if that is defined."
     result))
 
 (defmacro ispell-with-safe-default-directory (&rest body)
-  "Execute the forms in BODY with a reasonable
-`default-directory'."
+  "Execute the forms in BODY with a reasonable `default-directory'."
   (declare (indent 0) (debug t))
   `(let ((default-directory default-directory))
      (unless (file-accessible-directory-p default-directory)
@@ -759,8 +758,7 @@ See `ispell-buffer-with-debug' for an example of use."
   (let ((ispell-debug-buffer (get-buffer-create "*ispell-debug*")))
     (with-current-buffer ispell-debug-buffer
       (if append
-	  (insert
-	   (format "-----------------------------------------------\n"))
+	  (insert "-----------------------------------------------\n")
 	(erase-buffer)))
     ispell-debug-buffer))
 
@@ -2530,7 +2528,7 @@ if defined."
       ;; `grep' returns status 1 and no output when word not found, which
       ;; is a perfectly normal thing.
       (if (stringp status)
-          (error "error: %s exited with signal %s"
+          (error "Error: %s exited with signal %s"
                  (file-name-nondirectory prog) status)
         ;; Else collect words into `results' in FIFO order.
         (goto-char (point-max))
@@ -2923,7 +2921,14 @@ Keeps argument list for future Ispell invocations for no async support."
 	     ;; But first wait to see if some more output is going to arrive.
 	     ;; Otherwise we get cool errors like "Can't open ".
 	     (sleep-for 1)
-	     (ispell-accept-output 3)
+             ;; Only call `ispell-accept-output' if the Ispell process
+             ;; is alive, to avoid showing an unhelpful error message
+             ;; about a missing process, instead of the error which
+             ;; reports why the Ispell process died.
+	     (when (if ispell-async-processp
+                         (process-live-p ispell-process)
+                       ispell-process)
+               (ispell-accept-output 3))
 	     (error "%s" (mapconcat #'identity ispell-filter "\n"))))
       (setq ispell-filter nil)		; Discard version ID line
       (let ((extended-char-mode (ispell-get-extended-character-mode)))
@@ -4083,7 +4088,7 @@ Includes LaTeX/Nroff modes and extended character mode."
 ;; Can kill the current ispell process
 
 (defun ispell-buffer-local-dict (&optional no-reload)
-  "Initializes local dictionary and local personal dictionary.
+  "Initialize local dictionary and local personal dictionary.
 If optional NO-RELOAD is non-nil, do not reload any dictionary.
 When a dictionary is defined in the buffer (see variable
 `ispell-dictionary-keyword'), it will override the local setting

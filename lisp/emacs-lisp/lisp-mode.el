@@ -29,6 +29,7 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+(eval-when-compile (require 'subr-x))
 
 (defvar font-lock-comment-face)
 (defvar font-lock-doc-face)
@@ -462,8 +463,8 @@ This will generate compile-time constants from BINDINGS."
          ;; Ineffective backslashes (typically in need of doubling).
          ("\\(\\\\\\)\\([^\"\\]\\)"
           (1 (elisp--font-lock-backslash) prepend))
-         ;; Words inside ‘’ and `' tend to be symbol names.
-         (,(concat "[`‘]\\(" lisp-mode-symbol-regexp "\\)['’]")
+         ;; Words inside ‘’, '' and `' tend to be symbol names.
+         (,(concat "[`‘']\\(" lisp-mode-symbol-regexp "\\)['’]")
           (1 font-lock-constant-face prepend))
          ;; Constant values.
          (,(concat "\\_<:" lisp-mode-symbol-regexp "\\_>")
@@ -624,10 +625,10 @@ Value for `adaptive-fill-function'."
   (if (looking-at "\\s-+\"[^\n\"]+\"\\s-*$") ""))
 
 ;; Maybe this should be discouraged/obsoleted and users should be
-;; encouraged to use `lisp-data-mode` instead.
+;; encouraged to use 'lisp-data-mode' instead.
 (defun lisp-mode-variables (&optional lisp-syntax keywords-case-insensitive
                                       elisp)
-  "Common initialization routine for lisp modes.
+  "Common initialization routine for Lisp modes.
 The LISP-SYNTAX argument is used by code in inf-lisp.el and is
 \(uselessly) passed from pp.el, chistory.el, gnus-kill.el and
 score-mode.el.  KEYWORDS-CASE-INSENSITIVE non-nil means that for
@@ -824,7 +825,7 @@ function is `common-lisp-indent-function'."
   "Return Parse-Partial-Sexp State at POS, defaulting to point.
 Like `syntax-ppss' but includes the character address of the last
 complete sexp in the innermost containing list at position
-2 (counting from 0).  This is important for lisp indentation."
+2 (counting from 0).  This is important for Lisp indentation."
   (unless pos (setq pos (point)))
   (let ((pss (syntax-ppss pos)))
     (if (nth 9 pss)
@@ -1105,6 +1106,27 @@ is the buffer position of the start of the containing expression."
               (t
                normal-indent))))))
 
+(defun lisp--local-defform-body (state)
+  "Return non-nil if at local definition body according to STATE.
+STATE is the `parse-partial-sexp' state for current position."
+  (when-let ((start-of-innermost-containing-list (nth 1 state)))
+    (let* ((parents (nth 9 state))
+           (second-cons-after (cddr parents))
+           second-order-parent)
+      (while second-cons-after
+        (when (= start-of-innermost-containing-list
+                 (car second-cons-after))
+          (setq second-order-parent (car parents)
+                ;; Leave the loop.
+                second-cons-after nil))
+        (pop second-cons-after)
+        (pop parents))
+      (and second-order-parent
+           (save-excursion
+             (goto-char (1+ second-order-parent))
+             (memq (read (current-buffer))
+                   '(cl-flet cl-labels)))))))
+
 (defun lisp-indent-function (indent-point state)
   "This function is the normal value of the variable `lisp-indent-function'.
 The function `calculate-lisp-indent' calls this to determine
@@ -1138,16 +1160,17 @@ Lisp function does not specify a special indentation."
     (if (and (elt state 2)
              (not (looking-at "\\sw\\|\\s_")))
         ;; car of form doesn't seem to be a symbol
-        (progn
+        (if (lisp--local-defform-body state)
+            (lisp-indent-defform state indent-point)
           (if (not (> (save-excursion (forward-line 1) (point))
                       calculate-lisp-indent-last-sexp))
-		(progn (goto-char calculate-lisp-indent-last-sexp)
-		       (beginning-of-line)
-		       (parse-partial-sexp (point)
-					   calculate-lisp-indent-last-sexp 0 t)))
-	    ;; Indent under the list or under the first sexp on the same
-	    ;; line as calculate-lisp-indent-last-sexp.  Note that first
-	    ;; thing on that line has to be complete sexp since we are
+	      (progn (goto-char calculate-lisp-indent-last-sexp)
+		     (beginning-of-line)
+		     (parse-partial-sexp (point)
+					 calculate-lisp-indent-last-sexp 0 t)))
+	  ;; Indent under the list or under the first sexp on the same
+	  ;; line as calculate-lisp-indent-last-sexp.  Note that first
+	  ;; thing on that line has to be complete sexp since we are
           ;; inside the innermost containing sexp.
           (backward-prefix-chars)
           (current-column))
@@ -1160,13 +1183,15 @@ Lisp function does not specify a special indentation."
 	(cond ((or (eq method 'defun)
 		   (and (null method)
 			(> (length function) 3)
-			(string-match "\\`def" function)))
+			(string-match "\\`def" function))
+                   ;; Check whether we are in flet or labels.
+                   (lisp--local-defform-body state))
 	       (lisp-indent-defform state indent-point))
 	      ((integerp method)
 	       (lisp-indent-specform method state
 				     indent-point normal-indent))
 	      (method
-		(funcall method indent-point state)))))))
+	       (funcall method indent-point state)))))))
 
 (defcustom lisp-body-indent 2
   "Number of columns to indent the second line of a `(def...)' form."

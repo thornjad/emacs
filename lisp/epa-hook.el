@@ -21,10 +21,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
 ;;; Code:
 
 (defgroup epa-file nil
-  "The EasyPG Assistant hooks for transparent file encryption"
+  "The EasyPG Assistant hooks for transparent file encryption."
   :version "23.1"
   :group 'epa)
 

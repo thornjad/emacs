@@ -1396,8 +1396,15 @@ If FORCE is non-nil and no process found, create one."
             (or found
                 (and force
                      (get-buffer-process
-                      (let ((explicit-shell-file-name sh-shell-file))
-                        (shell)))))))))
+                      (let ((explicit-shell-file-name sh-shell-file)
+                            (display-buffer-overriding-action
+                             '(nil . ((inhibit-same-window . t)))))
+                        ;; We must prevent this `(shell)' call from
+                        ;; switching buffers, so that the variable
+                        ;; `sh-shell-process' is set locally in the
+                        ;; correct buffer.
+                        (save-current-buffer
+                          (shell))))))))))
 
 (defun sh-show-shell ()
   "Pop the shell interaction buffer."
@@ -1765,7 +1772,7 @@ Does not preserve point."
                      (goto-char p)
                      nil))))
         (while
-            (progn (skip-syntax-backward ".w_'()")
+            (progn (skip-syntax-backward ".w_'")
                    (or (not (zerop (skip-syntax-backward "\\")))
                        (when (eq ?\\ (char-before (1- (point))))
                          (let ((p (point)))
@@ -2183,7 +2190,7 @@ Point should be before the newline."
 When used interactively, insert the proper starting #!-line,
 and make the visited file executable via `executable-set-magic',
 perhaps querying depending on the value of `executable-query'.
-(If given a prefix (i.e., `C-u') don't insert any starting #!
+(If given a prefix (i.e., `\\[universal-argument]') don't insert any starting #!
 line.)
 
 When this function is called noninteractively, INSERT-FLAG (the third

@@ -152,8 +152,10 @@ DEF_DLL_FN (gcc_jit_lvalue *, gcc_jit_context_new_global,
 DEF_DLL_FN (gcc_jit_lvalue *, gcc_jit_function_new_local,
             (gcc_jit_function *func, gcc_jit_location *loc, gcc_jit_type *type,
              const char *name));
+#if defined (LIBGCCJIT_HAVE_gcc_jit_global_set_initializer)
 DEF_DLL_FN (gcc_jit_lvalue *, gcc_jit_global_set_initializer,
 	    (gcc_jit_lvalue *global, const void *blob, size_t num_bytes));
+#endif
 DEF_DLL_FN (gcc_jit_lvalue *, gcc_jit_lvalue_access_field,
             (gcc_jit_lvalue *struct_or_union, gcc_jit_location *loc,
              gcc_jit_field *field));
@@ -259,9 +261,11 @@ DEF_DLL_FN (void, gcc_jit_context_set_str_option,
 DEF_DLL_FN (void, gcc_jit_struct_set_fields,
             (gcc_jit_struct *struct_type, gcc_jit_location *loc, int num_fields,
              gcc_jit_field **fields));
+#if defined (LIBGCCJIT_HAVE_gcc_jit_version)
 DEF_DLL_FN (int, gcc_jit_version_major, (void));
 DEF_DLL_FN (int, gcc_jit_version_minor, (void));
 DEF_DLL_FN (int, gcc_jit_version_patchlevel, (void));
+#endif
 
 static bool
 init_gccjit_functions (void)
@@ -332,10 +336,14 @@ init_gccjit_functions (void)
   LOAD_DLL_FN (library, gcc_jit_type_get_pointer);
   LOAD_DLL_FN_OPT (library, gcc_jit_context_add_command_line_option);
   LOAD_DLL_FN_OPT (library, gcc_jit_context_add_driver_option);
+#if defined (LIBGCCJIT_HAVE_gcc_jit_global_set_initializer)
   LOAD_DLL_FN_OPT (library, gcc_jit_global_set_initializer);
+#endif
+#if defined (LIBGCCJIT_HAVE_gcc_jit_version)
   LOAD_DLL_FN_OPT (library, gcc_jit_version_major);
   LOAD_DLL_FN_OPT (library, gcc_jit_version_minor);
   LOAD_DLL_FN_OPT (library, gcc_jit_version_patchlevel);
+#endif
 
   return true;
 }
@@ -388,7 +396,9 @@ init_gccjit_functions (void)
 #define gcc_jit_function_get_param fn_gcc_jit_function_get_param
 #define gcc_jit_function_new_block fn_gcc_jit_function_new_block
 #define gcc_jit_function_new_local fn_gcc_jit_function_new_local
-#define gcc_jit_global_set_initializer fn_gcc_jit_global_set_initializer
+#if defined (LIBGCCJIT_HAVE_gcc_jit_global_set_initializer)
+ #define gcc_jit_global_set_initializer fn_gcc_jit_global_set_initializer
+#endif
 #define gcc_jit_lvalue_access_field fn_gcc_jit_lvalue_access_field
 #define gcc_jit_lvalue_as_rvalue fn_gcc_jit_lvalue_as_rvalue
 #define gcc_jit_lvalue_get_address fn_gcc_jit_lvalue_get_address
@@ -402,9 +412,11 @@ init_gccjit_functions (void)
 #define gcc_jit_struct_set_fields fn_gcc_jit_struct_set_fields
 #define gcc_jit_type_get_const fn_gcc_jit_type_get_const
 #define gcc_jit_type_get_pointer fn_gcc_jit_type_get_pointer
-#define gcc_jit_version_major fn_gcc_jit_version_major
-#define gcc_jit_version_minor fn_gcc_jit_version_minor
-#define gcc_jit_version_patchlevel fn_gcc_jit_version_patchlevel
+#if defined (LIBGCCJIT_HAVE_gcc_jit_version)
+ #define gcc_jit_version_major fn_gcc_jit_version_major
+ #define gcc_jit_version_minor fn_gcc_jit_version_minor
+ #define gcc_jit_version_patchlevel fn_gcc_jit_version_patchlevel
+#endif
 
 #endif
 
@@ -515,6 +527,7 @@ typedef struct {
 typedef struct {
   EMACS_INT speed;
   EMACS_INT debug;
+  Lisp_Object compiler_options;
   Lisp_Object driver_options;
   gcc_jit_context *ctxt;
   gcc_jit_type *void_type;
@@ -692,6 +705,12 @@ comp_hash_source_file (Lisp_Object filename)
   /* Can't use Finsert_file_contents + Fbuffer_hash as this is called
      by Fcomp_el_to_eln_filename too early during bootstrap.  */
   bool is_gz = suffix_p (filename, ".gz");
+#ifndef HAVE_ZLIB
+  if (is_gz)
+    xsignal2 (Qfile_notify_error,
+	      build_string ("Cannot natively compile compressed *.el files without zlib support"),
+	      filename);
+#endif
   Lisp_Object encoded_filename = ENCODE_FILE (filename);
   FILE *f = emacs_fopen (SSDATA (encoded_filename), is_gz ? "rb" : "r");
 
@@ -700,9 +719,13 @@ comp_hash_source_file (Lisp_Object filename)
 
   Lisp_Object digest = make_uninit_string (MD5_DIGEST_SIZE * 2);
 
+#ifdef HAVE_ZLIB
   int res = is_gz
     ? md5_gz_stream (f, SSDATA (digest))
     : md5_stream (f, SSDATA (digest));
+#else
+  int res = md5_stream (f, SSDATA (digest));
+#endif
   fclose (f);
 
   if (res)
@@ -2480,8 +2503,7 @@ emit_static_object (const char *name, Lisp_Object obj)
   ptrdiff_t len = SBYTES (str);
   const char *p = SSDATA (str);
 
-#if defined (LIBGCCJIT_HAVE_gcc_jit_global_set_initializer) \
-  || defined (WINDOWSNT)
+#if defined (LIBGCCJIT_HAVE_gcc_jit_global_set_initializer)
   if (gcc_jit_global_set_initializer)
     {
       ptrdiff_t str_size = len + 1;
@@ -4029,7 +4051,13 @@ make_directory_wrapper_1 (Lisp_Object ignore)
 
 DEFUN ("comp-el-to-eln-rel-filename", Fcomp_el_to_eln_rel_filename,
        Scomp_el_to_eln_rel_filename, 1, 1, 0,
-       doc: /* Return the corresponding .eln relative filename.  */)
+       doc: /* Return the relative name of the .eln file for FILENAME.
+FILENAME must exist, and if it's a symlink, the target must exist.
+If FILENAME is compressed, it must have the \".gz\" extension,
+and Emacs must have been compiled with zlib; the file will be
+uncompressed on the fly to hash its contents.
+Value includes the original base name, followed by 2 hash values,
+one for the file name and another for its contents, followed by .eln.  */)
   (Lisp_Object filename)
 {
   CHECK_STRING (filename);
@@ -4114,10 +4142,22 @@ DEFUN ("comp-el-to-eln-rel-filename", Fcomp_el_to_eln_rel_filename,
 
 DEFUN ("comp-el-to-eln-filename", Fcomp_el_to_eln_filename,
        Scomp_el_to_eln_filename, 1, 2, 0,
-       doc: /* Return the .eln filename for source FILENAME to used
-for new compilations.
-If BASE-DIR is non-nil use it as a base directory, look for a suitable
-directory in `comp-eln-load-path' otherwise.  */)
+       doc: /* Return the absolute .eln file name for source FILENAME.
+The resulting .eln file name is intended to be used for natively
+compiling FILENAME.  FILENAME must exist and be readable, but other
+than that, its leading directories are ignored when constructing
+the name of the .eln file.
+If BASE-DIR is non-nil, use it as the directory for the .eln file;
+non-absolute BASE-DIR is interpreted as relative to `invocation-directory'.
+If BASE-DIR is omitted or nil, look for the first writable directory
+in `native-comp-eln-load-path', and use as BASE-DIR its subdirectory
+whose name is given by `comp-native-version-dir'.
+If FILENAME specifies a preloaded file, the directory for the .eln
+file is the \"preloaded/\" subdirectory of the directory determined
+as described above.  FILENAME is considered to be a preloaded file if
+the value of `comp-file-preloaded-p' is non-nil, or if FILENAME
+appears in the value of the environment variable LISP_PRELOADED;
+the latter is supposed to be used by the Emacs build procedure.  */)
   (Lisp_Object filename, Lisp_Object base_dir)
 {
   Lisp_Object source_filename = filename;
@@ -4374,9 +4414,24 @@ DEFUN ("comp-native-driver-options-effective-p",
        doc: /* Return t if `comp-native-driver-options' is effective.  */)
   (void)
 {
-#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_driver_option)  \
-  || defined (WINDOWSNT)
+#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_driver_option)
   if (gcc_jit_context_add_driver_option)
+    return Qt;
+#endif
+  return Qnil;
+}
+#pragma GCC diagnostic pop
+
+#pragma GCC diagnostic ignored "-Waddress"
+DEFUN ("comp-native-compiler-options-effective-p",
+       Fcomp_native_compiler_options_effective_p,
+       Scomp_native_compiler_options_effective_p,
+       0, 0, 0,
+       doc: /* Return t if `comp-native-compiler-options' is effective.  */)
+  (void)
+{
+#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_command_line_option)
+  if (gcc_jit_context_add_command_line_option)
     return Qt;
 #endif
   return Qnil;
@@ -4388,8 +4443,7 @@ add_driver_options (void)
 {
   Lisp_Object options = Fsymbol_value (Qnative_comp_driver_options);
 
-#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_driver_option)	\
-  || defined (WINDOWSNT)
+#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_driver_option)
   load_gccjit_if_necessary (true);
   if (!NILP (Fcomp_native_driver_options_effective_p ()))
     FOR_EACH_TAIL (options)
@@ -4408,8 +4462,7 @@ add_driver_options (void)
 			    " and above."));
 
   /* Captured `comp-native-driver-options' because file-local.  */
-#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_driver_option)	\
-  || defined (WINDOWSNT)
+#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_driver_option)
   options = comp.driver_options;
   if (!NILP (Fcomp_native_driver_options_effective_p ()))
     FOR_EACH_TAIL (options)
@@ -4419,6 +4472,43 @@ add_driver_options (void)
 					    ENCODE_FILE or
 					    ENCODE_SYSTEM.  */
 					 SSDATA (XCAR (options)));
+#endif
+}
+
+static void
+add_compiler_options (void)
+{
+  Lisp_Object options = Fsymbol_value (Qnative_comp_compiler_options);
+
+#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_command_line_option)
+  load_gccjit_if_necessary (true);
+  if (!NILP (Fcomp_native_compiler_options_effective_p ()))
+    FOR_EACH_TAIL (options)
+        gcc_jit_context_add_command_line_option (comp.ctxt,
+                                                 /* FIXME: Need to encode
+                                                    this, but how? either
+                                                    ENCODE_FILE or
+                                                    ENCODE_SYSTEM.  */
+                                                 SSDATA (XCAR (options)));
+#endif
+  if (CONSP (options))
+    xsignal1 (Qnative_compiler_error,
+	      build_string ("Customizing native compiler options"
+			    " via `comp-native-compiler-options' is"
+			    " only available on libgccjit version 9"
+			    " and above."));
+
+  /* Captured `comp-native-compiler-options' because file-local.  */
+#if defined (LIBGCCJIT_HAVE_gcc_jit_context_add_command_line_option)
+  options = comp.compiler_options;
+  if (!NILP (Fcomp_native_compiler_options_effective_p ()))
+    FOR_EACH_TAIL (options)
+      gcc_jit_context_add_command_line_option (comp.ctxt,
+                                               /* FIXME: Need to encode
+                                                  this, but how? either
+                                                  ENCODE_FILE or
+                                                  ENCODE_SYSTEM.  */
+                                               SSDATA (XCAR (options)));
 #endif
 }
 
@@ -4467,6 +4557,7 @@ DEFUN ("comp--compile-ctxt-to-file", Fcomp__compile_ctxt_to_file,
   comp.debug = XFIXNUM (CALL1I (comp-ctxt-debug, Vcomp_ctxt));
   eassert (comp.debug < INT_MAX);
   comp.driver_options = CALL1I (comp-ctxt-driver-options, Vcomp_ctxt);
+  comp.compiler_options = CALL1I (comp-ctxt-compiler-options, Vcomp_ctxt);
 
   if (comp.debug)
       gcc_jit_context_set_bool_option (comp.ctxt,
@@ -4532,8 +4623,7 @@ DEFUN ("comp--compile-ctxt-to-file", Fcomp__compile_ctxt_to_file,
 
   /* Work around bug#46495 (GCC PR99126). */
 #if defined (WIDE_EMACS_INT)						\
-  && (defined (LIBGCCJIT_HAVE_gcc_jit_context_add_command_line_option)	\
-      || defined (WINDOWSNT))
+  && defined (LIBGCCJIT_HAVE_gcc_jit_context_add_command_line_option)
   Lisp_Object version = Fcomp_libgccjit_version ();
   if (NILP (version)
       || XFIXNUM (XCAR (version)) < 11)
@@ -4541,6 +4631,7 @@ DEFUN ("comp--compile-ctxt-to-file", Fcomp__compile_ctxt_to_file,
 					     "-fdisable-tree-isolate-paths");
 #endif
 
+  add_compiler_options ();
   add_driver_options ();
 
   if (comp.debug > 1)
@@ -4584,7 +4675,7 @@ The return value has the form (MAJOR MINOR PATCHLEVEL) or nil if
 unknown (before GCC version 10).  */)
   (void)
 {
-#if defined (LIBGCCJIT_HAVE_gcc_jit_version) || defined (WINDOWSNT)
+#if defined (LIBGCCJIT_HAVE_gcc_jit_version)
   load_gccjit_if_necessary (true);
 
   return gcc_jit_version_major
@@ -4644,7 +4735,7 @@ helper_PSEUDOVECTOR_TYPEP_XUNTAG (Lisp_Object a, enum pvec_type code)
 }
 
 
-/* `comp-eln-load-path' clean-up support code.  */
+/* `native-comp-eln-load-path' clean-up support code.  */
 
 static Lisp_Object all_loaded_comp_units_h;
 
@@ -4659,7 +4750,7 @@ return_nil (Lisp_Object arg)
 /* Windows does not let us delete a .eln file that is currently loaded
    by a process.  The strategy is to rename .eln files into .old.eln
    instead of removing them when this is not possible and clean-up
-   `comp-eln-load-path' when exiting.
+   `native-comp-eln-load-path' when exiting.
 
    Any error is ignored because it may be due to the file being loaded
    in another Emacs instance.  */
@@ -4787,7 +4878,7 @@ maybe_defer_native_compilation (Lisp_Object function_name,
 /**************************************/
 
 /* Fixup the system eln-cache directory, which is the last entry in
-   `comp-eln-load-path'.  Argument is a .eln file in that directory.  */
+   `native-comp-eln-load-path'.  Argument is a .eln file in that directory.  */
 void
 fixup_eln_load_path (Lisp_Object eln_filename)
 {
@@ -5247,6 +5338,7 @@ compiled one.  */);
   DEFSYM (Qcomp_speed, "native-comp-speed");
   DEFSYM (Qcomp_debug, "native-comp-debug");
   DEFSYM (Qnative_comp_driver_options, "native-comp-driver-options");
+  DEFSYM (Qnative_comp_compiler_options, "native-comp-compiler-options");
   DEFSYM (Qcomp_libgccjit_reproducer, "comp-libgccjit-reproducer");
 
   /* Limple instruction set.  */
@@ -5355,6 +5447,7 @@ compiled one.  */);
   defsubr (&Scomp_el_to_eln_rel_filename);
   defsubr (&Scomp_el_to_eln_filename);
   defsubr (&Scomp_native_driver_options_effective_p);
+  defsubr (&Scomp_native_compiler_options_effective_p);
   defsubr (&Scomp__install_trampoline);
   defsubr (&Scomp__init_ctxt);
   defsubr (&Scomp__release_ctxt);

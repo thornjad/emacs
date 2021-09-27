@@ -519,7 +519,7 @@ Used by `image-dired-copy-with-exif-file-name'."
 
 (defcustom image-dired-show-all-from-dir-max-files 50
   "Maximum number of files to show using `image-dired-show-all-from-dir'
-before warning the user."
+before warning."
   :type 'integer)
 
 (defmacro image-dired--with-db-file (&rest body)
@@ -1387,7 +1387,7 @@ comment."
   "Check whether file on current line is marked or not."
   (save-excursion
     (beginning-of-line)
-    (not (looking-at "^ .*$"))))
+    (looking-at-p dired-re-mark)))
 
 (defun image-dired-modify-mark-on-thumb-original-file (command)
   "Modify mark in dired buffer.
@@ -1958,7 +1958,7 @@ With prefix argument ARG, display image in its original size."
   (image-dired-display-image (dired-get-filename) arg))
 
 (defun image-dired-image-at-point-p ()
-  "Return true if there is an image-dired thumbnail at point."
+  "Return non-nil if there is an `image-dired' thumbnail at point."
   (get-text-property (point) 'image-dired-thumbnail))
 
 (defun image-dired-rotate-thumbnail (degrees)
