@@ -96,6 +96,8 @@ NTDIR=@NTDIR@
 top_builddir = @top_builddir@
 -include ${top_builddir}/src/verbose.mk
 
+FIND_DELETE = @FIND_DELETE@
+
 HAVE_NATIVE_COMP = @HAVE_NATIVE_COMP@
 
 USE_STARTUP_NOTIFICATION = @USE_STARTUP_NOTIFICATION@
@@ -207,9 +209,6 @@ icondir=$(datarootdir)/icons
 
 # The source directory for the icon files.
 iconsrcdir=$(srcdir)/etc/images/icons
-
-# Where to install the gsettings schema file.
-gsettingsschemadir = @gsettingsschemadir@
 
 # ==================== Emacs-specific directories ====================
 
@@ -339,9 +338,7 @@ BIN_DESTDIR='${ns_appbindir}/'
 ELN_DESTDIR = ${ns_applibdir}/
 endif
 
-gsettings_SCHEMAS = etc/org.gnu.emacs.defaults.gschema.xml
-
-all: ${SUBDIR} info $(gsettings_SCHEMAS:.xml=.valid)
+all: ${SUBDIR} info
 
 .PHONY: all ${SUBDIR} blessmail epaths-force epaths-force-w32 epaths-force-ns-self-contained etc-emacsver
 
@@ -493,7 +490,7 @@ $(srcdir)/configure: $(srcdir)/configure.ac $(srcdir)/m4/*.m4
 ## don't have to duplicate the list of utilities to install in
 ## this Makefile as well.
 
-install: all install-arch-indep install-etcdoc install-arch-dep install-$(NTDIR) blessmail install-eln install-gsettings-schemas
+install: all install-arch-indep install-etcdoc install-arch-dep install-$(NTDIR) blessmail install-eln
 	@true
 
 ## Ensure that $subdir contains a subdirs.el file.
@@ -807,7 +804,7 @@ install-strip:
 ### create (but not the noninstalled files such as 'make all' would create).
 ###
 ### Don't delete the lisp and etc directories if they're in the source tree.
-uninstall: uninstall-$(NTDIR) uninstall-doc uninstall-gsettings-schemas
+uninstall: uninstall-$(NTDIR) uninstall-doc
 	rm -f "$(DESTDIR)$(includedir)/emacs-module.h"
 	$(MAKE) -C lib-src uninstall
 	-unset CDPATH; \
@@ -885,7 +882,7 @@ endef
 ###      target for GCC does not delete 'libgcc.a', because recompiling it
 ###      is rarely necessary and takes a lot of time.
 mostlyclean_dirs = src oldXMenu lwlib lib lib-src nt doc/emacs doc/misc \
-  doc/lispref doc/lispintro
+  doc/lispref doc/lispintro test
 
 $(foreach dir,$(mostlyclean_dirs),$(eval $(call submake_template,$(dir),mostlyclean)))
 
@@ -904,7 +901,7 @@ clean_dirs = $(mostlyclean_dirs) nextstep admin/charsets admin/unidata
 
 $(foreach dir,$(clean_dirs),$(eval $(call submake_template,$(dir),clean)))
 
-clean: $(clean_dirs:=_clean) clean-gsettings-schemas
+clean: $(clean_dirs:=_clean)
 	-rm -f ./*.tmp etc/*.tmp*
 	-rm -rf info-dir.*
 	-rm -rf native-lisp
@@ -958,7 +955,7 @@ bootstrap-clean: $(distclean_dirs:=_bootstrap-clean)
 ###      begin to build the program.
 top_maintainer_clean=\
 	${top_distclean}; \
-	rm -fr autom4te.cache
+	rm -fr ${srcdir}/autom4te.cache
 
 maintainer_clean_dirs = src leim lisp admin/charsets admin/grammars \
   admin/unidata
@@ -1234,10 +1231,3 @@ gitmerge:
 
 build-docker:
 	docker build -t aero-emacs .
-
-@GSETTINGS_RULES@
-
-install-gsettings-schemas:
-uninstall-gsettings-schemas:
-clean-gsettings-schemas:
-$(gsettings_SCHEMAS:.xml=.valid):
