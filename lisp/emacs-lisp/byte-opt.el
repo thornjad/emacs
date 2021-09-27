@@ -317,6 +317,10 @@ occur an indeterminate number of times and thus have effect on code
 sequentially preceding the mutation itself.
 Same format as `byte-optimize--lexvars', with shared structure and contents.")
 
+(defvar byte-optimize--inhibit-outside-loop-constprop nil
+  "If t, don't propagate values for variables declared outside the inner loop.
+This indicates the loop discovery phase.")
+
 (defvar byte-optimize--dynamic-vars nil
   "List of variables declared as dynamic during optimisation.")
 
@@ -1034,6 +1038,11 @@ for speeding up processing.")
 (defun byte-optimize--constant-symbol-p (expr)
   "Whether EXPR is a constant symbol."
   (and (macroexp-const-p expr) (symbolp (eval expr))))
+
+(defun byte-optimize--fixnump (o)
+  "Return whether O is guaranteed to be a fixnum in all Emacsen.
+See Info node `(elisp) Integer Basics'."
+  (and (fixnump o) (<= -536870912 o 536870911)))
 
 (defun byte-optimize-equal (form)
   ;; Replace `equal' or `eql' with `eq' if at least one arg is a symbol.
