@@ -456,7 +456,11 @@ struct frame
   /* True when new_width or new_height were set by change_frame_size,
      false when they were set by adjust_frame_size internally or not
      set.  */
-  bool_bf new_size_p;
+  bool_bf new_size_p : 1;
+
+  /* True when frame was invisible before first MapNotify event.  Used
+     in X builds only.  */
+  bool_bf was_invisible : 1;
 
   /* True when the frame isn't selected, and selecting it in the
      future should select the mini-window rather than the currently
@@ -581,7 +585,6 @@ struct frame
     struct x_output *x;         /* From xterm.h.  */
     struct w32_output *w32;     /* From w32term.h.  */
     struct ns_output *ns;       /* From nsterm.h.  */
-    struct pgtk_output *pgtk; /* From pgtkterm.h. */
   }
   output_data;
 
@@ -849,11 +852,6 @@ default_pixels_per_inch_y (void)
 #else
 #define FRAME_NS_P(f) ((f)->output_method == output_ns)
 #endif
-#ifndef HAVE_PGTK
-#define FRAME_PGTK_P(f) false
-#else
-#define FRAME_PGTK_P(f) ((f)->output_method == output_pgtk)
-#endif
 
 /* FRAME_WINDOW_P tests whether the frame is a graphical window system
    frame.  */
@@ -865,9 +863,6 @@ default_pixels_per_inch_y (void)
 #endif
 #ifdef HAVE_NS
 #define FRAME_WINDOW_P(f) FRAME_NS_P(f)
-#endif
-#ifdef HAVE_PGTK
-#define FRAME_WINDOW_P(f) FRAME_PGTK_P(f)
 #endif
 #ifndef FRAME_WINDOW_P
 #define FRAME_WINDOW_P(f) ((void) (f), false)
@@ -921,8 +916,6 @@ default_pixels_per_inch_y (void)
 /* Scale factor of frame F.  */
 #if defined HAVE_NS
 # define FRAME_SCALE_FACTOR(f) (FRAME_NS_P (f) ? ns_frame_scale_factor (f) : 1)
-#elif defined HAVE_PGTK
-# define FRAME_SCALE_FACTOR(f) (FRAME_PGTK_P (f) ? pgtk_frame_scale_factor (f) : 1)
 #else
 # define FRAME_SCALE_FACTOR(f) 1
 #endif
@@ -1680,7 +1673,7 @@ extern const char *x_get_resource_string (const char *, const char *);
 extern void x_sync (struct frame *);
 #endif /* HAVE_X_WINDOWS */
 
-#if !defined(HAVE_NS) && !defined(HAVE_PGTK)
+#ifndef HAVE_NS
 
 /* Set F's bitmap icon, if specified among F's parameters.  */
 
@@ -1716,9 +1709,6 @@ struct MonitorInfo {
   Emacs_Rectangle geom, work;
   int mm_width, mm_height;
   char *name;
-#ifdef HAVE_PGTK
-  double scale_factor;
-#endif
 };
 
 extern void free_monitors (struct MonitorInfo *monitors, int n_monitors);

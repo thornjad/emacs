@@ -225,8 +225,7 @@ Value is:
  `x' for an Emacs frame that is really an X window,
  `w32' for an Emacs frame that is a window on MS-Windows display,
  `ns' for an Emacs frame on a GNUstep or Macintosh Cocoa display,
- `pc' for a direct-write MS-DOS frame,
- `pgtk' for an Emacs frame running entirely in GTK.
+ `pc' for a direct-write MS-DOS frame.
 See also `frame-live-p'.  */)
   (Lisp_Object object)
 {
@@ -245,8 +244,6 @@ See also `frame-live-p'.  */)
       return Qpc;
     case output_ns:
       return Qns;
-    case output_pgtk:
-      return Qpgtk;
     default:
       emacs_abort ();
     }
@@ -974,6 +971,7 @@ make_frame (bool mini_p)
   f->no_accept_focus = false;
   f->z_group = z_group_none;
   f->tooltip = false;
+  f->was_invisible = false;
   f->child_frame_border_width = -1;
   f->last_tab_bar_item = -1;
 #ifndef HAVE_EXT_TOOL_BAR
@@ -2214,8 +2212,7 @@ delete_frame (Lisp_Object frame, Lisp_Object force)
     /* Since a similar behavior was observed on the Lucid and Motif
        builds (see Bug#5802, Bug#21509, Bug#23499, Bug#27816), we now
        don't delete the terminal for these builds either.  */
-    if (terminal->reference_count == 0 &&
-	(terminal->type == output_x_window || terminal->type == output_pgtk))
+    if (terminal->reference_count == 0 && terminal->type == output_x_window)
       terminal->reference_count = 1;
 #endif /* USE_X_TOOLKIT || USE_GTK */
     if (terminal->reference_count == 0)
@@ -4784,17 +4781,10 @@ gui_set_border_width (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
   if (border_width == f->border_width)
     return;
 
-#ifndef HAVE_PGTK
   if (FRAME_NATIVE_WINDOW (f) != 0)
     error ("Cannot change the border width of a frame");
-#endif
 
   f->border_width = border_width;
-
-#ifdef HAVE_PGTK
-  if (FRAME_TERMINAL (f)->frame_rehighlight_hook)
-    (*FRAME_TERMINAL (f)->frame_rehighlight_hook) (f);
-#endif
 }
 
 void
@@ -5888,7 +5878,18 @@ selected frame.  This is useful when `make-pointer-invisible' is set.  */)
   return decode_any_frame (frame)->pointer_invisible ? Qnil : Qt;
 }
 
+DEFUN ("frame--set-was-invisible", Fframe__set_was_invisible,
+       Sframe__set_was_invisible, 2, 2, 0,
+       doc: /* Set FRAME's was-invisible flag if WAS-INVISIBLE is non-nil.
+This function is for internal use only.  */)
+  (Lisp_Object frame, Lisp_Object was_invisible)
+{
+  struct frame *f = decode_live_frame (frame);
 
+  f->was_invisible = !NILP (was_invisible);
+
+  return f->was_invisible ? Qt : Qnil;
+}
 
 /***********************************************************************
 			Multimonitor data
@@ -5896,7 +5897,7 @@ selected frame.  This is useful when `make-pointer-invisible' is set.  */)
 
 #ifdef HAVE_WINDOW_SYSTEM
 
-# if (defined USE_GTK || defined HAVE_PGTK || defined HAVE_NS || defined HAVE_XINERAMA \
+# if (defined USE_GTK || defined HAVE_NS || defined HAVE_XINERAMA \
       || defined HAVE_XRANDR)
 void
 free_monitors (struct MonitorInfo *monitors, int n_monitors)
@@ -5934,10 +5935,6 @@ make_monitor_attribute_list (struct MonitorInfo *monitors,
                           attributes);
       attributes = Fcons (Fcons (Qframes, AREF (monitor_frames, i)),
 			  attributes);
-#ifdef HAVE_PGTK
-      attributes = Fcons (Fcons (Qscale_factor, make_float (mi->scale_factor)),
-			  attributes);
-#endif
       attributes = Fcons (Fcons (Qmm_size,
                                  list2i (mi->mm_width, mi->mm_height)),
                           attributes);
@@ -6027,7 +6024,6 @@ syms_of_frame (void)
   DEFSYM (Qw32, "w32");
   DEFSYM (Qpc, "pc");
   DEFSYM (Qns, "ns");
-  DEFSYM (Qpgtk, "pgtk");
   DEFSYM (Qvisible, "visible");
   DEFSYM (Qbuffer_predicate, "buffer-predicate");
   DEFSYM (Qbuffer_list, "buffer-list");
@@ -6050,9 +6046,6 @@ syms_of_frame (void)
 
   DEFSYM (Qworkarea, "workarea");
   DEFSYM (Qmm_size, "mm-size");
-#ifdef HAVE_PGTK
-  DEFSYM (Qscale_factor, "scale-factor");
-#endif
   DEFSYM (Qframes, "frames");
   DEFSYM (Qsource, "source");
 
@@ -6380,12 +6373,7 @@ With some window managers you may have to set this to non-nil in order
 to set the size of a frame in pixels, to maximize frames or to make them
 fullscreen.  To resize your initial frame pixelwise, set this option to
 a non-nil value in your init file.  */);
-#ifndef HAVE_PGTK
   frame_resize_pixelwise = 0;
-#else
-  /* https://gitlab.gnome.org/GNOME/mutter/-/issues/396 */
-  frame_resize_pixelwise = true;
-#endif
 
   DEFVAR_LISP ("frame-inhibit-implied-resize", frame_inhibit_implied_resize,
 	       doc: /* Whether frames should be resized implicitly.
@@ -6541,6 +6529,7 @@ iconify the top level frame instead.  */);
   defsubr (&Sframe_position);
   defsubr (&Sset_frame_position);
   defsubr (&Sframe_pointer_visible_p);
+  defsubr (&Sframe__set_was_invisible);
   defsubr (&Sframe_window_state_change);
   defsubr (&Sset_frame_window_state_change);
   defsubr (&Sframe_scale_factor);

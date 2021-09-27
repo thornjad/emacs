@@ -99,17 +99,6 @@ static unsigned long image_alloc_image_color (struct frame *, struct image *,
 					      Lisp_Object, unsigned long);
 #endif	/* USE_CAIRO */
 
-#if defined HAVE_PGTK && defined HAVE_IMAGEMAGICK
-/* On pgtk, we don't want to create scaled image.
- * If we create scaled image on scale=2.0 environment,
- * the created image is half size and Gdk scales it back,
- * and the result is blurry.
- * To avoid this, we hold original size image as far as
- * we can, and let Gdk to scale it when it is shown.
- */
-# define DONT_CREATE_TRANSFORMED_IMAGEMAGICK_IMAGE
-#endif
-
 #ifdef HAVE_NTGUI
 
 /* We need (or want) w32.h only when we're _not_ compiling for Cygwin.  */
@@ -139,10 +128,6 @@ typedef struct ns_bitmap_record Bitmap_Record;
 #define PIX_MASK_DRAW	1
 
 #endif /* HAVE_NS */
-
-#ifdef HAVE_PGTK
-typedef struct pgtk_bitmap_record Bitmap_Record;
-#endif /* HAVE_PGTK */
 
 #if (defined HAVE_X_WINDOWS \
      && ! (defined HAVE_NTGUI || defined USE_CAIRO || defined HAVE_NS))
@@ -411,34 +396,6 @@ image_reference_bitmap (struct frame *f, ptrdiff_t id)
   ++FRAME_DISPLAY_INFO (f)->bitmaps[id - 1].refcount;
 }
 
-#ifdef HAVE_PGTK
-static cairo_pattern_t *
-image_create_pattern_from_pixbuf (struct frame *f, GdkPixbuf * pixbuf)
-{
-  GdkPixbuf *pb = gdk_pixbuf_add_alpha (pixbuf, TRUE, 255, 255, 255);
-  cairo_surface_t *surface =
-    cairo_surface_create_similar_image (cairo_get_target
-					(f->output_data.pgtk->cr_context),
-					CAIRO_FORMAT_A1,
-					gdk_pixbuf_get_width (pb),
-					gdk_pixbuf_get_height (pb));
-
-  cairo_t *cr = cairo_create (surface);
-  gdk_cairo_set_source_pixbuf (cr, pb, 0, 0);
-  cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-  cairo_paint (cr);
-  cairo_destroy (cr);
-
-  cairo_pattern_t *pat = cairo_pattern_create_for_surface (surface);
-  cairo_pattern_set_extend (pat, CAIRO_EXTEND_REPEAT);
-
-  cairo_surface_destroy (surface);
-  g_object_unref (pb);
-
-  return pat;
-}
-#endif
-
 /* Create a bitmap for frame F from a HEIGHT x WIDTH array of bits at BITS.  */
 
 ptrdiff_t
@@ -473,61 +430,11 @@ image_create_bitmap_from_data (struct frame *f, char *bits,
       return -1;
 #endif
 
-#ifdef HAVE_PGTK
-  GdkPixbuf *pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB,
-				      FALSE,
-				      8,
-				      width,
-				      height);
-  {
-    char *sp = bits;
-    int mask = 0x01;
-    unsigned char *buf = gdk_pixbuf_get_pixels (pixbuf);
-    int rowstride = gdk_pixbuf_get_rowstride (pixbuf);
-    for (int y = 0; y < height; y++)
-      {
-	unsigned char *dp = buf + rowstride * y;
-	for (int x = 0; x < width; x++)
-	  {
-	    if (*sp & mask)
-	      {
-		*dp++ = 0xff;
-		*dp++ = 0xff;
-		*dp++ = 0xff;
-	      }
-	    else
-	      {
-		*dp++ = 0x00;
-		*dp++ = 0x00;
-		*dp++ = 0x00;
-	      }
-	    if ((mask <<= 1) >= 0x100)
-	      {
-		mask = 0x01;
-		sp++;
-	      }
-	  }
-	if (mask != 0x01)
-	  {
-	    mask = 0x01;
-	    sp++;
-	  }
-      }
-  }
-#endif
-
   id = image_allocate_bitmap_record (f);
 
 #ifdef HAVE_NS
   dpyinfo->bitmaps[id - 1].img = bitmap;
   dpyinfo->bitmaps[id - 1].depth = 1;
-#endif
-
-#ifdef HAVE_PGTK
-  dpyinfo->bitmaps[id - 1].img = pixbuf;
-  dpyinfo->bitmaps[id - 1].depth = 1;
-  dpyinfo->bitmaps[id - 1].pattern =
-    image_create_pattern_from_pixbuf (f, pixbuf);
 #endif
 
   dpyinfo->bitmaps[id - 1].file = NULL;
@@ -579,30 +486,6 @@ image_create_bitmap_from_file (struct frame *f, Lisp_Object file)
   dpyinfo->bitmaps[id - 1].depth = 1;
   dpyinfo->bitmaps[id - 1].height = ns_image_width (bitmap);
   dpyinfo->bitmaps[id - 1].width = ns_image_height (bitmap);
-  return id;
-#endif
-
-#ifdef HAVE_PGTK
-  GError *err = NULL;
-  ptrdiff_t id;
-  void * bitmap = gdk_pixbuf_new_from_file(SSDATA(file), &err);
-
-  if (!bitmap)
-    {
-      g_error_free(err);
-      return -1;
-    }
-
-  id = image_allocate_bitmap_record(f);
-
-  dpyinfo->bitmaps[id - 1].img = bitmap;
-  dpyinfo->bitmaps[id - 1].refcount = 1;
-  dpyinfo->bitmaps[id - 1].file = xlispstrdup (file);
-  //dpyinfo->bitmaps[id - 1].depth = 1;
-  dpyinfo->bitmaps[id - 1].height = gdk_pixbuf_get_width (bitmap);
-  dpyinfo->bitmaps[id - 1].width = gdk_pixbuf_get_height (bitmap);
-  dpyinfo->bitmaps[id - 1].pattern
-    = image_create_pattern_from_pixbuf (f, bitmap);
   return id;
 #endif
 
@@ -676,11 +559,6 @@ free_bitmap_record (Display_Info *dpyinfo, Bitmap_Record *bm)
 
 #ifdef HAVE_NS
   ns_release_object (bm->img);
-#endif
-
-#ifdef HAVE_PGTK
-  if (bm->pattern != NULL)
-    cairo_pattern_destroy (bm->pattern);
 #endif
 
   if (bm->file)
@@ -1443,6 +1321,7 @@ image_ascent (struct image *img, struct face *face, struct glyph_slice *slice)
   return ascent;
 }
 
+
 
 /* Image background colors.  */
 
@@ -1466,7 +1345,6 @@ four_corners_best (Emacs_Pix_Context pimg, int *corners,
       corner_pixels[3] = GET_PIXEL (pimg, corners[LEFT_CORNER], corners[BOT_CORNER] - 1);
     }
   else
-
     {
       /* Get the colors at the corner_pixels of pimg.  */
       corner_pixels[0] = GET_PIXEL (pimg, 0, 0);
@@ -2333,8 +2211,7 @@ compute_image_rotation (struct image *img, double *rotation)
 static void
 image_set_transform (struct frame *f, struct image *img)
 {
-# if (defined HAVE_IMAGEMAGICK \
-      && !defined DONT_CREATE_TRANSFORMED_IMAGEMAGICK_IMAGE)
+# ifdef HAVE_IMAGEMAGICK
   /* ImageMagick images already have the correct transform.  */
   if (EQ (image_spec_value (img->spec, QCtype, NULL), Qimagemagick))
     return;
@@ -4138,13 +4015,6 @@ xbm_load (struct frame *f, struct image *img)
 			      XPM images
  ***********************************************************************/
 
-#if defined (HAVE_XPM) || defined (HAVE_NS) || defined (HAVE_PGTK)
-
-static bool xpm_image_p (Lisp_Object object);
-static bool xpm_load (struct frame *f, struct image *img);
-
-#endif /* HAVE_XPM || HAVE_NS */
-
 #ifdef HAVE_XPM
 #ifdef HAVE_NTGUI
 /* Indicate to xpm.h that we don't have Xlib.  */
@@ -4188,7 +4058,7 @@ enum xpm_keyword_index
   XPM_LAST
 };
 
-#if defined HAVE_XPM || defined HAVE_NS || defined HAVE_PGTK
+#if defined HAVE_XPM || defined HAVE_NS
 /* Vector of image_keyword structures describing the format
    of valid XPM image specifications.  */
 
@@ -4206,7 +4076,7 @@ static const struct image_keyword xpm_format[XPM_LAST] =
   {":color-symbols",	IMAGE_DONT_CHECK_VALUE_TYPE,		0},
   {":background",	IMAGE_STRING_OR_NIL_VALUE,		0}
 };
-#endif	/* HAVE_XPM || HAVE_NS || HAVE_PGTK */
+#endif	/* HAVE_XPM || HAVE_NS */
 
 #if defined HAVE_X_WINDOWS && !defined USE_CAIRO
 
@@ -4430,7 +4300,7 @@ init_xpm_functions (void)
 
 #endif /* WINDOWSNT */
 
-#if defined HAVE_XPM || defined HAVE_NS || defined HAVE_PGTK
+#if defined HAVE_XPM || defined HAVE_NS
 /* Value is true if COLOR_SYMBOLS is a valid color symbols list
    for XPM images.  Such a list must consist of conses whose car and
    cdr are strings.  */
@@ -4451,7 +4321,6 @@ xpm_valid_color_symbols_p (Lisp_Object color_symbols)
   return NILP (color_symbols);
 }
 
-
 /* Value is true if OBJECT is a valid XPM image specification.  */
 
 static bool
@@ -4467,7 +4336,7 @@ xpm_image_p (Lisp_Object object)
 	  && (! fmt[XPM_COLOR_SYMBOLS].count
 	      || xpm_valid_color_symbols_p (fmt[XPM_COLOR_SYMBOLS].value)));
 }
-#endif	/* HAVE_XPM || HAVE_NS || HAVE_PGTK */
+#endif	/* HAVE_XPM || HAVE_NS */
 
 #endif /* HAVE_XPM || USE_CAIRO || HAVE_NS */
 
@@ -4838,10 +4707,10 @@ xpm_load (struct frame *f, struct image *img)
 #endif /* HAVE_XPM && !USE_CAIRO */
 
 #if (defined USE_CAIRO && defined HAVE_XPM)	\
-  || ((defined HAVE_NS || defined HAVE_PGTK) && !defined HAVE_XPM)
+  || (defined HAVE_NS && !defined HAVE_XPM)
 
-/* XPM support functions for NS where libxpm is not available.
-   Only XPM version 3 (without any extensions) is supported.  */
+/* XPM support functions for NS where libxpm is not available, and for
+   Cairo.  Only XPM version 3 (without any extensions) is supported.  */
 
 static void xpm_put_color_table_v (Lisp_Object, const char *,
                                    int, Lisp_Object);
@@ -5037,7 +4906,7 @@ xpm_load_image (struct frame *f,
   Lisp_Object (*get_color_table) (Lisp_Object, const char *, int);
   Lisp_Object frame, color_symbols, color_table;
   int best_key;
-#if !defined(HAVE_NS)
+#ifndef HAVE_NS
   bool have_mask = false;
 #endif
   Emacs_Pix_Container ximg = NULL, mask_img = NULL;
@@ -5091,7 +4960,7 @@ xpm_load_image (struct frame *f,
     }
 
   if (!image_create_x_image_and_pixmap (f, img, width, height, 0, &ximg, 0)
-#if !defined(HAVE_NS)
+#ifndef HAVE_NS
       || !image_create_x_image_and_pixmap (f, img, width, height, 1,
 					   &mask_img, 1)
 #endif
@@ -5219,7 +5088,7 @@ xpm_load_image (struct frame *f,
 
 	  PUT_PIXEL (ximg, x, y,
 		     FIXNUMP (color_val) ? XFIXNUM (color_val) : frame_fg);
-#if !defined(HAVE_NS)
+#ifndef HAVE_NS
 	  PUT_PIXEL (mask_img, x, y,
 		     (!EQ (color_val, Qt) ? PIX_MASK_DRAW
 		      : (have_mask = true, PIX_MASK_RETAIN)));
@@ -5240,7 +5109,7 @@ xpm_load_image (struct frame *f,
     IMAGE_BACKGROUND (img, f, ximg);
 
   image_put_x_image (f, img, ximg, 0);
-#if !defined(HAVE_NS)
+#ifndef HAVE_NS
   if (have_mask)
     {
       /* Fill in the background_transparent field while we have the
@@ -5971,7 +5840,7 @@ image_disable_image (struct frame *f, struct image *img)
   if (n_planes < 2 || cross_disabled_images)
     {
 #ifndef HAVE_NTGUI
-#if !defined(HAVE_NS)  /* TODO: NS support, however this not needed for toolbars */
+#ifndef HAVE_NS  /* TODO: NS support, however this not needed for toolbars */
 
 #ifndef USE_CAIRO
 #define CrossForeground(f) BLACK_PIX_DEFAULT (f)
@@ -6049,7 +5918,7 @@ image_build_heuristic_mask (struct frame *f, struct image *img,
     image_clear_image_1 (f, img, CLEAR_IMAGE_MASK);
 
 #ifndef HAVE_NTGUI
-#if !defined HAVE_NS
+#ifndef HAVE_NS
   /* Create an image and pixmap serving as mask.  */
   if (! image_create_x_image_and_pixmap (f, img, img->width, img->height, 1,
 					 &mask_img, 1))
@@ -6111,7 +5980,7 @@ image_build_heuristic_mask (struct frame *f, struct image *img,
       if (XGetPixel (ximg, x, y) == bg)
         ns_set_alpha (ximg, x, y, 0);
 #endif /* HAVE_NS */
-#if !defined HAVE_NS
+#ifndef HAVE_NS
   /* Fill in the background_transparent field while we have the mask handy. */
   image_background_transparent (img, f, mask_img);
 
@@ -9248,15 +9117,11 @@ imagemagick_load_image (struct frame *f, struct image *img,
   PixelWand **pixels, *bg_wand = NULL;
   MagickPixelPacket  pixel;
   Lisp_Object image;
-#ifndef DONT_CREATE_TRANSFORMED_IMAGEMAGICK_IMAGE
   Lisp_Object value;
-#endif
   Lisp_Object crop;
   EMACS_INT ino;
   int desired_width, desired_height;
-#ifndef DONT_CREATE_TRANSFORMED_IMAGEMAGICK_IMAGE
   double rotation;
-#endif
   char hint_buffer[MaxTextExtent];
   char *filename_hint = NULL;
   imagemagick_initialize ();
@@ -9373,13 +9238,9 @@ imagemagick_load_image (struct frame *f, struct image *img,
     PixelSetBlue  (bg_wand, (double) bgcolor.blue  / 65535);
   }
 
-#ifndef DONT_CREATE_TRANSFORMED_IMAGEMAGICK_IMAGE
   compute_image_size (MagickGetImageWidth (image_wand),
 		      MagickGetImageHeight (image_wand),
 		      img, &desired_width, &desired_height);
-#else
-  desired_width = desired_height = -1;
-#endif
 
   if (desired_width != -1 && desired_height != -1)
     {
@@ -9423,7 +9284,6 @@ imagemagick_load_image (struct frame *f, struct image *img,
 	}
     }
 
-#ifndef DONT_CREATE_TRANSFORMED_IMAGEMAGICK_IMAGE
   /* Furthermore :rotation. we need background color and angle for
      rotation.  */
   /*
@@ -9442,7 +9302,6 @@ imagemagick_load_image (struct frame *f, struct image *img,
           goto imagemagick_error;
         }
     }
-#endif
 
   /* Set the canvas background color to the frame or specified
      background, and flatten the image.  Note: as of ImageMagick
@@ -9573,8 +9432,8 @@ imagemagick_load_image (struct frame *f, struct image *img,
 					   color_scale * pixel.red,
 					   color_scale * pixel.green,
 					   color_scale * pixel.blue));
-	    }
-	}
+            }
+        }
       DestroyPixelIterator (iterator);
     }
 
@@ -10859,7 +10718,7 @@ static struct image_type const image_types[] =
  { SYMBOL_INDEX (Qjpeg), jpeg_image_p, jpeg_load, image_clear_image,
    IMAGE_TYPE_INIT (init_jpeg_functions) },
 #endif
-#if defined HAVE_XPM || defined HAVE_NS || defined USE_CAIRO
+#if defined HAVE_XPM || defined HAVE_NS
  { SYMBOL_INDEX (Qxpm), xpm_image_p, xpm_load, image_clear_image,
    IMAGE_TYPE_INIT (init_xpm_functions) },
 #endif
@@ -11003,7 +10862,7 @@ non-numeric, there is no explicit limit on the size of images.  */);
   DEFSYM (Qxbm, "xbm");
   add_image_type (Qxbm);
 
-#if defined (HAVE_XPM) || defined (HAVE_NS) || defined (USE_CAIRO)
+#if defined (HAVE_XPM) || defined (HAVE_NS)
   DEFSYM (Qxpm, "xpm");
   add_image_type (Qxpm);
 #endif

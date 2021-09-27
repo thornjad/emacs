@@ -26,11 +26,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <byteswap.h>
 
 #include "lisp.h"
-#ifndef HAVE_PGTK
 #include "xterm.h"
-#else
-#include "gtkutil.h"
-#endif
 #include "xsettings.h"
 #include "frame.h"
 #include "keyboard.h"
@@ -38,12 +34,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "termhooks.h"
 #include "pdumper.h"
 
-#ifndef HAVE_PGTK
 #include <X11/Xproto.h>
-#else
-typedef unsigned short CARD16;
-typedef unsigned int CARD32;
-#endif
 
 #ifdef HAVE_GSETTINGS
 #include <glib-object.h>
@@ -64,7 +55,7 @@ typedef unsigned int CARD32;
 
 static char *current_mono_font;
 static char *current_font;
-static Display_Info *first_dpyinfo;
+static struct x_display_info *first_dpyinfo;
 static Lisp_Object current_tool_bar_style;
 
 /* Store a config changed event in to the event queue.  */
@@ -82,18 +73,14 @@ store_config_changed_event (Lisp_Object arg, Lisp_Object display_name)
 
 /* Return true if DPYINFO is still valid.  */
 static bool
-dpyinfo_valid (Display_Info *dpyinfo)
+dpyinfo_valid (struct x_display_info *dpyinfo)
 {
   bool found = false;
   if (dpyinfo != NULL)
     {
-      Display_Info *d;
+      struct x_display_info *d;
       for (d = x_display_list; !found && d; d = d->next)
-#ifndef HAVE_PGTK
         found = d == dpyinfo && d->display == dpyinfo->display;
-#else
-        found = d == dpyinfo && d->gdpy == dpyinfo->gdpy;
-#endif
     }
   return found;
 }
@@ -162,7 +149,7 @@ map_tool_bar_style (const char *tool_bar_style)
 
 static void
 store_tool_bar_style_changed (const char *newstyle,
-                              Display_Info *dpyinfo)
+                              struct x_display_info *dpyinfo)
 {
   Lisp_Object style = map_tool_bar_style (newstyle);
   if (EQ (current_tool_bar_style, style))
@@ -174,12 +161,10 @@ store_tool_bar_style_changed (const char *newstyle,
                                 XCAR (dpyinfo->name_list_element));
 }
 
-#ifndef HAVE_PGTK
 #if defined USE_CAIRO || defined HAVE_XFT
 #define XSETTINGS_FONT_NAME       "Gtk/FontName"
 #endif
 #define XSETTINGS_TOOL_BAR_STYLE  "Gtk/ToolbarStyle"
-#endif
 
 enum {
   SEEN_AA         = 0x01,
@@ -336,11 +321,10 @@ something_changed_gconfCB (GConfClient *client,
 
 #endif /* USE_CAIRO || HAVE_XFT */
 
-#ifndef HAVE_PGTK
 /* Find the window that contains the XSETTINGS property values.  */
 
 static void
-get_prop_window (Display_Info *dpyinfo)
+get_prop_window (struct x_display_info *dpyinfo)
 {
   Display *dpy = dpyinfo->display;
 
@@ -355,9 +339,6 @@ get_prop_window (Display_Info *dpyinfo)
 
   XUngrabServer (dpy);
 }
-#endif
-
-#ifndef HAVE_PGTK
 
 #define PAD(nr)    (((nr) + 3) & ~3)
 
@@ -585,15 +566,13 @@ parse_settings (unsigned char *prop,
 
   return settings_seen;
 }
-#endif
 
-#ifndef HAVE_PGTK
 /* Read settings from the XSettings property window on display for DPYINFO.
    Store settings read in SETTINGS.
    Return true iff successful.  */
 
 static bool
-read_settings (Display_Info *dpyinfo, struct xsettings *settings)
+read_settings (struct x_display_info *dpyinfo, struct xsettings *settings)
 {
   Atom act_type;
   int act_form;
@@ -621,14 +600,12 @@ read_settings (Display_Info *dpyinfo, struct xsettings *settings)
 
   return got_settings;
 }
-#endif
 
-#ifndef HAVE_PGTK
 /* Apply Xft settings in SETTINGS to the Xft library.
    Store a Lisp event that Xft settings changed.  */
 
 static void
-apply_xft_settings (Display_Info *dpyinfo,
+apply_xft_settings (struct x_display_info *dpyinfo,
                     struct xsettings *settings)
 {
 #ifdef HAVE_XFT
@@ -754,14 +731,12 @@ apply_xft_settings (Display_Info *dpyinfo,
     FcPatternDestroy (pat);
 #endif /* HAVE_XFT */
 }
-#endif
 
-#ifndef HAVE_PGTK
 /* Read XSettings from the display for DPYINFO.
    If SEND_EVENT_P store a Lisp event settings that changed.  */
 
 static void
-read_and_apply_settings (Display_Info *dpyinfo, bool send_event_p)
+read_and_apply_settings (struct x_display_info *dpyinfo, bool send_event_p)
 {
   struct xsettings settings;
 
@@ -788,13 +763,11 @@ read_and_apply_settings (Display_Info *dpyinfo, bool send_event_p)
     }
 #endif
 }
-#endif
 
-#ifndef HAVE_PGTK
 /* Check if EVENT for the display in DPYINFO is XSettings related.  */
 
 void
-xft_settings_event (Display_Info *dpyinfo, const XEvent *event)
+xft_settings_event (struct x_display_info *dpyinfo, const XEvent *event)
 {
   bool check_window_p = false, apply_settings_p = false;
 
@@ -832,7 +805,6 @@ xft_settings_event (Display_Info *dpyinfo, const XEvent *event)
   if (apply_settings_p)
     read_and_apply_settings (dpyinfo, true);
 }
-#endif
 
 /* Initialize GSettings and read startup values.  */
 
@@ -968,11 +940,10 @@ init_gconf (void)
 #endif /* HAVE_GCONF */
 }
 
-#ifndef HAVE_PGTK
 /* Init Xsettings and read startup values.  */
 
 static void
-init_xsettings (Display_Info *dpyinfo)
+init_xsettings (struct x_display_info *dpyinfo)
 {
   Display *dpy = dpyinfo->display;
 
@@ -988,16 +959,13 @@ init_xsettings (Display_Info *dpyinfo)
 
   unblock_input ();
 }
-#endif
 
 void
-xsettings_initialize (Display_Info *dpyinfo)
+xsettings_initialize (struct x_display_info *dpyinfo)
 {
   if (first_dpyinfo == NULL) first_dpyinfo = dpyinfo;
   init_gconf ();
-#ifndef HAVE_PGTK
   init_xsettings (dpyinfo);
-#endif
   init_gsettings ();
 }
 

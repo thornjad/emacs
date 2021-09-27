@@ -528,10 +528,10 @@ This expects `auto-revert--messages' to be bound by
            (auto-revert-test--wait-for-buffer-text
             buf-1 "1-b" (auto-revert--timeout))
            ;; On emba, `buf-1' is a killed buffer.
-           (message "Hallo1")
-           (when (buffer-name buf-1)
-             (should (buffer-local-value
-                      'auto-revert-notify-watch-descriptor buf-1)))
+           (message "Hallo1 %s %s %s %s %s %s %s" buf-1 (buffer-name buf-1) (buffer-live-p buf-1) file-1 (get-file-buffer file-1) (buffer-name (get-file-buffer file-1)) (buffer-live-p (get-file-buffer file-1)))
+           (should
+            (buffer-local-value
+             'auto-revert-notify-watch-descriptor (get-file-buffer file-1)))
 
            ;; Write a buffer to a new file, then modify the new file on disk.
            (with-current-buffer buf-2
@@ -688,4 +688,4 @@ This expects `auto-revert--messages' to be bound by
     (ert-run-tests-batch "^auto-revert-")))
 
 (provide 'auto-revert-tests)
-;;; auto-revert-tests.el ends here
+;;; autorevert-tests.el ends here

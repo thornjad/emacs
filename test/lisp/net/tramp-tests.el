@@ -52,6 +52,7 @@
 (require 'vc-git)
 (require 'vc-hg)
 
+(declare-function tramp-check-remote-uname "tramp-sh")
 (declare-function tramp-find-executable "tramp-sh")
 (declare-function tramp-get-remote-chmod-h "tramp-sh")
 (declare-function tramp-get-remote-gid "tramp-sh")
@@ -195,6 +196,11 @@ The temporary file is not created."
   "Whether `tramp--test-instrument-test-case' run.
 This shall used dynamically bound only.")
 
+;; When `tramp-verbose' is greater than 10, and you want to trace
+;; other functions as well, do something like
+;; (let ((tramp-trace-functions '(file-name-non-special)))
+;;   (tramp--test-instrument-test-case 11
+;;     ...))
 (defmacro tramp--test-instrument-test-case (verbose &rest body)
   "Run BODY with `tramp-verbose' equal VERBOSE.
 Print the content of the Tramp connection and debug buffers, if
@@ -203,31 +209,22 @@ is greater than 10.
 `should-error' is not handled properly.  BODY shall not contain a timeout."
   (declare (indent 1) (debug (natnump body)))
   `(let* ((tramp-verbose (max (or ,verbose 0) (or tramp-verbose 0)))
-	  (trace-buffer
-	   (when (> tramp-verbose 10) (generate-new-buffer " *temp*")))
+	  (trace-buffer (tramp-trace-buffer-name tramp-test-vec))
 	  (debug-ignored-errors
 	   (append
 	    '("^make-symbolic-link not supported$"
 	      "^error with add-name-to-file")
 	    debug-ignored-errors))
 	  inhibit-message)
-     (when trace-buffer
-       (dolist (elt (all-completions "tramp-" obarray 'functionp))
-	 (trace-function-background (intern elt))))
      (unwind-protect
 	 (let ((tramp--test-instrument-test-case-p t)) ,@body)
        ;; Unwind forms.
-       (when trace-buffer
-	 (untrace-all))
        (when (and (null tramp--test-instrument-test-case-p) (> tramp-verbose 3))
-	 (dolist
-	     (buf (if trace-buffer
-		      (cons (get-buffer trace-buffer) (tramp-list-tramp-buffers))
-		    (tramp-list-tramp-buffers)))
+	 (untrace-all)
+	 (dolist (buf (tramp-list-tramp-buffers))
 	   (with-current-buffer buf
-	     (message ";; %s\n%s" buf (buffer-string)))))
-       (when trace-buffer
-	 (kill-buffer trace-buffer)))))
+	     (message ";; %s\n%s" buf (buffer-string)))
+	   (kill-buffer buf))))))
 
 (defsubst tramp--test-message (fmt-string &rest arguments)
   "Emit a message into ERT *Messages*."
@@ -3178,7 +3175,6 @@ This tests also `file-directory-p' and `file-accessible-directory-p'."
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
-  (skip-unless (not (tramp--test-windows-nt-and-scp-p)))
   ;; Wildcards are not supported in tramp-crypt.el.
   (skip-unless (not (tramp--test-crypt-p)))
   ;; Since Emacs 26.1.
@@ -4590,6 +4586,10 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 		  (while (< (- (point-max) (point-min))
 			    (length "66\n6F\n6F\n0D\n0A\n"))
 		    (while (accept-process-output proc 0 nil t))))
+                (if (tramp--test-macos-p)
+                  (tramp--test-message
+                   "process-connection-type %s\n%s"
+                     process-connection-type (pp-to-string (buffer-string)))
 		(should
 		 (string-match-p
 		  (if (memq process-connection-type '(nil pipe))
@@ -4597,7 +4597,7 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 		      ;; flag is FALSE.  See telnet(1) man page.
 		      "66\n6F\n6F\n0D\\(\n00\\)?\n0A\n"
 		    "66\n6F\n6F\n0A\\(\n00\\)?\n0A\n")
-		  (buffer-string))))
+		  (buffer-string)))))
 
 	    ;; Cleanup.
 	    (ignore-errors (delete-process proc)))))
@@ -4664,8 +4664,7 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 
   (dolist (quoted (if (tramp--test-expensive-test) '(nil t) '(nil)))
     (let ((default-directory tramp-test-temporary-file-directory)
-	  (tmp-name1 (tramp--test-make-temp-name nil quoted))
-	  (tmp-name2 (tramp--test-make-temp-name 'local quoted))
+	  (tmp-name (tramp--test-make-temp-name nil quoted))
 	  kill-buffer-query-functions proc)
       (with-no-warnings (should-not (make-process)))
 
@@ -4693,13 +4692,13 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
       ;; Simple process using a file.
       (unwind-protect
 	  (with-temp-buffer
-	    (write-region "foo" nil tmp-name1)
-	    (should (file-exists-p tmp-name1))
+	    (write-region "foo" nil tmp-name)
+	    (should (file-exists-p tmp-name))
 	    (setq proc
 		  (with-no-warnings
 		    (make-process
 		     :name "test2" :buffer (current-buffer)
-		     :command `("cat" ,(file-name-nondirectory tmp-name1))
+		     :command `("cat" ,(file-name-nondirectory tmp-name))
 		     :file-handler t)))
 	    (should (processp proc))
 	    ;; Read output.
@@ -4711,7 +4710,7 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 	;; Cleanup.
 	(ignore-errors
 	  (delete-process proc)
-	  (delete-file tmp-name1)))
+	  (delete-file tmp-name)))
 
       ;; Process filter.
       (unwind-protect
@@ -4776,11 +4775,17 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 			 :stderr stderr
 			 :file-handler t)))
 		(should (processp proc))
-		;; Read stderr.
+		;; Read output.
 		(with-timeout (10 (tramp--test-timeout-handler))
 		  (while (accept-process-output proc 0 nil t)))
-		(delete-process proc)
+		;; Read stderr.
 		(with-current-buffer stderr
+		  (with-timeout (10 (tramp--test-timeout-handler))
+		    (while (not (string-match-p
+				 "No such file or directory" (buffer-string)))
+		      (while (accept-process-output
+			      (get-buffer-process stderr) 0 nil t))))
+		  (delete-process proc)
 		  (should
 		   (string-match-p
 		    "cat:.* No such file or directory" (buffer-string)))))
@@ -4791,26 +4796,25 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 
       ;; Process with stderr file.
       (unless (tramp-direct-async-process-p)
-	(dolist (tmpfile `(,tmp-name1 ,tmp-name2))
-	  (unwind-protect
+	(unwind-protect
+	    (with-temp-buffer
+	      (setq proc
+		    (with-no-warnings
+		      (make-process
+		       :name "test6" :buffer (current-buffer)
+		       :command '("cat" "/does-not-exist")
+		       :stderr tmp-name
+		       :file-handler t)))
+	      (should (processp proc))
+	      ;; Read stderr.
+	      (with-timeout (10 (tramp--test-timeout-handler))
+		(while (accept-process-output proc nil nil t)))
+	      (delete-process proc)
 	      (with-temp-buffer
-		(setq proc
-		      (with-no-warnings
-			(make-process
-			 :name "test6" :buffer (current-buffer)
-			 :command '("cat" "/does-not-exist")
-			 :stderr tmpfile
-			 :file-handler t)))
-		(should (processp proc))
-		;; Read stderr.
-		(with-timeout (10 (tramp--test-timeout-handler))
-		  (while (accept-process-output proc nil nil t)))
-		(delete-process proc)
-		(with-temp-buffer
-		  (insert-file-contents tmpfile)
-		  (should
-		   (string-match-p
-		    "cat:.* No such file or directory" (buffer-string)))))
+		(insert-file-contents tmp-name)
+		(should
+		 (string-match-p
+		  "cat:.* No such file or directory" (buffer-string)))))
 
 	  ;; Cleanup.
 	  (ignore-errors (delete-process proc))
@@ -4851,6 +4855,10 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 		    (while (< (- (point-max) (point-min))
 			      (length "66\n6F\n6F\n0D\n0A\n"))
 		      (while (accept-process-output proc 0 nil t))))
+                  (if (tramp--test-macos-p)
+                    (tramp--test-message
+                     "process-connection-type %s\n%s"
+                     process-connection-type (pp-to-string (buffer-string)))
 		  (should
 		   (string-match-p
 		    (if (memq (or connection-type process-connection-type)
@@ -4859,7 +4867,7 @@ If UNSTABLE is non-nil, the test is tagged as `:unstable'."
 			;; flag is FALSE.  See telnet(1) man page.
 			"66\n6F\n6F\n0D\\(\n00\\)?\n0A\n"
 		      "66\n6F\n6F\n0A\\(\n00\\)?\n0A\n")
-		    (buffer-string))))
+		    (buffer-string)))))
 
 	      ;; Cleanup.
 	      (ignore-errors (delete-process proc)))))))))
@@ -6063,7 +6071,7 @@ This requires restrictions of file name syntax."
    'tramp-ftp-file-name-handler))
 
 (defun tramp--test-crypt-p ()
-  "Check, whether the remote directory is crypted"
+  "Check, whether the remote directory is crypted."
   (tramp-crypt-file-name-p tramp-test-temporary-file-directory))
 
 (defun tramp--test-docker-p ()
@@ -6100,8 +6108,7 @@ If optional METHOD is given, it is checked first."
 Several special characters do not work properly there."
   ;; We must refill the cache.  `file-truename' does it.
   (file-truename tramp-test-temporary-file-directory)
-  (string-match-p
-   "^HP-UX" (tramp-get-connection-property tramp-test-vec "uname" "")))
+  (tramp-check-remote-uname tramp-test-vec "^HP-UX"))
 
 (defun tramp--test-ksh-p ()
   "Check, whether the remote shell is ksh.
@@ -6111,6 +6118,12 @@ a $'' syntax."
   (file-truename tramp-test-temporary-file-directory)
   (string-match-p
    "ksh$" (tramp-get-connection-property tramp-test-vec "remote-shell" "")))
+
+(defun tramp--test-macos-p ()
+  "Check, whether the remote host runs macOS."
+  ;; We must refill the cache.  `file-truename' does it.
+  (file-truename tramp-test-temporary-file-directory)
+  (tramp-check-remote-uname tramp-test-vec "Darwin"))
 
 (defun tramp--test-mock-p ()
   "Check, whether the mock method is used.
@@ -6175,13 +6188,6 @@ This does not support special file names."
 This does not support utf8 based file transfer."
   (and (eq system-type 'windows-nt)
        (tramp-method-out-of-band-p tramp-test-vec 1)))
-
-(defun tramp--test-windows-nt-and-scp-p ()
-  "Check, whether the locale host runs MS Windows, and scpx? is used.
-This does not support utf8 based file transfer."
-  (and (eq system-type 'windows-nt)
-       (string-match-p
-	"^scpx?" (file-remote-p tramp-test-temporary-file-directory 'method))))
 
 (defun tramp--test-windows-nt-or-smb-p ()
   "Check, whether the locale or remote host runs MS Windows.
@@ -6419,9 +6425,9 @@ This requires restrictions of file name syntax."
 		 "\tfoo bar baz\t")
 		(t " foo\tbar baz\t"))
 	  "@foo@bar@baz@"
-	  "$foo$bar$$baz$"
+	  (unless (tramp--test-windows-nt-and-out-of-band-p) "$foo$bar$$baz$")
 	  "-foo-bar-baz-"
-	  "%foo%bar%baz%"
+	  (unless (tramp--test-windows-nt-and-out-of-band-p) "%foo%bar%baz%")
 	  "&foo&bar&baz&"
 	  (unless (or (tramp--test-ftp-p)
 		      (tramp--test-gvfs-p)
@@ -6435,9 +6441,10 @@ This requires restrictions of file name syntax."
 	      "'foo'bar'baz'"
 	    "'foo\"bar'baz\"")
 	  "#foo~bar#baz~"
-	  (if (or (tramp--test-gvfs-p) (tramp--test-windows-nt-or-smb-p))
-	      "!foo!bar!baz!"
-	    "!foo|bar!baz|")
+	  (unless (tramp--test-windows-nt-and-out-of-band-p)
+	    (if (or (tramp--test-gvfs-p) (tramp--test-windows-nt-or-smb-p))
+		"!foo!bar!baz!"
+	      "!foo|bar!baz|"))
 	  (if (or (tramp--test-gvfs-p)
 		  (tramp--test-rclone-p)
 		  (tramp--test-windows-nt-or-smb-p))
@@ -6459,7 +6466,6 @@ This requires restrictions of file name syntax."
   (skip-unless (not (getenv "EMACS_HYDRA_CI"))) ; SLOW ~ 245s
   (skip-unless (tramp--test-enabled))
   (skip-unless (not (tramp--test-rsync-p)))
-  (skip-unless (not (tramp--test-windows-nt-and-scp-p)))
   (skip-unless (or (tramp--test-emacs26-p) (not (tramp--test-rclone-p))))
 
   (tramp--test-special-characters))
@@ -6472,7 +6478,6 @@ Use the `stat' command."
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
-  (skip-unless (not (tramp--test-windows-nt-and-scp-p)))
   ;; We cannot use `tramp-test-vec', because this fails during compilation.
   (with-parsed-tramp-file-name tramp-test-temporary-file-directory nil
     (skip-unless (tramp-get-remote-stat v)))
@@ -6492,7 +6497,6 @@ Use the `perl' command."
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
-  (skip-unless (not (tramp--test-windows-nt-and-scp-p)))
   ;; We cannot use `tramp-test-vec', because this fails during compilation.
   (with-parsed-tramp-file-name tramp-test-temporary-file-directory nil
     (skip-unless (tramp-get-remote-perl v)))
@@ -6515,7 +6519,6 @@ Use the `ls' command."
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-rsync-p)))
-  (skip-unless (not (tramp--test-windows-nt-and-scp-p)))
 
   (let ((tramp-connection-properties
 	 (append

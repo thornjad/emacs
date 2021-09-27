@@ -1405,6 +1405,7 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
       else
         {
 	  /* Must have been Qnil.  */
+	  f->was_invisible = true;
         }
     }
 

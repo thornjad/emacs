@@ -1345,7 +1345,7 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
 		     || CONSP (XCAR (tem))))))
 	error ("Invalid condition handler: %s",
 	       SDATA (Fprin1_to_string (tem, Qt)));
-      if (EQ (XCAR (tem), QCsuccess))
+      if (CONSP (tem) && EQ (XCAR (tem), QCsuccess))
 	success_handler = XCDR (tem);
       else
 	clausenb++;
@@ -1362,8 +1362,11 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
   Lisp_Object volatile *clauses = alloca (clausenb * sizeof *clauses);
   clauses += clausenb;
   for (Lisp_Object tail = handlers; CONSP (tail); tail = XCDR (tail))
-    if (!EQ (XCAR (XCAR (tail)), QCsuccess))
-      *--clauses = XCAR (tail);
+    {
+      Lisp_Object tem = XCAR (tail);
+      if (!(CONSP (tem) && EQ (XCAR (tem), QCsuccess)))
+	*--clauses = tem;
+    }
   for (ptrdiff_t i = 0; i < clausenb; i++)
     {
       Lisp_Object clause = clauses[i];
@@ -3242,6 +3245,7 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
     emacs_abort ();
 
   i = optional = rest = 0;
+  bool previous_rest = false;
   for (; CONSP (syms_left); syms_left = XCDR (syms_left))
     {
       maybe_quit ();
@@ -3252,13 +3256,14 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 
       if (EQ (next, Qand_rest))
         {
-          if (rest)
+          if (rest || previous_rest)
             xsignal1 (Qinvalid_function, fun);
           rest = 1;
+	  previous_rest = true;
         }
       else if (EQ (next, Qand_optional))
         {
-          if (optional || rest)
+          if (optional || rest || previous_rest)
             xsignal1 (Qinvalid_function, fun);
           optional = 1;
         }
@@ -3284,10 +3289,11 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 	  else
 	    /* Dynamically bind NEXT.  */
 	    specbind (next, arg);
+	  previous_rest = false;
 	}
     }
 
-  if (!NILP (syms_left))
+  if (!NILP (syms_left) || previous_rest)
     xsignal1 (Qinvalid_function, fun);
   else if (i < nargs)
     xsignal2 (Qwrong_number_of_arguments, fun, make_fixnum (nargs));

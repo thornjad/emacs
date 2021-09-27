@@ -96,7 +96,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <unistd.h>
 #include <fcntl.h>
 
-#if defined(USE_GTK)
+#ifdef USE_GTK
 # include "gtkutil.h"
 #endif
 #ifdef WINDOWSNT
@@ -1929,8 +1929,7 @@ allocate_string_data (struct Lisp_String *s,
    The character is at byte offset CIDX_BYTE in the string.
    The character being replaced is CLEN bytes long,
    and the character that will replace it is NEW_CLEN bytes long.
-   Return the address of where the caller should store the
-   the new character.  */
+   Return the address where the caller should store the new character.  */
 
 unsigned char *
 resize_string_data (Lisp_Object string, ptrdiff_t cidx_byte,
@@ -6136,11 +6135,8 @@ garbage_collect (void)
   mark_terminals ();
   mark_kboards ();
   mark_threads ();
-#ifdef HAVE_PGTK
-  mark_pgtkterm();
-#endif
 
-#if defined(USE_GTK)
+#ifdef USE_GTK
   xg_mark_data ();
 #endif
 

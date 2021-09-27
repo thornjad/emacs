@@ -41,9 +41,6 @@ handle SIGUSR2 noprint pass
 # debugging.
 handle SIGALRM ignore
 
-# On selection send failed.
-handle SIGPIPE nostop noprint
-
 # Use $bugfix so that the value isn't a constant.
 # Using a constant runs into GDB bugs sometimes.
 define xgetptr
@@ -1227,7 +1224,6 @@ set print pretty on
 set print sevenbit-strings
 
 show environment DISPLAY
-show environment WAYLAND_DISPLAY
 show environment TERM
 
 # When debugging, it is handy to be able to "return" from

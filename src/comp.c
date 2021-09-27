@@ -2780,8 +2780,8 @@ emit_ctxt_code (void)
 {
   /* Emit optimize qualities.  */
   Lisp_Object opt_qly[] =
-    { Fcons (Qcomp_speed, make_fixnum (comp.speed)),
-      Fcons (Qcomp_debug, make_fixnum (comp.debug)),
+    { Fcons (Qnative_comp_speed, make_fixnum (comp.speed)),
+      Fcons (Qnative_comp_debug, make_fixnum (comp.debug)),
       Fcons (Qgccjit,
 	     Fcomp_libgccjit_version ()) };
   emit_static_object (TEXT_OPTIM_QLY_SYM, Flist (ARRAYELTS (opt_qly), opt_qly));
@@ -4825,7 +4825,7 @@ maybe_defer_native_compilation (Lisp_Object function_name,
   if (!load_gccjit_if_necessary (false))
     return;
 
-  if (!comp_deferred_compilation
+  if (!native_comp_deferred_compilation
       || noninteractive
       || !NILP (Vpurify_flag)
       || !COMPILEDP (definition)
@@ -5328,15 +5328,16 @@ syms_of_comp (void)
 {
 #ifdef HAVE_NATIVE_COMP
   /* Compiler control customizes.  */
-  DEFVAR_BOOL ("comp-deferred-compilation", comp_deferred_compilation,
+  DEFVAR_BOOL ("native-comp-deferred-compilation",
+	       native_comp_deferred_compilation,
 	       doc: /* If non-nil compile loaded .elc files asynchronously.
 
 After compilation, each function definition is updated to the native
 compiled one.  */);
-  comp_deferred_compilation = true;
+  native_comp_deferred_compilation = true;
 
-  DEFSYM (Qcomp_speed, "native-comp-speed");
-  DEFSYM (Qcomp_debug, "native-comp-debug");
+  DEFSYM (Qnative_comp_speed, "native-comp-speed");
+  DEFSYM (Qnative_comp_debug, "native-comp-debug");
   DEFSYM (Qnative_comp_driver_options, "native-comp-driver-options");
   DEFSYM (Qnative_comp_compiler_options, "native-comp-compiler-options");
   DEFSYM (Qcomp_libgccjit_reproducer, "comp-libgccjit-reproducer");
@@ -5401,7 +5402,8 @@ compiled one.  */);
   DEFSYM (Qlambda_fixup, "lambda-fixup");
   DEFSYM (Qgccjit, "gccjit");
   DEFSYM (Qcomp_subr_trampoline_install, "comp-subr-trampoline-install");
-  DEFSYM (Qcomp_warning_on_missing_source, "comp-warning-on-missing-source");
+  DEFSYM (Qnative_comp_warning_on_missing_source,
+	  "native-comp-warning-on-missing-source");
 
   /* To be signaled by the compiler.  */
   DEFSYM (Qnative_compiler_error, "native-compiler-error");

@@ -473,8 +473,15 @@ add_read_fd (int fd, fd_callback func, void *data)
   fd_callback_info[fd].data = data;
 }
 
+void
+add_non_keyboard_read_fd (int fd, fd_callback func, void *data)
+{
+  add_read_fd(fd, func, data);
+  fd_callback_info[fd].flags &= ~KEYBOARD_FD;
+}
+
 static void
-add_non_keyboard_read_fd (int fd)
+add_process_read_fd (int fd)
 {
   eassert (fd >= 0 && fd < FD_SETSIZE);
   eassert (fd_callback_info[fd].func == NULL);
@@ -483,12 +490,6 @@ add_non_keyboard_read_fd (int fd)
   fd_callback_info[fd].flags |= FOR_READ;
   if (fd > max_desc)
     max_desc = fd;
-}
-
-static void
-add_process_read_fd (int fd)
-{
-  add_non_keyboard_read_fd (fd);
   eassert (0 <= fd && fd < FD_SETSIZE);
   fd_callback_info[fd].flags |= PROCESS_FD;
 }
@@ -5566,12 +5567,8 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 	    timeout = make_timespec (0, 0);
 #endif
 
-#if defined HAVE_PGTK
-	  nfds = pgtk_select (max_desc + 1,
-			      &Available, (check_write ? &Writeok : 0),
-			      NULL, &timeout, NULL);
-#elif defined HAVE_GLIB && !defined HAVE_NS
 	  /* Non-macOS HAVE_GLIB builds call thread_select in xgselect.c.  */
+#if defined HAVE_GLIB && !defined HAVE_NS
 	  nfds = xg_select (max_desc + 1,
 			    &Available, (check_write ? &Writeok : 0),
 			    NULL, &timeout, NULL);
