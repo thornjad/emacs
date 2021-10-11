@@ -95,17 +95,28 @@ install an MH variant and test it interactively."
              (mh-sub-folders-cache (make-hash-table :test #'equal))
              ;; remember the original value
              (original-mh-envvar (getenv "MH")))
-     (unless mh-test-variant-logged-already
-       (mh-variant-set mh-variant)
-       (setq mh-test-variant-logged-already t))
      (unwind-protect
          (progn
-           (if mh-variant-in-use
-               (setq temp-home-dir (mh-test-utils-setup-with-variant))
-             (mh-test-utils-setup-with-mocks))
+           (setq temp-home-dir (mh-test-utils-setup))
            ,@body)
        (if temp-home-dir (delete-directory temp-home-dir t))
        (setenv "MH" original-mh-envvar))))
+
+(defun mh-test-utils-setup ()
+  "Set dynamically bound variables needed by mock and/or variants.
+Return the name of the root of the created directory tree, if any."
+  (unless mh-test-variant-logged-already
+    (mh-variant-set mh-variant)
+    (setq mh-test-variant-logged-already t))
+  ;; As `call-process'' and `file-directory-p' will be redefined, the
+  ;; native compiler will invoke `call-process' to compile the
+  ;; respective trampolines.  To avoid interference with the
+  ;; `call-process' mocking, we build these ahead of time.
+  (when (native-comp-available-p)
+    (mapc #'comp-subr-trampoline-install '(call-process file-directory-p)))
+  (if mh-variant-in-use
+      (mh-test-utils-setup-with-variant)
+    (mh-test-utils-setup-with-mocks)))
 
 (defun mh-test-utils-setup-with-mocks ()
   "Set dynamically bound variables so that MH programs are mocked out.
@@ -117,7 +128,9 @@ The tests use this method if no configured MH variant is found."
   (mh-populate-sub-folders-cache "+rela-folder/foo")
   (mh-populate-sub-folders-cache "+rela-folder/food")
   (fset 'call-process #'mh-test-utils-mock-call-process)
-  (fset 'file-directory-p #'mh-test-utils-mock-file-directory-p))
+  (fset 'file-directory-p #'mh-test-utils-mock-file-directory-p)
+  ;; no temp directory created
+  nil)
 
 (defun mh-test-utils-mock-call-process (program
                                         &optional _infile _destination _display
@@ -186,7 +199,7 @@ Return the name of the root of the created directory tree.
 Set dynamically bound variables so that MH programs may log.
 The tests use this method if a configured MH variant is found."
   (let* ((temp-home-dir
-          (make-temp-file "emacs-mh-e-unit-test" t))
+          (make-temp-file "emacs-mh-e-unit-test-" t))
          (profile (expand-file-name
                    ".mh_profile" temp-home-dir))
          (mail-dir (expand-file-name "Mail" temp-home-dir))

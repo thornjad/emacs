@@ -1005,7 +1005,7 @@ set_minibuffer_mode (Lisp_Object buf, EMACS_INT depth)
       if (!NILP (Ffboundp (Qminibuffer_inactive_mode)))
 	call0 (Qminibuffer_inactive_mode);
       else
-	Fkill_all_local_variables ();
+	Fkill_all_local_variables (Qnil);
     }
   buf = unbind_to (count, buf);
 }
@@ -1684,7 +1684,7 @@ is used to further constrain the set of candidates.  */)
 		    specbind (Qcase_fold_search,
 			      completion_ignore_case ? Qt : Qnil);
 		  }
-		tem = Fstring_match (XCAR (regexps), eltstring, zero);
+		tem = Fstring_match (XCAR (regexps), eltstring, zero, Qnil);
 		if (NILP (tem))
 		  break;
 	      }
@@ -1948,7 +1948,7 @@ with a space are ignored unless STRING itself starts with a space.  */)
 		    specbind (Qcase_fold_search,
 			      completion_ignore_case ? Qt : Qnil);
 		  }
-		tem = Fstring_match (XCAR (regexps), eltstring, zero);
+		tem = Fstring_match (XCAR (regexps), eltstring, zero, Qnil);
 		if (NILP (tem))
 		  break;
 	      }
@@ -2163,7 +2163,7 @@ the values STRING, PREDICATE and `lambda'.  */)
 	{
           /* We can test against STRING, because if we got here, then
              the element is equivalent to it.  */
-          if (NILP (Fstring_match (XCAR (regexps), string, Qnil)))
+          if (NILP (Fstring_match (XCAR (regexps), string, Qnil, Qnil)))
 	    return unbind_to (count, Qnil);
 	}
       unbind_to (count, Qnil);

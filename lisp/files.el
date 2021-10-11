@@ -2883,6 +2883,7 @@ ARC\\|ZIP\\|LZH\\|LHA\\|ZOO\\|[JEW]AR\\|XPI\\|RAR\\|CBR\\|7Z\\|SQUASHFS\\)\\'" .
      ("\\.[ds]?va?h?\\'" . verilog-mode)
      ("\\.by\\'" . bovine-grammar-mode)
      ("\\.wy\\'" . wisent-grammar-mode)
+     ("\\.erts\\'" . erts-mode)
      ;; .emacs or .gnus or .viper following a directory delimiter in
      ;; Unix or MS-DOS syntax.
      ("[:/\\]\\..*\\(emacs\\|gnus\\|viper\\)\\'" . emacs-lisp-mode)
@@ -3896,7 +3897,7 @@ inhibited."
           (hack-local-variables-apply))))))
 
 (defun hack-local-variables--find-variables (&optional handle-mode)
-  "Return all local variables in the ucrrent buffer.
+  "Return all local variables in the current buffer.
 If HANDLE-MODE is nil, we gather all the specified local
 variables.  If HANDLE-MODE is neither nil nor t, we do the same,
 except that any settings of `mode' are ignored.
@@ -5597,7 +5598,7 @@ Before and after saving the buffer, this function runs
 	  (if (not (file-directory-p dir))
 	      (if (file-exists-p dir)
 		  (error "%s is not a directory" dir)
-		(error "%s: no such directory" dir))
+                (error "%s: No such directory" dir))
 	    (if (not (file-exists-p buffer-file-name))
 		(error "Directory %s write-protected" dir)
 	      (if (yes-or-no-p
@@ -7948,7 +7949,7 @@ for the specified category of users."
 	((= char ?g) #o2070)
 	((= char ?o) #o1007)
 	((= char ?a) #o7777)
-	(t (error "%c: bad `who' character" char))))
+        (t (error "%c: Bad `who' character" char))))
 
 (defun file-modes-char-to-right (char &optional from)
   "Convert CHAR to a numeric value of mode bits.
@@ -7971,7 +7972,7 @@ If CHAR is in [Xugo], the value is taken from FROM (or 0 if omitted)."
 		       (+ gright (/ gright #o10) (* gright #o10))))
 	((= char ?o) (let ((oright (logand #o1007 from)))
 		       (+ oright (* oright #o10) (* oright #o100))))
-	(t (error "%c: bad right character" char))))
+        (t (error "%c: Bad right character" char))))
 
 (defun file-modes-rights-to-number (rights who-mask &optional from)
   "Convert a symbolic mode string specification to an equivalent number.

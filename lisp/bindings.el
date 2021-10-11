@@ -505,7 +505,7 @@ mouse-1: Display Line and Column Mode Menu"))
      local-map ,mode-line-column-line-number-mode-map
      mouse-face mode-line-highlight
      ;; XXX needs better description
-     help-echo "Size indication mode\n\
+     help-echo "Buffer Position
 mouse-1: Display Line and Column Mode Menu")
     (size-indication-mode
      (8 ,(propertize
@@ -993,6 +993,9 @@ if `inhibit-field-text-motion' is non-nil."
     map)
   "Keymap to repeat undo key sequences `C-x u u'.  Used in `repeat-mode'.")
 (put 'undo 'repeat-map 'undo-repeat-map)
+
+(define-key global-map '[(control ??)] 'undo-redo)
+(define-key global-map [?\C-\M-_] 'undo-redo)
 
 (define-key esc-map "!" 'shell-command)
 (define-key esc-map "|" 'shell-command-on-region)

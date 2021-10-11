@@ -512,7 +512,7 @@ to automatically indent if-then-else constructs."
   :type 'boolean)
 
 (defcustom prolog-electric-colon-flag nil
-  "Makes `:' electric (inserts `:-' on a new line).
+  "Non-nil means make `:' electric (inserts `:-' on a new line).
 If non-nil, pressing `:' at the end of a line that starts in
 the first column (i.e., clause heads) inserts ` :-' and newline."
   :version "24.1"
@@ -520,7 +520,7 @@ the first column (i.e., clause heads) inserts ` :-' and newline."
   :type 'boolean)
 
 (defcustom prolog-electric-dash-flag nil
-  "Makes `-' electric (inserts a `-->' on a new line).
+  "Non-nil means make `-' electric (inserts a `-->' on a new line).
 If non-nil, pressing `-' at the end of a line that starts in
 the first column (i.e., DCG heads) inserts ` -->' and newline."
   :version "24.1"
@@ -2484,11 +2484,8 @@ Interaction supports completion."
     (if (eq (try-completion default prolog-info-alist) nil)
         (setq default nil))
     ;; Read the PredSpec from the user
-    (completing-read
-     (if (zerop (length default))
-         "Help on predicate: "
-       (concat "Help on predicate (default " default "): "))
-     prolog-info-alist nil t nil nil default)))
+    (completing-read (format-prompt "Help on predicate" default)
+                     prolog-info-alist nil t nil nil default)))
 
 (defun prolog-build-info-alist (&optional verbose)
   "Build an alist of all builtins and library predicates.

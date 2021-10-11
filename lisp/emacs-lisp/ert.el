@@ -63,6 +63,7 @@
 (require 'ewoc)
 (require 'find-func)
 (require 'pp)
+(require 'map)
 
 ;;; UI customization options.
 
@@ -218,11 +219,7 @@ it has to be wrapped in `(eval (quote ...))'.
                             `(:expected-result-type ,expected-result))
                         ,@(when tags-supplied-p
                             `(:tags ,tags))
-                        :body (lambda ()
-                                ;; Use the value of `lexical-binding' in
-                                ;; the source file when evaluating the body.
-                                (let ((lexical-binding ,lexical-binding))
-                                  ,@body))))
+                        :body (lambda () ,@body)))
          ',name))))
 
 (defvar ert--find-test-regexp
@@ -262,7 +259,7 @@ DATA is displayed to the user and should state the reason for skipping."
 ;; See Bug#24402 for why this exists
 (defun ert--should-signal-hook (error-symbol data)
   "Stupid hack to stop `condition-case' from catching ert signals.
-It should only be stopped when ran from inside ert--run-test-internal."
+It should only be stopped when ran from inside `ert--run-test-internal'."
   (when (and (not (symbolp debugger))   ; only run on anonymous debugger
              (memq error-symbol '(ert-test-failed ert-test-skipped)))
     (funcall debugger 'error (cons error-symbol data))))
@@ -779,7 +776,8 @@ This mainly sets up debugger-related bindings."
         ;; handle ert errors. Once that's done, remove
         ;; `ert--should-signal-hook'.  See Bug#24402 and Bug#11218 for
         ;; details.
-        (let ((debugger (lambda (&rest args)
+        (let ((lexical-binding t)
+              (debugger (lambda (&rest args)
                           (ert--run-test-debugger test-execution-info
                                                   args)))
               (debug-on-error t)
@@ -2660,6 +2658,125 @@ To be used in the ERT results buffer."
   (ert--remove-from-list 'emacs-lisp-mode-hook
                          'ert--activate-font-lock-keywords)
   nil)
+
+(defun ert-test-erts-file (file &optional transform)
+  "Parse FILE as a file containing before/after parts.
+TRANSFORM will be called to get from before to after."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (let ((gen-specs (list (cons 'dummy t)
+                           (cons 'code transform))))
+      ;; The start of the "before" part starts with a form feed and then
+      ;; the name of the test.
+      (while (re-search-forward "^=-=\n" nil t)
+        (setq gen-specs (ert-test--erts-test gen-specs file))))))
+
+(defun ert-test--erts-test (gen-specs file)
+  (let* ((file-buffer (current-buffer))
+         (specs (ert--erts-specifications (match-beginning 0)))
+         (name (cdr (assq 'name specs)))
+         (start-before (point))
+         (end-after (if (re-search-forward "^=-=-=\n" nil t)
+                        (match-beginning 0)
+                      (point-max)))
+         (skip (cdr (assq 'skip specs)))
+         end-before start-after
+         after after-point)
+    (unless name
+      (error "No name for test case"))
+    (if (and skip
+             (eval (car (read-from-string skip))))
+        ;; Skipping this test.
+        ()
+      ;; Do the test.
+      (goto-char end-after)
+      ;; We have a separate after section.
+      (if (re-search-backward "^=-=\n" start-before t)
+          (setq end-before (match-beginning 0)
+                start-after (match-end 0))
+        (setq end-before end-after
+              start-after start-before))
+      ;; Update persistent specs.
+      (when-let ((point-char (assq 'point-char specs)))
+        (setq gen-specs
+              (map-insert gen-specs 'point-char (cdr point-char))))
+      (when-let ((code (cdr (assq 'code specs))))
+        (setq gen-specs
+              (map-insert gen-specs 'code (car (read-from-string code)))))
+      ;; Get the "after" strings.
+      (with-temp-buffer
+        (insert-buffer-substring file-buffer start-after end-after)
+        (ert--erts-unquote)
+        ;; Remove the newline at the end of the buffer.
+        (when-let ((no-newline (cdr (assq 'no-after-newline specs))))
+          (goto-char (point-min))
+          (when (re-search-forward "\n\\'" nil t)
+            (delete-region (match-beginning 0) (match-end 0))))
+        ;; Get the expected "after" point.
+        (when-let ((point-char (cdr (assq 'point-char gen-specs))))
+          (goto-char (point-min))
+          (when (search-forward point-char nil t)
+            (delete-region (match-beginning 0) (match-end 0))
+            (setq after-point (point))))
+        (setq after (buffer-string)))
+      ;; Do the test.
+      (with-temp-buffer
+        (insert-buffer-substring file-buffer start-before end-before)
+        (ert--erts-unquote)
+        ;; Remove the newline at the end of the buffer.
+        (when-let ((no-newline (cdr (assq 'no-before-newline specs))))
+          (goto-char (point-min))
+          (when (re-search-forward "\n\\'" nil t)
+            (delete-region (match-beginning 0) (match-end 0))))
+        (goto-char (point-min))
+        ;; Place point in the specified place.
+        (when-let ((point-char (cdr (assq 'point-char gen-specs))))
+          (when (search-forward point-char nil t)
+            (delete-region (match-beginning 0) (match-end 0))))
+        (let ((code (cdr (assq 'code gen-specs))))
+          (unless code
+            (error "No code to run the transform"))
+          (funcall code))
+        (unless (equal (buffer-string) after)
+          (ert-fail (list (format "Mismatch in test \"%s\", file %s"
+                                  name file)
+                          (buffer-string)
+                          after)))
+        (when (and after-point
+                   (not (= after-point (point))))
+          (ert-fail (list (format "Point wrong in test \"%s\", expected point %d, actual %d, file %s"
+                                  name
+                                  after-point (point)
+                                  file)
+                          (buffer-string)))))))
+  ;; Return the new value of the general specifications.
+  gen-specs)
+
+(defun ert--erts-unquote ()
+  (goto-char (point-min))
+  (while (re-search-forward "^\\=-=\\(-=\\)$" nil t)
+    (delete-region (match-beginning 0) (1+ (match-beginning 0)))))
+
+(defun ert--erts-specifications (end)
+  "Find specifications before point (back to the previous test)."
+  (save-excursion
+    (goto-char end)
+    (goto-char
+     (if (re-search-backward "^=-=-=\n" nil t)
+         (match-end 0)
+       (point-min)))
+    (let ((specs nil))
+      (while (< (point) end)
+        (if (looking-at "\\([^ \n\t:]+\\):\\([ \t]+\\)?\\(.*\\)")
+            (let ((name (intern (downcase (match-string 1))))
+                  (value (match-string 3)))
+              (forward-line 1)
+              (while (looking-at "[ \t]+\\(.*\\)")
+                (setq value (concat value (match-string 1)))
+                (forward-line 1))
+              (push (cons name value) specs))
+          (forward-line 1)))
+      (nreverse specs))))
 
 (defvar ert-unload-hook ())
 (add-hook 'ert-unload-hook #'ert--unload-function)

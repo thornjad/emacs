@@ -5130,7 +5130,8 @@ make_lispy_position (struct frame *f, Lisp_Object x, Lisp_Object y,
       window_or_frame = Qnil;
     }
 #endif
-  if (!FRAME_WINDOW_P (f)
+  if (f
+      && !FRAME_WINDOW_P (f)
       && FRAME_TAB_BAR_LINES (f) > 0
       && my >= FRAME_MENU_BAR_LINES (f)
       && my < FRAME_MENU_BAR_LINES (f) + FRAME_TAB_BAR_LINES (f))
@@ -7840,7 +7841,9 @@ parse_menu_item (Lisp_Object item, int inmenubar)
 	      else if (EQ (tem, QCkeys))
 		{
 		  tem = XCAR (item);
-		  if (CONSP (tem) || STRINGP (tem))
+		  if (FUNCTIONP (tem))
+		    ASET (item_properties, ITEM_PROPERTY_KEYEQ, call0 (tem));
+		  else if (CONSP (tem) || STRINGP (tem))
 		    ASET (item_properties, ITEM_PROPERTY_KEYEQ, tem);
 		}
 	      else if (EQ (tem, QCbutton) && CONSP (XCAR (item)))
@@ -10168,7 +10171,8 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 	 use the corresponding lower-case letter instead.  */
       if (NILP (current_binding)
 	  && /* indec.start >= t && fkey.start >= t && */ keytran.start >= t
-	  && FIXNUMP (key))
+	  && FIXNUMP (key)
+	  && translate_upper_case_key_bindings)
 	{
 	  Lisp_Object new_key;
 	  EMACS_INT k = XFIXNUM (key);
@@ -10220,12 +10224,14 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 	  int modifiers
 	    = CONSP (breakdown) ? (XFIXNUM (XCAR (XCDR (breakdown)))) : 0;
 
-	  if (modifiers & shift_modifier
-	      /* Treat uppercase keys as shifted.  */
-	      || (FIXNUMP (key)
-		  && (KEY_TO_CHAR (key)
-		      < XCHAR_TABLE (BVAR (current_buffer, downcase_table))->header.size)
-		  && uppercasep (KEY_TO_CHAR (key))))
+	  if (translate_upper_case_key_bindings
+	      && (modifiers & shift_modifier
+		  /* Treat uppercase keys as shifted.  */
+		  || (FIXNUMP (key)
+		      && (KEY_TO_CHAR (key)
+			  < XCHAR_TABLE (BVAR (current_buffer,
+					       downcase_table))->header.size)
+		      && uppercasep (KEY_TO_CHAR (key)))))
 	    {
 	      Lisp_Object new_key
 		= (modifiers & shift_modifier
@@ -12494,6 +12500,16 @@ If nil, Emacs crashes immediately in response to fatal signals.  */);
   DEFVAR_LISP ("while-no-input-ignore-events",
                Vwhile_no_input_ignore_events,
                doc: /* Ignored events from while-no-input.  */);
+
+  DEFVAR_BOOL ("translate-upper-case-key-bindings",
+               translate_upper_case_key_bindings,
+               doc: /* If non-nil, interpret upper case keys as lower case (when applicable).
+Emacs allows binding both upper and lower case key sequences to
+commands.  However, if there is a lower case key sequence bound to a
+command, and the user enters an upper case key sequence that is not
+bound to a command, Emacs will use the lower case binding.  Setting
+this variable to nil inhibits this behaviour.  */);
+  translate_upper_case_key_bindings = true;
 
   pdumper_do_now_and_after_load (syms_of_keyboard_for_pdumper);
 }

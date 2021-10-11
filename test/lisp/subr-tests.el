@@ -767,6 +767,18 @@ See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=19350."
       (should-not (equal dir default-directory))
       (should (file-exists-p default-directory)))))
 
+(ert-deftest subr-test-internal--format-docstring-line ()
+  (should
+   (string= (let ((fill-column 70))
+              (internal--format-docstring-line
+               "In addition to any hooks its parent mode might have run, this \
+mode runs the hook ‘foo-bar-baz-very-long-name-indeed-mode-hook’, as the final \
+or penultimate step during initialization."))
+            "In addition to any hooks its parent mode might have run, this mode
+runs the hook ‘foo-bar-baz-very-long-name-indeed-mode-hook’, as the
+final or penultimate step during initialization."))
+  (should-error (internal--format-docstring-line "foo\nbar")))
+
 (ert-deftest test-ensure-list ()
   (should (equal (ensure-list nil) nil))
   (should (equal (ensure-list :foo) '(:foo)))

@@ -59,7 +59,7 @@ with %, as follows.
 %#p  `am' or `pm'                       %P  gives uppercase: `AM' or `PM'
 %02S seconds
 %w   day number of week, Sunday is 0
-%02y 2-digit year: `03'                 %Y  4-digit year: `2003'
+%02y 2-digit year                       %Y  4-digit year
 %Z   time zone name: `EST'              %#Z gives lowercase: `est'
 %5z  time zone offset: `-0500' (since Emacs 27; see note below)
 
@@ -138,7 +138,7 @@ Its format is that of the ZONE argument of the `format-time-string' function."
 
 ;;;###autoload
 (defun time-stamp-zone-type-p (zone)
-  "Return whether or not ZONE is of the correct type for a timezone rule.
+  "Return non-nil if ZONE is of the correct type for a timezone rule.
 Valid ZONE values are described in the documentation of `format-time-string'."
   (or (memq zone '(nil t wall))
       (stringp zone)
@@ -313,7 +313,7 @@ this line to a local variables list near the end of the file:
 
 If the file has no time-stamp template, this function does nothing.
 
-You can set `time-stamp-pattern' in a files's local variables list
+You can set `time-stamp-pattern' in a file's local variables list
 to customize the information in the time stamp and where it is written.
 
 The time stamp is updated only if `time-stamp-active' is non-nil."
@@ -712,7 +712,7 @@ and all `time-stamp-format' compatibility."
 
 (defun time-stamp-do-number (format-char alt-form field-width time)
   "Handle compatible FORMAT-CHAR where only default width/padding will change.
-ALT-FORM is whether `#' specified.  FIELD-WIDTH is the string
+ALT-FORM is whether `#' was specified.  FIELD-WIDTH is the string
 width specification or \"\".  TIME is the time to convert.
 This is an internal helper for `time-stamp-string-preprocess'."
   (let ((format-string (concat "%" (char-to-string format-char))))

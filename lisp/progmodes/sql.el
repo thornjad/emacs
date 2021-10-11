@@ -963,12 +963,7 @@ If set to \"\\n\", each line in the history file will be interpreted as
 one command.  Multi-line commands are split into several commands when
 the input ring is initialized from a history file.
 
-This variable used to initialize `comint-input-ring-separator'.
-`comint-input-ring-separator' is part of Emacs 21; if your Emacs
-does not have it, setting `sql-input-ring-separator' will have no
-effect.  In that case multiline commands will be split into several
-commands when the input history is read, as if you had set
-`sql-input-ring-separator' to \"\\n\"."
+This variable used to initialize `comint-input-ring-separator'."
   :type 'string)
 
 ;; The usual hooks
@@ -1357,8 +1352,6 @@ specified, it's `sql-product' or `sql-connection' must match."
 (defvar sql-interactive-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map comint-mode-map)
-    (if (fboundp 'set-keymap-name)
-	(set-keymap-name map 'sql-interactive-mode-map)); XEmacs
     (define-key map (kbd "C-j") 'sql-accumulate-and-indent)
     (define-key map (kbd "C-c C-w") 'sql-copy-column)
     (define-key map (kbd "O") 'sql-magic-go)
@@ -2832,16 +2825,6 @@ configured."
       (font-lock-mode-internal nil)
       (font-lock-mode-internal t))
 
-    (add-hook 'font-lock-mode-hook
-              (lambda ()
-                  ;; Provide defaults for new font-lock faces.
-                  (defvar font-lock-builtin-face
-                    (if (boundp 'font-lock-preprocessor-face)
-                        font-lock-preprocessor-face
-                      font-lock-keyword-face))
-                  (defvar font-lock-doc-face font-lock-string-face))
-	      nil t)
-
     ;; Setup imenu; it needs the same syntax-alist.
     (when imenu
       (setq imenu-syntax-alist syntax-alist))))
@@ -3219,14 +3202,7 @@ For both `:file' and `:completion', there can also be a
    symbol
    (let* ((default (plist-get plist :default))
           (last-value (sql-default-value symbol))
-          (prompt-def
-           (if default
-               (if (string-match "\\(\\):[ \t]*\\'" prompt)
-                   (replace-match (format " (default \"%s\")" default) t t prompt 1)
-                 (replace-regexp-in-string "[ \t]*\\'"
-                                           (format " (default \"%s\") " default)
-                                           prompt t t))
-             prompt))
+          (prompt-def (format-prompt prompt default))
           (use-dialog-box nil))
      (cond
       ((plist-member plist :file)
@@ -3311,7 +3287,7 @@ function like this: (sql-get-login \\='user \\='password \\='database)."
     (let ((plist (cdr-safe w)))
       (pcase (or (car-safe w) w)
         ('user
-         (sql-get-login-ext 'sql-user "User: " 'sql-user-history plist))
+         (sql-get-login-ext 'sql-user "User" 'sql-user-history plist))
 
         ('password
          (setq-default sql-password
@@ -3330,14 +3306,14 @@ function like this: (sql-get-login \\='user \\='password \\='database)."
                          (read-passwd "Password: " nil (sql-default-value 'sql-password)))))
 
         ('server
-         (sql-get-login-ext 'sql-server "Server: " 'sql-server-history plist))
+         (sql-get-login-ext 'sql-server "Server" 'sql-server-history plist))
 
         ('database
-         (sql-get-login-ext 'sql-database "Database: "
+         (sql-get-login-ext 'sql-database "Database"
                             'sql-database-history plist))
 
         ('port
-         (sql-get-login-ext 'sql-port "Port: "
+         (sql-get-login-ext 'sql-port "Port"
                             nil (append '(:number t) plist)))))))
 
 (defun sql-find-sqli-buffer (&optional product connection)
@@ -3976,13 +3952,13 @@ for each match."
                        (cond
                         ((numberp c) (match-string c))
                         ((stringp c) (match-substitute-replacement c))
-                        (t (error "sql-redirect-value: unknown REGEXP-GROUPS value - %s" c))))
+                        (t (error "sql-redirect-value: Unknown REGEXP-GROUPS value - %s" c))))
                    regexp-groups))
           ;; String is specified; return replacement string
           ((stringp regexp-groups)
            (match-substitute-replacement regexp-groups))
           (t
-           (error "sql-redirect-value: unknown REGEXP-GROUPS value - %s"
+           (error "sql-redirect-value: Unknown REGEXP-GROUPS value - %s"
                   regexp-groups)))
          results)))
 
@@ -4182,10 +4158,6 @@ must tell Emacs.  Here's how to do that in your init file:
 	    (modify-syntax-entry ?\\\\ \"\\\\\" sql-mode-syntax-table)))"
   :abbrev-table sql-mode-abbrev-table
 
-  (when (and (featurep 'xemacs)
-             sql-mode-menu)
-      (easy-menu-add sql-mode-menu))
-
   ;; (smie-setup sql-smie-grammar #'sql-smie-rules)
   (setq-local comment-start "--")
   ;; Make each buffer in sql-mode remember the "current" SQLi buffer.
@@ -4308,9 +4280,6 @@ you entered, right above the output it created.
   (setq mode-name
         (concat "SQLi[" (or (sql-get-product-feature sql-product :name)
                             (symbol-name sql-product)) "]"))
-  (when (and (featurep 'xemacs)
-             sql-interactive-mode-menu)
-    (easy-menu-add sql-interactive-mode-menu))
 
   ;; Note that making KEYWORDS-ONLY nil will cause havoc if you try
   ;; SELECT 'x' FROM DUAL with SQL*Plus, because the title of the column

@@ -93,7 +93,7 @@ Enable the mode if ARG is nil, omitted, or is a positive number.
 Disable the mode if ARG is a negative number.
 
 To check whether the minor mode is enabled in the current buffer,
-evaluate `%S'.
+evaluate `%s'.
 
 The mode's hook is called both when the mode is enabled and when
 it is disabled.")
@@ -109,7 +109,9 @@ it is disabled.")
              (docs-fc (bound-and-true-p emacs-lisp-docstring-fill-column))
              (fill-column (if (integerp docs-fc) docs-fc 65))
              (argdoc (format easy-mmode--arg-docstring mode-pretty-name
-                             getter))
+                             ;; Avoid having quotes turn into pretty quotes.
+                             (string-replace "'" "\\\\='"
+                                             (format "%S" getter))))
              (filled (if (fboundp 'fill-region)
                          (with-temp-buffer
                            (insert argdoc)
@@ -496,15 +498,17 @@ on if the hook has explicitly disabled it.
        (define-minor-mode ,global-mode
          ,(concat (format "Toggle %s in all buffers.\n" pretty-name)
                   (internal--format-docstring-line
-                   "With prefix ARG, enable %s if ARG is positive; otherwise, \
-disable it.\n\n"
+                   (concat "With prefix ARG, enable %s if ARG is positive; "
+                           "otherwise, disable it.")
                    pretty-global-name)
+                  "\n\n"
                   "If called from Lisp, toggle the mode if ARG is `toggle'.
 Enable the mode if ARG is nil, omitted, or is a positive number.
 Disable the mode if ARG is a negative number.\n\n"
                   (internal--format-docstring-line
-                   "%s is enabled in all buffers where `%s' would do it.\n\n"
+                   "%s is enabled in all buffers where `%s' would do it."
                    pretty-name turn-on)
+                  "\n\n"
                   (internal--format-docstring-line
                    "See `%s' for more information on %s."
                    mode pretty-name)

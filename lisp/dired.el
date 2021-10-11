@@ -247,7 +247,7 @@ This is similar to the \"-L\" option for the \"cp\" shell command."
   :type 'boolean
   :group 'dired)
 
-;; These variables were deleted and the replacements are on files.el.
+;; These variables were deleted and the replacements are in files.el.
 ;; We leave aliases behind for back-compatibility.
 (define-obsolete-variable-alias 'dired-free-space-program
   'directory-free-space-program "27.1")
@@ -4490,6 +4490,7 @@ Ask means pop up a menu for the user to select one of copy, move or link."
 
 (defvar archive-superior-buffer)
 (defvar tar-superior-buffer)
+(declare-function dired-omit-mode "dired-x" (&optional arg))
 
 ;;;###autoload
 (defun dired-jump (&optional other-window file-name)

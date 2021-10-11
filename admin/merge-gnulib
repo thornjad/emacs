@@ -30,7 +30,8 @@ GNULIB_MODULES='
   canonicalize-lgpl
   careadlinkat close-stream copy-file-range
   count-leading-zeros count-one-bits count-trailing-zeros
-  crypto/md5-buffer crypto/sha1-buffer crypto/sha256-buffer crypto/sha512-buffer
+  crypto/md5 crypto/md5-buffer
+  crypto/sha1-buffer crypto/sha256-buffer crypto/sha512-buffer
   d-type diffseq double-slash-root dtoastr dtotimespec dup2
   environ execinfo explicit_bzero faccessat
   fchmodat fcntl fcntl-h fdopendir file-has-acl
@@ -49,8 +50,8 @@ GNULIB_MODULES='
 '
 
 AVOIDED_MODULES='
-  btowc close dup fchdir fstat langinfo lock
-  malloc-posix mbrtowc mbsinit memchr mkdir msvc-inval msvc-nothrow nl_langinfo
+  btowc close crypto/af_alg dup fchdir fstat langinfo lock
+  mbrtowc mbsinit memchr mkdir msvc-inval msvc-nothrow nl_langinfo
   openat-die opendir pthread-h raise
   save-cwd select setenv sigprocmask stat stdarg stdbool
   threadlib tzset unsetenv utime utime-h
@@ -118,5 +119,8 @@ cp -- "$gnulib_srcdir"/build-aux/config.guess \
       "$gnulib_srcdir"/build-aux/install-sh \
       "$gnulib_srcdir"/build-aux/move-if-change \
    "$src"build-aux &&
+cp -- "$gnulib_srcdir"/lib/af_alg.h \
+      "$gnulib_srcdir"/lib/save-cwd.h \
+   "$src"lib &&
 { test -z "$src" || cd "$src"; } &&
 ./autogen.sh

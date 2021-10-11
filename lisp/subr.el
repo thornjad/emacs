@@ -696,7 +696,7 @@ If N is omitted or nil, remove the last element."
   "Destructively remove `equal' duplicates from LIST.
 Store the result in LIST and return it.  LIST must be a proper list.
 Of several `equal' occurrences of an element in LIST, the first
-one is kept."
+one is kept.  See `seq-uniq' for non-destructive operation."
   (let ((l (length list)))
     (if (> l 100)
         (let ((hash (make-hash-table :test #'equal :size l))
@@ -1752,6 +1752,7 @@ be a list of the form returned by `event-start' and `event-end'."
 (make-obsolete 'window-redisplay-end-trigger nil "23.1")
 (make-obsolete 'set-window-redisplay-end-trigger nil "23.1")
 (make-obsolete-variable 'operating-system-release nil "28.1")
+(make-obsolete-variable 'inhibit-changing-match-data 'save-match-data "29.1")
 
 (make-obsolete 'run-window-configuration-change-hook nil "27.1")
 
@@ -3218,7 +3219,7 @@ PROMPT is also updated to show `help-char' like \"(y, n or C-h) \",
 where `help-char' is automatically bound to `help-form-show'.
 
 No confirmation of the answer is requested; a single character is
-enough.  SPC also means yes, and DEL means no.
+enough.  RET and SPC also means yes, and DEL means no.
 
 To be precise, this function translates user input into responses
 by consulting the bindings in `query-replace-map'; see the
@@ -4761,14 +4762,12 @@ wherever possible, since it is slow."
 (defsubst looking-at-p (regexp)
   "\
 Same as `looking-at' except this function does not change the match data."
-  (let ((inhibit-changing-match-data t))
-    (looking-at regexp)))
+  (looking-at regexp t))
 
 (defsubst string-match-p (regexp string &optional start)
   "\
 Same as `string-match' except this function does not change the match data."
-  (let ((inhibit-changing-match-data t))
-    (string-match regexp string start)))
+  (string-match regexp string start t))
 
 (defun subregexp-context-p (regexp pos &optional start)
   "Return non-nil if POS is in a normal subregexp context in REGEXP.
@@ -6435,8 +6434,13 @@ of fill.el (for example `fill-region')."
       (concat fst (internal--fill-string-single-line lst)))))
 
 (defun internal--format-docstring-line (string &rest objects)
-  "Format a documentation string out of STRING and OBJECTS.
-This is intended for internal use only."
+  "Format a single line from a documentation string out of STRING and OBJECTS.
+Signal an error if STRING contains a newline.
+This is intended for internal use only.  Avoid using this for the
+first line of a docstring; the first line should be a complete
+sentence (see Info node `(elisp) Documentation Tips')."
+  (when (string-match "\n" string)
+    (error "Unable to fill string containing newline: %S" string))
   (internal--fill-string-single-line (apply #'format string objects)))
 
 (defun json-available-p ()
@@ -6454,5 +6458,112 @@ not a list, return a one-element list containing OBJECT."
   (if (listp object)
       object
     (list object)))
+
+(defun define-keymap (&rest definitions)
+  "Create a new keymap and define KEY/DEFEFINITION pairs as key sequences.
+The new keymap is returned.
+
+Options can be given as keywords before the KEY/DEFEFINITION
+pairs.  Available keywords are:
+
+:full      If non-nil, create a chartable alist (see `make-keymap').
+             If nil (i.e., the default), create a sparse keymap (see
+             `make-sparse-keymap').
+
+:suppress  If non-nil, the keymap will be suppressed (see `suppress-keymap').
+             If `nodigits', treat digits like other chars.
+
+:parent    If non-nil, this should be a keymap to use as the parent
+             (see `set-keymap-parent').
+
+:keymap    If non-nil, instead of creating a new keymap, the given keymap
+             will be destructively modified instead.
+
+:name      If non-nil, this should be a string to use as the menu for
+             the keymap in case you use it as a menu with `x-popup-menu'.
+
+:prefix    If non-nil, this should be a symbol to be used as a prefix
+             command (see `define-prefix-command').  If this is the case,
+             this symbol is returned instead of the map itself.
+
+KEY/DEFINITION pairs are as KEY and DEF in `define-key'.  KEY can
+also be the special symbol `:menu', in which case DEFINITION
+should be a MENU form as accepted by `easy-menu-define'.
+
+\(fn &key FULL PARENT SUPPRESS NAME PREFIX KEYMAP &rest [KEY DEFINITION]...)"
+  (define-keymap--define definitions))
+
+(defun define-keymap--define (definitions)
+  (let (full suppress parent name prefix keymap)
+    ;; Handle keywords.
+    (while (and definitions
+                (keywordp (car definitions))
+                (not (eq (car definitions) :menu)))
+      (let ((keyword (pop definitions)))
+        (unless definitions
+          (error "Missing keyword value for %s" keyword))
+        (let ((value (pop definitions)))
+          (pcase keyword
+            (:full (setq full value))
+            (:keymap (setq keymap value))
+            (:parent (setq parent value))
+            (:suppress (setq suppress value))
+            (:name (setq name value))
+            (:prefix (setq prefix value))))))
+
+    (when (and prefix
+               (or full parent suppress keymap))
+      (error "A prefix keymap can't be defined with :full/:parent/:suppress/:keymap keywords"))
+
+    (when (and keymap full)
+      (error "Invalid combination: :keymap with :full"))
+
+    (let ((keymap (cond
+                   (keymap keymap)
+                   (prefix (define-prefix-command prefix nil name))
+                   (full (make-keymap name))
+                   (t (make-sparse-keymap name)))))
+      (when suppress
+        (suppress-keymap keymap (eq suppress 'nodigits)))
+      (when parent
+        (set-keymap-parent keymap parent))
+
+      ;; Do the bindings.
+      (while definitions
+        (let ((key (pop definitions)))
+          (unless definitions
+            (error "Uneven number of key/definition pairs"))
+          (let ((def (pop definitions)))
+            (if (eq key :menu)
+                (easy-menu-define nil keymap "" def)
+              (define-key keymap key def)))))
+      keymap)))
+
+(defmacro defvar-keymap (variable-name &rest defs)
+  "Define VARIABLE-NAME as a variable with a keymap definition.
+See `define-keymap' for an explanation of the keywords and KEY/DEFINITION.
+
+In addition to the keywords accepted by `define-keymap', this
+macro also accepts a `:doc' keyword, which (if present) is used
+as the variable documentation string.
+
+\(fn VARIABLE-NAME &key DOC FULL PARENT SUPPRESS NAME PREFIX KEYMAP &rest [KEY DEFINITION]...)"
+  (let ((opts nil)
+        doc)
+    (while (and defs
+                (keywordp (car defs))
+                (not (eq (car defs) :menu)))
+      (let ((keyword (pop defs)))
+        (unless defs
+          (error "Uneven number of keywords"))
+        (if (eq keyword :doc)
+            (setq doc (pop defs))
+          (push keyword opts)
+          (push (pop defs) opts))))
+    (unless (zerop (% (length defs) 2))
+      (error "Uneven number of key/definition pairs: %s" defs))
+    `(defvar ,variable-name
+       (define-keymap--define (list ,@(nreverse opts) ,@defs))
+       ,@(and doc (list doc)))))
 
 ;;; subr.el ends here

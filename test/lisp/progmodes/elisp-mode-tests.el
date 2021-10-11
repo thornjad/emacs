@@ -23,8 +23,10 @@
 ;;; Code:
 
 (require 'ert)
+(require 'ert-x)
 (require 'xref)
 (eval-when-compile (require 'cl-lib))
+(require 'ert-x)
 
 ;;; Completion
 
@@ -315,27 +317,27 @@
            (expected (pop expected-xrefs))
            (expected-xref (or (when (consp expected) (car expected)) expected))
            (expected-source (when (consp expected) (cdr expected)))
-           (xref-file (xref-elisp-location-file (oref xref location)))
+           (xref-file (xref-elisp-location-file (xref-item-location xref)))
            (expected-file (xref-elisp-location-file
-                           (oref expected-xref location))))
+                           (xref-item-location expected-xref))))
 
       ;; Make sure file names compare as strings.
       (when (file-name-absolute-p xref-file)
-        (setf (xref-elisp-location-file (oref xref location))
-              (file-truename (xref-elisp-location-file (oref xref location)))))
+        (setf (xref-elisp-location-file (xref-item-location xref))
+              (file-truename (xref-elisp-location-file (xref-item-location xref)))))
       (when (file-name-absolute-p expected-file)
-        (setf (xref-elisp-location-file (oref expected-xref location))
+        (setf (xref-elisp-location-file (xref-item-location expected-xref))
               (file-truename (xref-elisp-location-file
-                              (oref expected-xref location)))))
+                              (xref-item-location expected-xref)))))
 
       ;; Downcase the filenames for case-insensitive file systems.
       (when xref--case-insensitive
-        (setf (xref-elisp-location-file (oref xref location))
-              (downcase (xref-elisp-location-file (oref xref location))))
+        (setf (xref-elisp-location-file (xref-item-location xref))
+              (downcase (xref-elisp-location-file (xref-item-location xref))))
 
-        (setf (xref-elisp-location-file (oref expected-xref location))
+        (setf (xref-elisp-location-file (xref-item-location expected-xref))
               (downcase (xref-elisp-location-file
-                         (oref expected-xref location)))))
+                         (xref-item-location expected-xref)))))
 
       (should (equal xref expected-xref))
 
@@ -415,8 +417,6 @@ to (xref-elisp-test-descr-to-target xref)."
                                  emacs-test-dir)))))
 
 ;; FIXME: defconst
-
-;; FIXME: eieio defclass
 
 ;; Possible ways of defining the default method implementation for a
 ;; generic function. We declare these here, so we know we cover all
@@ -842,18 +842,6 @@ to (xref-elisp-test-descr-to-target xref)."
     (insert "?\\N{HEAVY CHECK MARK}")
     (should (equal (elisp--preceding-sexp) ?\N{HEAVY CHECK MARK}))))
 
-(ert-deftest elisp-indent-basic ()
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (let ((orig "(defun x ()
-  (print (quote ( thingy great
-		  stuff)))
-  (print (quote (thingy great
-			stuff))))"))
-      (insert orig)
-      (indent-region (point-min) (point-max))
-      (should (equal (buffer-string) orig)))))
-
 (defun test--font (form search)
   (with-temp-buffer
     (emacs-lisp-mode)
@@ -1020,6 +1008,86 @@ evaluation of BODY."
     (should (equal (elisp--xref-infer-namespace p2) 'any))
     (should (equal (elisp--xref-infer-namespace p3) 'any))
     (should (equal (elisp--xref-infer-namespace p4) 'any))))
+
+
+(ert-deftest elisp-shorthand-read-buffer ()
+  (let* ((gsym (downcase (symbol-name (cl-gensym "sh-"))))
+         (shorthand-sname (format "s-%s" gsym))
+         (expected (intern (format "shorthand-longhand-%s" gsym))))
+    (cl-assert (not (intern-soft shorthand-sname)))
+    (should (equal (let ((read-symbol-shorthands
+                          '(("s-" . "shorthand-longhand-"))))
+                     (with-temp-buffer
+                       (insert shorthand-sname)
+                       (goto-char (point-min))
+                       (read (current-buffer))))
+                   expected))
+    (should (not (intern-soft shorthand-sname)))))
+
+(ert-deftest elisp-shorthand-read-from-string ()
+  (let* ((gsym (downcase (symbol-name (cl-gensym "sh-"))))
+         (shorthand-sname (format "s-%s" gsym))
+         (expected (intern (format "shorthand-longhand-%s" gsym))))
+    (cl-assert (not (intern-soft shorthand-sname)))
+    (should (equal (let ((read-symbol-shorthands
+                          '(("s-" . "shorthand-longhand-"))))
+                     (car (read-from-string shorthand-sname)))
+                   expected))
+    (should (not (intern-soft shorthand-sname)))))
+
+(ert-deftest elisp-shorthand-load-a-file ()
+  (let ((test-file (ert-resource-file "simple-shorthand-test.el")))
+    (mapatoms (lambda (s)
+                (when (string-match "^elisp--foo-" (symbol-name s))
+                  (unintern s obarray))))
+    (load test-file)
+    (should (intern-soft "elisp--foo-test"))
+    (should-not (intern-soft "f-test"))))
+
+(ert-deftest elisp-shorthand-byte-compile-a-file ()
+
+  (let ((test-file (ert-resource-file "simple-shorthand-test.el"))
+        (byte-compiled (ert-resource-file "simple-shorthand-test.elc")))
+    (mapatoms (lambda (s)
+                (when (string-match "^elisp--foo-" (symbol-name s))
+                  (unintern s obarray))))
+    (byte-compile-file test-file)
+    (should-not (intern-soft "f-test"))
+    (should (intern-soft "elisp--foo-test"))
+    (should-not (fboundp (intern-soft "elisp--foo-test")))
+    (load byte-compiled)
+    (should (intern-soft "elisp--foo-test"))
+    (should-not (intern-soft "f-test"))))
+
+(ert-deftest elisp-shorthand-completion-at-point ()
+  (let ((test-file (ert-resource-file "simple-shorthand-test.el")))
+    (load test-file)
+    (with-current-buffer (find-file-noselect test-file)
+      (revert-buffer t t)
+      (goto-char (point-min))
+      (insert "f-test-compl")
+      (completion-at-point)
+      (goto-char (point-min))
+      (should (search-forward "f-test-complete-me" (line-end-position) t))
+      (goto-char (point-min))
+      (should (string= (symbol-name (read (current-buffer)))
+                       "elisp--foo-test-complete-me"))
+      (revert-buffer t t))))
+
+(ert-deftest elisp-shorthand-escape ()
+  (let ((test-file (ert-resource-file "simple-shorthand-test.el")))
+    (load test-file)
+    (should (intern-soft "f-test4---"))
+    (should-not (intern-soft "elisp--foo-test4---"))
+    (should (= 84 (funcall (intern-soft "f-test4---"))))
+    (should (unintern "f-test4---"))))
+
+(ert-deftest test-indentation ()
+  (ert-test-erts-file (ert-resource-file "elisp-indents.erts"))
+  (ert-test-erts-file (ert-resource-file "flet.erts")
+                      (lambda ()
+                        (emacs-lisp-mode)
+                        (indent-region (point-min) (point-max)))))
 
 (provide 'elisp-mode-tests)
 ;;; elisp-mode-tests.el ends here

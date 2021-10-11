@@ -208,7 +208,9 @@ The variable list SPEC is the same as in `if-let'."
   (string= string ""))
 
 (defsubst string-join (strings &optional separator)
-  "Join all STRINGS using SEPARATOR."
+  "Join all STRINGS using SEPARATOR.
+Optional argument SEPARATOR must be a string, a vector, or a list of
+characters; nil stands for the empty string."
   (mapconcat #'identity strings separator))
 
 (define-obsolete-function-alias 'string-reverse 'reverse "25.1")
@@ -400,6 +402,44 @@ as the new values of the bound variables in the recursive invocation."
       (cl-labels ((,name ,fargs . ,body)) #',name)
       . ,aargs)))
 
+(defmacro with-memoization (place &rest code)
+  "Return the value of CODE and stash it in PLACE.
+If PLACE's value is non-nil, then don't bother evaluating CODE
+and return the value found in PLACE instead."
+  (declare (indent 1) (debug (gv-place body)))
+  (gv-letplace (getter setter) place
+    `(or ,getter
+         ,(macroexp-let2 nil val (macroexp-progn code)
+            `(progn
+               ,(funcall setter val)
+               ,val)))))
+
+;;;###autoload
+(defun ensure-empty-lines (&optional lines)
+  "Ensure that there's LINES number of empty lines before point.
+If LINES is nil or missing, a this ensures that there's a single
+empty line before point.
+
+Interactively, this command uses the numerical prefix for LINES.
+
+If there's already more empty lines before point than LINES, the
+number of blank lines will be reduced.
+
+If point is not at the beginning of a line, a newline character
+is inserted before adjusting the number of empty lines."
+  (interactive "p")
+  (unless (bolp)
+    (insert "\n"))
+  (let ((lines (or lines 1))
+        (start (save-excursion
+                 (if (re-search-backward "[^\n]" nil t)
+                     (+ (point) 2)
+                   (point-min)))))
+    (cond
+     ((> (- (point) start) lines)
+      (delete-region (point) (- (point) (- (point) start lines))))
+     ((< (- (point) start) lines)
+      (insert (make-string (- lines (- (point) start)) ?\n))))))
 
 (provide 'subr-x)
 

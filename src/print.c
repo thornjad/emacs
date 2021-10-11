@@ -564,7 +564,7 @@ temp_output_buffer_setup (const char *bufname)
 
   Fset_buffer (Fget_buffer_create (build_string (bufname), Qnil));
 
-  Fkill_all_local_variables ();
+  Fkill_all_local_variables (Qnil);
   delete_all_overlays (current_buffer);
   bset_directory (current_buffer, BVAR (old, directory));
   bset_read_only (current_buffer, Qnil);
@@ -941,7 +941,11 @@ print_error_message (Lisp_Object data, Lisp_Object stream, const char *context,
   else
     {
       Lisp_Object error_conditions = Fget (errname, Qerror_conditions);
-      errmsg = call1 (Qsubstitute_command_keys, Fget (errname, Qerror_message));
+      errmsg = Fget (errname, Qerror_message);
+      /* During loadup 'substitute-command-keys' might not be available.  */
+      if (!NILP (Ffboundp (Qsubstitute_command_keys)))
+	errmsg = call1 (Qsubstitute_command_keys, errmsg);
+
       file_error = Fmemq (Qfile_error, error_conditions);
     }
 

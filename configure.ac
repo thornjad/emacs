@@ -23,7 +23,7 @@ dnl  along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 AC_PREREQ(2.65)
 dnl Note this is parsed by (at least) make-dist and lisp/cedet/ede/emacs.el.
-AC_INIT(Aero Emacs, 28.0.50, jademichael@jmthornton.net, , https://gitlab.com/thornjad/emacs)
+AC_INIT(Aero Emacs, 29.0.50, jademichael@jmthornton.net, , https://gitlab.com/thornjad/emacs)
 
 dnl Set emacs_config_options to the options of 'configure', quoted for the shell,
 dnl and then quoted again for a C string.  Separate options with spaces.
@@ -875,8 +875,8 @@ done
 ac_func_list=$funcs
 # Emacs does not use the wchar or wctype-h modules.
 AC_DEFUN([gt_TYPE_WINT_T],
-  [GNULIB_OVERRIDES_WINT_T=0
-   AC_SUBST([GNULIB_OVERRIDES_WINT_T])])
+  [GNULIBHEADERS_OVERRIDE_WINT_T=0
+   AC_SUBST([GNULIBHEADERS_OVERRIDE_WINT_T])])
 
 # Initialize gnulib right after choosing the compiler.
 dnl Amongst other things, this sets AR and ARFLAGS.
@@ -3738,10 +3738,12 @@ AC_SUBST_FILE([module_env_snippet_25])
 AC_SUBST_FILE([module_env_snippet_26])
 AC_SUBST_FILE([module_env_snippet_27])
 AC_SUBST_FILE([module_env_snippet_28])
+AC_SUBST_FILE([module_env_snippet_29])
 module_env_snippet_25="$srcdir/src/module-env-25.h"
 module_env_snippet_26="$srcdir/src/module-env-26.h"
 module_env_snippet_27="$srcdir/src/module-env-27.h"
 module_env_snippet_28="$srcdir/src/module-env-28.h"
+module_env_snippet_29="$srcdir/src/module-env-29.h"
 emacs_major_version="${PACKAGE_VERSION%%.*}"
 AC_SUBST(emacs_major_version)
 

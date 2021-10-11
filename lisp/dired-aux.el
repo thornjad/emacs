@@ -444,10 +444,10 @@ List has a form of (file-name full-file-name (attribute-list))."
 			  ((eq op-symbol 'chgrp)
 			   (file-attribute-group-id
 			    (file-attributes default-file 'string))))))
-	 (prompt (concat "Change " attribute-name " of %s to"
-			 (if (eq op-symbol 'touch)
-			     " (default now): "
-			   ": ")))
+         (prompt (format-prompt "Change %s of %%s to"
+                                (when (eq op-symbol 'touch)
+                                    "now")
+                                attribute-name))
 	 (new-attribute (dired-mark-read-string prompt nil op-symbol
 						arg files default
 						(cond ((eq op-symbol 'chown)
@@ -2398,7 +2398,9 @@ But if `dired-copy-dereference' is non-nil, the symbolic
 links are dereferenced and then copied, similar to the \"-L\"
 option for the \"cp\" shell command.  If ARG is a cons with
 element 4 (`\\[universal-argument]'), the inverted value of
-`dired-copy-dereference' will be used."
+`dired-copy-dereference' will be used.
+
+Also see `dired-do-revert-buffer'."
   (interactive "P")
   (let ((dired-recursive-copies dired-recursive-copies)
         (dired-copy-dereference (if (equal arg '(4))
@@ -2419,7 +2421,9 @@ with the same names that the files currently have.  The default
 suggested for the target directory depends on the value of
 `dired-dwim-target', which see.
 
-For relative symlinks, use \\[dired-do-relsymlink]."
+For relative symlinks, use \\[dired-do-relsymlink].
+
+Also see `dired-do-revert-buffer'."
   (interactive "P")
   (dired-do-create-files 'symlink #'make-symbolic-link
                          "Symlink" arg dired-keep-marker-symlink))
@@ -2432,7 +2436,9 @@ When operating on multiple or marked files, you specify a directory
 and new hard links are made in that directory
 with the same names that the files currently have.  The default
 suggested for the target directory depends on the value of
-`dired-dwim-target', which see."
+`dired-dwim-target', which see.
+
+Also see `dired-do-revert-buffer'."
   (interactive "P")
   (dired-do-create-files 'hardlink #'dired-hardlink
                          "Hardlink" arg dired-keep-marker-hardlink))
@@ -2451,7 +2457,9 @@ When renaming just the current file, you specify the new name.
 When renaming multiple or marked files, you specify a directory.
 This command also renames any buffers that are visiting the files.
 The default suggested for the target directory depends on the value
-of `dired-dwim-target', which see."
+of `dired-dwim-target', which see.
+
+Also see `dired-do-revert-buffer'."
   (interactive "P")
   (dired-do-create-files 'move #'dired-rename-file
 			 "Move" arg dired-keep-marker-rename "Rename"))
@@ -2728,7 +2736,7 @@ This function takes some pains to conform to `ls -lR' output."
   ;; Check that it is valid to insert DIRNAME with SWITCHES.
   ;; Signal an error if invalid (e.g. user typed `i' on `..').
   (or (file-in-directory-p dirname (expand-file-name default-directory))
-      (error  "%s: not in this directory tree" dirname))
+      (error  "%s: Not in this directory tree" dirname))
   (let ((real-switches (or switches dired-subdir-switches)))
     (when real-switches
       (let (case-fold-search)
