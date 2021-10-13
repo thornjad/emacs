@@ -38,9 +38,7 @@
 
 (eval-when-compile (require 'mh-acros))
 
-(mh-do-in-gnu-emacs
-  (define-obsolete-function-alias 'mh-require #'require "29.1"))
-
+(define-obsolete-function-alias 'mh-require #'require "29.1")
 (define-obsolete-function-alias 'mh-assoc-string #'assoc-string "29.1")
 (define-obsolete-function-alias 'mh-cancel-timer #'cancel-timer "29.1")
 
@@ -72,13 +70,9 @@ The optional argument COMMON-SUBSTRING, if non-nil, should be a string
 specifying a common substring for adding the faces
 `completions-first-difference' and `completions-common-part' to
 the completions."
-  (cond ((< emacs-major-version 22) `(display-completion-list ,completions))
-        ((fboundp 'completion-hilit-commonality) ; Emacs 23.1 and later
-         `(display-completion-list
-           (completion-hilit-commonality ,completions
-                                         ,(length common-substring) nil)))
-        (t                              ; Emacs 22
-         `(display-completion-list ,completions ,common-substring))))
+  `(display-completion-list
+    (completion-hilit-commonality ,completions
+                                  ,(length common-substring) nil)))
 
 (define-obsolete-function-alias 'mh-face-foreground
   #'face-foreground "29.1")
@@ -89,9 +83,13 @@ the completions."
 (define-obsolete-function-alias 'mh-font-lock-add-keywords
   #'font-lock-add-keywords "29.1")
 
+;; Not preloaded in without-x builds.
+(declare-function image-load-path-for-library "image")
 (define-obsolete-function-alias 'mh-image-load-path-for-library
   #'image-load-path-for-library "29.1")
 
+;; Not preloaded in without-x builds.
+(declare-function image-search-load-path "image")
 (define-obsolete-function-alias 'mh-image-search-load-path
   #'image-search-load-path "29.1")
 

@@ -30,14 +30,11 @@
 (autoload 'mail-header-parse-address "mail-parse")
 (autoload 'message-fetch-field "message")
 
-(defvar mh-show-xface-function
-  (cond ((>= emacs-major-version 21)
-         #'mh-face-display-function)
-        (t #'ignore))
+(defvar mh-show-xface-function #'mh-face-display-function
   "Determine at run time what function should be called to display X-Face.")
+(make-obsolete-variable 'mh-show-xface-function nil "29.1")
 
-(defvar mh-uncompface-executable
-  (and (fboundp 'executable-find) (executable-find "uncompface")))
+(defvar mh-uncompface-executable (executable-find "uncompface"))
 
 
 
@@ -49,7 +46,7 @@
   (when (and window-system mh-show-use-xface-flag
              (or mh-decode-mime-flag mh-mhl-format-file
                  mh-clean-message-header-flag))
-    (funcall mh-show-xface-function)))
+    (mh-face-display-function)))
 
 (defun mh-face-display-function ()
   "Display a Face, X-Face, or X-Image-URL header field.
@@ -74,23 +71,21 @@ in this order is used."
       (when type
         (goto-char (point-min))
         (when (re-search-forward "^from:" (point-max) t)
-          (mh-do-in-gnu-emacs
-            (if (eq type 'url)
-                (mh-x-image-url-display url)
-              (mh-funcall-if-exists
-               insert-image (create-image
-                             raw type t
-                             :foreground
-                             (face-foreground 'mh-show-xface nil t)
-                             :background
-                             (face-background 'mh-show-xface nil t))
-               " "))))))))
+          (if (eq type 'url)
+              (mh-x-image-url-display url)
+            (mh-funcall-if-exists
+             insert-image (create-image
+                           raw type t
+                           :foreground
+                           (face-foreground 'mh-show-xface nil t)
+                           :background
+                           (face-background 'mh-show-xface nil t))
+             " ")))))))
 
 (defun mh-face-to-png (data)
   "Convert base64 encoded DATA to png image."
   (with-temp-buffer
-    (if (fboundp 'set-buffer-multibyte)
-        (set-buffer-multibyte nil))
+    (set-buffer-multibyte nil)
     (insert data)
     (ignore-errors (base64-decode-region (point-min) (point-max)))
     (buffer-string)))
@@ -98,8 +93,7 @@ in this order is used."
 (defun mh-uncompface (data)
   "Run DATA through `uncompface' to generate bitmap."
   (with-temp-buffer
-    (if (fboundp 'set-buffer-multibyte)
-        (set-buffer-multibyte nil))
+    (set-buffer-multibyte nil)
     (insert data)
     (when (and mh-uncompface-executable
                (equal (call-process-region (point-min) (point-max)
@@ -143,9 +137,8 @@ The directories are searched for in the order they appear in the list.")
 
 (defvar mh-picon-image-types
   (cl-loop for type in '(xpm xbm gif)
-           when (or (mh-do-in-gnu-emacs
-                     (ignore-errors
-                       (image-type-available-p type))))
+           when (ignore-errors
+                  (image-type-available-p type))
            collect type))
 
 (autoload 'message-tokenize-header "sendmail")
@@ -236,8 +229,7 @@ file contents as a string is returned. If FILE is nil, then both
 elements of the list are nil."
   (if (stringp file)
       (with-temp-buffer
-        (if (fboundp 'set-buffer-multibyte)
-            (set-buffer-multibyte nil))
+        (set-buffer-multibyte nil)
         (let ((type (and (string-match ".*\\.\\(...\\)$" file)
                          (intern (match-string 1 file)))))
           (insert-file-contents-literally file)
@@ -287,7 +279,7 @@ If the URL isn't present in the cache then it is fetched with wget."
   (let* ((cache-filename (mh-x-image-url-cache-canonicalize url))
          (state (mh-x-image-get-download-state cache-filename))
          (marker (point-marker)))
-    (set (make-local-variable 'mh-x-image-marker) marker)
+    (setq-local mh-x-image-marker marker)
     (cond ((not (mh-x-image-url-sane-p url)))
           ((eq state 'ok)
            (mh-x-image-display cache-filename marker))
@@ -370,8 +362,7 @@ filenames.  In addition, replaces * with %2a. See URL
           (when (and (file-readable-p image) (not (file-symlink-p image))
                      (eq marker mh-x-image-marker))
             (goto-char marker)
-            (mh-do-in-gnu-emacs
-              (insert-image (create-image image 'png))))
+            (insert-image (create-image image 'png)))
         (set-buffer-modified-p buffer-modified-flag)))))
 
 (defun mh-x-image-url-fetch-image (url cache-file marker sentinel)
@@ -383,9 +374,9 @@ actual display is carried out by the SENTINEL function."
       (let ((buffer (generate-new-buffer mh-temp-fetch-buffer))
             (filename (make-temp-file "mhe-fetch")))
         (with-current-buffer buffer
-          (set (make-local-variable 'mh-x-image-url-cache-file) cache-file)
-          (set (make-local-variable 'mh-x-image-marker) marker)
-          (set (make-local-variable 'mh-x-image-temp-file) filename))
+          (setq-local mh-x-image-url-cache-file cache-file)
+          (setq-local mh-x-image-marker marker)
+          (setq-local mh-x-image-temp-file filename))
         (set-process-sentinel
          (start-process "*mh-x-image-url-fetch*" buffer
                         mh-wget-executable mh-wget-option filename url)

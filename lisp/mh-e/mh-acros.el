@@ -47,13 +47,13 @@
 ;;;###mh-autoload
 (defmacro mh-do-in-gnu-emacs (&rest body)
   "Execute BODY if in GNU Emacs."
-  (declare (debug t) (indent defun))
+  (declare (obsolete progn "29.1") (debug t) (indent defun))
   (unless (featurep 'xemacs) `(progn ,@body)))
 
 ;;;###mh-autoload
 (defmacro mh-do-in-xemacs (&rest body)
   "Execute BODY if in XEmacs."
-  (declare (obsolete nil "29.1") (debug t) (indent defun))
+  (declare (obsolete ignore "29.1") (debug t) (indent defun))
   (when (featurep 'xemacs) `(progn ,@body)))
 
 ;;;###mh-autoload
@@ -72,7 +72,8 @@
   "Create function NAME.
 If FUNCTION exists, then NAME becomes an alias for FUNCTION.
 Otherwise, create function NAME with ARG-LIST and BODY."
-  (declare (indent defun) (doc-string 4)
+  (declare (obsolete defun "29.1")
+           (indent defun) (doc-string 4)
            (debug (&define name symbolp sexp def-body)))
   `(defalias ',name
      (if (fboundp ',function)
@@ -84,7 +85,8 @@ Otherwise, create function NAME with ARG-LIST and BODY."
   "Create macro NAME.
 If MACRO exists, then NAME becomes an alias for MACRO.
 Otherwise, create macro NAME with ARG-LIST and BODY."
-  (declare (indent defun) (doc-string 4)
+  (declare (obsolete defmacro "29.1")
+           (indent defun) (doc-string 4)
            (debug (&define name symbolp sexp def-body)))
   (let ((defined-p (fboundp macro)))
     (if defined-p
@@ -108,11 +110,11 @@ XEmacs and versions of GNU Emacs before 21.1 require
 (defmacro mh-mark-active-p (check-transient-mark-mode-flag)
   "If CHECK-TRANSIENT-MARK-MODE-FLAG is non-nil then check if
 variable `transient-mark-mode' is active."
+  (declare (obsolete nil "29.1"))
   (cond ((not check-transient-mark-mode-flag)
-         '(and (boundp 'mark-active) mark-active))
+         'mark-active)
         (t
-         '(and (boundp 'transient-mark-mode) transient-mark-mode
-               (boundp 'mark-active) mark-active))))
+         '(and transient-mark-mode mark-active))))
 
 ;;;###mh-autoload
 (defmacro with-mh-folder-updating (save-modification-flag &rest body)

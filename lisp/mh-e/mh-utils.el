@@ -78,16 +78,13 @@ used in lieu of `search' in the CL package."
 ;;;###mh-autoload
 (defun mh-make-local-vars (&rest pairs)
   "Initialize local variables according to the variable-value PAIRS."
+  (declare (obsolete setq-local "29.1"))
   (while pairs
     (set (make-local-variable (car pairs)) (car (cdr pairs)))
     (setq pairs (cdr (cdr pairs)))))
 
 ;;;###mh-autoload
-(defun mh-mapc (function list)
-  "Apply FUNCTION to each element of LIST for side effects only."
-  (while list
-    (funcall function (car list))
-    (setq list (cdr list))))
+(define-obsolete-function-alias 'mh-mapc #'mapc "29.1")
 
 (defvar mh-pick-regexp-chars ".*$["
   "List of special characters in pick regular expressions.")
@@ -119,24 +116,33 @@ Ignores case when searching for OLD."
 
 ;;; Logo Display
 
+;;;###mh-autoload
+(defmacro mh--with-image-load-path (&rest body)
+  "Load `image' and eval BODY with `image-load-path' set appropriately."
+  (declare (debug t) (indent 0))
+  `(progn
+     ;; Not preloaded in without-x builds.
+     (require 'image)
+     (defvar image-load-path)
+     (declare-function image-load-path-for-library "image")
+     (let* ((load-path (image-load-path-for-library "mh-e" "mh-logo.xpm"))
+            (image-load-path (cons (car load-path) image-load-path)))
+       ,@body)))
+
 (defvar mh-logo-cache nil)
 
 ;;;###mh-autoload
 (defun mh-logo-display ()
   "Modify mode line to display MH-E logo."
-  (mh-do-in-gnu-emacs
-    (let* ((load-path (image-load-path-for-library "mh-e" "mh-logo.xpm"))
-           (image-load-path (cons (car load-path)
-                                  (when (boundp 'image-load-path)
-                                    image-load-path))))
-      (add-text-properties
-       0 2
-       `(display ,(or mh-logo-cache
-                      (setq mh-logo-cache
-                            (mh-funcall-if-exists
-                             find-image '((:type xpm :ascent center
-                                                 :file "mh-logo.xpm"))))))
-       (car mode-line-buffer-identification)))))
+  (mh--with-image-load-path
+    (add-text-properties
+     0 2
+     `(display ,(or mh-logo-cache
+                    (setq mh-logo-cache
+                          (mh-funcall-if-exists
+                           find-image '(( :type xpm :ascent center
+                                          :file "mh-logo.xpm" ))))))
+     (car mode-line-buffer-identification))))
 
 
 
@@ -717,16 +723,12 @@ See Info node `(elisp) Programmed Completion' for details."
                    ((equal path mh-user-path) nil)
                    (t (file-directory-p path))))))))
 
-;; Shush compiler.
-(defvar completion-root-regexp) ;; Apparently used in XEmacs
-
 (defun mh-folder-completing-read (prompt default allow-root-folder-flag)
   "Read folder name with PROMPT and default result DEFAULT.
 If ALLOW-ROOT-FOLDER-FLAG is non-nil then \"+\" is allowed to be
 a folder name corresponding to `mh-user-path'."
   (mh-normalize-folder-name
-   (let ((completion-root-regexp "^[+/]") ;FIXME: Who/what uses that?
-         (minibuffer-local-completion-map mh-folder-completion-map)
+   (let ((minibuffer-local-completion-map mh-folder-completion-map)
          (mh-allow-root-folder-flag allow-root-folder-flag))
      (completing-read prompt 'mh-folder-completion-function nil nil nil
                       'mh-folder-hist default))
@@ -910,8 +912,7 @@ Handle RFC 822 (or later) continuation lines."
 
 (defvar mh-hidden-header-keymap
   (let ((map (make-sparse-keymap)))
-    (mh-do-in-gnu-emacs
-      (define-key map [mouse-2] #'mh-letter-toggle-header-field-display-button))
+    (define-key map [mouse-2] #'mh-letter-toggle-header-field-display-button)
     map))
 
 ;;;###mh-autoload

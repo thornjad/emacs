@@ -1,7 +1,6 @@
 ;;; erc-dcc.el --- CTCP DCC module for ERC  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1993-1995, 1998, 2002-2004, 2006-2021 Free Software
-;; Foundation, Inc.
+;; Copyright (C) 1993-2021 Free Software Foundation, Inc.
 
 ;; Author: Ben A. Mesander <ben@gnu.ai.mit.edu>
 ;;         Noah Friedman <friedman@prep.ai.mit.edu>
@@ -183,9 +182,7 @@ compared with `erc-nick-equal-p' which is IRC case-insensitive."
           (let ((prop (car prem))
                 (val (cadr prem)))
             (setq prem (cddr prem)
-                  ;; plist-member is a predicate in xemacs
-                  test (and (plist-member elt prop)
-                            (plist-get elt prop)))
+                  test (cadr (plist-member elt prop)))
             ;; if the property exists and is equal, we continue, else, try the
             ;; next element of the list
             (or (and (eq prop :nick) (if (>= emacs-major-version 28)

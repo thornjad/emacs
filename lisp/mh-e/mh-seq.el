@@ -224,12 +224,12 @@ When you want to widen the view to all your messages again, use
              (mh-make-folder-mode-line)
              (mh-recenter nil)
              (when (and (boundp 'tool-bar-mode) tool-bar-mode)
-               (set (make-local-variable 'tool-bar-map)
-                    mh-folder-seq-tool-bar-map)
+               (setq-local tool-bar-map
+                           mh-folder-seq-tool-bar-map)
                (when (buffer-live-p (get-buffer mh-show-buffer))
                  (with-current-buffer mh-show-buffer
-                   (set (make-local-variable 'tool-bar-map)
-                        mh-show-seq-tool-bar-map))))
+                   (setq-local tool-bar-map
+                               mh-show-seq-tool-bar-map))))
              (push 'widen mh-view-ops)))
           (t
            (error "No messages in sequence %s" (symbol-name sequence))))))
@@ -357,10 +357,10 @@ remove all limits and sequence restrictions."
       (mh-notate-cur)
       (mh-recenter nil)))
   (when (and (null mh-folder-view-stack) (boundp 'tool-bar-mode) tool-bar-mode)
-    (set (make-local-variable 'tool-bar-map) mh-folder-tool-bar-map)
+    (setq-local tool-bar-map mh-folder-tool-bar-map)
     (when (buffer-live-p (get-buffer mh-show-buffer))
       (with-current-buffer mh-show-buffer
-        (set (make-local-variable 'tool-bar-map) mh-show-tool-bar-map)))))
+        (setq-local tool-bar-map mh-show-tool-bar-map)))))
 
 
 
@@ -577,7 +577,7 @@ Otherwise, the message number at point is returned.
 
 This function is usually used with `mh-iterate-on-range' in order to
 provide a uniform interface to MH-E functions."
-  (cond ((mh-mark-active-p t) (cons (region-beginning) (region-end)))
+  (cond ((and transient-mark-mode mark-active) (cons (region-beginning) (region-end)))
         (current-prefix-arg (mh-read-range range-prompt nil nil t t))
         (default default)
         (t (mh-get-msg-num t))))
@@ -781,10 +781,10 @@ If SAVE-REFILES is non-nil, then keep the sequences
 that note messages to be refiled."
   (let ((seqs ()))
     (cond (save-refiles
-           (mh-mapc (lambda (seq) ; Save the refiling sequences
-                      (if (mh-folder-name-p (mh-seq-name seq))
-                          (setq seqs (cons seq seqs))))
-                    mh-seq-list)))
+           (mapc (lambda (seq) ; Save the refiling sequences
+                   (if (mh-folder-name-p (mh-seq-name seq))
+                       (setq seqs (cons seq seqs))))
+                 mh-seq-list)))
     (save-excursion
       (if (eq 0 (mh-exec-cmd-quiet nil "mark" folder "-list"))
           (progn

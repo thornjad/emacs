@@ -3036,6 +3036,7 @@ If there is a natural number at point, use it as default."
     (set-keymap-parent map minibuffer-local-map)
 
     (define-key map [remap self-insert-command] #'read-char-from-minibuffer-insert-char)
+    (define-key map [remap exit-minibuffer] #'read-char-from-minibuffer-insert-other)
 
     (define-key map [remap recenter-top-bottom] #'minibuffer-recenter-top-bottom)
     (define-key map [remap scroll-up-command] #'minibuffer-scroll-up-command)
@@ -3153,9 +3154,10 @@ There is no need to explicitly add `help-char' to CHARS;
     (define-key map [remap scroll-other-window] #'minibuffer-scroll-other-window)
     (define-key map [remap scroll-other-window-down] #'minibuffer-scroll-other-window-down)
 
-    (define-key map [escape] #'abort-recursive-edit)
-    (dolist (symbol '(quit exit exit-prefix))
+    (define-key map [remap exit] #'y-or-n-p-insert-other)
+    (dolist (symbol '(exit-prefix quit))
       (define-key map (vector 'remap symbol) #'abort-recursive-edit))
+    (define-key map [escape] #'abort-recursive-edit)
 
     ;; FIXME: try catch-all instead of explicit bindings:
     ;; (define-key map [remap t] #'y-or-n-p-insert-other)
@@ -3219,7 +3221,7 @@ PROMPT is also updated to show `help-char' like \"(y, n or C-h) \",
 where `help-char' is automatically bound to `help-form-show'.
 
 No confirmation of the answer is requested; a single character is
-enough.  RET and SPC also means yes, and DEL means no.
+enough.  SPC also means yes, and DEL means no.
 
 To be precise, this function translates user input into responses
 by consulting the bindings in `query-replace-map'; see the
@@ -3565,6 +3567,9 @@ If either NAME or VAL are specified, both should be specified."
 
 (defvar suspend-resume-hook nil
   "Normal hook run by `suspend-emacs', after Emacs is continued.")
+
+(defvar after-pdump-load-hook nil
+  "Normal hook run after loading the .pdmp file.")
 
 (defvar temp-buffer-show-hook nil
   "Normal hook run by `with-output-to-temp-buffer' after displaying the buffer.
@@ -4384,11 +4389,6 @@ is allowed once again.  (Immediately, if `inhibit-quit' is nil.)"
 	   ;; call, and that might allow it to exit thru a condition-case
 	   ;; that intends to handle the quit signal next time.
 	   (eval '(ignore nil)))))
-
-;; Don't throw `throw-on-input' on those events by default.
-(setq while-no-input-ignore-events
-      '(focus-in focus-out help-echo iconify-frame
-        make-frame-visible selection-request))
 
 (defmacro while-no-input (&rest body)
   "Execute BODY only as long as there's no pending input.
