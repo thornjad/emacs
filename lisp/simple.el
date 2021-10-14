@@ -5076,10 +5076,11 @@ interact nicely with `interprogram-cut-function' and
 interaction; you may want to use them instead of manipulating the kill
 ring directly.")
 
-(defcustom kill-ring-max 60
+(defcustom kill-ring-max 120
   "Maximum length of kill ring before oldest elements are thrown away."
   :type 'integer
-  :group 'killing)
+  :group 'killing
+  :version "29.1")
 
 (defvar kill-ring-yank-pointer nil
   "The tail of the kill ring whose car is the last thing yanked.")
@@ -9859,6 +9860,7 @@ does not have any effect until this variable is set.
 CUSTOMIZATIONS, if non-nil, should be composed of alternating
 `defcustom' keywords and values to add to the declaration of
 `COMMAND-alternatives' (typically :group and :version)."
+  (declare (indent defun))
   (let* ((command-name (symbol-name command))
          (varalt-name (concat command-name "-alternatives"))
          (varalt-sym (intern varalt-name))

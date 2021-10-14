@@ -78,6 +78,14 @@ the point is now moved only when releasing the mouse button.  This no
 longer results in a bogus selection, unless the mouse has been
 effectively dragged.
 
++++
+** 'kill-ring-max' now defaults to 120.
+
+---
+** New user option 'yank-menu-max-items'.
+Customize this option to limit the amount of entries in the menu
+"Edit->Paste from Kill Menu".  The default is 60.
+
 
 * Changes in Specialized Modes and Packages in Emacs 29.1
 
@@ -114,6 +122,11 @@ Term-mode can now display 256-color and 24-bit color codes.  It can
 also handle ANSI codes for faint, italic and blinking text, displaying
 it with new 'ansi-term-faint/italic/slow-blinking/fast-blinking'
 faces.
+
+** Xref
+
+*** 'project-find-file' and 'project-or-external-find-file' now accept
+a prefix argument which is interpreted to mean "include all files".
 
 
 * New Modes and Packages in Emacs 29.1
