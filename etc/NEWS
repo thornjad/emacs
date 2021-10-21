@@ -24,11 +24,17 @@ applies, and please also update docstrings as needed.
 
 * Installation Changes in Emacs 29.1
 
+** Emacs now installs the ".pdmp" file using a unique fingerprint in the name.
+The file is typically installed using a file name akin to
+"...dir/libexec/emacs/29.1/x86_64-pc-linux-gnu/emacs-<fingerprint>.pdmp".
+If a constant file name is required, the file can be renamed to
+"emacs.pdmp", and Emacs will find it during startup anyway.
+
 
 * Startup Changes in Emacs 29.1
 
 +++
-** Emacs now has a --fingerprint option.
+** Emacs now has a '--fingerprint' option.
 This will output a string identifying the current Emacs build.
 
 +++
@@ -46,6 +52,14 @@ time.
 *** Jumping to function/variable source now saves mark before moving point.
 Jumping to source from "*Help*" buffer moves the point when the source
 buffer is already open.  Now, the old point is pushed to mark ring.
+
+** Fonts
+
+---
+*** Emacs now supports "medium" fonts.
+Emacs previously didn't distinguish between the "regular" weight and
+the "medium" weight, but it now also supports the (heavier) "medium"
+weight.
 
 
 * Editing Changes in Emacs 29.1
@@ -73,7 +87,7 @@ point.
 
 ---
 *** Improved mouse behavior with auto-scrolling modes.
-When clicking inside the `scroll-margin' or `hscroll-margin' region
+When clicking inside the 'scroll-margin' or 'hscroll-margin' region
 the point is now moved only when releasing the mouse button.  This no
 longer results in a bogus selection, unless the mouse has been
 effectively dragged.
@@ -86,8 +100,35 @@ effectively dragged.
 Customize this option to limit the amount of entries in the menu
 "Edit->Paste from Kill Menu".  The default is 60.
 
+** show-paren-mode
+
++++
+*** New user option 'show-paren-context-when-offscreen'.
+When non-nil, if the point is in a closing delimiter and the opening
+delimiter is offscreen, shows some context around the opening
+delimiter in the echo area.
+
 
 * Changes in Specialized Modes and Packages in Emacs 29.1
+
+** align
+
+---
+*** Alignment in 'text-mode' has changed.
+Previously, 'M-x align' didn't do anything, and you had to say 'C-u
+M-x align' for it to work.  This has now been changed.  The default
+regexp for 'C-u M-x align-regexp' has also been changed to be easier
+for inexperienced users to use.
+
+** eww
+
++++
+*** New user option to automatically rename EWW buffers.
+The 'eww-auto-rename-buffer' user option can be configured to rename
+rendered web pages by using their title, URL, or a user-defined
+function which returns a string.  For the first two cases, the length
+of the resulting name is controlled by 'eww-buffer-name-length'.  By
+default, no automatic renaming is performed.
 
 ** image-dired
 
@@ -95,6 +136,8 @@ Customize this option to limit the amount of entries in the menu
 *** New command for the thumbnail buffer.
 The new command 'image-dired-unmark-all-marks' has been added with a
 binding in the menu.
+
+** info-look
 
 ---
 *** info-look specs can now be expanded at run time instead of a load time.
@@ -105,9 +148,9 @@ mode (instead of at load time).
 ** subr-x
 
 +++
-*** New macro 'with-memoization' provides a very primitive form of memoization
+*** New macro 'with-memoization' provides a very primitive form of memoization.
 
-** ansi-color.el
+** ansi-color
 
 ---
 *** Support for ANSI 256-color and 24-bit colors.
@@ -120,13 +163,25 @@ filters and displayed with the specified color.
 *** Support for ANSI 256-color and 24-bit colors, italic and other fonts.
 Term-mode can now display 256-color and 24-bit color codes.  It can
 also handle ANSI codes for faint, italic and blinking text, displaying
-it with new 'ansi-term-faint/italic/slow-blinking/fast-blinking'
-faces.
+it with new 'term-{faint,italic,slow-blink,fast-blink}' faces.
 
 ** Xref
 
 *** 'project-find-file' and 'project-or-external-find-file' now accept
 a prefix argument which is interpreted to mean "include all files".
+
+** File notifications
+
++++
+*** The new command 'file-notify-rm-all-watches' removes all file notifications.
+
+** Sql
+
+---
+*** Sql now supports sending of passwords in-process.
+To improve security, if an sql product has ':password-in-comint' set
+to t, a password supplied via the minibuffer will be sent in-process,
+as opposed to via the command-line.
 
 
 * New Modes and Packages in Emacs 29.1
@@ -139,6 +194,38 @@ Emacs buffers, like indentation and the like.  The new ert function
 
 
 * Incompatible Lisp Changes in Emacs 29.1
+
+---
+** 'downcase' details have changed slightly.
+In certain locales, changing the case of an ASCII-range character may
+turn it into a multibyte character, most notably with "I" in Turkish
+(the lowercase is "ı", 0x0131).  Previously, 'downcase' on a unibyte
+string was buggy, and would mistakenly just return the lower byte of
+this, 0x31 (the digit "1").  'downcase' on a unibyte string has now
+been changed to downcase such characters as if they were ASCII.  To
+get proper locale-dependent downcasing, the string has to be converted
+to multibyte first.  (This goes for the other case-changing functions,
+too.)
+
+---
+** 'def' indentation changes.
+In 'emacs-lisp-mode', forms with a symbol with a name that start with
+"def" have been automatically indented as if they were 'defun'-like
+forms, for instance:
+
+    (defzot 1
+      2 3)
+
+This heuristic has now been removed, and all functions/macros that
+want to be indented this way have to be marked with
+
+    (declare (indent defun))
+
+or the like.  If the function/macro definition itself can't be
+changed, the indentation can also be adjusted by saying something
+like:
+
+    (put 'defzot 'lisp-indent-function 'defun)
 
 ---
 ** The 'inhibit-changing-match-data' variable is now obsolete.
@@ -157,6 +244,24 @@ with recent versions of Firefox.
 
 * Lisp Changes in Emacs 29.1
 
+** Locale
+
+---
+*** New variable 'current-locale-environment'.
+This holds the value of the previous call to 'set-locale-environment'.
+
+---
+*** New macro 'with-locale-environment'.
+This macro can be used to change the locale temporarily while
+executing code.
+
++++
+** 'define-key' now understands a new strict 'kbd' representation for keys.
+The '(define-key map ["C-c M-f"] #'some-command)' syntax is now
+supported, and is like the 'kbd' representation, but is stricter.  If
+the string doesn't represent a valid key sequence, an error is
+signalled (both when evaluating and byte compiling).
+
 +++
 ** :keys in 'menu-item' can now be a function.
 If so, it is called whenever the menu is computed, and can be used to
@@ -173,7 +278,7 @@ If given the new optional KILL-PERMANENT argument, also kill permanent
 local variables.
 
 +++
-** Third 'mapconcat' argument 'separator' is now optional.
+** Third 'mapconcat' argument SEPARATOR is now optional.
 An explicit nil always meant the empty string, now it can be left out.
 
 ---
@@ -188,6 +293,17 @@ This function allows defining a number of keystrokes with one form.
 +++
 ** New macro 'defvar-keymap'.
 This macro allows defining keymap variables more conveniently.
+
+---
+** 'kbd' can now be used in built-in, preloaded libraries.
+It no longer depends on edmacro.el and cl-lib.el.
+
++++
+** New function 'kbd-valid-p'.
+The 'kbd' function is quite permissive, and will try to return
+something usable even if the syntax of the argument isn't completely
+correct.  The 'kbd-valid-p' predicate does a stricter check of the
+syntax.
 
 
 * Changes in Emacs 29.1 on Non-Free Operating Systems

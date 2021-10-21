@@ -925,19 +925,171 @@ side-effects, and the argument LIST is not modified."
 
 ;;;; Keymap support.
 
+(defun kbd-valid-p (keys)
+  "Say whether KEYS is a valid `kbd' sequence.
+In particular, this checks the order of the modifiers, and they
+have to be specified in this order:
+
+   A-C-H-M-S-s
+
+which is
+
+   Alt-Control-Hyper-Meta-Shift-super"
+  (declare (pure t) (side-effect-free t))
+  (and (stringp keys)
+       (string-match-p "\\`[^ ]+\\( [^ ]+\\)*\\'" keys)
+       (save-match-data
+         (catch 'exit
+           (let ((prefixes
+                  "\\(A-\\)?\\(C-\\)?\\(H-\\)?\\(M-\\)?\\(S-\\)?\\(s-\\)?")
+                 (case-fold-search nil))
+             (dolist (key (split-string keys " "))
+               ;; Every key might have these modifiers, and they should be
+               ;; in this order.
+               (when (string-match (concat "\\`" prefixes) key)
+                 (setq key (substring key (match-end 0))))
+               (unless (or (and (= (length key) 1)
+                                ;; Don't accept control characters as keys.
+                                (not (< (aref key 0) ?\s))
+                                ;; Don't accept Meta'd characters as keys.
+                                (or (multibyte-string-p key)
+                                    (not (<= 127 (aref key 0) 255))))
+                           (and (string-match-p "\\`<[-_A-Za-z0-9]+>\\'" key)
+                                ;; Don't allow <M-C-down>.
+                                (= (progn
+                                     (string-match
+                                      (concat "\\`<" prefixes) key)
+                                     (match-end 0))
+                                   1))
+                           (string-match-p
+                            "\\`\\(NUL\\|RET\\|TAB\\|LFD\\|ESC\\|SPC\\|DEL\\)\\'"
+                            key))
+                 ;; Invalid.
+                 (throw 'exit nil)))
+             t)))))
+
 (defun kbd (keys)
   "Convert KEYS to the internal Emacs key representation.
 KEYS should be a string in the format returned by commands such
 as `C-h k' (`describe-key').
+
 This is the same format used for saving keyboard macros (see
 `edmacro-mode').
 
+Here's some example key sequences:
+
+    \"f\"
+    \"C-c C-c\"
+    \"H-<left>\"
+    \"M-RET\"
+    \"C-M-<return>\"
+
 For an approximate inverse of this, see `key-description'."
-  ;; Don't use a defalias, since the `pure' property is true only for
-  ;; the calling convention of `kbd'.
   (declare (pure t) (side-effect-free t))
   ;; A pure function is expected to preserve the match data.
-  (save-match-data (read-kbd-macro keys)))
+  (save-match-data
+    (let ((case-fold-search nil)
+          (len (length keys)) ; We won't alter keys in the loop below.
+          (pos 0)
+          (res []))
+      (while (and (< pos len)
+                  (string-match "[^ \t\n\f]+" keys pos))
+        (let* ((word-beg (match-beginning 0))
+               (word-end (match-end 0))
+               (word (substring keys word-beg len))
+               (times 1)
+               key)
+          ;; Try to catch events of the form "<as df>".
+          (if (string-match "\\`<[^ <>\t\n\f][^>\t\n\f]*>" word)
+              (setq word (match-string 0 word)
+                    pos (+ word-beg (match-end 0)))
+            (setq word (substring keys word-beg word-end)
+                  pos word-end))
+          (when (string-match "\\([0-9]+\\)\\*." word)
+            (setq times (string-to-number (substring word 0 (match-end 1))))
+            (setq word (substring word (1+ (match-end 1)))))
+          (cond ((string-match "^<<.+>>$" word)
+                 (setq key (vconcat (if (eq (key-binding [?\M-x])
+                                            'execute-extended-command)
+                                        [?\M-x]
+                                      (or (car (where-is-internal
+                                                'execute-extended-command))
+                                          [?\M-x]))
+                                    (substring word 2 -2) "\r")))
+                ((and (string-match "^\\(\\([ACHMsS]-\\)*\\)<\\(.+\\)>$" word)
+                      (progn
+                        (setq word (concat (match-string 1 word)
+                                           (match-string 3 word)))
+                        (not (string-match
+                              "\\<\\(NUL\\|RET\\|LFD\\|ESC\\|SPC\\|DEL\\)$"
+                              word))))
+                 (setq key (list (intern word))))
+                ((or (equal word "REM") (string-match "^;;" word))
+                 (setq pos (string-match "$" keys pos)))
+                (t
+                 (let ((orig-word word) (prefix 0) (bits 0))
+                   (while (string-match "^[ACHMsS]-." word)
+                     (setq bits (+ bits (cdr (assq (aref word 0)
+                                                   '((?A . ?\A-\^@) (?C . ?\C-\^@)
+                                                     (?H . ?\H-\^@) (?M . ?\M-\^@)
+                                                     (?s . ?\s-\^@) (?S . ?\S-\^@))))))
+                     (setq prefix (+ prefix 2))
+                     (setq word (substring word 2)))
+                   (when (string-match "^\\^.$" word)
+                     (setq bits (+ bits ?\C-\^@))
+                     (setq prefix (1+ prefix))
+                     (setq word (substring word 1)))
+                   (let ((found (assoc word '(("NUL" . "\0") ("RET" . "\r")
+                                              ("LFD" . "\n") ("TAB" . "\t")
+                                              ("ESC" . "\e") ("SPC" . " ")
+                                              ("DEL" . "\177")))))
+                     (when found (setq word (cdr found))))
+                   (when (string-match "^\\\\[0-7]+$" word)
+                     (let ((n 0))
+                       (dolist (ch (cdr (string-to-list word)))
+                         (setq n (+ (* n 8) ch -48)))
+                       (setq word (vector n))))
+                   (cond ((= bits 0)
+                          (setq key word))
+                         ((and (= bits ?\M-\^@) (stringp word)
+                               (string-match "^-?[0-9]+$" word))
+                          (setq key (mapcar (lambda (x) (+ x bits))
+                                            (append word nil))))
+                         ((/= (length word) 1)
+                          (error "%s must prefix a single character, not %s"
+                                 (substring orig-word 0 prefix) word))
+                         ((and (/= (logand bits ?\C-\^@) 0) (stringp word)
+                               ;; We used to accept . and ? here,
+                               ;; but . is simply wrong,
+                               ;; and C-? is not used (we use DEL instead).
+                               (string-match "[@-_a-z]" word))
+                          (setq key (list (+ bits (- ?\C-\^@)
+                                             (logand (aref word 0) 31)))))
+                         (t
+                          (setq key (list (+ bits (aref word 0)))))))))
+          (when key
+            (dolist (_ (number-sequence 1 times))
+              (setq res (vconcat res key))))))
+      (when (and (>= (length res) 4)
+                 (eq (aref res 0) ?\C-x)
+                 (eq (aref res 1) ?\()
+                 (eq (aref res (- (length res) 2)) ?\C-x)
+                 (eq (aref res (- (length res) 1)) ?\)))
+        (setq res (apply #'vector (let ((lres (append res nil)))
+                                    ;; Remove the first and last two elements.
+                                    (setq lres (cdr (cdr lres)))
+                                    (nreverse lres)
+                                    (setq lres (cdr (cdr lres)))
+                                    (nreverse lres)
+                                    lres))))
+      (if (not (memq nil (mapcar (lambda (ch)
+                                   (and (numberp ch)
+                                        (<= 0 ch 127)))
+                                 res)))
+          ;; Return a string.
+          (concat (mapcar #'identity res))
+        ;; Return a vector.
+        res))))
 
 (defun undefined ()
   "Beep to tell the user this binding is undefined."
@@ -6512,7 +6664,8 @@ should be a MENU form as accepted by `easy-menu-define'.
             (:parent (setq parent value))
             (:suppress (setq suppress value))
             (:name (setq name value))
-            (:prefix (setq prefix value))))))
+            (:prefix (setq prefix value))
+            (_ (error "Invalid keyword: %s" keyword))))))
 
     (when (and prefix
                (or full parent suppress keymap))

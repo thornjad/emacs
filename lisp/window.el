@@ -1410,9 +1410,12 @@ before writing to it."
 		 (cadr fringes)
 		 (window-scroll-bar-width window)
 		 (window-right-divider-width window))
-	 (format "height header-line: %s  mode-line: %s  divider: %s\n"
+	 (format "height tab-line: %s header-line: %s  mode-line: %s\n"
+		 (window-tab-line-height window)
 		 (window-header-line-height window)
-		 (window-mode-line-height window)
+		 (window-mode-line-height window))
+	 (format "height scroll-bar: %s divider: %s"
+		 (window-scroll-bar-height window)
 		 (window-bottom-divider-width window)))))
     (insert "\n")))
 
@@ -1514,21 +1517,11 @@ Emacs won't change the size of any window displaying that buffer,
 unless it has no other choice (like when deleting a neighboring
 window).")
 
-(defun window--preservable-size (window &optional horizontal)
-  "Return height of WINDOW as `window-preserve-size' would preserve it.
-Optional argument HORIZONTAL non-nil means to return the width of
-WINDOW as `window-preserve-size' would preserve it."
-  (if horizontal
-      (window-body-width window t)
-    (+ (window-body-height window t)
-       (window-header-line-height window)
-       (window-mode-line-height window))))
-
 (defun window-preserve-size (&optional window horizontal preserve)
-  "Preserve height of window WINDOW.
+  "Preserve height of specified WINDOW's body.
 WINDOW must be a live window and defaults to the selected one.
-Optional argument HORIZONTAL non-nil means preserve the width of
-WINDOW.
+Optional argument HORIZONTAL non-nil means to preserve the width
+of WINDOW's body.
 
 PRESERVE t means to preserve the current height/width of WINDOW's
 body in frame and window resizing operations whenever possible.
@@ -1545,21 +1538,15 @@ WINDOW as argument also removes the respective restraint.
 Other values of PRESERVE are reserved for future use."
   (setq window (window-normalize-window window t))
   (let* ((parameter (window-parameter window 'window-preserved-size))
-	 (width (nth 1 parameter))
-	 (height (nth 2 parameter)))
-    (if horizontal
-	(set-window-parameter
-	 window 'window-preserved-size
-	 (list
-	  (window-buffer window)
-	  (and preserve (window--preservable-size window t))
-	  height))
-      (set-window-parameter
-       window 'window-preserved-size
-       (list
-	(window-buffer window)
-	width
-	(and preserve (window--preservable-size window)))))))
+	 (width (if horizontal
+                     (and preserve (window-body-width window t))
+                   (nth 1 parameter)))
+	 (height (if horizontal
+                      (nth 2 parameter)
+                    (and preserve (window-body-height window t)))))
+    (set-window-parameter
+     window 'window-preserved-size
+     (list (window-buffer window) width height))))
 
 (defun window-preserved-size (&optional window horizontal)
   "Return preserved height of window WINDOW.
@@ -1567,12 +1554,9 @@ WINDOW must be a live window and defaults to the selected one.
 Optional argument HORIZONTAL non-nil means to return preserved
 width of WINDOW."
   (setq window (window-normalize-window window t))
-  (let* ((parameter (window-parameter window 'window-preserved-size))
-	 (buffer (nth 0 parameter))
-	 (width (nth 1 parameter))
-	 (height (nth 2 parameter)))
-    (when (eq buffer (window-buffer window))
-      (if horizontal width height))))
+  (let ((parameter (window-parameter window 'window-preserved-size)))
+    (when (eq (nth 0 parameter) (window-buffer window))
+      (nth (if horizontal 1 2) parameter))))
 
 (defun window--preserve-size (window horizontal)
   "Return non-nil when the height of WINDOW shall be preserved.
@@ -1580,7 +1564,7 @@ Optional argument HORIZONTAL non-nil means to return non-nil when
 the width of WINDOW shall be preserved."
   (let ((size (window-preserved-size window horizontal)))
     (and (numberp size)
-	 (= size (window--preservable-size window horizontal)))))
+	 (= size (window-body-size window horizontal t)))))
 
 (defun window-safe-min-size (&optional window horizontal pixelwise)
   "Return safe minimum size of WINDOW.
@@ -1694,6 +1678,7 @@ return the minimum pixel-size of WINDOW."
 	 ((let ((char-size (frame-char-size window))
 		(pixel-height
 		 (+ (window-safe-min-size window nil t)
+		    (window-tab-line-height window)
 		    (window-header-line-height window)
 		    (window-scroll-bar-height window)
 		    (window-mode-line-height window)
@@ -7267,7 +7252,9 @@ Return WINDOW if BUFFER and WINDOW are live."
         ;; Adjust size of frame if asked for.  We probably should do
         ;; that only for a single window frame.
 	(cond
-	 ((not size))
+	 ((not size)
+          (when window-size
+            (setq resize-temp-buffer-window-inhibit t)))
 	 ((consp size)
 	  (let ((width (car size))
 		(height (cdr size))
@@ -7293,7 +7280,9 @@ Return WINDOW if BUFFER and WINDOW are live."
         ;;
         ;; Adjust width and/or height of window if asked for.
 	(cond
-	 ((not height))
+         ((not height)
+	  (when window-height
+            (setq resize-temp-buffer-window-inhibit 'vertical)))
 	 ((numberp height)
 	  (let* ((new-height
 		  (if (integerp height)
@@ -7311,7 +7300,9 @@ Return WINDOW if BUFFER and WINDOW are live."
           (setq resize-temp-buffer-window-inhibit 'vertical)))
 	;; Adjust width of window if asked for.
 	(cond
-	 ((not width))
+	 ((not width)
+          (when window-width
+            (setq resize-temp-buffer-window-inhibit 'horizontal)))
 	 ((numberp width)
 	  (let* ((new-width
 		  (if (integerp width)
@@ -7327,10 +7318,12 @@ Return WINDOW if BUFFER and WINDOW are live."
 	 ((functionp width)
 	  (ignore-errors (funcall width window))
           (setq resize-temp-buffer-window-inhibit 'horizontal)))
+
 	;; Preserve window size if asked for.
 	(when (consp preserve-size)
 	  (window-preserve-size window t (car preserve-size))
 	  (window-preserve-size window nil (cdr preserve-size)))))
+
       ;; Assign any window parameters specified.
       (let ((parameters (cdr (assq 'window-parameters alist))))
         (dolist (parameter parameters)

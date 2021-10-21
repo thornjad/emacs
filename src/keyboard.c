@@ -3450,6 +3450,8 @@ readable_events (int flags)
      READABLE_EVENTS_FILTER_EVENTS is set, report it as empty.  */
   if (kbd_fetch_ptr != kbd_store_ptr)
     {
+      /* See https://lists.gnu.org/r/emacs-devel/2005-05/msg00297.html
+	 for why we treat toolkit scroll-bar events specially here.  */
       if (flags & (READABLE_EVENTS_FILTER_EVENTS
 #ifdef USE_TOOLKIT_SCROLL_BARS
 		   | READABLE_EVENTS_IGNORE_SQUEEZABLES
@@ -5110,7 +5112,20 @@ make_lispy_position (struct frame *f, Lisp_Object x, Lisp_Object y,
 #endif
       )
     {
-      posn = EQ (window_or_frame, f->tab_bar_window) ? Qtab_bar : Qtool_bar;
+      /* FIXME: While track_mouse is non-nil, we do not report this
+	 event as something that happened on the tool or tab bar since
+	 that would break mouse dragging operations that originate from
+	 an ordinary window beneath and expect the window to auto-scroll
+	 as soon as the mouse cursor appears above or beneath it
+	 (Bug#50993).  Since this "fix" might break track_mouse based
+	 operations originating from the tool or tab bar itself, such
+	 operations should set track_mouse to some special value that
+	 would be recognized by the following check.
+
+	 This issue should be properly handled by 'mouse-drag-track' and
+	 friends, so the below is only a temporary workaround.  */
+      if (NILP (track_mouse))
+	posn = EQ (window_or_frame, f->tab_bar_window) ? Qtab_bar : Qtool_bar;
       /* Kludge alert: for mouse events on the tab bar and tool bar,
 	 keyboard.c wants the frame, not the special-purpose window
 	 we use to display those, and it wants frame-relative

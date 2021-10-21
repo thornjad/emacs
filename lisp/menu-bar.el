@@ -515,10 +515,10 @@
                                        kill-ring))
                                     (not buffer-read-only))))
                   :help "Paste (yank) text most recently cut/copied"
-                  :keys (lambda ()
-                          (if cua-mode
-                              "\\[cua-paste]"
-                            "\\[yank]"))))
+                  :keys ,(lambda ()
+                           (if cua-mode
+                               "\\[cua-paste]"
+                             "\\[yank]"))))
     (bindings--define-key menu [copy]
       ;; ns-win.el said: Substitute a Copy function that works better
       ;; under X (for GNUstep).
@@ -527,23 +527,23 @@
                             'kill-ring-save)
                   :enable mark-active
                   :help "Copy text in region between mark and current position"
-                  :keys (lambda ()
-                          (cond
-                           ((featurep 'ns)
-                            "\\[ns-copy-including-secondary]")
-                           ((and cua-mode mark-active)
-                            "\\[cua-copy-handler]")
-                           (t
-                            "\\[kill-ring-save]")))))
+                  :keys ,(lambda ()
+                           (cond
+                            ((featurep 'ns)
+                             "\\[ns-copy-including-secondary]")
+                            ((and cua-mode mark-active)
+                             "\\[cua-copy-handler]")
+                            (t
+                             "\\[kill-ring-save]")))))
     (bindings--define-key menu [cut]
-      '(menu-item "Cut" kill-region
+      `(menu-item "Cut" kill-region
                   :enable (and mark-active (not buffer-read-only))
                   :help
                   "Cut (kill) text in region between mark and current position"
-                  :keys (lambda ()
-                          (if (and cua-mode mark-active)
-                              "\\[cua-cut-handler]"
-                            "\\[kill-region]"))))
+                  :keys ,(lambda ()
+                           (if (and cua-mode mark-active)
+                               "\\[cua-cut-handler]"
+                             "\\[kill-region]"))))
     ;; ns-win.el said: Separate undo from cut/paste section.
     (if (featurep 'ns)
         (bindings--define-key menu [separator-undo] menu-bar-separator))
@@ -2169,7 +2169,7 @@ otherwise it could decide to silently do nothing."
     (> count 1)))
 
 (defcustom yank-menu-length 20
-  "Items in `yank-menu' longer than this will be truncated."
+  "Text of items in `yank-menu' longer than this will be truncated."
   :type 'integer
   :group 'menu)
 

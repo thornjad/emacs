@@ -1024,6 +1024,28 @@ is not copied.  */)
 
 /* Simple Keymap mutators and accessors.				*/
 
+static Lisp_Object
+possibly_translate_key_sequence (Lisp_Object key, ptrdiff_t *length)
+{
+  if (VECTORP (key) && ASIZE (key) == 1 && STRINGP (AREF (key, 0)))
+    {
+      /* KEY is on the ["C-c"] format, so translate to internal
+	 format.  */
+      if (NILP (Ffboundp (Qkbd_valid_p)))
+	xsignal2 (Qerror,
+		  build_string ("`kbd-valid-p' is not defined, so this syntax can't be used: %s"),
+		  key);
+      if (NILP (call1 (Qkbd_valid_p, AREF (key, 0))))
+	xsignal2 (Qerror, build_string ("Invalid `kbd' syntax: %S"), key);
+      key = call1 (Qkbd, AREF (key, 0));
+      *length = CHECK_VECTOR_OR_STRING (key);
+      if (*length == 0)
+	xsignal2 (Qerror, build_string ("Invalid `kbd' syntax: %S"), key);
+    }
+
+  return key;
+}
+
 /* GC is possible in this function if it autoloads a keymap.  */
 
 DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0,
@@ -1047,7 +1069,9 @@ DEF is anything that can be a key's definition:
     function definition, which should at that time be one of the above,
     or another symbol whose function definition is used, etc.),
  a cons (STRING . DEFN), meaning that DEFN is the definition
-    (DEFN should be a valid definition in its own right),
+    (DEFN should be a valid definition in its own right) and
+    STRING is the menu item name (which is used only if the containing
+    keymap has been created with a menu name, see `make-keymap'),
  or a cons (MAP . CHAR), meaning use definition of CHAR in keymap MAP,
  or an extended menu item definition.
  (See info node `(elisp)Extended Menu Items'.)
@@ -1081,6 +1105,8 @@ binding KEY to DEF is added at the front of KEYMAP.  */)
 	}
       def = tmp;
     }
+
+  key = possibly_translate_key_sequence (key, &length);
 
   ptrdiff_t idx = 0;
   while (1)
@@ -1210,6 +1236,8 @@ recognize the default bindings, just as `read-key-sequence' does.  */)
   ptrdiff_t length = CHECK_VECTOR_OR_STRING (key);
   if (length == 0)
     return keymap;
+
+  key = possibly_translate_key_sequence (key, &length);
 
   ptrdiff_t idx = 0;
   while (1)
@@ -3261,4 +3289,7 @@ that describe key bindings.  That is why the default is nil.  */);
   defsubr (&Stext_char_description);
   defsubr (&Swhere_is_internal);
   defsubr (&Sdescribe_buffer_bindings);
+
+  DEFSYM (Qkbd, "kbd");
+  DEFSYM (Qkbd_valid_p, "kbd-valid-p");
 }

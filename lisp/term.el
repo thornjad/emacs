@@ -777,13 +777,13 @@ Buffer local variable.")
   '((t :inherit ansi-color-faint))
   "Default face to use for faint text."
   :group 'term
-  :version "28.1")
+  :version "29.1")
 
 (defface term-italic
   '((t :inherit ansi-color-italic))
   "Default face to use for italic text."
   :group 'term
-  :version "28.1")
+  :version "29.1")
 
 (defface term-underline
   '((t :inherit ansi-color-underline))
@@ -795,13 +795,13 @@ Buffer local variable.")
   '((t :inherit ansi-color-slow-blink))
   "Default face to use for slowly blinking text."
   :group 'term
-  :version "28.1")
+  :version "29.1")
 
 (defface term-fast-blink
   '((t :inherit ansi-color-fast-blink))
   "Default face to use for rapidly blinking text."
   :group 'term
-  :version "28.1")
+  :version "29.1")
 
 (defface term-color-black
   '((t :inherit ansi-color-black))
@@ -2409,7 +2409,14 @@ Checks if STRING contains a password prompt as defined by
   (when (term-in-line-mode)
     (when (let ((case-fold-search t))
             (string-match comint-password-prompt-regexp string))
-      (term-send-invisible (read-passwd string)))))
+      ;; Use `run-at-time' in order not to pause execution of the
+      ;; process filter with a minibuffer
+      (run-at-time
+       0 nil
+       (lambda (current-buf)
+         (with-current-buffer current-buf
+           (term-send-invisible (read-passwd string))))
+       (current-buffer)))))
 
 
 ;;; Low-level process communication

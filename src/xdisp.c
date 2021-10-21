@@ -1179,7 +1179,13 @@ static void append_stretch_glyph (struct it *, Lisp_Object,
 static Lisp_Object get_it_property (struct it *, Lisp_Object);
 static Lisp_Object calc_line_height_property (struct it *, Lisp_Object,
 					      struct font *, int, bool);
-
+static int adjust_glyph_width_for_mouse_face (struct glyph *,
+					      struct glyph_row *,
+					      struct window *, struct face *,
+					      struct face *);
+static void get_cursor_offset_for_mouse_face (struct window *w,
+					      struct glyph_row *row,
+					      int *offset);
 #endif /* HAVE_WINDOW_SYSTEM */
 
 static void produce_special_glyphs (struct it *, enum display_element_type);
@@ -10661,13 +10667,13 @@ position specified by TO.  Since calculating the text height of a
 large buffer can take some time, it makes sense to specify this
 argument if the size of the buffer is large or unknown.
 
-Optional argument MODE-AND-HEADER-LINE nil or omitted means do not
-include the height of the mode- or header-line of WINDOW in the return
-value.  If it is either the symbol `mode-line' or `header-line', include
+Optional argument MODE-LINES nil or omitted means do not include the
+height of the mode-, tab- or header-line of WINDOW in the return value.
+If it is the symbol `mode-line', 'tab-line' or `header-line', include
 only the height of that line, if present, in the return value.  If t,
-include the height of both, if present, in the return value.  */)
+include the height of any of these, if present, in the return value.  */)
   (Lisp_Object window, Lisp_Object from, Lisp_Object to, Lisp_Object x_limit,
-   Lisp_Object y_limit, Lisp_Object mode_and_header_line)
+   Lisp_Object y_limit, Lisp_Object mode_lines)
 {
   struct window *w = decode_live_window (window);
   Lisp_Object buffer = w->contents;
@@ -10841,18 +10847,15 @@ include the height of both, if present, in the return value.  */)
   if (y > max_y)
     y = max_y;
 
-  if (EQ (mode_and_header_line, Qtab_line)
-      || EQ (mode_and_header_line, Qt))
+  if (EQ (mode_lines, Qtab_line) || EQ (mode_lines, Qt))
     /* Re-add height of tab-line as requested.  */
     y = y + WINDOW_TAB_LINE_HEIGHT (w);
 
-  if (EQ (mode_and_header_line, Qheader_line)
-      || EQ (mode_and_header_line, Qt))
+  if (EQ (mode_lines, Qheader_line) || EQ (mode_lines, Qt))
     /* Re-add height of header-line as requested.  */
     y = y + WINDOW_HEADER_LINE_HEIGHT (w);
 
-  if (EQ (mode_and_header_line, Qmode_line)
-      || EQ (mode_and_header_line, Qt))
+  if (EQ (mode_lines, Qmode_line) || EQ (mode_lines, Qt))
     /* Add height of mode-line as requested.  */
     y = y + WINDOW_MODE_LINE_HEIGHT (w);
 
@@ -13864,12 +13867,17 @@ note_tab_bar_highlight (struct frame *f, int x, int y)
 
   bool mouse_down_p = false;
 #ifndef HAVE_NS
-  /* Mouse is down, but on different tab-bar item?  */
+  /* Mouse is down, but on different tab-bar item?  Or alternatively,
+     the mouse might've been pressed somewhere we don't know about,
+     and then have moved onto the tab bar.  In this case,
+     last_tab_bar_item is -1, so we DTRT and behave like other
+     programs by displaying the item as sunken. */
   Display_Info *dpyinfo = FRAME_DISPLAY_INFO (f);
   mouse_down_p = (gui_mouse_grabbed (dpyinfo)
 		  && f == dpyinfo->last_mouse_frame);
 
-  if (mouse_down_p && f->last_tab_bar_item != prop_idx)
+  if (mouse_down_p && f->last_tab_bar_item != prop_idx
+      && f->last_tab_bar_item != -1)
     return;
 #endif
   draw = mouse_down_p ? DRAW_IMAGE_SUNKEN : DRAW_IMAGE_RAISED;
@@ -28126,6 +28134,19 @@ fill_composite_glyph_string (struct glyph_string *s, struct face *base_face,
       s->font = s->face->font;
     }
 
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      int c = COMPOSITION_GLYPH (s->cmp, 0);
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+
+      s->face = FACE_FROM_ID (s->f, FACE_FOR_CHAR (s->f, s->face, c, -1, Qnil));
+      prepare_face_for_display (s->f, s->face);
+    }
+
   /* All glyph strings for the same composition has the same width,
      i.e. the width set for the first component of the composition.  */
   s->width = s->first_glyph->pixel_width;
@@ -28162,7 +28183,17 @@ fill_gstring_glyph_string (struct glyph_string *s, int face_id,
   s->cmp_id = glyph->u.cmp.id;
   s->cmp_from = glyph->slice.cmp.from;
   s->cmp_to = glyph->slice.cmp.to + 1;
-  s->face = FACE_FROM_ID (s->f, face_id);
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+      prepare_face_for_display (s->f, s->face);
+    }
+  else
+    s->face = FACE_FROM_ID (s->f, face_id);
   lgstring = composition_gstring_from_id (s->cmp_id);
   s->font = XFONT_OBJECT (LGSTRING_FONT (lgstring));
   /* The width of a composition glyph string is the sum of the
@@ -28218,6 +28249,15 @@ fill_glyphless_glyph_string (struct glyph_string *s, int face_id,
   voffset = glyph->voffset;
   s->face = FACE_FROM_ID (s->f, face_id);
   s->font = s->face->font ? s->face->font : FRAME_FONT (s->f);
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+      prepare_face_for_display (s->f, s->face);
+    }
   s->nchars = 1;
   s->width = glyph->pixel_width;
   glyph++;
@@ -28281,6 +28321,19 @@ fill_glyph_string (struct glyph_string *s, int face_id,
 
   s->font = s->face->font;
 
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+      s->face
+        = FACE_FROM_ID (s->f, FACE_FOR_CHAR (s->f, s->face,
+					     s->first_glyph->u.ch, -1, Qnil));
+      prepare_face_for_display (s->f, s->face);
+    }
+
   /* If the specified font could not be loaded, use the frame's font,
      but record the fact that we couldn't load it in
      S->font_not_found_p so that we can draw rectangles for the
@@ -28310,6 +28363,15 @@ fill_image_glyph_string (struct glyph_string *s)
   s->slice = s->first_glyph->slice.img;
   s->face = FACE_FROM_ID (s->f, s->first_glyph->face_id);
   s->font = s->face->font;
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+      prepare_face_for_display (s->f, s->face);
+    }
   s->width = s->first_glyph->pixel_width;
 
   /* Adjust base line for subscript/superscript text.  */
@@ -28324,6 +28386,15 @@ fill_xwidget_glyph_string (struct glyph_string *s)
   eassert (s->first_glyph->type == XWIDGET_GLYPH);
   s->face = FACE_FROM_ID (s->f, s->first_glyph->face_id);
   s->font = s->face->font;
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+      prepare_face_for_display (s->f, s->face);
+    }
   s->width = s->first_glyph->pixel_width;
   s->ybase += s->first_glyph->voffset;
   s->xwidget = s->first_glyph->u.xwidget;
@@ -28349,6 +28420,15 @@ fill_stretch_glyph_string (struct glyph_string *s, int start, int end)
   face_id = glyph->face_id;
   s->face = FACE_FROM_ID (s->f, face_id);
   s->font = s->face->font;
+  if (s->hl == DRAW_MOUSE_FACE
+      || (s->hl == DRAW_CURSOR && cursor_in_mouse_face_p (s->w)))
+    {
+      Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (s->f);
+      s->face = FACE_FROM_ID_OR_NULL (s->f, hlinfo->mouse_face_face_id);
+      if (!s->face)
+	s->face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+      prepare_face_for_display (s->f, s->face);
+    }
   s->width = glyph->pixel_width;
   s->nchars = 1;
   voffset = glyph->voffset;
@@ -28596,7 +28676,12 @@ right_overwriting (struct glyph_string *s)
 
 /* Set background width of glyph string S.  START is the index of the
    first glyph following S.  LAST_X is the right-most x-position + 1
-   in the drawing area.  */
+   in the drawing area.
+
+   If S->hl is DRAW_CURSOR, S->f is a window system frame, and the
+   cursor in S's window is currently inside mouse face, also update
+   S->width to take into account potentially differing :box
+   properties between the original face and the mouse face.  */
 
 static void
 set_glyph_string_background_width (struct glyph_string *s, int start, int last_x)
@@ -28618,7 +28703,27 @@ set_glyph_string_background_width (struct glyph_string *s, int start, int last_x
   if (s->extends_to_end_of_line_p)
     s->background_width = last_x - s->x + 1;
   else
-    s->background_width = s->width;
+    {
+      s->background_width = s->width;
+#ifdef HAVE_WINDOW_SYSTEM
+      if (FRAME_WINDOW_P (s->f)
+	  && s->hl == DRAW_CURSOR
+	  && cursor_in_mouse_face_p (s->w))
+	{
+	  /* Adjust the background width of the glyph string, because
+	     if the glyph's face has the :box attribute, its
+	     pixel_width might be different when it's displayed in the
+	     mouse-face, if that also has the :box attribute.  */
+	  struct glyph *g = s->first_glyph;
+	  struct face *regular_face = FACE_FROM_ID (s->f, g->face_id);
+	  s->background_width +=
+	    adjust_glyph_width_for_mouse_face (g, s->row, s->w,
+					       regular_face, s->face);
+	  /* S->width is probably worth adjusting here as well.  */
+	  s->width = s->background_width;
+        }
+#endif
+    }
 }
 
 
@@ -29519,6 +29624,8 @@ produce_image_glyph (struct it *it)
 
   if (face->box != FACE_NO_BOX)
     {
+      /* If you change the logic here, please change it in
+	 get_cursor_offset_for_mouse_face as well. */
       if (face->box_horizontal_line_width > 0)
 	{
 	  if (slice.y == 0)
@@ -31820,6 +31927,20 @@ erase_phys_cursor (struct window *w)
       && cursor_row->used[TEXT_AREA] > hpos && hpos >= 0)
     mouse_face_here_p = true;
 
+#ifdef HAVE_WINDOW_SYSTEM
+  /* Since erasing the phys cursor will probably lead to corruption of
+     the mouse face display if the glyph's pixel_width is not kept up
+     to date with the :box property of the mouse face, just redraw the
+     mouse face.  */
+  if (FRAME_WINDOW_P (WINDOW_XFRAME (w)) && mouse_face_here_p)
+    {
+      w->phys_cursor_on_p = false;
+      w->phys_cursor_type = NO_CURSOR;
+      show_mouse_face (MOUSE_HL_INFO (WINDOW_XFRAME (w)), DRAW_MOUSE_FACE);
+      return;
+    }
+#endif
+
   /* Maybe clear the display under the cursor.  */
   if (w->phys_cursor_type == HOLLOW_BOX_CURSOR)
     {
@@ -32091,6 +32212,9 @@ show_mouse_face (Mouse_HLInfo *hlinfo, enum draw_glyphs_face draw)
       && hlinfo->mouse_face_end_row < w->current_matrix->nrows)
     {
       bool phys_cursor_on_p = w->phys_cursor_on_p;
+#ifdef HAVE_WINDOW_SYSTEM
+      int mouse_off = 0;
+#endif
       struct glyph_row *row, *first, *last;
 
       first = MATRIX_ROW (w->current_matrix, hlinfo->mouse_face_beg_row);
@@ -32164,6 +32288,15 @@ show_mouse_face (Mouse_HLInfo *hlinfo, enum draw_glyphs_face draw)
 	      row->mouse_face_p
 		= draw == DRAW_MOUSE_FACE || draw == DRAW_IMAGE_RAISED;
 	    }
+#ifdef HAVE_WINDOW_SYSTEM
+	  /* Compute the cursor offset due to mouse-highlight.  */
+	  if ((MATRIX_ROW_VPOS (row, w->current_matrix) == w->phys_cursor.vpos)
+	      /* But not when highlighting a pseudo window, such as
+		 the toolbar, which can't have a cursor anyway.  */
+	      && !w->pseudo_window_p
+	      && draw == DRAW_MOUSE_FACE)
+	    get_cursor_offset_for_mouse_face (w, row, &mouse_off);
+#endif
 	}
 
       /* When we've written over the cursor, arrange for it to
@@ -32173,6 +32306,7 @@ show_mouse_face (Mouse_HLInfo *hlinfo, enum draw_glyphs_face draw)
 	{
 #ifdef HAVE_WINDOW_SYSTEM
 	  int hpos = w->phys_cursor.hpos;
+	  int old_phys_cursor_x = w->phys_cursor.x;
 
 	  /* When the window is hscrolled, cursor hpos can legitimately be
 	     out of bounds, but we draw the cursor at the corresponding
@@ -32184,7 +32318,11 @@ show_mouse_face (Mouse_HLInfo *hlinfo, enum draw_glyphs_face draw)
 
 	  block_input ();
 	  display_and_set_cursor (w, true, hpos, w->phys_cursor.vpos,
-				  w->phys_cursor.x, w->phys_cursor.y);
+				  w->phys_cursor.x + mouse_off,
+				  w->phys_cursor.y);
+	  /* Restore the original cursor coordinates, perhaps modified
+	     to account for mouse-highlight.  */
+	  w->phys_cursor.x = old_phys_cursor_x;
 	  unblock_input ();
 #endif	/* HAVE_WINDOW_SYSTEM */
 	}
@@ -33647,7 +33785,21 @@ note_mouse_highlight (struct frame *f, int x, int y)
   if (EQ (window, f->tab_bar_window))
     {
       note_tab_bar_highlight (f, x, y);
-      return;
+      if (tab_bar__dragging_in_progress)
+	{
+	  cursor = FRAME_OUTPUT_DATA (f)->hand_cursor;
+	  goto set_cursor;
+	}
+      else
+	return;
+    }
+  else
+    {
+      /* The mouse might have pressed into the tab bar, but might
+	 also have been released outside the tab bar, so
+	 f->last_tab_bar_item must be reset, in order to make sure the
+	 item can be still highlighted again in the future.  */
+      f->last_tab_bar_item = -1;
     }
 #endif
 
@@ -35777,6 +35929,10 @@ When nil, mouse-movement events will not be generated as long as the
 mouse stays within the extent of a single glyph (except for images).  */);
   mouse_fine_grained_tracking = false;
 
+  DEFVAR_BOOL ("tab-bar--dragging-in-progress", tab_bar__dragging_in_progress,
+    doc: /* Non-nil when maybe dragging tab bar item.  */);
+  tab_bar__dragging_in_progress = false;
+
   DEFVAR_BOOL ("redisplay-skip-initial-frame", redisplay_skip_initial_frame,
     doc: /* Non-nil to skip redisplay in initial frame.
 The initial frame is not displayed anywhere, so skipping it is
@@ -35956,4 +36112,121 @@ cancel_hourglass (void)
     }
 }
 
+/* Return a correction to be applied to G->pixel_width when it is
+   displayed in MOUSE_FACE.  This is needed for the first and the last
+   glyphs of text inside a face with :box when it is displayed with
+   MOUSE_FACE that has a different or no :box attribute.
+   ORIGINAL_FACE is the face G was originally drawn in, and MOUSE_FACE
+   is the face it will be drawn in now.  ROW is the G's glyph row and
+   W is its window.  */
+static int
+adjust_glyph_width_for_mouse_face (struct glyph *g, struct glyph_row *row,
+				   struct window *w,
+				   struct face *original_face,
+				   struct face *mouse_face)
+{
+  int sum = 0;
+
+  bool do_left_box_p = g->left_box_line_p;
+  bool do_right_box_p = g->right_box_line_p;
+
+  /* This is required because we test some parameters of the image
+     slice before applying the box in produce_image_glyph.  */
+  if (g->type == IMAGE_GLYPH)
+    {
+      if (!row->reversed_p)
+	{
+	  struct image *img = IMAGE_FROM_ID (WINDOW_XFRAME (w),
+					     g->u.img_id);
+	  do_left_box_p = g->left_box_line_p &&
+	    g->slice.img.x == 0;
+	  do_right_box_p = g->right_box_line_p &&
+	    g->slice.img.x + g->slice.img.width == img->width;
+	}
+      else
+	{
+	  struct image *img = IMAGE_FROM_ID (WINDOW_XFRAME (w),
+					     g->u.img_id);
+	  do_left_box_p = g->left_box_line_p &&
+	    g->slice.img.x + g->slice.img.width == img->width;
+	  do_right_box_p = g->right_box_line_p &&
+	    g->slice.img.x == 0;
+	}
+    }
+
+  /* If the glyph has a left box line, subtract it from the offset.  */
+  if (do_left_box_p)
+    sum -= max (0, original_face->box_vertical_line_width);
+  /* Likewise with the right box line, as there may be a
+     box there as well.  */
+  if (do_right_box_p)
+    sum -= max (0, original_face->box_vertical_line_width);
+  /* Now add the line widths from the new face.  */
+  if (g->left_box_line_p)
+    sum += max (0, mouse_face->box_vertical_line_width);
+  if (g->right_box_line_p)
+    sum += max (0, mouse_face->box_vertical_line_width);
+
+  return sum;
+}
+
+/* Get the offset due to mouse-highlight to apply before drawing
+   phys_cursor, and return it in OFFSET.  ROW should be the row that
+   is under mouse face and contains the phys cursor.
+
+   This is required because the produce_XXX_glyph series of functions
+   add the width of the various vertical box lines to the total width
+   of the glyphs, but that must be updated when the row is put under
+   mouse face, which can have different box dimensions.  */
+static void
+get_cursor_offset_for_mouse_face (struct window *w, struct glyph_row *row,
+				  int *offset)
+{
+  int sum = 0;
+  /* Return because the mode line can't possibly have a cursor. */
+  if (row->mode_line_p)
+    return;
+
+  block_input ();
+
+  struct frame *f = WINDOW_XFRAME (w);
+  Mouse_HLInfo *hlinfo = MOUSE_HL_INFO (f);
+  struct glyph *start, *end;
+  struct face *mouse_face = FACE_FROM_ID (f, hlinfo->mouse_face_face_id);
+  int hpos = w->phys_cursor.hpos;
+  end = &row->glyphs[TEXT_AREA][hpos];
+
+  if (!row->reversed_p)
+    {
+      if (MATRIX_ROW_VPOS (row, w->current_matrix) ==
+	  hlinfo->mouse_face_beg_row)
+	start = &row->glyphs[TEXT_AREA][hlinfo->mouse_face_beg_col];
+      else
+	start = row->glyphs[TEXT_AREA];
+    }
+  else
+    {
+      if (MATRIX_ROW_VPOS (row, w->current_matrix) ==
+	  hlinfo->mouse_face_end_row)
+	start = &row->glyphs[TEXT_AREA][hlinfo->mouse_face_end_col];
+      else
+	start = &row->glyphs[TEXT_AREA][row->used[TEXT_AREA] - 1];
+    }
+
+  /* Calculate the offset by which to correct phys_cursor x if we are
+     drawing the cursor inside mouse-face highlighted text.  */
+
+  for ( ; row->reversed_p ? start > end : start < end;
+	  row->reversed_p ? --start : ++start)
+    sum += adjust_glyph_width_for_mouse_face (start, row, w,
+					      FACE_FROM_ID (f, start->face_id),
+					      mouse_face);
+
+  if (row->reversed_p)
+    sum = -sum;
+
+  *offset = sum;
+
+  unblock_input ();
+}
 #endif /* HAVE_WINDOW_SYSTEM */

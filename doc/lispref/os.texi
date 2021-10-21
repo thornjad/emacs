@@ -3124,8 +3124,9 @@ watch for file attribute changes, like permissions or modification
 time
 @end table
 
-If @var{file} is a directory, changes for all files in that directory
-will be notified.  This does not work recursively.
+If @var{file} is a directory, @code{change} watches for file creation
+or deletion in that directory.  Some of the file notification backends
+report also file changes.  This does not work recursively.
 
 When any event happens, Emacs will call the @var{callback} function
 passing it a single argument @var{event}, which is of the form
@@ -3229,6 +3230,14 @@ Removes an existing file watch specified by its @var{descriptor}.
 @var{descriptor} should be an object returned by
 @code{file-notify-add-watch}.
 @end defun
+
+@deffn Command file-notify-rm-all-watches
+Removes all existing file notification watches from Emacs.
+
+Use this command with caution, because it could have unexpected side
+effects on packages relying on file watches.  It is intended mainly
+for debugging purposes, or when Emacs has been stalled.
+@end deffn
 
 @defun file-notify-valid-p descriptor
 Checks a watch specified by its @var{descriptor} for validity.
