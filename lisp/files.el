@@ -1564,6 +1564,7 @@ This implementation works on magic file names."
 
 (defun make-nearby-temp-file (prefix &optional dir-flag suffix)
   "Create a temporary file as close as possible to `default-directory'.
+Return the absolute file name of the created file.
 If PREFIX is a relative file name, and `default-directory' is a
 remote file name or located on a mounted file systems, the
 temporary file is created in the directory returned by the
@@ -2758,6 +2759,7 @@ since only a single case-insensitive search through the alist is made."
      ("\\.gif\\'" . image-mode)
      ("\\.png\\'" . image-mode)
      ("\\.jpe?g\\'" . image-mode)
+     ("\\.webp\\'" . image-mode)
      ("\\.te?xt\\'" . text-mode)
      ("\\.[tT]e[xX]\\'" . tex-mode)
      ("\\.ins\\'" . tex-mode)		;Installation files for TeX packages.
@@ -2976,6 +2978,7 @@ ARC\\|ZIP\\|LZH\\|LHA\\|ZOO\\|[JEW]AR\\|XPI\\|RAR\\|CBR\\|7Z\\|SQUASHFS\\)\\'" .
      ("\\.dng\\'" . image-mode)
      ("\\.dpx\\'" . image-mode)
      ("\\.fax\\'" . image-mode)
+     ("\\.heic\\'" . image-mode)
      ("\\.hrz\\'" . image-mode)
      ("\\.icb\\'" . image-mode)
      ("\\.icc\\'" . image-mode)
@@ -6178,6 +6181,22 @@ Return nil if DIR is not an existing directory."
 	  (unless mismatch
 	    (file-equal-p root dir)))))))
 
+(defvar file-has-changed-p--hash-table (make-hash-table)
+  "Internal variable used by `file-has-changed-p'.")
+
+(defun file-has-changed-p (file)
+  "Return non-nil if FILE has changed.
+The modification time of FILE is compared to the modification
+time of FILE during a previous invocation of `file-has-changed-p'.
+Therefore the first invocation of `file-has-changed-p' always
+returns non-nil."
+  (let* ((attr (file-attributes file 'integer))
+	  (mtime (file-attribute-modification-time attr))
+	  (saved-mtime (gethash (intern file)
+				file-has-changed-p--hash-table)))
+     (when (not (equal mtime saved-mtime))
+       (puthash (intern file) mtime file-has-changed-p--hash-table))))
+
 (defun copy-directory (directory newname &optional keep-time parents copy-contents)
   "Copy DIRECTORY to NEWNAME.  Both args must be strings.
 This function always sets the file modes of the output files to match
@@ -7130,16 +7149,16 @@ default directory.  However, if FULL is non-nil, they are absolute."
 	  (let ((this-dir-contents
 		 ;; Filter out "." and ".."
 		 (delq nil
-		       (mapcar #'(lambda (name)
-				   (unless (string-match "\\`\\.\\.?\\'"
-							 (file-name-nondirectory name))
-				     name))
+                       (mapcar (lambda (name)
+                                 (unless (string-match "\\`\\.\\.?\\'"
+                                                       (file-name-nondirectory name))
+                                   name))
 			       (directory-files (or dir ".") full
 						(wildcard-to-regexp nondir))))))
 	    (setq contents
 		  (nconc
 		   (if (and dir (not full))
-		       (mapcar #'(lambda (name) (concat dir name))
+                       (mapcar (lambda (name) (concat dir name))
 			       this-dir-contents)
 		     this-dir-contents)
 		   contents)))))

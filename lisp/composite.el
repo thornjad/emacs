@@ -901,6 +901,4 @@ For more information on Auto Composition mode, see
 
 (provide 'composite)
 
-
-
 ;;; composite.el ends here

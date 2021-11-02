@@ -413,8 +413,14 @@
     (bindings--define-key menu [separator-tag-file]
       '(menu-item "--" nil :visible (menu-bar-goto-uses-etags-p)))
 
+    (bindings--define-key menu [xref-forward]
+      '(menu-item "Forward" xref-go-forward
+                  :visible (and (featurep 'xref)
+                                (not (xref-forward-history-empty-p)))
+                  :help "Forward to the position gone Back from"))
+
     (bindings--define-key menu [xref-pop]
-      '(menu-item "Back" xref-pop-marker-stack
+      '(menu-item "Back" xref-go-back
                   :visible (and (featurep 'xref)
                                 (not (xref-marker-stack-empty-p)))
                   :help "Back to the position of the last search"))
@@ -2713,10 +2719,13 @@ This command is to be used when you click the mouse in the menubar."
                        (cdr menu-bar-item-cons)
                      0))))
 
-(defun menu-bar-keymap ()
+(defun menu-bar-keymap (&optional keymap)
   "Return the current menu-bar keymap.
+The ordering of the return value respects `menu-bar-final-items'.
 
-The ordering of the return value respects `menu-bar-final-items'."
+It's possible to use the KEYMAP argument to override the default keymap
+that is the currently active maps.  For example, the argument KEYMAP
+could provide `global-map' where items are limited to the global map only."
   (let ((menu-bar '())
         (menu-end '()))
     (map-keymap
@@ -2729,7 +2738,7 @@ The ordering of the return value respects `menu-bar-final-items'."
              ;; sorting.
              (push (cons pos menu-item) menu-end)
            (push menu-item menu-bar))))
-     (lookup-key (menu-bar-current-active-maps) [menu-bar]))
+     (lookup-key (or keymap (menu-bar-current-active-maps)) [menu-bar]))
     `(keymap ,@(nreverse menu-bar)
              ,@(mapcar #'cdr (sort menu-end
                                    (lambda (a b)

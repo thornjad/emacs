@@ -112,12 +112,12 @@ default:
     - 'export PWD=$(pwd)'
     - 'docker run -i -e EMACS_EMBA_CI=${EMACS_EMBA_CI} -e EMACS_TEST_TIMEOUT=${EMACS_TEST_TIMEOUT} -e EMACS_TEST_VERBOSE=${EMACS_TEST_VERBOSE} --volumes-from $(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=${CI_JOB_ID}"):ro --name ${test_name} ${CI_REGISTRY_IMAGE}:${target}-${BUILD_TAG} /bin/bash -c "git fetch ${PWD} HEAD && echo checking out these updated files && git diff --name-only FETCH_HEAD && ( git diff --name-only FETCH_HEAD | xargs git checkout -f FETCH_HEAD ) && make -j4 && make ${make_params}"'
   after_script:
-    - docker ps -a
-    - printenv
-    - test -n "$(docker ps -aq -f name=${test_name})" && ( docker export ${test_name} | tar -tvf - )
+    # - docker ps -a
+    # - printenv
+    # - test -n "$(docker ps -aq -f name=${test_name})" && ( docker export ${test_name} | tar -tvf - )
     - test -n "$(docker ps -aq -f name=${test_name})" && docker cp ${test_name}:checkout/test ${test_name}
     - test -n "$(docker ps -aq -f name=${test_name})" && docker rm ${test_name}
-    - ls -alR ${test_name}
+    # - ls -alR ${test_name}
 
 .build-template:
   needs: []
@@ -224,6 +224,8 @@ build-image-inotify:
   extends: [.job-template, .build-template]
   variables:
     target: emacs-inotify
+# Temporarily.
+  timeout: 8 hours
 
 # test-fast-inotify:
 #   stage: fast
@@ -300,7 +302,9 @@ test-native-comp-speed0:
   extends: [.job-template, .test-template, .native-comp-template]
   variables:
     target: emacs-native-comp-speed0
-    make_params: "-C test comp-tests.log"
+    make_params: >-
+      -C test check EXCLUDE_TESTS=%emacs-module-tests.el
+         SELECTOR='(not (tag :unstable))'
 
 test-all-inotify:
   # This tests also file monitor libraries inotify and inotifywatch.
@@ -313,7 +317,7 @@ test-all-inotify:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
   variables:
     target: emacs-inotify
-    make_params: check-expensive
+    make_params: check-expensive EXCLUDE_TESTS=%emacs-module-tests.el
     # Two hours.
     EMACS_TEST_TIMEOUT: 7200
 

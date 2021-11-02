@@ -447,6 +447,7 @@ OPTION_DEFAULT_ON([tiff],[don't compile with TIFF image support])
 OPTION_DEFAULT_ON([gif],[don't compile with GIF image support])
 OPTION_DEFAULT_ON([png],[don't compile with PNG image support])
 OPTION_DEFAULT_ON([rsvg],[don't compile with SVG image support])
+OPTION_DEFAULT_ON([webp],[don't compile with WebP image support])
 OPTION_DEFAULT_ON([lcms2],[don't compile with Little CMS support])
 OPTION_DEFAULT_ON([libsystemd],[don't compile with libsystemd support])
 OPTION_DEFAULT_ON([cairo],[don't compile with Cairo drawing])
@@ -485,6 +486,7 @@ OPTION_DEFAULT_ON([zlib],[don't compile with zlib decompression support])
 OPTION_DEFAULT_ON([modules],[don't compile with dynamic modules support])
 OPTION_DEFAULT_ON([threads],[don't compile with elisp threading support])
 OPTION_DEFAULT_ON([native-compilation],[compile with Emacs Lisp native compiler support])
+OPTION_DEFAULT_OFF([cygwin32-native-compilation],[use native compilation on 32-bit Cygwin])
 
 AC_ARG_WITH([file-notification],[AS_HELP_STRING([--with-file-notification=LIB],
  [use a file notification library (LIB one of: yes, inotify, kqueue, gfile, w32, no)])],
@@ -2588,6 +2590,28 @@ if test "${HAVE_X11}" = "yes" || test "${HAVE_NS}" = "yes" || test "${opsys}" = 
   fi
 fi
 
+### Use -lwebp if available, unless '--with-webp=no'
+HAVE_WEBP=no
+if test "${with_webp}" != "no"; then
+   if test "${HAVE_X11}" = "yes" || test "${opsys}" = "mingw32" \
+   || test "${HAVE_W32}" = "yes" || test "${HAVE_NS}" = "yes"; then
+      WEBP_REQUIRED=0.6.0
+      WEBP_MODULE="libwebp >= $WEBP_REQUIRED"
+
+      EMACS_CHECK_MODULES([WEBP], [$WEBP_MODULE])
+      AC_SUBST(WEBP_CFLAGS)
+      AC_SUBST(WEBP_LIBS)
+   fi
+   if test $HAVE_WEBP = yes; then
+      AC_DEFINE(HAVE_WEBP, 1, [Define to 1 if using libwebp.])
+      CFLAGS="$CFLAGS $WEBP_CFLAGS"
+      # Windows loads libwebp dynamically
+      if test "${opsys}" = "mingw32"; then
+	WEBP_LIBS=
+      fi
+   fi
+fi
+
 HAVE_IMAGEMAGICK=no
 if test "${HAVE_X11}" = "yes" || test "${HAVE_NS}" = "yes" || test "${HAVE_W32}" = "yes"; then
   if test "${with_imagemagick}" != "no"; then
@@ -3816,6 +3840,16 @@ source on this site:
 HAVE_NATIVE_COMP=no
 LIBGCCJIT_LIBS=
 LIBGCCJIT_CFLAGS=
+if test "$canonical" = i686-pc-cygwin; then
+  if test "${with_cygwin32_native_compilation}" = yes; then
+    with_native_compilation=yes
+  elif test "${with_native_compilation}" != no; then
+    AC_MSG_ERROR([Native compilation is not supported on 32-bit Cygwin.
+If you really want to try it anyway, use the configure option
+'--with-cygwin32-native-compilation'.])
+  fi
+fi
+
 if test "${with_native_compilation}" != "no"; then
     if test "${HAVE_PDUMPER}" = no; then
        AC_MSG_ERROR(['--with-native-compilation' requires '--with-dumping=pdumper'])
@@ -5882,8 +5916,8 @@ emacs_config_features=
 for opt in ACL CAIRO DBUS FREETYPE GCONF GIF GLIB GMP GNUTLS GPM GSETTINGS \
  HARFBUZZ IMAGEMAGICK JPEG JSON LCMS2 LIBOTF LIBSELINUX LIBSYSTEMD LIBXML2 \
  M17N_FLT MODULES NATIVE_COMP NOTIFY NS OLDXMENU PDUMPER PNG RSVG SECCOMP \
- SOUND THREADS TIFF \
- TOOLKIT_SCROLL_BARS UNEXEC X11 XAW3D XDBE XFT XIM XPM XWIDGETS X_TOOLKIT \
+ SOUND THREADS TIFF TOOLKIT_SCROLL_BARS \
+ UNEXEC WEBP X11 XAW3D XDBE XFT XIM XPM XWIDGETS X_TOOLKIT \
  ZLIB; do
 
     case $opt in
@@ -5928,6 +5962,7 @@ AS_ECHO(["  Does Emacs use -lXaw3d?                                 ${HAVE_XAW3D
   Does Emacs use a gif library?                           ${HAVE_GIF} $LIBGIF
   Does Emacs use a png library?                           ${HAVE_PNG} $LIBPNG
   Does Emacs use -lrsvg-2?                                ${HAVE_RSVG}
+  Does Emacs use -lwebp?                                  ${HAVE_WEBP}
   Does Emacs use cairo?                                   ${HAVE_CAIRO}
   Does Emacs use -llcms2?                                 ${HAVE_LCMS2}
   Does Emacs use imagemagick?                             ${HAVE_IMAGEMAGICK}

@@ -561,11 +561,13 @@ To record all your input, use `open-dribble-file'."
               'font-lock-face 'help-key-binding
               'face 'help-key-binding))
 
-(defcustom describe-bindings-outline nil
+(defcustom describe-bindings-outline t
   "Non-nil enables outlines in the output buffer of `describe-bindings'."
   :type 'boolean
   :group 'help
-  :version "28.1")
+  :version "29.1")
+
+(declare-function outline-hide-subtree "outline")
 
 (defun describe-bindings (&optional prefix buffer)
   "Display a buffer showing a list of all defined keys, and their definitions.
@@ -578,32 +580,43 @@ to display (default, the current buffer).  BUFFER can be a buffer
 or a buffer name."
   (interactive)
   (or buffer (setq buffer (current-buffer)))
-  (help-setup-xref (list #'describe-bindings prefix buffer)
-		   (called-interactively-p 'interactive))
-  (with-help-window (help-buffer)
-    ;; Be aware that `describe-buffer-bindings' puts its output into
-    ;; the current buffer.
-    (with-current-buffer (help-buffer)
-      (describe-buffer-bindings buffer prefix)
+  (let ((overlays (overlays-at (point))))
+    (help-setup-xref (list #'describe-bindings prefix buffer)
+		     (called-interactively-p 'interactive))
+    (with-help-window (help-buffer)
+      (with-current-buffer (help-buffer)
+        ;; Output keymaps from overlays, if any.  (Keymaps from text
+        ;; properties is handled by `describe-buffer-bindings'.)
+        (dolist (o overlays)
+          (when-let ((map (overlay-get o 'local-map)))
+            (insert "Overriding Overlay Bindings:\n")
+            (describe-map map)
+            (insert "\n"))
+          (when-let ((map (overlay-get o 'keymap)))
+            (insert "Overlay Bindings:\n")
+            (describe-map map)
+            (insert "\n")))
 
-      (when describe-bindings-outline
-        (setq-local outline-regexp ".*:$")
-        (setq-local outline-heading-end-regexp ":\n")
-        (setq-local outline-level (lambda () 1))
-        (setq-local outline-minor-mode-cycle t
-                    outline-minor-mode-highlight t)
-        (outline-minor-mode 1)
-        (save-excursion
-          (let ((inhibit-read-only t))
+        (describe-buffer-bindings buffer prefix)
+
+        (when describe-bindings-outline
+          (setq-local outline-regexp ".*:$")
+          (setq-local outline-heading-end-regexp ":\n")
+          (setq-local outline-level (lambda () 1))
+          (setq-local outline-minor-mode-cycle t
+                      outline-minor-mode-highlight t)
+          (setq-local outline-minor-mode-use-buttons t)
+          (outline-minor-mode 1)
+          (save-excursion
             (goto-char (point-min))
-            (insert (substitute-command-keys
-                     (concat "\\<outline-minor-mode-cycle-map>Type "
-                             "\\[outline-cycle] or \\[outline-cycle-buffer] "
-                             "on headings to cycle their visibility.\n\n")))
-            ;; Hide the longest body
-            (when (and (re-search-forward "Key translations" nil t)
-                       (fboundp 'outline-cycle))
-              (outline-cycle))))))))
+            (let ((inhibit-read-only t))
+              ;; Hide the longest body.
+              (when (re-search-forward "Key translations" nil t)
+                (outline-hide-subtree))
+              ;; Hide ^Ls.
+              (while (search-forward "\n\f\n" nil t)
+                (put-text-property (1+ (match-beginning 0)) (1- (match-end 0))
+                                   'invisible t)))))))))
 
 (defun where-is (definition &optional insert)
   "Print message listing key sequences that invoke the command DEFINITION.
@@ -701,7 +714,13 @@ in the selected window."
          ;; is selected from the context menu that should describe KEY
          ;; at the position of mouse click that opened the context menu.
          ;; When no mouse was involved, don't use `mouse-set-point'.
-         (defn (if buffer (key-binding key t)
+         (defn (if (or buffer
+                       ;; Clicks on the menu bar produce "event" that
+                       ;; is just '(menu-bar)', for which
+                       ;; `mouse-set-point' is not useful.
+                       (and (not (windowp (posn-window (event-start event))))
+                            (not (framep (posn-window (event-start event))))))
+                   (key-binding key t)
                  (save-excursion (mouse-set-point event) (key-binding key t)))))
     ;; Handle the case where we faked an entry in "Select and Paste" menu.
     (when (and (eq defn nil)
@@ -1058,6 +1077,14 @@ is currently activated with completion."
     result))
 
 
+(defcustom help-link-key-to-documentation t
+  "Non-nil means link keys to their command in *Help* buffers.
+This affects \\\\=\\[command] substitutions in documentation
+strings done by `substitute-command-keys'."
+  :type 'boolean
+  :version "29.1"
+  :group 'help)
+
 (defun substitute-command-keys (string)
   "Substitute key descriptions for command names in STRING.
 Each substring of the form \\\\=[COMMAND] is replaced by either a
@@ -1145,7 +1172,14 @@ Otherwise, return a new string."
                         (delete-char 1))
                     ;; Function is on a key.
                     (delete-char (- end-point (point)))
-                    (insert (help--key-description-fontified key)))))
+                    (let ((key (help--key-description-fontified key)))
+                      (insert (if (and help-link-key-to-documentation
+                                       (functionp fun))
+                                  ;; The `fboundp' fixes bootstrap.
+                                  (if (fboundp 'help-mode--add-function-link)
+                                      (help-mode--add-function-link key fun)
+                                    key)
+                                key))))))
                ;; 1D. \{foo} is replaced with a summary of the keymap
                ;;            (symbol-value foo).
                ;;     \<foo> just sets the keymap used for \[cmd].
@@ -1227,15 +1261,12 @@ If NOMENU is non-nil, then omit menu-bar commands.
 If TRANSL is non-nil, the definitions are actually key
 translations so print strings and vectors differently.
 
-If ALWAYS_TITLE is non-nil, print the title even if there are no
+If ALWAYS-TITLE is non-nil, print the title even if there are no
 maps to look through.
 
-If MENTION_SHADOW is non-nil, then when something is shadowed by
+If MENTION-SHADOW is non-nil, then when something is shadowed by
 SHADOW, don't omit it; instead, mention it but say it is
-shadowed.
-
-Any inserted text ends in two newlines (used by
-`help-make-xrefs')."
+shadowed."
   (let* ((amaps (accessible-keymaps startmap prefix))
          (orig-maps (if no-menu
                         (progn
@@ -1252,17 +1283,8 @@ Any inserted text ends in two newlines (used by
                             result))
                       amaps))
          (maps orig-maps)
-         (print-title (or maps always-title)))
-    ;; Print title.
-    (when print-title
-      (insert (concat (if title
-                          (concat title
-                                  (if prefix
-                                      (concat " Starting With "
-                                              (help--key-description-fontified prefix)))
-                                  ":\n"))
-                      "key             binding\n"
-                      "---             -------\n")))
+         (print-title (or maps always-title))
+         (start-point (point)))
     ;; Describe key bindings.
     (setq help--keymaps-seen nil)
     (while (consp maps)
@@ -1287,8 +1309,24 @@ Any inserted text ends in two newlines (used by
           (describe-map (cdr elt) elt-prefix transl partial
                         sub-shadows no-menu mention-shadow)))
       (setq maps (cdr maps)))
-    (when print-title
-      (insert "\n"))))
+    ;; Print title...
+    (when (and print-title
+               ;; ... unless the keymap was empty.
+               (/= (point) start-point))
+      (save-excursion
+        (goto-char start-point)
+        (when (eolp)
+          (delete-region (point) (1+ (point))))
+        (insert
+         (concat
+          (if title
+              (concat title
+                      (if prefix
+                          (concat " Starting With "
+                                  (help--key-description-fontified prefix)))
+                      ":\n"))
+          "\nKey             Binding\n"
+          (make-separator-line)))))))
 
 (defun help--shadow-lookup (keymap key accept-default remap)
   "Like `lookup-key', but with command remapping.
@@ -1301,48 +1339,28 @@ Return nil if the key sequence is too long."
                value))
           (t value))))
 
-(defvar help--previous-description-column 0)
-(defun help--describe-command (definition)
-  ;; Converted from describe_command in keymap.c.
-  ;; If column 16 is no good, go to col 32;
-  ;; but don't push beyond that--go to next line instead.
-  (let* ((column (current-column))
-         (description-column (cond ((> column 30)
-                                    (insert "\n")
-                                    32)
-                                   ((or (> column 14)
-                                        (and (> column 10)
-                                             (= help--previous-description-column 32)))
-                                    32)
-                                   (t 16))))
-    ;; Avoid using the `help-keymap' face.
-    (let ((op (point)))
-      (indent-to description-column 1)
-      (set-text-properties op (point) '( face nil
-                                         font-lock-face nil)))
-    (setq help--previous-description-column description-column)
-    (cond ((symbolp definition)
-           (insert (symbol-name definition) "\n"))
-          ((or (stringp definition) (vectorp definition))
-           (insert "Keyboard Macro\n"))
-          ((keymapp definition)
-           (insert "Prefix Command\n"))
-          (t (insert "??\n")))))
-
-(defun help--describe-translation (definition)
-  ;; Converted from describe_translation in keymap.c.
-  ;; Avoid using the `help-keymap' face.
-  (let ((op (point)))
-    (indent-to 16 1)
-    (set-text-properties op (point) '( face nil
-                                      font-lock-face nil)))
+(defun help--describe-command (definition &optional translation)
   (cond ((symbolp definition)
-         (insert (symbol-name definition) "\n"))
+         (insert-text-button (symbol-name definition)
+                             'type 'help-function
+                             'help-args (list definition))
+         (insert "\n"))
         ((or (stringp definition) (vectorp definition))
-         (insert (key-description definition nil) "\n"))
+         (if translation
+             (insert (key-description definition nil) "\n")
+           (insert "Keyboard Macro\n")))
         ((keymapp definition)
          (insert "Prefix Command\n"))
-        (t (insert "??\n"))))
+        ((byte-code-function-p definition)
+         (insert "[byte-code]\n"))
+        ((and (consp definition)
+              (memq (car definition) '(closure lambda)))
+         (insert (format "[%s]\n" (car definition))))
+        (t
+         (insert "??\n"))))
+
+(define-obsolete-function-alias 'help--describe-translation
+  #'help--describe-command "29.1")
 
 (defun help--describe-map-compare (a b)
   (let ((a (car a))
@@ -1356,7 +1374,8 @@ Return nil if the key sequence is too long."
            (string-version-lessp (symbol-name a) (symbol-name b)))
           (t nil))))
 
-(defun describe-map (map prefix transl partial shadow nomenu mention-shadow)
+(defun describe-map (map &optional prefix transl partial shadow
+                         nomenu mention-shadow)
   "Describe the contents of keymap MAP.
 Assume that this keymap itself is reached by the sequence of
 prefix keys PREFIX (a string or vector).
@@ -1368,14 +1387,22 @@ TRANSL, PARTIAL, SHADOW, NOMENU, MENTION-SHADOW are as in
          (map (keymap-canonicalize map))
          (tail map)
          (first t)
-         (describer (if transl
-                        #'help--describe-translation
-                      #'help--describe-command))
          done vect)
     (while (and (consp tail) (not done))
       (cond ((or (vectorp (car tail)) (char-table-p (car tail)))
-             (help--describe-vector (car tail) prefix describer partial
-                                shadow map mention-shadow))
+             (let ((columns ()))
+               (help--describe-vector
+                (car tail) prefix
+                (lambda (def)
+                  (let ((start-line (line-beginning-position))
+                        (end-key (point))
+                        (column (current-column)))
+                    (help--describe-command def transl)
+                    (push (list column start-line end-key (1- (point)))
+                          columns)))
+                partial shadow map mention-shadow)
+               (when columns
+                 (describe-map--align-section columns))))
             ((consp (car tail))
              (let ((event (caar tail))
                    definition this-shadowed)
@@ -1418,7 +1445,9 @@ TRANSL, PARTIAL, SHADOW, NOMENU, MENTION-SHADOW are as in
                  (push (cons tail prefix) help--keymaps-seen)))))
       (setq tail (cdr tail)))
     ;; If we found some sparse map events, sort them.
-    (let ((vect (sort vect 'help--describe-map-compare)))
+    (let ((vect (sort vect 'help--describe-map-compare))
+          (columns ())
+          line-start key-end column)
       ;; Now output them in sorted order.
       (while vect
         (let* ((elem (car vect))
@@ -1426,10 +1455,6 @@ TRANSL, PARTIAL, SHADOW, NOMENU, MENTION-SHADOW are as in
                (definition (cadr elem))
                (shadowed (caddr elem))
                (end start))
-          (when first
-            (setq help--previous-description-column 0)
-            (insert "\n")
-            (setq first nil))
           ;; Find consecutive chars that are identically defined.
           (when (fixnump start)
             (while (and (cdr vect)
@@ -1444,26 +1469,80 @@ TRANSL, PARTIAL, SHADOW, NOMENU, MENTION-SHADOW are as in
                                (eq this-shadowed next-shadowed))))
               (setq vect (cdr vect))
               (setq end (caar vect))))
-          ;; Now START .. END is the range to describe next.
-          ;; Insert the string to describe the event START.
-          (insert (help--key-description-fontified (vector start) prefix))
-          (when (not (eq start end))
-            (insert " .. " (help--key-description-fontified (vector end) prefix)))
-          ;; Print a description of the definition of this character.
-          ;; Called function will take care of spacing out far enough
-          ;; for alignment purposes.
-          (if transl
-              (help--describe-translation definition)
-            (help--describe-command definition))
-          ;; Print a description of the definition of this character.
-          ;; elt_describer will take care of spacing out far enough for
-          ;; alignment purposes.
-          (when shadowed
-            (goto-char (max (1- (point)) (point-min)))
-            (insert "\n  (this binding is currently shadowed)")
-            (goto-char (min (1+ (point)) (point-max)))))
+          (when (or (not (eq start end))
+                    ;; Don't output keymap prefixes.
+                    (not (keymapp definition)))
+            (when first
+              (insert "\n")
+              (setq first nil))
+            ;; Now START .. END is the range to describe next.
+            ;; Insert the string to describe the event START.
+            (setq line-start (point))
+            (insert (help--key-description-fontified (vector start) prefix))
+            (when (not (eq start end))
+              (insert " .. " (help--key-description-fontified (vector end)
+                                                              prefix)))
+            (setq key-end (point)
+                  column (current-column))
+            ;; Print a description of the definition of this character.
+            ;; Called function will take care of spacing out far enough
+            ;; for alignment purposes.
+            (help--describe-command definition transl)
+            (push (list column line-start key-end (1- (point))) columns)
+            ;; Print a description of the definition of this character.
+            ;; elt_describer will take care of spacing out far enough for
+            ;; alignment purposes.
+            (when shadowed
+              (goto-char (max (1- (point)) (point-min)))
+              (insert "\n  (this binding is currently shadowed)")
+              (goto-char (min (1+ (point)) (point-max))))))
         ;; Next item in list.
-        (setq vect (cdr vect))))))
+        (setq vect (cdr vect)))
+      (when columns
+        (describe-map--align-section columns)))))
+
+(defun describe-map--align-section (columns)
+  (save-excursion
+    (let ((max-key (apply #'max (mapcar #'car columns))))
+      (cond
+       ;; It's fine to use the minimum, so just do it, but quantize to
+       ;; two different widths, because having each block align slightly
+       ;; differently looks untidy.
+       ((< max-key 16)
+        (describe-map--fill-columns columns 16))
+       ((< max-key 24)
+        (describe-map--fill-columns columns 24))
+       ((< max-key 32)
+        (describe-map--fill-columns columns 32))
+       ;; We have some really wide ones in this block.
+       (t
+        (let ((window-width (window-width))
+              (max-def (apply #'max (mapcar
+                                     (lambda (elem)
+                                       (- (nth 3 elem) (nth 2 elem)))
+                                     columns))))
+          (if (< (+ max-def (max 16 max-key)) window-width)
+              ;; Can we do the block without continuation lines?  Then do that.
+              (describe-map--fill-columns columns (1+ (max 16 max-key)))
+            ;; No, do continuation lines for some definitions.
+            (dolist (elem columns)
+              (goto-char (caddr elem))
+              (if (< (+ (car elem) (- (nth 3 elem) (nth 2 elem))) window-width)
+                  ;; Indent.
+                  (insert-char ?\s (- (1+ max-key) (car elem)))
+                ;; Continuation.
+                (insert "\n")
+                (insert-char ?\t 2))))))))))
+
+(defun describe-map--fill-columns (columns width)
+  (dolist (elem columns)
+    (goto-char (caddr elem))
+    (let ((tabs (- (/ width tab-width)
+                   (/ (car elem) tab-width))))
+      (insert-char ?\t tabs)
+      (insert-char ?\s (if (zerop tabs)
+                           (- width (car elem))
+                         (mod width tab-width))))))
 
 ;;;; This Lisp version is 100 times slower than its C equivalent:
 ;;

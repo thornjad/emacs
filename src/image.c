@@ -4116,9 +4116,9 @@ struct xpm_cached_color
 };
 
 /* The hash table used for the color cache, and its bucket vector
-   size.  */
+   size (which should be prime).  */
 
-#define XPM_COLOR_CACHE_BUCKETS	1001
+#define XPM_COLOR_CACHE_BUCKETS 1009
 static struct xpm_cached_color **xpm_color_cache;
 
 /* Initialize the color cache.  */
@@ -8249,6 +8249,11 @@ gif_image_p (Lisp_Object object)
 /* Giflib before 5.0 didn't define these macros.  */
 # ifndef GIFLIB_MAJOR
 #  define GIFLIB_MAJOR 4
+#  define DISPOSAL_UNSPECIFIED    0    /* No disposal specified.  */
+#  define DISPOSE_DO_NOT          1    /* Leave image in place.  */
+#  define DISPOSE_BACKGROUND      2    /* Set area too background color.  */
+#  define DISPOSE_PREVIOUS        3    /* Restore to previous content.  */
+#  define NO_TRANSPARENT_COLOR    -1
 # endif
 
 /* GifErrorString is declared to return char const * when GIFLIB_MAJOR
@@ -8272,6 +8277,8 @@ DEF_DLL_FN (GifFileType *, DGifOpenFileName, (const char *));
 #  else
 DEF_DLL_FN (GifFileType *, DGifOpen, (void *, InputFunc, int *));
 DEF_DLL_FN (GifFileType *, DGifOpenFileName, (const char *, int *));
+DEF_DLL_FN (int, DGifSavedExtensionToGCB,
+	    (GifFileType *, int, GraphicsControlBlock *));
 #  endif
 #  if HAVE_GIFERRORSTRING
 DEF_DLL_FN (char const *, GifErrorString, (int));
@@ -8289,6 +8296,9 @@ init_gif_functions (void)
   LOAD_DLL_FN (library, DGifSlurp);
   LOAD_DLL_FN (library, DGifOpen);
   LOAD_DLL_FN (library, DGifOpenFileName);
+#  if GIFLIB_MAJOR >= 5
+  LOAD_DLL_FN (library, DGifSavedExtensionToGCB);
+#  endif
 #  if HAVE_GIFERRORSTRING
   LOAD_DLL_FN (library, GifErrorString);
 #  endif
@@ -8299,12 +8309,18 @@ init_gif_functions (void)
 #  undef DGifOpen
 #  undef DGifOpenFileName
 #  undef DGifSlurp
+#  if GIFLIB_MAJOR >= 5
+#   undef DGifSavedExtensionToGCB
+#  endif
 #  undef GifErrorString
 
 #  define DGifCloseFile fn_DGifCloseFile
 #  define DGifOpen fn_DGifOpen
 #  define DGifOpenFileName fn_DGifOpenFileName
 #  define DGifSlurp fn_DGifSlurp
+#  if GIFLIB_MAJOR >= 5
+#   define DGifSavedExtensionToGCB fn_DGifSavedExtensionToGCB
+#  endif
 #  define GifErrorString fn_GifErrorString
 
 # endif /* WINDOWSNT */
@@ -8382,7 +8398,7 @@ gif_load (struct frame *f, struct image *img)
       if (!STRINGP (file))
 	{
 	  image_error ("Cannot find image file `%s'", specified_file);
-	  return 0;
+	  return false;
 	}
 
       Lisp_Object encoded_file = ENCODE_FILE (file);
@@ -8405,8 +8421,7 @@ gif_load (struct frame *f, struct image *img)
 	  else
 #endif
 	  image_error ("Cannot open `%s'", file);
-
-	  return 0;
+	  return false;
 	}
     }
   else
@@ -8414,7 +8429,7 @@ gif_load (struct frame *f, struct image *img)
       if (!STRINGP (specified_data))
 	{
 	  image_error ("Invalid image data `%s'", specified_data);
-	  return 0;
+	  return false;
 	}
 
       /* Read from memory! */
@@ -8438,7 +8453,7 @@ gif_load (struct frame *f, struct image *img)
 	  else
 #endif
 	  image_error ("Cannot open memory source `%s'", img->spec);
-	  return 0;
+	  return false;
 	}
     }
 
@@ -8446,8 +8461,7 @@ gif_load (struct frame *f, struct image *img)
   if (!check_image_size (f, gif->SWidth, gif->SHeight))
     {
       image_size_error ();
-      gif_close (gif, NULL);
-      return 0;
+      goto gif_error;
     }
 
   /* Read entire contents.  */
@@ -8458,8 +8472,7 @@ gif_load (struct frame *f, struct image *img)
 	image_error ("Error reading `%s'", img->spec);
       else
 	image_error ("Error reading GIF data");
-      gif_close (gif, NULL);
-      return 0;
+      goto gif_error;
     }
 
   /* Which sub-image are we to display?  */
@@ -8470,8 +8483,7 @@ gif_load (struct frame *f, struct image *img)
       {
 	image_error ("Invalid image number `%s' in image `%s'",
 		     image_number, img->spec);
-	gif_close (gif, NULL);
-	return 0;
+	goto gif_error;
       }
   }
 
@@ -8488,8 +8500,7 @@ gif_load (struct frame *f, struct image *img)
   if (!check_image_size (f, width, height))
     {
       image_size_error ();
-      gif_close (gif, NULL);
-      return 0;
+      goto gif_error;
     }
 
   /* Check that the selected subimages fit.  It's not clear whether
@@ -8506,18 +8517,14 @@ gif_load (struct frame *f, struct image *img)
 	     && 0 <= subimg_left && subimg_left <= width - subimg_width))
 	{
 	  image_error ("Subimage does not fit in image");
-	  gif_close (gif, NULL);
-	  return 0;
+	  goto gif_error;
 	}
     }
 
   /* Create the X image and pixmap.  */
   Emacs_Pix_Container ximg;
   if (!image_create_x_image_and_pixmap (f, img, width, height, 0, &ximg, 0))
-    {
-      gif_close (gif, NULL);
-      return 0;
-    }
+    goto gif_error;
 
   /* Clear the part of the screen image not covered by the image.
      Full animated GIF support requires more here (see the gif89 spec,
@@ -8576,13 +8583,17 @@ gif_load (struct frame *f, struct image *img)
 	 char *, which invites problems with bytes >= 0x80.  */
       struct SavedImage *subimage = gif->SavedImages + j;
       unsigned char *raster = (unsigned char *) subimage->RasterBits;
-      int transparency_color_index = -1;
-      int disposal = 0;
       int subimg_width = subimage->ImageDesc.Width;
       int subimg_height = subimage->ImageDesc.Height;
       int subimg_top = subimage->ImageDesc.Top;
       int subimg_left = subimage->ImageDesc.Left;
 
+      /* From gif89a spec: 1 = "keep in place", 2 = "restore
+	 to background".  Treat any other value like 2.  */
+      int disposal = DISPOSAL_UNSPECIFIED;
+      int transparency_color_index = NO_TRANSPARENT_COLOR;
+
+#if GIFLIB_MAJOR < 5
       /* Find the Graphic Control Extension block for this sub-image.
 	 Extract the disposal method and transparency color.  */
       for (i = 0; i < subimage->ExtensionBlockCount; i++)
@@ -8593,24 +8604,29 @@ gif_load (struct frame *f, struct image *img)
 	      && extblock->ByteCount == 4
 	      && extblock->Bytes[0] & 1)
 	    {
-	      /* From gif89a spec: 1 = "keep in place", 2 = "restore
-		 to background".  Treat any other value like 2.  */
 	      disposal = (extblock->Bytes[0] >> 2) & 7;
 	      transparency_color_index = (unsigned char) extblock->Bytes[3];
 	      break;
 	    }
 	}
+#else
+      GraphicsControlBlock gcb;
+      DGifSavedExtensionToGCB (gif, j, &gcb);
+      disposal = gcb.DisposalMode;
+      transparency_color_index = gcb.TransparentColor;
+#endif
 
       /* We can't "keep in place" the first subimage.  */
       if (j == 0)
-	disposal = 2;
+	disposal = DISPOSE_BACKGROUND;
 
-      /* For disposal == 0, the spec says "No disposal specified. The
-	 decoder is not required to take any action."  In practice, it
-	 seems we need to treat this like "keep in place", see e.g.
+      /* For disposal == 0 (DISPOSAL_UNSPECIFIED), the spec says
+	 "No disposal specified.  The decoder is not required to take
+	 any action."  In practice, it seems we need to treat this
+	 like "keep in place" (DISPOSE_DO_NOT), see e.g.
 	 https://upload.wikimedia.org/wikipedia/commons/3/37/Clock.gif */
-      if (disposal == 0)
-	disposal = 1;
+      if (disposal == DISPOSAL_UNSPECIFIED)
+	disposal = DISPOSE_DO_NOT;
 
       gif_color_map = subimage->ImageDesc.ColorMap;
       if (!gif_color_map)
@@ -8649,7 +8665,7 @@ gif_load (struct frame *f, struct image *img)
 	      for (x = 0; x < subimg_width; x++)
 		{
 		  int c = raster[y * subimg_width + x];
-		  if (transparency_color_index != c || disposal != 1)
+		  if (transparency_color_index != c || disposal != DISPOSE_DO_NOT)
                     {
                       PUT_PIXEL (ximg, x + subimg_left, row + subimg_top,
                                  pixel_colors[c]);
@@ -8663,7 +8679,7 @@ gif_load (struct frame *f, struct image *img)
 	    for (x = 0; x < subimg_width; ++x)
 	      {
 		int c = raster[y * subimg_width + x];
-		if (transparency_color_index != c || disposal != 1)
+		if (transparency_color_index != c || disposal != DISPOSE_DO_NOT)
                   {
                     PUT_PIXEL (ximg, x + subimg_left, y + subimg_top,
                                pixel_colors[c]);
@@ -8733,14 +8749,296 @@ gif_load (struct frame *f, struct image *img)
   /* Put ximg into the image.  */
   image_put_x_image (f, img, ximg, 0);
 
-  return 1;
+  return true;
+
+ gif_error:
+  gif_close (gif, NULL);
+  return false;
 }
 
 #endif /* HAVE_GIF */
 
 
+#ifdef HAVE_WEBP
+
+
+/***********************************************************************
+				 WebP
+ ***********************************************************************/
+
+#include "webp/decode.h"
+
+/* Indices of image specification fields in webp_format, below.  */
+
+enum webp_keyword_index
+{
+  WEBP_TYPE,
+  WEBP_DATA,
+  WEBP_FILE,
+  WEBP_ASCENT,
+  WEBP_MARGIN,
+  WEBP_RELIEF,
+  WEBP_ALGORITHM,
+  WEBP_HEURISTIC_MASK,
+  WEBP_MASK,
+  WEBP_BACKGROUND,
+  WEBP_LAST
+};
+
+/* Vector of image_keyword structures describing the format
+   of valid user-defined image specifications.  */
+
+static const struct image_keyword webp_format[WEBP_LAST] =
+{
+  {":type",		IMAGE_SYMBOL_VALUE,			1},
+  {":data",		IMAGE_STRING_VALUE,			0},
+  {":file",		IMAGE_STRING_VALUE,			0},
+  {":ascent",		IMAGE_ASCENT_VALUE,			0},
+  {":margin",		IMAGE_NON_NEGATIVE_INTEGER_VALUE_OR_PAIR, 0},
+  {":relief",		IMAGE_INTEGER_VALUE,			0},
+  {":conversion",	IMAGE_DONT_CHECK_VALUE_TYPE,		0},
+  {":heuristic-mask",	IMAGE_DONT_CHECK_VALUE_TYPE,		0},
+  {":mask",		IMAGE_DONT_CHECK_VALUE_TYPE,		0},
+  {":background",	IMAGE_STRING_OR_NIL_VALUE,		0}
+};
+
+/* Return true if OBJECT is a valid WebP image specification.  */
+
+static bool
+webp_image_p (Lisp_Object object)
+{
+  struct image_keyword fmt[WEBP_LAST];
+  memcpy (fmt, webp_format, sizeof fmt);
+
+  if (!parse_image_spec (object, fmt, WEBP_LAST, Qwebp))
+    return false;
+
+  /* Must specify either the :data or :file keyword.  */
+  return fmt[WEBP_FILE].count + fmt[WEBP_DATA].count == 1;
+}
+
+#ifdef WINDOWSNT
+
+/* WebP library details.  */
+
+DEF_DLL_FN (int, WebPGetInfo, (const uint8_t *, size_t, int *, int *));
+/* WebPGetFeatures is a static inline function defined in WebP's
+   decode.h.  Since we cannot use that with dynamically-loaded libwebp
+   DLL, we instead load the internal function it calls and redirect to
+   that through a macro.  */
+DEF_DLL_FN (VP8StatusCode, WebPGetFeaturesInternal,
+	    (const uint8_t *, size_t, WebPBitstreamFeatures *, int));
+DEF_DLL_FN (uint8_t *, WebPDecodeRGBA, (const uint8_t *, size_t, int *, int *));
+DEF_DLL_FN (uint8_t *, WebPDecodeRGB, (const uint8_t *, size_t, int *, int *));
+DEF_DLL_FN (void, WebPFree, (void *));
+
+static bool
+init_webp_functions (void)
+{
+  HMODULE library;
+
+  if (!(library = w32_delayed_load (Qwebp)))
+    return false;
+
+  LOAD_DLL_FN (library, WebPGetInfo);
+  LOAD_DLL_FN (library, WebPGetFeaturesInternal);
+  LOAD_DLL_FN (library, WebPDecodeRGBA);
+  LOAD_DLL_FN (library, WebPDecodeRGB);
+  LOAD_DLL_FN (library, WebPFree);
+  return true;
+}
+
+#undef WebPGetInfo
+#undef WebPGetFeatures
+#undef WebPDecodeRGBA
+#undef WebPDecodeRGB
+#undef WebPFree
+
+#define WebPGetInfo fn_WebPGetInfo
+#define WebPGetFeatures(d,s,f)					\
+  fn_WebPGetFeaturesInternal(d,s,f,WEBP_DECODER_ABI_VERSION)
+#define WebPDecodeRGBA fn_WebPDecodeRGBA
+#define WebPDecodeRGB fn_WebPDecodeRGB
+#define WebPFree fn_WebPFree
+
+#endif /* WINDOWSNT */
+
+/* Load WebP image IMG for use on frame F.  Value is true if
+   successful.  */
+
+static bool
+webp_load (struct frame *f, struct image *img)
+{
+  ptrdiff_t size = 0;
+  uint8_t *contents;
+  Lisp_Object file;
+
+  /* Open the WebP file.  */
+  Lisp_Object specified_file = image_spec_value (img->spec, QCfile, NULL);
+  Lisp_Object specified_data = image_spec_value (img->spec, QCdata, NULL);
+
+  if (NILP (specified_data))
+    {
+      int fd;
+      file = image_find_image_fd (specified_file, &fd);
+      if (!STRINGP (file))
+	{
+	  image_error ("Cannot find image file `%s'", specified_file);
+	  return false;
+	}
+
+      contents = (uint8_t *) slurp_file (fd, &size);
+      if (contents == NULL)
+	{
+	  image_error ("Error loading WebP image `%s'", file);
+	  return false;
+	}
+    }
+  else
+    {
+      if (!STRINGP (specified_data))
+	{
+	  image_error ("Invalid image data `%s'", specified_data);
+	  return false;
+	}
+      contents = SDATA (specified_data);
+      size = SBYTES (specified_data);
+    }
+
+  /* Validate the WebP image header.  */
+  if (!WebPGetInfo (contents, size, NULL, NULL))
+    {
+      if (NILP (specified_data))
+	image_error ("Not a WebP file: `%s'", file);
+      else
+	image_error ("Invalid header in WebP image data");
+      goto webp_error1;
+    }
+
+  /* Get WebP features.  */
+  WebPBitstreamFeatures features;
+  VP8StatusCode result = WebPGetFeatures (contents, size, &features);
+  switch (result)
+    {
+    case VP8_STATUS_OK:
+      break;
+    case VP8_STATUS_NOT_ENOUGH_DATA:
+    case VP8_STATUS_OUT_OF_MEMORY:
+    case VP8_STATUS_INVALID_PARAM:
+    case VP8_STATUS_BITSTREAM_ERROR:
+    case VP8_STATUS_UNSUPPORTED_FEATURE:
+    case VP8_STATUS_SUSPENDED:
+    case VP8_STATUS_USER_ABORT:
+    default:
+      /* Error out in all other cases.  */
+      if (NILP (specified_data))
+	image_error ("Error when interpreting WebP image data: `%s'", file);
+      else
+	image_error ("Error when interpreting WebP image data");
+      goto webp_error1;
+    }
+
+  /* Decode WebP data.  */
+  uint8_t *decoded;
+  int width, height;
+  if (features.has_alpha)
+    /* Linear [r0, g0, b0, a0, r1, g1, b1, a1, ...] order.  */
+    decoded = WebPDecodeRGBA (contents, size, &width, &height);
+  else
+    /* Linear [r0, g0, b0, r1, g1, b1, ...] order.  */
+    decoded = WebPDecodeRGB (contents, size, &width, &height);
+
+  if (!(width <= INT_MAX && height <= INT_MAX
+	&& check_image_size (f, width, height)))
+    {
+      image_size_error ();
+      goto webp_error2;
+    }
+
+  /* Create the x image and pixmap.  */
+  Emacs_Pix_Container ximg, mask_img;
+  if (!image_create_x_image_and_pixmap (f, img, width, height, 0, &ximg, false))
+    goto webp_error2;
+
+  /* Create an image and pixmap serving as mask if the WebP image
+     contains an alpha channel.  */
+  if (features.has_alpha
+      && !image_create_x_image_and_pixmap (f, img, width, height, 1, &mask_img, true))
+    {
+      image_destroy_x_image (ximg);
+      image_clear_image_1 (f, img, CLEAR_IMAGE_PIXMAP);
+      goto webp_error2;
+    }
+
+  /* Fill the X image and mask from WebP data.  */
+  init_color_table ();
+
+  uint8_t *p = decoded;
+  for (int y = 0; y < height; ++y)
+    {
+      for (int x = 0; x < width; ++x)
+	{
+	  int r = *p++ << 8;
+	  int g = *p++ << 8;
+	  int b = *p++ << 8;
+	  PUT_PIXEL (ximg, x, y, lookup_rgb_color (f, r, g, b));
+
+	  /* An alpha channel associates variable transparency with an
+	     image.  WebP allows up to 256 levels of partial transparency.
+	     We handle this like with PNG (which see), using the frame's
+	     background color to combine the image with.  */
+	  if (features.has_alpha)
+	    {
+	      if (mask_img)
+		PUT_PIXEL (mask_img, x, y, *p > 0 ? PIX_MASK_DRAW : PIX_MASK_RETAIN);
+	      ++p;
+	    }
+	}
+    }
+
+#ifdef COLOR_TABLE_SUPPORT
+  /* Remember colors allocated for this image.  */
+  img->colors = colors_in_color_table (&img->ncolors);
+  free_color_table ();
+#endif /* COLOR_TABLE_SUPPORT */
+
+  /* Put ximg into the image.  */
+  image_put_x_image (f, img, ximg, 0);
+
+  /* Same for the mask.  */
+  if (mask_img)
+    {
+      /* Fill in the background_transparent field while we have the
+	 mask handy.  Casting avoids a GCC warning.  */
+      image_background_transparent (img, f, (Emacs_Pix_Context)mask_img);
+
+      image_put_x_image (f, img, mask_img, 1);
+    }
+
+  img->width = width;
+  img->height = height;
+
+  /* Clean up.  */
+  WebPFree (decoded);
+  if (NILP (specified_data))
+    xfree (contents);
+  return true;
+
+ webp_error2:
+  WebPFree (decoded);
+
+ webp_error1:
+  if (NILP (specified_data))
+    xfree (contents);
+  return false;
+}
+
+#endif /* HAVE_WEBP */
+
+
 #ifdef HAVE_IMAGEMAGICK
 
+
 /***********************************************************************
 				 ImageMagick
 ***********************************************************************/
@@ -10726,6 +11024,10 @@ static struct image_type const image_types[] =
  { SYMBOL_INDEX (Qxpm), xpm_image_p, xpm_load, image_clear_image,
    IMAGE_TYPE_INIT (init_xpm_functions) },
 #endif
+#if defined HAVE_WEBP
+ { SYMBOL_INDEX (Qwebp), webp_image_p, webp_load, image_clear_image,
+   IMAGE_TYPE_INIT (init_webp_functions) },
+#endif
  { SYMBOL_INDEX (Qxbm), xbm_image_p, xbm_load, image_clear_image },
  { SYMBOL_INDEX (Qpbm), pbm_image_p, pbm_load, image_clear_image },
 };
@@ -10889,6 +11191,11 @@ non-numeric, there is no explicit limit on the size of images.  */);
 #if defined (HAVE_PNG) || defined (HAVE_NATIVE_IMAGE_API)
   DEFSYM (Qpng, "png");
   add_image_type (Qpng);
+#endif
+
+#if defined (HAVE_WEBP)
+  DEFSYM (Qwebp, "webp");
+  add_image_type (Qwebp);
 #endif
 
 #if defined (HAVE_IMAGEMAGICK)

@@ -88,9 +88,9 @@ a font height that isn't optimal."
   :tag "Font selection order"
   :type '(list symbol symbol symbol symbol)
   :group 'font-selection
-  :set #'(lambda (symbol value)
-	   (set-default symbol value)
-	   (internal-set-font-selection-order value)))
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (internal-set-font-selection-order value)))
 
 
 ;; In the absence of Fontconfig support, Monospace and Sans Serif are
@@ -140,9 +140,9 @@ ALTERNATIVE2 etc."
   :tag "Alternative font families to try"
   :type '(repeat (repeat string))
   :group 'font-selection
-  :set #'(lambda (symbol value)
-	   (set-default symbol value)
-	   (internal-set-alternative-font-family-alist value)))
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (internal-set-alternative-font-family-alist value)))
 
 
 ;; This is defined originally in xfaces.c.
@@ -167,9 +167,9 @@ REGISTRY, ALTERNATIVE1, ALTERNATIVE2, and etc."
   :type '(repeat (repeat string))
   :version "21.1"
   :group 'font-selection
-  :set #'(lambda (symbol value)
-	   (set-default symbol value)
-	   (internal-set-alternative-font-registry-alist value)))
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (internal-set-alternative-font-registry-alist value)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1147,27 +1147,27 @@ an integer value."
            (:foundry
 	    (list nil))
 	   (:width
-	    (mapcar #'(lambda (x) (cons (symbol-name (aref x 1)) (aref x 1)))
+            (mapcar (lambda (x) (cons (symbol-name (aref x 1)) (aref x 1)))
 		    font-width-table))
            (:weight
-	    (mapcar #'(lambda (x) (cons (symbol-name (aref x 1)) (aref x 1)))
+            (mapcar (lambda (x) (cons (symbol-name (aref x 1)) (aref x 1)))
 		    font-weight-table))
 	   (:slant
-	    (mapcar #'(lambda (x) (cons (symbol-name (aref x 1)) (aref x 1)))
+            (mapcar (lambda (x) (cons (symbol-name (aref x 1)) (aref x 1)))
 		    font-slant-table))
 	   ((or :inverse-video :extend)
-	    (mapcar #'(lambda (x) (cons (symbol-name x) x))
+            (mapcar (lambda (x) (cons (symbol-name x) x))
 		    (internal-lisp-face-attribute-values attribute)))
            ((or :underline :overline :strike-through :box)
             (if (window-system frame)
-                (nconc (mapcar #'(lambda (x) (cons (symbol-name x) x))
+                (nconc (mapcar (lambda (x) (cons (symbol-name x) x))
                                (internal-lisp-face-attribute-values attribute))
-                       (mapcar #'(lambda (c) (cons c c))
+                       (mapcar (lambda (c) (cons c c))
                                (defined-colors frame)))
-	      (mapcar #'(lambda (x) (cons (symbol-name x) x))
+              (mapcar (lambda (x) (cons (symbol-name x) x))
 		      (internal-lisp-face-attribute-values attribute))))
            ((or :foreground :background)
-            (mapcar #'(lambda (c) (cons c c))
+            (mapcar (lambda (c) (cons c c))
                     (defined-colors frame)))
            (:height
             'integerp)
@@ -1182,7 +1182,7 @@ an integer value."
                                         x-bitmap-file-path)))))
            (:inherit
             (cons '("none" . nil)
-                  (mapcar #'(lambda (c) (cons (symbol-name c) c))
+                  (mapcar (lambda (c) (cons (symbol-name c) c))
                           (face-list))))
            (_
             (error "Internal error")))))
@@ -2286,19 +2286,19 @@ If you set `term-file-prefix' to nil, this function does nothing."
       (let* (term-init-func)
 	;; First, load the terminal initialization file, if it is
 	;; available and it hasn't been loaded already.
-	(tty-find-type #'(lambda (type)
-			   (let ((file (locate-library (concat term-file-prefix type))))
-			     (and file
-				  (or (assoc file load-history)
-				      (load (replace-regexp-in-string
-                                             "\\.el\\(\\.gz\\)?\\'" ""
-                                             file)
-                                            t t)))))
-		       type)
+        (tty-find-type (lambda (type)
+                         (let ((file (locate-library (concat term-file-prefix type))))
+                           (and file
+                                (or (assoc file load-history)
+                                    (load (replace-regexp-in-string
+                                           "\\.el\\(\\.gz\\)?\\'" ""
+                                           file)
+                                          t t)))))
+                       type)
 	;; Next, try to find a matching initialization function, and call it.
-	(tty-find-type #'(lambda (type)
-			   (fboundp (setq term-init-func
-					  (intern (concat "terminal-init-" type)))))
+        (tty-find-type (lambda (type)
+                         (fboundp (setq term-init-func
+                                        (intern (concat "terminal-init-" type)))))
 		       type)
 	(when (fboundp term-init-func)
 	  (funcall term-init-func))
@@ -2878,11 +2878,15 @@ Note: Other faces cannot inherit from the cursor face."
      :background "grey96" :foreground "DarkBlue"
      ;; We use negative thickness of the horizontal box border line to
      ;; avoid enlarging the height of the echo-area display, which
-     ;; would then move the mode line a few pixels up.
-     :box (:line-width (1 . -1) :color "grey80"))
+     ;; would then move the mode line a few pixels up.  We use
+     ;; negative thickness for the vertical border line to avoid
+     ;; making the characters wider, which then would cause unpleasant
+     ;; horizontal shifts of the cursor during C-n/C-p movement
+     ;; through a line with this face.
+     :box (:line-width (-1 . -1) :color "grey80"))
     (((class color) (min-colors 88) (background dark))
      :background "grey19" :foreground "LightBlue"
-     :box (:line-width (1 . -1) :color "grey35"))
+     :box (:line-width (-1 . -1) :color "grey35"))
     (((class color grayscale) (background light)) :background "grey90")
     (((class color grayscale) (background dark)) :background "grey25")
     (t :background "grey90"))

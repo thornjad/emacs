@@ -159,6 +159,8 @@ There can be any number of :example/:result elements."
    :eval (split-string-and-unquote "foo \"bar zot\""))
   (split-string-shell-command
    :eval (split-string-shell-command "ls /tmp/'foo bar'"))
+  (string-glyph-split
+   :eval (string-glyph-split "Hello, 👼🏻🧑🏼‍🤝‍🧑🏻"))
   (string-lines
    :eval (string-lines "foo\n\nbar")
    :eval (string-lines "foo\n\nbar" t))
@@ -242,7 +244,14 @@ There can be any number of :example/:result elements."
    :eval (number-to-string 42))
   "Data About Strings"
   (length
-   :eval (length "foo"))
+   :eval (length "foo")
+   :eval (length "avocado: 🥑"))
+  (string-width
+   :eval (string-width "foo")
+   :eval (string-width "avocado: 🥑"))
+  (string-pixel-width
+   :eval (string-pixel-width "foo")
+   :eval (string-pixel-width "avocado: 🥑"))
   (string-search
    :eval (string-search "bar" "foobarzot"))
   (assoc-string
@@ -349,6 +358,9 @@ There can be any number of :example/:result elements."
   (file-newer-than-file-p
    :no-eval (file-newer-than-file-p "/tmp/foo" "/tmp/bar")
    :eg-result nil)
+  (file-has-changed-p
+   :no-eval (file-has-changed-p "/tmp/foo")
+   :eg-result t)
   (file-equal-p
    :no-eval (file-equal-p "/tmp/foo" "/tmp/bar")
    :eg-result nil)

@@ -543,8 +543,10 @@ ns_init_locale (void)
       NSString *localeID = [NSString stringWithFormat:@"%@.UTF-8",
                                      [locale localeIdentifier]];
 
-      /* Set LANG to locale, but not if LANG is already set.  */
+      /* Set LANG and LC_ALL to locale, but not if the variables are
+         already set.  */
       setenv("LANG", [localeID UTF8String], 0);
+      setenv("LC_ALL", [localeID UTF8String], 0);
     }
   @catch (NSException *e)
     {
@@ -7073,6 +7075,7 @@ not_in_argv (NSString *arg)
       XSETFRAME (frame, emacsframe);
       help_echo_string = Qnil;
       gen_help_event (Qnil, frame, Qnil, Qnil, 0);
+      any_help_event_p = NO;
     }
 
   if (emacs_event && is_focus_frame)
