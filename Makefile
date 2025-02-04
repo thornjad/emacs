@@ -4,11 +4,11 @@
 EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
-all: upgrade-emacs-macos nongnu-elpa install-aero-macos
+all: upgrade-emacs-macos nongnu-elpa install-macos
 
-build-macos: build-emacs-macos install-aero-macos
+build-macos: build-emacs-macos install-macos
 
-# required for Aero, emacs-plus handles the actual Emacs dependencies
+# required, emacs-plus handles the actual Emacs dependencies
 macos-reqs:
 	brew update
 	brew install coreutils git-delta tree-sitter
@@ -46,23 +46,23 @@ remove-emacs-macos-stable:
 
 upgrade-emacs-macos: remove-emacs-macos build-emacs-macos
 
-install-aero-macos:
-	osacompile -o bin/Emacs\ \(Aero\).app bin/aero-emacs.osx.applescript
-	cp etc/logo/Emacs.icns bin/Emacs\ \(Aero\).app/Contents/Resources/applet.icns
-	[ -s /Applications/Emacs\ \(Aero\).app ] && rm -rf /Applications/Emacs\ \(Aero\).app || true
-	mv bin/Emacs\ \(Aero\).app /Applications/
+install-macos:
+	osacompile -o bin/Emacs.app bin/aero-emacs.osx.applescript
+	cp etc/logo/Emacs.icns bin/Emacs.app/Contents/Resources/applet.icns
+	[ -s /Applications/Emacs.app ] && rm -rf /Applications/Emacs.app || true
+	mv bin/Emacs.app /Applications/
 
 clean-aero-macos:
-	rm -rf /Applications/Emacs\ \(Aero\).app
+	rm -rf /Applications/Emacs.app
 
 build-emacs-linux: nongnu-elpa
 	./bin/build/linux.zsh
 
-install-aero-linux:
+install-linux:
 	mkdir -p ~/.local/share/applications/
 	cp ./bin/aero-emacs.desktop ~/.local/share/applications/
 
-linux: build-emacs-linux install-aero-linux
+linux: build-emacs-linux install-linux
 
 .PHONY: nongnu-elpa
 nongnu-elpa:

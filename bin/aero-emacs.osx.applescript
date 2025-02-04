@@ -1,4 +1,4 @@
--- To install, run make install-aero-macos
+-- To install, run make install-macos
 -- NOTE: Requires running in Zsh
 
 tell application "Terminal"
