@@ -936,8 +936,7 @@ https://jmthornton.net/blog/p/emacs-project-override"
 
   ;; Fix documentation strategy to show all of the available eldoc information when we want it. This
   ;; way Flymake errors don't just get clobbered by docstrings.
-  :hook ((eglot-managed-mode . aero/eldoc-set-documentation-strategy)
-         (prog-mode . eldoc-box-hover-mode))
+  :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
 
   :custom
   (eldoc-idle-delay 0.5)
