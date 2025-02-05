@@ -155,8 +155,10 @@
                     ("America/Los_Angeles" "San Francisco")
                     ("Europe/Warsaw" "Poland")
                     ("Europe/Amsterdam" "Netherlands")
+                    ("Europe/London" "London")
                     ("America/Chicago" "Texas")
                     ("America/Denver" "Utah")
+                    ("America/Denver" "Colorado")
                     ("Pacific/Auckland" "New Zealand")
                     ("Australia/Sydney" "Sydney"))
 
