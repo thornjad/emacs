@@ -273,10 +273,9 @@ HACKED by Aero to add nil checking."
   ;; Need to add after eglot so eglot doesn't clobber
   (add-hook 'eglot-managed-mode-hook
             (lambda ()
-              (when (and (or (derived-mode-p 'typescript-mode)
-                             (derived-mode-p 'js-mode)
-                             (derived-mode-p 'web-mode))
-                         (not (derived-mode-p 'json-mode)))
+              (when (and (derived-mode-p '(typescript-mode typescript-ts-mode js-mode web-mode))
+                         (not (derived-mode-p 'json-mode))
+                         (executable-find "eslint"))
                 (flymake-eslint-enable)))))
 
 (package! flyspell :builtin
