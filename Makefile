@@ -21,21 +21,21 @@ build-emacs-cask: macos-reqs
 	brew install --cask emacs-nightly
 
 build-emacs-macos: macos-reqs
-	brew install emacs-plus@30 --with-retro-sink-bw-icon --with-native-comp --with-xwidgets --with-dbus
+	brew install emacs-plus@30 --with-savchenkovaleriy-big-sur-3d-icon --with-native-comp --with-xwidgets --with-dbus
 	ln -sf /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications
 
 # for when libgccjit breaks every few months
 # NOTE: dbus isn't working on M1 yet.
 build-emacs-macos-minimal: macos-reqs
-	brew install emacs-plus@30 --with-retro-sink-bw-icon --with-xwidgets
+	brew install emacs-plus@30 --with-savchenkovaleriy-big-sur-3d-icon --with-xwidgets
 	ln -sf /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications
 
 build-emacs-macos-stable: macos-reqs
-	brew install emacs-plus@29 --with-retro-sink-bw-icon --with-native-comp --with-xwidgets
+	brew install emacs-plus@29 --with-savchenkovaleriy-big-sur-3d-icon --with-native-comp --with-xwidgets
 	ln -sf /opt/homebrew/opt/emacs-plus@29/Emacs.app /Applications
 
 build-emacs-macos-stable-minimal: macos-reqs
-	brew install emacs-plus@29 --with-retro-sink-bw-icon --with-xwidgets
+	brew install emacs-plus@29 --with-savchenkovaleriy-big-sur-3d-icon --with-xwidgets
 	ln -sf /opt/homebrew/opt/emacs-plus@29/Emacs.app /Applications
 
 remove-emacs-macos:
