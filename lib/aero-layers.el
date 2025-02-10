@@ -1403,7 +1403,7 @@ This behavior is IDIOTIC and I cannot suffer to live with this automatic indenta
 
   :custom
   (org-super-agenda-groups
-   '((:name "Daily Routine" :tag "ritual")
+   '((:name "Daily Routine" :and (:tag "ritual" :not (:time-grid t)))
      (:name "Holidays" :tag "holiday" :category ("Holiday" "Anniversaries"))
      (:name "Outstanding meetings" :and (:scheduled past :tag "meeting"))
      (:time-grid t)
