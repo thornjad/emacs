@@ -1410,13 +1410,12 @@ This behavior is IDIOTIC and I cannot suffer to live with this automatic indenta
      (:name "Holidays" :tag "holiday" :category ("Holiday" "Anniversaries"))
      (:name "Outstanding meetings" :and (:scheduled past :tag "meeting"))
      (:time-grid t)
-     (:name "5-minute items" :effort< "0:05")
      (:name "Reviews to do" :and (:tag "review" :todo "REVIEW" :not (:todo ("WAITING" "BLOCKED" "BACKLOG"))))
      (:name "Support" :and (:tag "support"))
+     (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))
      (:name "Past due" :and (:deadline past :not (:todo ("WAITING" "BLOCKED"))))
      (:name "Due today" :and (:deadline today :not (:todo ("WAITING" "BLOCKED"))))
      (:name "Prioritized" :not (:todo ("WAITING" "BLOCKED" "BACKLOG")))
-     (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))
      (:name "Backlog" :and (:todo "BACKLOG"))))
 
   ;; add space between dates by adding space after the final group
