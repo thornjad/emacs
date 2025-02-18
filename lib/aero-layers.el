@@ -1189,7 +1189,7 @@ This behavior is IDIOTIC and I cannot suffer to live with this automatic indenta
       :empty-lines 1)))
 
   (org-todo-keywords
-   '((sequence "TODO(t)" "WAITING(w!)" "BLOCKED(b!)" "|" "DONE(d!)" "REMOVED(k)")
+   '((sequence "TODO(t)" "WAITING(w!)" "BLOCKED(b!)" "BACKLOG(l!)" "|" "DONE(d!)" "REMOVED(k)")
      (sequence "TICKET(T)" "PR(p!)" "|" "DONE(d!)" "CLOSED(x)")
      (sequence "REVIEW(r)" "WAITING(w!)" "BLOCKED(b!)" "|" "DONE(d!)" "CLOSED(x)")))
 
@@ -1219,7 +1219,7 @@ This behavior is IDIOTIC and I cannot suffer to live with this automatic indenta
   (org-agenda-start-day nil) ; day to start at
   (org-agenda-start-on-weekday nil) ; start week on current day
   (org-agenda-format-date #'aero/org-agenda-format-date)
-  (org-agenda-prefix-format '((agenda . " %i %?-12t% s")
+  (org-agenda-prefix-format '((agenda . "  %?-12t%s")
                               (todo . " %i %-12:c")
                               (tags . " %i %-12:c")
                               (search . " %i %-12:c")))
@@ -1318,6 +1318,9 @@ This behavior is IDIOTIC and I cannot suffer to live with this automatic indenta
     "ce" 'org-set-effort
     "cE" 'org-clock-modify-effort-estimate)
 
+  ;; Make scheduled previously look the same as scheduled today, without messing with the theme
+  (set-face-attribute 'org-scheduled-previously nil :inherit 'org-scheduled-today :foreground nil)
+
   ;; keep org-save-all from messing up buffer list
   (advice-add 'org-save-all-org-buffers :around #'aero/keep-buffer-list-unaltered)
 
@@ -1408,12 +1411,13 @@ This behavior is IDIOTIC and I cannot suffer to live with this automatic indenta
      (:name "Outstanding meetings" :and (:scheduled past :tag "meeting"))
      (:time-grid t)
      (:name "5-minute items" :effort< "0:05")
-     (:name "Reviews to do" :and (:tag "review" :todo "REVIEW" :not (:todo ("WAITING" "BLOCKED"))))
-     (:name "Support" :and (:tag "support" :not (:todo ("WAITING" "BLOCKED"))))
+     (:name "Reviews to do" :and (:tag "review" :todo "REVIEW" :not (:todo ("WAITING" "BLOCKED" "BACKLOG"))))
+     (:name "Support" :and (:tag "support"))
      (:name "Past due" :and (:deadline past :not (:todo ("WAITING" "BLOCKED"))))
      (:name "Due today" :and (:deadline today :not (:todo ("WAITING" "BLOCKED"))))
-     (:name "Prioritized" :and (:not (:todo ("WAITING" "BLOCKED"))))
-     (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))))
+     (:name "Prioritized" :not (:todo ("WAITING" "BLOCKED" "BACKLOG")))
+     (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))
+     (:name "Backlog" :and (:todo "BACKLOG"))))
 
   ;; add space between dates by adding space after the final group
   (org-super-agenda-final-group-separator "\n"))
