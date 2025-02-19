@@ -109,6 +109,7 @@
                       (:eval (when (and (buffer-modified-p) (not buffer-read-only))
                                " •")))
  ns-use-proxy-icon nil ; remove icon from frame title in NS
+ ns-pop-up-frames nil ; open files in same frame from Finder et al
 
  initial-scratch-message (concat ";; Welcome to GNU Emacs v" emacs-version
                                  "." (number-to-string emacs-build-number)
