@@ -86,6 +86,11 @@ indirect, or consequential damages or any damages whatsoever resulting from
 loss of use, data or profits, whether in an action of contract, negligence or
 other tortious action, arising out of or in connection with the use or
 performance of this software.
+* How this file is loaded
+Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= converts (tangles) all the source block in this file into a =config.el= file, which is then actually executed to configure Emacs.
+
+This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
+
 * Constants
 #+BEGIN_SRC emacs-lisp
   (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
