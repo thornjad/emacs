@@ -38,6 +38,8 @@ auto-save-list/
 bin/Emacs\ (Aero).app
 bookmarks
 build-logs/
+# tangled config
+config.el
 crown/
 debug-adapters/
 eclipse*
