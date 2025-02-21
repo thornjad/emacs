@@ -1001,7 +1001,7 @@ https://jmthornton.net/blog/p/emacs-project-override"
          ("TAB" . #'dired-next-subdir)))
 
 
-;;; General crap
+;;; Editor setup
 
 (package! editorconfig "editorconfig/editorconfig-emacs"
   :defer 1
