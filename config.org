@@ -9,6 +9,8 @@ TODO: claims this might just work by loading =(org-babel-load-file "~/.config/em
 TODO: explanation of how this all works right here
 TODO: replace readme with this? put all of readme here?
 TODO: reference sacha's config
+TODO: keybinding to open this file
+TODO: ensure keybinding exists to execute code block
 
 ** Copyright Notice
 Copyright (c) 2016-2025 Jade Michael Thornton
@@ -24,8 +26,6 @@ indirect, or consequential damages or any damages whatsoever resulting from
 loss of use, data or profits, whether in an action of contract, negligence or
 other tortious action, arising out of or in connection with the use or
 performance of this software.
-
-
 * Constants
 #+BEGIN_SRC emacs-lisp
   (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
@@ -50,7 +50,6 @@ performance of this software.
 
   ;; mostly used by Org
   (require 'outline)
-  (require 'dash)
   (require 'notifications)
 #+END_SRC
 
@@ -164,10 +163,10 @@ performance of this software.
       nil)
 
      (defining-kbd-macro
-       (message
-        (substitute-command-keys
-         "Quit is ignored during macro defintion, use \\[kmacro-end-macro] if you want to stop macro definition"))
-       (cancel-kbd-macro-events))
+      (message
+       (substitute-command-keys
+        "Quit is ignored during macro defintion, use \\[kmacro-end-macro] if you want to stop macro definition"))
+      (cancel-kbd-macro-events))
 
      ((active-minibuffer-window)
       (when (get-buffer-window "*Completions*")
@@ -375,16 +374,12 @@ performance of this software.
           (rename-buffer new-cbuf-name)))))
 
   (defun aero/eshell-new ()
-    "Open a new Eshell window.
-
-  This is equivalent to SPC U M-x eshell"
+    "Open a new Eshell window."
     (interactive)
     (eshell t))
 
   (defun aero/project-eshell-new ()
-    "Open a new project Eshell.
-
-  This is equivalent to SPC U SPC p '."
+    "Open a new project Eshell."
     (interactive)
     (let ((current-prefix-arg t))
       (project-eshell)))
@@ -1395,7 +1390,7 @@ performance of this software.
      "z" 'repeat))
 
   (package! casual "kickingvegas/casual"
-  	:after (dired)
+    :after (dired)
     :defines (casual-editkit-main-tmenu
               casual-dired-tmenu
               casual-dired-sort-by-tmenu
@@ -1412,10 +1407,10 @@ performance of this software.
 #+BEGIN_SRC emacs-lisp
   (package! evil
     (:host github
-     :repo "emacs-evil/evil"
-     :files (:defaults
-             "doc/build/texinfo/evil.texi"
-             (:exclude "evil-test-helpers.el")))
+  	 :repo "emacs-evil/evil"
+  	 :files (:defaults
+  		 "doc/build/texinfo/evil.texi"
+  		 (:exclude "evil-test-helpers.el")))
     :init
     ;; Need to be in init because of something in the way the "want" variables are used
     (setq evil-want-keybinding nil ; handled by evil-collection
@@ -1581,6 +1576,7 @@ performance of this software.
 #+END_SRC
 
 ** Completion and navigation
+
 #+BEGIN_SRC emacs-lisp
   (package! vertico "minad/vertico"
     :init (vertico-mode)
@@ -1816,7 +1812,7 @@ performance of this software.
 
   (package! company
     (:repo "company-mode/company-mode"
-     :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
+  	 :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
     :after (evil)
     :hook ((prog-mode . company-mode)
            (company-mode-hook . evil-normalize-keymaps))
@@ -1840,8 +1836,8 @@ performance of this software.
   ;; Move commonly-used completions to the top
   (package! company-prescient
     (:host github
-     :repo "radian-software/prescient.el"
-     :files ("company-prescient.el"))
+  	 :repo "radian-software/prescient.el"
+  	 :files ("company-prescient.el"))
     :after (company)
     :hook (company-mode . company-prescient-mode)
     :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
@@ -1870,9 +1866,9 @@ performance of this software.
     :hook ((dired-mode . hl-line-mode)
            (dired-mode . dired-async-mode))
     :bind (:map dired-mode-map
-           ("M-n" . #'dired-next-dirline)
-           ("M-p" . #'dired-prev-dirline)
-           ("TAB" . #'dired-next-subdir)))
+                ("M-n" . #'dired-next-dirline)
+                ("M-p" . #'dired-prev-dirline)
+                ("TAB" . #'dired-next-subdir)))
 #+END_SRC
 
 ** Language server
@@ -1900,11 +1896,11 @@ performance of this software.
     ;; Individual server configuration
     (setq-default eglot-workspace-configuration
                   '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-                                      ;; :pyflakes (:enabled :json-false)
-                                      :pyls_mypy (:enabled t
-                                                  :live_mode :json-false)
-                                      :pyls_black (:enabled t)
-                                      :pyls_isort (:enabled t)))))
+  						 ;; :pyflakes (:enabled :json-false)
+  						 :pyls_mypy (:enabled t
+  								      :live_mode :json-false)
+  						 :pyls_black (:enabled t)
+  						 :pyls_isort (:enabled t)))))
 
     (aero-leader-def
       "la" 'eglot-code-actions
@@ -2338,22 +2334,22 @@ performance of this software.
   This function makes sure that dates are aligned for easy reading."
       (require 'cal-iso)
       (let* ((dayname (calendar-day-name date))
-  	         (day (cadr date))
-  	         (month (car date))
-  	         (monthname (calendar-month-name month))
+  	   (day (cadr date))
+  	   (month (car date))
+  	   (monthname (calendar-month-name month))
 
              ;; divisor must be float so (/) doesn't do integer division
              (quarter (round (/ (1+ month) 3.0)))
 
-  	         (year (nth 2 date))
-  	         (iso-week (org-days-to-iso-week
-  		                  (calendar-absolute-from-gregorian date)))
-  	         (day-of-week (calendar-day-of-week date))
-  	         (weekstring (if (= day-of-week 1)
-  			                     (format " W%02d" iso-week)
-  		                     "")))
+  	   (year (nth 2 date))
+  	   (iso-week (org-days-to-iso-week
+  		      (calendar-absolute-from-gregorian date)))
+  	   (day-of-week (calendar-day-of-week date))
+  	   (weekstring (if (= day-of-week 1)
+  			   (format " W%02d" iso-week)
+  		         "")))
         (format "%-10s %2d %s %4d%s   (Q%s)"
-  	            dayname day monthname year weekstring quarter)))
+  	      dayname day monthname year weekstring quarter)))
 
     (defun aero/org-deindent-on-return (&rest _)
       "De-indent the current line if there is only whitespace before the point when pressing ENTER.
@@ -3634,7 +3630,7 @@ performance of this software.
       (setq eshell-save-history-on-exit t))
 
     (eval-after-load 'esh-opt
-  		'(progn
+      '(progn
          (require 'em-cmpl)
          (require 'em-prompt)
          (require 'em-term))))
