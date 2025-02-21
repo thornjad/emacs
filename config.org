@@ -11,6 +11,7 @@ TODO: replace readme with this? put all of readme here?
 TODO: reference sacha's config
 TODO: keybinding to open this file
 TODO: ensure keybinding exists to execute code block
+TODO: startup collapsed
 
 ** Copyright Notice
 Copyright (c) 2016-2025 Jade Michael Thornton
@@ -163,10 +164,10 @@ performance of this software.
       nil)
 
      (defining-kbd-macro
-      (message
-       (substitute-command-keys
-        "Quit is ignored during macro defintion, use \\[kmacro-end-macro] if you want to stop macro definition"))
-      (cancel-kbd-macro-events))
+       (message
+        (substitute-command-keys
+         "Quit is ignored during macro defintion, use \\[kmacro-end-macro] if you want to stop macro definition"))
+       (cancel-kbd-macro-events))
 
      ((active-minibuffer-window)
       (when (get-buffer-window "*Completions*")
@@ -1372,10 +1373,10 @@ performance of this software.
 #+BEGIN_SRC emacs-lisp
   (package! evil
     (:host github
-  	 :repo "emacs-evil/evil"
-  	 :files (:defaults
-  		 "doc/build/texinfo/evil.texi"
-  		 (:exclude "evil-test-helpers.el")))
+     :repo "emacs-evil/evil"
+     :files (:defaults
+  	   "doc/build/texinfo/evil.texi"
+  	   (:exclude "evil-test-helpers.el")))
     :init
     ;; Need to be in init because of something in the way the "want" variables are used
     (setq evil-want-keybinding nil ; handled by evil-collection
@@ -1778,7 +1779,7 @@ performance of this software.
 
   (package! company
     (:repo "company-mode/company-mode"
-  	 :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
+     :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
     :after (evil)
     :hook ((prog-mode . company-mode)
            (company-mode-hook . evil-normalize-keymaps))
@@ -1802,8 +1803,8 @@ performance of this software.
   ;; Move commonly-used completions to the top
   (package! company-prescient
     (:host github
-  	 :repo "radian-software/prescient.el"
-  	 :files ("company-prescient.el"))
+     :repo "radian-software/prescient.el"
+     :files ("company-prescient.el"))
     :after (company)
     :hook (company-mode . company-prescient-mode)
     :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
@@ -1832,9 +1833,9 @@ performance of this software.
     :hook ((dired-mode . hl-line-mode)
            (dired-mode . dired-async-mode))
     :bind (:map dired-mode-map
-                ("M-n" . #'dired-next-dirline)
-                ("M-p" . #'dired-prev-dirline)
-                ("TAB" . #'dired-next-subdir)))
+           ("M-n" . #'dired-next-dirline)
+           ("M-p" . #'dired-prev-dirline)
+           ("TAB" . #'dired-next-subdir)))
 #+END_SRC
 
 ** Language server
@@ -1862,11 +1863,11 @@ performance of this software.
     ;; Individual server configuration
     (setq-default eglot-workspace-configuration
                   '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-  						 ;; :pyflakes (:enabled :json-false)
-  						 :pyls_mypy (:enabled t
-  								      :live_mode :json-false)
-  						 :pyls_black (:enabled t)
-  						 :pyls_isort (:enabled t)))))
+  				    ;; :pyflakes (:enabled :json-false)
+  				    :pyls_mypy (:enabled t
+  						:live_mode :json-false)
+  				    :pyls_black (:enabled t)
+  				    :pyls_isort (:enabled t)))))
 
     (aero-leader-def
       "la" 'eglot-code-actions
@@ -3117,7 +3118,6 @@ performance of this software.
       '((t :inherit highlight))
       "Face for virtual comments"
       :group 'virtual-comment)
-
     (aero-leader-def
       "v" '(:ignore t :wk "virtual comment")
       "vv" 'virtual-comment-make
