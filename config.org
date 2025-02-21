@@ -30,12 +30,7 @@ My config uses my =aero-theme=, which pulls loose inspiration from the [[https:/
 Within this config, you'll also find a custom improved mode line which works with any theme (though it looks great with =aero-light= and =aero-dark=). Rather than getting cluttered with info from every mode under the sun, the Aero mode line displays the current editing mode, file status (changed, saved, locked), filename, file size, line number at point, progression through the file (percentage), the remote hostname (if using TRAMP) and the current major mode.
 
 ** Installation
-#+begin_example
-git clone https://gitlab.com/thornjad/emacs.git ~/.config/emacs && cd ~/.config/emacs
-make init
-#+end_example
-
-The =make init= will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as dependencies like =graphviz= and =lsp-booster=. It will also set up and update some submodules.
+Clone this repo into your =~/.config/emacs= and run =make init=. The make command will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as dependencies like =graphviz= and =lsp-booster=. It will also set up and update some submodules.
 
 Upon starting up Emacs for the first time, further third-party packages will automatically download and install via =straight.el=. Subsequent startups should take one or two seconds. If you encounter any errors at this stage, try restarting Emacs and/or opening a bug.
 
@@ -1439,8 +1434,8 @@ performance of this software.
     (:host github
      :repo "emacs-evil/evil"
      :files (:defaults
-  	   "doc/build/texinfo/evil.texi"
-  	   (:exclude "evil-test-helpers.el")))
+  	         "doc/build/texinfo/evil.texi"
+  	         (:exclude "evil-test-helpers.el")))
     :init
     ;; Need to be in init because of something in the way the "want" variables are used
     (setq evil-want-keybinding nil ; handled by evil-collection
@@ -1927,11 +1922,9 @@ performance of this software.
     ;; Individual server configuration
     (setq-default eglot-workspace-configuration
                   '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-  				    ;; :pyflakes (:enabled :json-false)
-  				    :pyls_mypy (:enabled t
-  						:live_mode :json-false)
-  				    :pyls_black (:enabled t)
-  				    :pyls_isort (:enabled t)))))
+  				                            :pyls_mypy (:enabled t :live_mode :json-false)
+  				                            :pyls_black (:enabled t)
+  				                            :pyls_isort (:enabled t)))))
 
     (aero-leader-def
       "la" 'eglot-code-actions
@@ -2532,22 +2525,22 @@ performance of this software.
   This function makes sure that dates are aligned for easy reading."
       (require 'cal-iso)
       (let* ((dayname (calendar-day-name date))
-  	   (day (cadr date))
-  	   (month (car date))
-  	   (monthname (calendar-month-name month))
+  	         (day (cadr date))
+  	         (month (car date))
+  	         (monthname (calendar-month-name month))
 
              ;; divisor must be float so (/) doesn't do integer division
              (quarter (round (/ (1+ month) 3.0)))
 
-  	   (year (nth 2 date))
-  	   (iso-week (org-days-to-iso-week
-  		      (calendar-absolute-from-gregorian date)))
-  	   (day-of-week (calendar-day-of-week date))
-  	   (weekstring (if (= day-of-week 1)
-  			   (format " W%02d" iso-week)
-  		         "")))
+  	         (year (nth 2 date))
+  	         (iso-week (org-days-to-iso-week
+  		                  (calendar-absolute-from-gregorian date)))
+  	         (day-of-week (calendar-day-of-week date))
+  	         (weekstring (if (= day-of-week 1)
+  			                     (format " W%02d" iso-week)
+  		                     "")))
         (format "%-10s %2d %s %4d%s   (Q%s)"
-  	      dayname day monthname year weekstring quarter)))
+  	            dayname day monthname year weekstring quarter)))
 
     (defun aero/org-deindent-on-return (&rest _)
       "De-indent the current line if there is only whitespace before the point when pressing ENTER.
@@ -4815,7 +4808,6 @@ This is loaded toward the end so that it overrides other packages. This solves s
   ;; always always always wrap lines
   (global-visual-line-mode +1)
 #+END_SRC
-
 
 * Load local file
 #+BEGIN_SRC emacs-lisp
