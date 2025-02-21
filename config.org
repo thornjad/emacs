@@ -1512,7 +1512,8 @@ performance of this software.
     (treesit-auto-install 'prompt)
 
     :config
-    (treesit-auto-add-to-auto-mode-alist 'all)
+    ;; Add all ts modes to auto-mode as long as they are treesit-ready-p
+    (treesit-auto-add-to-auto-mode-alist)
 
     ;; Python is not playing nicely, so we'll pin it to a working version
     (defvar aero/python-treesit-auto-recipe
