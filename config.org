@@ -4096,8 +4096,7 @@ performance of this software.
            ("C-<tab>" . copilot-accept-completion)
            ("C-c C-i" . copilot-accept-completion)
            ("C-c C-n" . copilot-next-completion)
-           ("C-c C-p" . copilot-prev
-            ("C-c C-p" . copilot-previous-completion)))
+           ("C-c C-p" . copilot-previous-completion)))
 #+END_SRC
 
 * Shell
