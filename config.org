@@ -1,0 +1,4183 @@
+#+title: Thornjad's Emacs Configuration
+#+author: Jade Michael Thornton <thornjad>
+#+OPTIONS: num:nil
+
+* Introduction
+TODO: automatic TOC
+TODO: split up by package
+TODO: claims this might just work by loading =(org-babel-load-file "~/.config/emacs/config.org")= from init.el
+TODO: explanation of how this all works right here
+TODO: replace readme with this? put all of readme here?
+TODO: reference sacha's config
+
+** Copyright Notice
+Copyright (c) 2016-2025 Jade Michael Thornton
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+The software is provided "as is" and the author disclaims all warranties with
+regard to this software including all implied warranties of merchantability
+and fitness. In no event shall the author be liable for any special, direct,
+indirect, or consequential damages or any damages whatsoever resulting from
+loss of use, data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the use or
+performance of this software.
+
+
+* Constants
+#+BEGIN_SRC emacs-lisp
+  (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
+  (defconst aero-snippets-dir (expand-file-name "snippets/" user-emacs-directory))
+  (defconst aero-cache-dir (expand-file-name "cache/" aero-etc-dir))
+  (defconst pcache-directory (expand-file-name "pcache/" aero-cache-dir))
+  (unless (file-exists-p aero-cache-dir) (make-directory aero-cache-dir))
+
+  (defvar aero/documents-path (expand-file-name "~/Documents/"))
+  (defvar aero/thornlog-path (expand-file-name "thornlog/" aero/documents-path))
+  (defvar aero/roam-path (expand-file-name "roam/" aero/thornlog-path))
+  (defvar aero/thornlog-archive-file (expand-file-name "archive/archive.org" aero/thornlog-path))
+  (defvar aero/thornlog-elfeed-directory (expand-file-name "elfeed/" aero/documents-path)
+    "The directory where elfeed will store its database and other files.")
+  (defvar aero/thornlog-elfeed-org-file (expand-file-name "rss_feeds.org" aero/roam-path))
+#+END_SRC
+
+* Builtin requires
+#+BEGIN_SRC emacs-lisp
+  (require 'cl-lib)
+  (require 'subr-x)
+
+  ;; mostly used by Org
+  (require 'outline)
+  (require 'dash)
+  (require 'notifications)
+#+END_SRC
+
+* Library functions
+#+BEGIN_SRC emacs-lisp
+  (require 'aero-pbcopier
+           (expand-file-name
+            "lib/localpackages/aero-pbcopier.el"
+            user-emacs-directory))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (defun rand-nth (coll)
+    "Return a random element of the list COLL."
+    (nth (random (length coll)) coll))
+
+  ;; Help debugging hidden errors
+  (defun aero/reraise-error (func &rest args)
+    "Call function FUNC with ARGS and re-raise any error which occurs.
+  Useful for debugging post-command hooks and filter functions, which
+  normally have their errors suppressed."
+    (condition-case err
+        (apply func args)
+      ((debug error) (signal (car err) (cdr err)))))
+
+  (defun aero/toggle-debug-on-hidden-errors (func)
+    "Toggle hidden error debugging for function FUNC."
+    (interactive "a")
+    (cond
+     ((advice-member-p #'aero/reraise-error func)
+      (advice-remove func #'aero/reraise-error)
+      (message "Debug on hidden errors disabled for %s" func))
+     (t
+      (advice-add func :around #'aero/reraise-error)
+      (message "Debug on hidden errors enabled for %s" func))))
+#+END_SRC
+
+** Advice helpers
+#+BEGIN_SRC emacs-lisp
+  (defun aero/advice-disable-subword (orig-fun &rest args)
+    "Disable `subword-mode' around the given function."
+    (let ((original-mode subword-mode))
+      (subword-mode -1)
+      (apply orig-fun args)
+      (subword-mode original-mode)))
+
+  (defun aero/advice-no-message (fn &rest args)
+    "Advise function FN with ARGS not to message at all."
+    (let ((message-log-max nil)
+          (inhibit-message t))
+      (apply fn args)))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (defadvice kill-line (before kill-line-autoreindent activate)
+    "Kill excess whitespace when joining lines.
+  If the next line is joined to the current line, kill the extra indent whitespace in front of the next line."
+    (when (and (eolp) (not (bolp)))
+      (save-excursion
+        (forward-char 1)
+        (just-one-space 1))))
+
+  (defun aero/advice-elisp-get-fnsym-args-string (fn sym &rest args)
+    "If SYM is a function, append its docstring."
+    (concat
+     (apply fn sym args)
+     (let ((doc (and (fboundp sym) (documentation sym 'raw))))
+       (and doc
+            (stringp doc)
+            (not (string= "" doc))
+            (concat "\n\n" (propertize doc 'face 'italic))))))
+  (advice-add 'elisp-get-fnsym-args-string :around #'aero/advice-elisp-get-fnsym-args-string)
+
+  (define-advice comment-indent-new-line (:after (&optional soft) at-least-one-space)
+    "Ensure that at least one space is added after the comment-start."
+    (let ((start (regexp-quote comment-start)))
+      (when (and (nth 4 (syntax-ppss))
+                 (looking-back start (+ (point) (length start)))
+                 (not (looking-back " "  (+ (point) 1))))
+        (insert " "))))
+
+  ;; Don't kill scratch buffer, just bury it if something tries to
+  (defadvice kill-buffer (around kill-buffer-around-advice activate)
+    "Don't kill my scratch!"
+    (let ((buffer-to-kill (ad-get-arg 0)))
+      (if (equal buffer-to-kill "*scratch*")
+          (bury-buffer)
+        ad-do-it)))
+#+END_SRC
+
+** Utilities
+#+BEGIN_SRC emacs-lisp
+  (defun aero/keyboard-quit-context ()
+    "Quit current context.
+
+  This function is a combination of `keyboard-quit' and `keyboard-escape-quit'
+  with some parts omitted and some custom behavior added."
+    ;; Adapted from https://with-emacs.com/posts/tips/quit-current-context/
+    (interactive)
+    (cond
+     ((region-active-p)
+      ;; Avoid adding the region to the window selection.
+      (setq saved-region-selection nil)
+      (let (select-active-regions)
+        (deactivate-mark)))
+
+     ((eq last-command 'mode-exited)
+      nil)
+
+     (current-prefix-arg
+      nil)
+
+     (defining-kbd-macro
+       (message
+        (substitute-command-keys
+         "Quit is ignored during macro defintion, use \\[kmacro-end-macro] if you want to stop macro definition"))
+       (cancel-kbd-macro-events))
+
+     ((active-minibuffer-window)
+      (when (get-buffer-window "*Completions*")
+        ;; hide completions first so point stays in active window when
+        ;; outside the minibuffer
+        (minibuffer-hide-completions))
+      (abort-recursive-edit))
+
+     (t
+      (keyboard-quit))))
+
+  (defun aero/comment-dwim ()
+    "Comment region if active, else comment line.
+
+  This avoids the excess region commenting of `comment-line' while also avoiding the weird single-line
+  behavior of `comment-dwim'."
+    (interactive)
+    (save-excursion
+      (if (use-region-p)
+          (call-interactively #'comment-or-uncomment-region)
+        (call-interactively #'comment-line))))
+
+  (defun aero/applescript-escape (str)
+    "Escape STR to make it suitable for using is applescripts."
+    (replace-regexp-in-string "\"" "\\\\\"" str))
+
+  (defmacro aero/local! (&rest body)
+    "Execute BODY in local directory instead of TRAMP."
+    `(let ((default-directory user-emacs-directory))
+       ,@body))
+
+  (defmacro aero/voidvar! (&rest body)
+    "Appease the compiler by pretending to use variables in BODY.
+
+  Similar to C++'s void var construct."
+    `(and ,@body))
+
+  (defun aero/sort-words (reverse beg end)
+    "Sort words in region alphabetically, in REVERSE if negative.
+  Prefixed with negative \\[universal-argument], sorts in reverse.
+
+  The variable `sort-fold-case' determines whether alphabetic case affects the
+  sort order.
+
+  See `sort-regexp-fields'."
+    (interactive "*P\nr")
+    (sort-regexp-fields reverse "\\w+" "\\&" beg end))
+#+END_SRC
+
+** System and logging
+#+BEGIN_SRC emacs-lisp
+  (defun system-is-mac () (string= system-type 'darwin))
+  (defun system-is-linux () (string= system-type 'gnu/linux))
+  (defun system-is-mswindows () (string= system-type 'windows-nt))
+  (defun window-system-is-mac () (memq (window-system) '(mac ns)))
+  (defun in-nix-shell-p () (string-equal (getenv "IN_NIX_SHELL") "1"))
+
+  (defun aero/has-modules-p ()
+    "Return true when Emacs has been compiled with modules support."
+    (and (functionp 'module-load) (bound-and-true-p module-file-suffix)))
+
+  (defun treesitterp ()
+    "Evaluate whether Emacs has treesitter support."
+    (and aero/use-treesit-p (functionp 'treesit-available-p) (treesit-available-p)))
+
+  (defun node-repl ()
+    "Launch a Node.js comint REPL."
+    (interactive)
+    (setenv "NODE_NO_READLINE" "1")  ; avoid fancy terminal codes
+    (pop-to-buffer (make-comint "node-repl" "node" nil "--interactive")))
+
+  ;; https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-fly/
+  (defun aero/increase-font-size ()
+    (interactive)
+    (set-face-attribute 'default nil :height (ceiling (* 1.10 (face-attribute 'default :height)))))
+  (defun aero/decrease-font-size ()
+    (interactive)
+    (set-face-attribute 'default nil :height (floor (* 0.9 (face-attribute 'default :height)))))
+  (global-set-key (kbd "C-+") 'aero/increase-font-size)
+  (global-set-key (kbd "C--") 'aero/decrease-font-size)
+
+  ;; also allow = because that's just + without shift
+  (global-set-key (kbd "C-=") 'aero/increase-font-size)
+#+END_SRC
+
+** Buffers, windows, frames, tabs
+#+BEGIN_SRC emacs-lisp
+  (defun aero/switch-to-minibuffer-window ()
+    "switch to minibuffer window (if active)"
+    (interactive)
+    (when (active-minibuffer-window)
+      (select-window (active-minibuffer-window))))
+
+  (defun switch-to-messages-buffer ()
+    (interactive)
+    (switch-to-buffer "*Messages*"))
+
+  (defun switch-to-scratch-buffer ()
+    (interactive)
+    (switch-to-buffer "*scratch*"))
+
+  (defun switch-to-new-scratch-buffer ()
+    (interactive)
+    (switch-to-buffer (generate-new-buffer "*scratch*")))
+
+  (defun aero/bury-buffer-kill-window (&optional window)
+    "Bury the current buffer and kill its window, or use WINDOW."
+    (interactive)
+    (let* ((buf (window-buffer window))
+           (win (get-buffer-window buf)))
+      (bury-buffer buf)
+      (delete-window win)))
+
+  (defun aero/alternate-buffer (&optional window)
+    "Switch back and forth between current and last buffer in the current window."
+    (interactive)
+    (cl-destructuring-bind
+        (buf start pos)
+        (or (cl-find (window-buffer window) (window-prev-buffers) :key #'car :test-not #'eq)
+            (list (other-buffer) nil nil))
+      (if (not buf)
+          (message "Last buffer not found")
+        (set-window-buffer-start-and-point window buf start pos))))
+
+  (defun aero/alternate-window ()
+    "Switch back and forth between current and last window in the current frame."
+    (interactive)
+    (let ( ;; switch to first window previously shown in this frame
+          (prev-window (get-mru-window nil t t)))
+      ;; Check window was not found successfully
+      (unless prev-window
+        (user-error "Last window not found."))
+      (select-window prev-window)))
+
+  (defun aero/layout-two-columns ()
+    "Switch to two column window layout."
+    (interactive)
+    (delete-other-windows)
+    (split-window-right))
+
+  (defun aero/layout-three-columns ()
+    "Switch to three column window layout."
+    (interactive)
+    (delete-other-windows)
+    (dotimes (_ 2)
+      (split-window-right))
+    (balance-windows))
+
+  (defun aero/tail-compilation-buffer ()
+    "Reset tailing the compilation buffer."
+    (interactive)
+    (let* ((buf-name (aero/get-compilation-buffer-name))
+           (window (get-buffer-window buf-name))
+           (pos (with-current-buffer buf-name (point-max))))
+      (set-window-point window pos)))
+
+  (defun aero/project-compile-popup ()
+    "Run `project-compile' and pop up the compilation buffer."
+    (interactive)
+    (let ((buf (get-buffer-create (aero/get-compilation-buffer-name))))
+      (aero/toggle-compilation-buffer)
+      (project-compile)
+      (aero/tail-compilation-buffer)))
+
+  (defun aero/get-compilation-buffer-name ()
+    "Return the compilation buffer name for the current project."
+    (if (project-current nil)
+        (project-prefixed-buffer-name "compilation")
+      "*compilation*"))
+
+  (defun aero/toggle-compilation-buffer ()
+    "Pop-up the compilation buffer."
+    (interactive)
+    (aero/toggle-popup-buffer (aero/get-compilation-buffer-name))
+    (aero/tail-compilation-buffer))
+
+  (defun aero/toggle-popup-buffer (buf)
+    "Pop-up BUF in a buffer below."
+    (let ((win (get-buffer-window buf 0)))
+      (if win
+          ;; found, so close it
+          (aero/bury-buffer-kill-window win)
+
+        ;; else we need to pop it up
+        (progn
+          (display-buffer buf
+                          '((display-buffer-below-selected)
+                            (reusable-frames . nil) ;; only search this frame
+                            (window-height . 20)))
+          (set-window-dedicated-p (get-buffer-window buf) t)))))
+
+  (defun aero/incr-compilation-buffer ()
+    "Renames existing compilation buffer so you can create more."
+    (interactive)
+    (let ((cbuf (get-buffer "*compilation*"))
+          (more-cbufs t)
+          (n 1)
+          (new-cbuf-name ""))
+      (when cbuf
+        (while more-cbufs
+          (setq new-cbuf-name (format "*compilation%d*" n))
+          (setq n (1+ n))
+          (setq more-cbufs (get-buffer new-cbuf-name)))
+        (with-current-buffer cbuf
+          (rename-buffer new-cbuf-name)))))
+
+  (defun aero/eshell-new ()
+    "Open a new Eshell window.
+
+  This is equivalent to SPC U M-x eshell"
+    (interactive)
+    (eshell t))
+
+  (defun aero/project-eshell-new ()
+    "Open a new project Eshell.
+
+  This is equivalent to SPC U SPC p '."
+    (interactive)
+    (let ((current-prefix-arg t))
+      (project-eshell)))
+
+  (defmacro aero/async-shell-command-with-path (command &optional buffer error-buffer)
+    "Run COMMAND asynchronously like `async-shell-command' but with PATH loaded."
+    `(let ((shell-command-switch "-ic"))
+       (async-shell-command ,command ,buffer ,error-buffer)))
+
+  (defun make-xpm-bar (color height width)
+    "Create an XPM bar bitmap of HEIGHT and WIDTH, with COLOR accent."
+    (propertize
+     " "
+     'display
+     (let ((data (make-list height (make-list width 1)))
+           (color (or color "None")))
+       (create-image
+        (concat
+         (format "/* XPM */\nstatic char * percent[] = {\n\"%i %i 2 1\",\n\". c %s\",\n\"  c %s\","
+                 (length (car data)) (length data) color color)
+         (apply #'concat
+                (cl-loop
+                 with idx = 0 with len = (length data) for dl in data do (cl-incf idx) collect
+                 (concat
+                  "\""
+                  (cl-loop
+                   for
+                   d
+                   in
+                   dl
+                   if
+                   (= d 0)
+                   collect
+                   (string-to-char " ")
+                   else
+                   collect
+                   (string-to-char "."))
+                  (if (eq idx len)
+                      "\"};"
+                    "\",\n")))))
+        'xpm
+        t
+        :ascent 'center))))
+#+END_SRC
+
+
+** Files
+#+BEGIN_SRC emacs-lisp
+  (defun aero/reopen-file-at-buffer ()
+    "Re-open the file at buffer, replacing buffer.
+
+  After reopening, cursor will attempt to return to the point it was previously
+  on. This may cause a jump if the file has changed significantly. Finally, the
+  buffer will be recentered to the line at point."
+    (interactive)
+    (let ((initial-line (line-beginning-position))
+          (initial-point (point))
+          (initial-total-lines (count-lines (point-min) (point-max))))
+      (find-alternate-file (buffer-file-name))
+      (if (= initial-total-lines (count-lines (point-min) (point-max)))
+          ;; If total lines have not changed, we can reasonably guess that the
+          ;; content has not changed significantly (if at all), so we can jump
+          ;; right back to the initial point.
+          (goto-char initial-point)
+        ;; If total lines /have/ changed, we can reasonably guess that the initial
+        ;; point is contextually not where we were before. The best thing we can
+        ;; do now is return to the same line number, and hope it's close. Getting
+        ;; closer than this would require text parsing, which is more complex than
+        ;; we need for a simple file replacement.
+        (goto-char initial-line))
+      ;; Finally, recenter the line. We may not have been centered before, but this is more often than
+      ;; not what we want.
+      (recenter)))
+
+  (defun aero/insert-date ()
+    "Insert current date."
+    (interactive)
+    (insert (format-time-string "%Y-%m-%d")))
+  (defun aero/insert-timestamp ()
+    "Insert current timestamp."
+    (interactive)
+    (insert (format-time-string "%Y-%m-%dT%H:%M:%S")))
+  (defun aero/insert-unix-time-seconds ()
+    "Insert current Unix timestamp."
+    (interactive)
+    (insert (format-time-string "%s")))
+  (defun aero/insert-unix-time-milliseconds ()
+    "Insert current Unix timestamp."
+    (interactive)
+    (insert (number-to-string (truncate (* 1000 (float-time))))))
+
+  (defun aero/filename-relative-to-project ()
+    "Return the path of the current buffer relative to the project root."
+    (file-relative-name (buffer-file-name) (project-root (project-current))))
+
+  (defun aero/copy-file-relative-to-project ()
+    "Copy the path of current buffer relative to the project."
+    (interactive)
+    (kill-new (aero/filename-relative-to-project)))
+
+  (defun aero/delete-this-file ()
+    "Delete the current file, and kill the buffer."
+    (interactive)
+    (or (buffer-file-name) (error "No file is currently being edited"))
+    (when (yes-or-no-p (format "Really delete '%s'?" (file-name-nondirectory buffer-file-name)))
+      (delete-file (buffer-file-name))
+      (kill-this-buffer)))
+
+  (defun aero/rename-this-file-and-buffer (new-name)
+    "Renames both current buffer and file it's visiting to NEW-NAME."
+    (interactive "sNew name: ")
+    (let ((name (buffer-name))
+          (filename (buffer-file-name)))
+      (unless filename
+        (error "Buffer '%s' is not visiting a file!" name))
+      (if (get-buffer new-name)
+          (message "A buffer named '%s' already exists!" new-name)
+        (progn
+          (rename-file filename new-name 1)
+          (rename-buffer new-name)
+          (set-visited-file-name new-name)
+          (set-buffer-modified-p nil)))))
+
+  ;; adapted from http://emacs.stackexchange.com/questions/202/close-all-dired-buffers
+  (defun aero/kill-diff-buffers ()
+    (interactive)
+    (mapc
+     (lambda (buffer)
+       (when (member
+              (buffer-local-value 'major-mode buffer) '(diff-mode magit-diff-mode magit-process-mode))
+         (kill-buffer buffer)))
+     (buffer-list)))
+
+  (defun aero/fill-to-80 ()
+    "`fill-paragraph' to 80 columns, regardless of the default."
+    (interactive)
+    (let ((fill-column 80))
+      (fill-paragraph)))
+
+  (defun aero/dos2unix ()
+    "Converts the current buffer to UNIX file format."
+    (interactive)
+    (set-buffer-file-coding-system 'undecided-unix nil))
+
+  (defun aero/unix2dos ()
+    "Converts the current buffer to DOS file format."
+    (interactive)
+    (set-buffer-file-coding-system 'undecided-dos nil))
+
+  (defun aero/run-osascript (script-content)
+    "Run an SCRIPT-CONTENT as AppleScript/osascipt."
+    (interactive "sContent of AppleScript/osascript:")
+    (let ((file (make-temp-file "aero-temp-osa-" nil ".applescript")))
+      (with-temp-file file
+        (insert script-content)
+        (insert "\ndo shell script \"rm -rf \" & the quoted form of POSIX path of (path to me)"))
+      (aero/run-osascript-file file)))
+  (defalias 'aero/run-applescript #'aero/run-osascript)
+
+  (defun aero/run-osascript-file (file)
+    "Run an AppleScript/osascipt FILE."
+    (with-current-buffer (get-buffer-create "*OsaScript*")
+      (insert "Going to run file: " file))
+    (start-process "OsaScript" "*OsaScript*" "osascript" file))
+  (defalias 'aero/run-applescript-file #'aero/run-osascript-file)
+
+  (defun aero/reveal-in-finder-as (file)
+    "Reveal the supplied file FILE in Finder.
+
+  To call interactively, use [aero/open-in-finder]."
+    (let ((script
+           (concat
+            "set thePath to POSIX file \""
+            (shell-quote-argument file)
+            "\"\n"
+            "tell application \"Finder\"\n"
+            " set frontmost to true\n"
+            " reveal thePath \n"
+            "end tell\n")))
+      (aero/run-osascript script)))
+
+  (defun aero/open-in-finder ()
+    "Reveal the file associated with the current buffer in the OSX Finder.
+  In a dired buffer, it will open the current file."
+    (interactive)
+    (declare-function dired-file-name-at-point "dired.el")
+    (aero/reveal-in-finder-as
+     (or (buffer-file-name) (expand-file-name (or (dired-file-name-at-point) ".")))))
+
+  (defun aero/sudo-edit (&optional arg)
+    (interactive "P")
+    (let ((fname
+           (if (or arg (not buffer-file-name))
+               (read-file-name "File: ")
+             buffer-file-name)))
+      (find-file
+       (cond
+        ((string-match-p "^/ssh:" fname)
+         (with-temp-buffer
+           (insert fname)
+           (search-backward ":")
+           (let ((last-match-end nil)
+                 (last-ssh-hostname nil))
+             (while (string-match "@\\\([^:|]+\\\)" fname last-match-end)
+               (setq last-ssh-hostname (or (match-string 1 fname) last-ssh-hostname))
+               (setq last-match-end (match-end 0)))
+             (insert (format "|sudo:%s" (or last-ssh-hostname "localhost"))))
+           (buffer-string)))
+        (t
+         (concat "/sudo:root@localhost:" fname))))))
+
+  (declare-function tramp-cleanup-all-connections "tramp.el")
+  (defun aero/tramp-buffer-p (buffer)
+    (let ((name (buffer-name buffer)))
+      (string-match "^\\*tramp" name)))
+  (defun aero/kill-tramp ()
+    "Kill all Tramp connections. Useful for stale connections.
+  This function does NOT remove remote buffers, only their connections."
+    (interactive)
+    (when (require 'tramp nil t)
+      (declare-function password-reset "password-cache.el")
+      (password-reset)
+      (cancel-function-timers 'tramp-timeout-session)
+      (declare-function tramp-list-tramp-buffers "tramp.el")
+      (dolist (name (tramp-list-tramp-buffers))
+        (when (processp (get-buffer-process name))
+          (delete-process name)))))
+
+  (defun aero/kill-tags ()
+    "Kill the currently-loaded TAGS file."
+    (interactive)
+    (when (get-buffer "TAGS")
+      (kill-buffer "TAGS")))
+
+  (defun aero/open-local-init ()
+    "Open local init file for editing."
+    (interactive)
+    (find-file (concat user-emacs-directory "init-local.el")))
+
+  (defun aero/open-emacs-problems ()
+    "Open Emacs PROBLEMS file from GitHub mirror."
+    (interactive)
+    (eww "https://github.com/emacs-mirror/emacs/blob/master/etc/PROBLEMS"))
+
+  (defun aero/xdg-open (arg)
+    "Pass the specified ARG to \"xdg-open\".
+
+  This can be used to open Nautilus/Finder, the default browser, etc. See \"man
+  xdg-open\" for more."
+    (interactive (list (read-string "Open: ")))
+    (let ((proc
+           (cond
+            ((system-is-linux)
+             "xdg-open")
+            ((system-is-mac)
+             "open")
+            (t
+             (user-error "No system process to use on this OS")))))
+      (call-process proc nil 0 nil arg)))
+
+  (defun aero/browse-url-open (url &optional _ignored)
+    "Pass the specified URL to `aero/xdg-open'.
+
+  Ignored arg is due to the way `funcall-interactively' calls stuff."
+    (interactive
+     (let ((link (and (derived-mode-p 'org-mode)
+                      (org-element-context))))
+       (if (and link (eq (car link) 'link))
+           (list (org-element-property :raw-link link))
+         (browse-url-interactive-arg "URL: "))))
+    (aero/xdg-open url))
+#+END_SRC
+
+** Et cetera
+#+BEGIN_SRC emacs-lisp
+  ;; written by github user rompy
+  (defun aero/smarter-backward-kill-word ()
+    "Deletes the previous word, respecting:
+  1. If the cursor is at the beginning of line, delete the '\n'.
+  2. If there is only whitespace, delete only to beginning of line.
+  3. If there is whitespace, delete whitespace and check 4-5.
+  4. If there are other characters instead of words, delete one only char.
+  5. If it's a word at point, delete it."
+    (interactive)
+    (if (bolp)
+        (delete-char -1)
+      (if (string-match-p
+           "^[[:space:]]+$" (buffer-substring-no-properties (line-beginning-position) (point)))
+          (delete-horizontal-space)
+        (when (thing-at-point 'whitespace)
+          (delete-horizontal-space))
+        (if (thing-at-point 'word)
+            (let ((start (car (bounds-of-thing-at-point 'word)))
+                  (end (point)))
+              (if (> end start)
+                  (delete-region start end)
+                (delete-char -1)))
+          (delete-char -1)))))
+
+  (defun aero/go-to-tag (arg)
+    "Go to tag under point.
+  If called with prefix argument, or with nothing under point, prompt for tag."
+    (interactive "P")
+    (when (fboundp 'xref-find-definitions)
+      (let ((xref-prompt-for-identifier arg))
+        (aero/voidvar! xref-prompt-for-identifier)
+        (call-interactively #'xref-find-definitions))))
+
+  (defun aero/native-compile-file-at-buffer ()
+    "Native compile the file in the current buffer."
+    (interactive)
+    (let ((warning-minimum-level :warning))
+      (save-excursion (native-compile-async buffer-file-name nil t))))
+
+  (defun aero/byte-compile-file-at-buffer ()
+    "Byte compile the file open in the current buffer."
+    (interactive)
+    (save-excursion (byte-compile-file buffer-file-name)))
+  (defun aero/byte-recompile-file-at-buffer ()
+    "Byte recompile the file open in the current buffer."
+    (interactive)
+    (save-excursion (byte-recompile-file buffer-file-name)))
+
+  (defun shrug ()
+    (interactive)
+    (insert "¯\\_(ツ)_/¯"))
+
+  (defun untabify-buffer ()
+    (interactive)
+    (untabify (point-min) (point-max)))
+  (defun tabify-buffer ()
+    (interactive)
+    (tabify (point-min) (point-max)))
+  (defun indent-buffer ()
+    (interactive)
+    (indent-region (point-min) (point-max)))
+
+  (defmacro aero/insert-text-at-point (text)
+    `(progn
+       (save-excursion
+         (unless (eobp)
+           (right-char))
+         (insert ,text))
+       (forward-sexp 1)))
+
+  (defun alter-number-at-point (offset)
+    (save-excursion
+      (skip-chars-backward "0-9")
+      (or (looking-at "[0-9]+") (message "No number at point"))
+      (replace-match (number-to-string (+ offset (string-to-number (match-string 0)))))))
+  (defun increment-number-at-point ()
+    (interactive)
+    (alter-number-at-point 1))
+  (defun decrement-number-at-point ()
+    (interactive)
+    (alter-number-at-point -1))
+
+  (defun human-date (human-string &optional epoch)
+    "Convert HUMAN-STRING to a date string or if EPOCH, seconds.
+  Requires the utility date to be installed."
+    (with-temp-buffer
+      (let ((dateProc
+             (if (system-is-mac)
+                 "gdate"
+               "date")))
+        (if epoch
+            (call-process dateProc nil t nil "-d" human-string "+%s")
+          (call-process dateProc nil t nil "-d" human-string)))
+      (replace-regexp-in-string "\n\\'" "" (buffer-string))))
+
+  (defun day-of-week ()
+    "Return the current day of the week."
+    (format-time-string "%A"))
+
+  (defun day-after (day-name)
+    "Return the name of the day following the day given by 'day-name'."
+    (format-time-string "%A" (time-add (date-to-time (concat day-name " 00:00")) (* 24 60 60))))
+
+  (defun aero/frame-recenter (&optional frame)
+    "Center FRAME on the screen.
+
+  FRAME can specify a frame name, a terminal name, or a frame.
+  If FRAME is omitted or nil, use currently selected frame."
+    (interactive)
+    (unless (eq 'maximised (frame-parameter nil 'fullscreen))
+      (let* ((frame (or (and (boundp 'frame) frame) (selected-frame)))
+             (frame-w (frame-pixel-width frame))
+             (frame-h (frame-pixel-height frame))
+             (display (frame-parameter frame 'display))
+             (monitor-w (display-pixel-width display))
+             (monitor-h (display-pixel-height display))
+             ;; NS doesn't report menu bar as outside monitor
+             (monitor-h
+              (if (eq window-system 'ns)
+                  (- monitor-h 22)
+                monitor-h))
+             (center (list (/ (- monitor-w frame-w) 2) (/ (- monitor-h frame-h) 2))))
+        (apply 'set-frame-position (flatten-list (list frame center))))))
+
+  (defun aero/ctags-create-tags (rootdir &optional ctags-cmd)
+    "Generate tags database in ROOTDIR.
+  NOTE this requires Universal Ctags. It may work with Exuberant Ctags, but no guarantees. Definitely
+  does not work with GNU Ctags. If your installation of Ctags does not use the `ctags' command,
+  specify it with CTAGS-CMD."
+    (interactive (list (read-directory-name "Root Directory: " nil nil t)))
+    (let ((default-directory rootdir)
+          (cmd (or ctags-cmd "ctags"))
+          (buf (get-buffer-create " *aero/ctags-create-tags*")))
+      (async-shell-command (concat
+                            cmd
+                            " --kinds-all='*' --fields='*' --extras='*' --langmap=TCL:.tcl.rvt -R")
+                           buf)))
+
+  (defun aero/open-with (arg)
+    "Open visited file in default external program.
+  When in dired mode, open file under the cursor.
+  With a prefix ARG always prompt for command to use."
+    (interactive "P")
+    (let* ((current-file-name
+            (if (eq major-mode 'dired-mode)
+                (dired-get-file-for-visit)
+              buffer-file-name))
+           (open
+            (pcase system-type
+              (`darwin "open")
+              ((or `gnu `gnu/linux `gnu/kfreebsd) "xdg-open")))
+           (program
+            (if (or arg (not open))
+                (read-shell-command "Open current file with: ")
+              open)))
+      (call-process program nil 0 nil current-file-name)))
+
+  (defun pulse-line (&rest _)
+    "Briefly pulse a highlight of the line at point.
+  This function, when bound to certain commands like scrolling, acts as a native
+  alternative to the beacon package."
+    (pulse-momentary-highlight-one-line (point)))
+
+  (defun aero/ssh-refresh ()
+    "Reset the environment variable SSH_AUTH_SOCK"
+    (interactive)
+    (let (ssh-auth-sock-old
+          (getenv "SSH_AUTH_SOCK"))
+      (setenv "SSH_AUTH_SOCK"
+              (car
+               (split-string
+                (shell-command-to-string
+                 "ls -t $(find /tmp/ssh-* -user $USER -name 'agent.*' 2> /dev/null)"))))
+      (message (format "SSH_AUTH_SOCK %s --> %s" ssh-auth-sock-old (getenv "SSH_AUTH_SOCK")))))
+
+  (defun aero/insert-pdb ()
+    "Inserts PDB set_trace."
+    (interactive)
+    (insert "import pdb; pdb.set_trace()"))
+
+  (defmacro aero/with-buffer-excursion (buffer-name &rest body)
+    (declare (indent 1))
+    `(with-current-buffer (get-buffer ,buffer-name)
+       (save-excursion
+         ,@body)))
+
+  (defmacro aero/with-buffer-max-excursion (buffer-name &rest body)
+    (declare (indent 1))
+    `(aero/with-buffer-excursion ,buffer-name
+       (goto-char (point-max))
+       ,@body))
+
+  (defmacro aero/without-readonly (&rest body)
+    (declare (indent 0))
+    `(let ((inhibit-read-only t))
+       ,@body))
+
+  (defun aero/plist-merge (&rest plists)
+    "Merge PLISTS into a single plist."
+    (let ((result (copy-sequence (car plists))))
+      (dolist (plist plists)
+        (cl-loop for (key value) on plist by #'cddr
+                 do (plist-put result key value)))
+      result))
+
+  (defun aero/unix-timestamp-to-human (timestamp)
+    "Convert a UNIX TIMESTAMP to a human-readable string."
+    (interactive (list (read-string "Timestamp: " (thing-at-point 'word))))
+    ;; convert from milliseconds if it looks like milliseconds
+    (let ((timestamp (if (>= (string-to-number timestamp) 10000000000)
+                         (/ (string-to-number timestamp) 1000)
+                       (string-to-number timestamp))))
+      (message (format-time-string "%Y-%m-%d %H:%M:%S" (seconds-to-time timestamp)))))
+
+  (defun aero/toggle-angular-component-file ()
+    "Toggle between an Angular component's Typescript and HTML files."
+    (interactive)
+    (let ((current-file buffer-file-name))
+      (when current-file
+        (let* ((file-ext (file-name-extension current-file))
+               (base-name (file-name-sans-extension current-file))
+               (toggle-ext (cond ((string-equal file-ext "html") "ts")
+                                 ((string-equal file-ext "ts") "html")
+                                 (t nil)))
+               (prefered-filename (concat base-name (when (string-equal toggle-ext "ts") ".component") "." toggle-ext)))
+          (if (and prefered-filename (file-exists-p prefered-filename))
+              (find-file prefered-filename)
+            (let ((alternative-filename (concat base-name "." toggle-ext)))
+              (if (and toggle-ext (file-exists-p alternative-filename))
+                  (find-file alternative-filename)
+                (message "No corresponding file found for %s" current-file))))))))
+
+  (defun aero/org-convert-region-from-markdown (beg end)
+    (interactive "r")
+    (shell-command-on-region beg end "pandoc -t org" nil t))
+
+  (defun find-latest-time (times)
+    "Find the latest time in TIMES, which is a list of time values."
+    (let ((latest (car times)))
+      (dolist (time times latest)
+        (when (> (float-time time) (float-time latest))
+          (setq latest time)))))
+
+  (defun find-latest-time-before-today (times)
+    "Find the latest time in TIMES that is before today."
+    (let ((latest (car times))
+          (today (org-today)))
+      (dolist (time times latest)
+        (let ((time-date (org-time-string-to-time (format-time-string "%Y-%m-%d" time))))
+          (when (and (> (float-time time) (float-time latest))
+                     (< (time-to-days time-date) today))
+            (setq latest time))))))
+
+  (defun aero/open-agenda-file ()
+    "Open an org-agenda file from a list of all agenda files."
+    (interactive)
+    (let ((file (completing-read "Select agenda file: " (org-agenda-files))))
+      (when file
+        (find-file file))))
+
+  (defun aero/eslint-fix-file ()
+    "Run eslint --fix on the current buffer's file."
+    (interactive)
+
+    (when (buffer-modified-p)
+      (if (y-or-n-p (format "Save file %s? " buffer-file-name))
+          (save-buffer)
+        (user-error "ESLint refusing to run on a modified buffer")))
+
+    (message "Running ESLint fix...")
+
+    (let* ((default-directory (project-root (project-current)))
+           (filename (aero/filename-relative-to-project))
+           (error-buffer (get-buffer-create "*ESLint Fix Errors*"))
+           (exit-code (call-process "npx" nil error-buffer nil
+                                    "eslint" "--fix" buffer-file-name)))
+      (if (zerop exit-code)
+          (progn
+            (message "ESLint fix complete")
+            (revert-buffer t t t))
+        (message "ESLint fix failed with error code %d" exit-code)
+        (pop-to-buffer error-buffer))))
+
+  (defun aero/prettier-fix-file ()
+    "Run prettier --write on the current buffer's file."
+    (interactive)
+    (when (buffer-modified-p)
+      (if (y-or-n-p (format "Save file %s? " buffer-file-name))
+          (save-buffer)
+        (user-error "Prettier refusing to run on a modified buffer")))
+    (message "Running Prettier fix...")
+    (let* ((default-directory (project-root (project-current)))
+           (filename (aero/filename-relative-to-project))
+           (error-buffer (get-buffer-create "*Prettier Fix Errors*"))
+           (exit-code (call-process "npx" nil error-buffer nil
+                                    "prettier" "--write" buffer-file-name)))
+      (if (zerop exit-code)
+          (progn
+            (message "Prettier fix complete")
+            (revert-buffer t t t))
+        (message "Prettier fix failed with error code %d" exit-code)
+        (pop-to-buffer error-buffer))))
+#+END_SRC
+
+* Packaging setup
+#+BEGIN_SRC emacs-lisp
+  ;; Use the more-cutting-edge develop branch of straight
+  (eval-when-compile
+    (defvar straight-repository-branch)
+    (defvar straight-check-for-modifications))
+  (setq straight-repository-branch "develop")
+
+  ;; Don't allow straight to check for modifications in every repo on Emacs init, saving some startup
+  ;; time
+  (setq straight-check-for-modifications nil)
+
+  ;; Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we
+  ;; (or more likely any dependency) try to pull it in.
+  (with-eval-after-load 'straight
+    (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
+
+  ;; Bootstrap straight.el
+  (defvar bootstrap-version)
+  (let ((bootstrap-file
+         (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+        (bootstrap-version 5))
+    (unless (file-exists-p bootstrap-file)
+      (with-current-buffer
+          (url-retrieve-synchronously
+           "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+           'silent 'inhibit-cookies)
+        (goto-char (point-max))
+        (eval-print-last-sexp)))
+    (load bootstrap-file nil 'nomessage))
+
+  
+  ;; use-package
+
+  ;; Not certain we need to set up straight first, but something got messed up back before use-package
+  ;; was built-in, so now it will never ever move.
+  (require 'use-package)
+
+  ;; Only expand minimally if we're byte-compiling, and only use verbose if we're in --debug-init.
+  (eval-when-compile
+    (defvar use-package-expand-minimally)
+    (defvar use-package-compute-statistics)
+    (defvar use-package-minimum-reported-time)
+    (defvar use-package-verbose))
+  (setq use-package-expand-minimally byte-compile-current-file
+        use-package-compute-statistics nil ; t then `use-package-report' to find packages not used
+        package-native-compile t ; compile when installing (not sure if this works)
+        use-package-minimum-reported-time 0.1
+        use-package-verbose init-file-debug)
+
+  
+  ;; Aero package macro
+
+  (defmacro package! (package recipe &rest body)
+    "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package'.
+
+  Example:
+
+      (package! foo (:host gitlab :repo \"thornjad/foo\" :branch \"main\")
+       :commands (foo-bar foo-spam))
+
+  If the RECIPE is :builtin or :local, do not search [M]ELPA, only pass BODY to `use-package'. While
+  there is no functional difference between these two keywords, :builtin should be used for packages
+  within Emacs while :local should be used for user packages which exist locally. :local packages may
+  require a :load-path for `use-package' to load properly.
+
+  If the BODY contains the keyword :disabled, the package is completely ignored, with an expansion
+  indicating the package has been disabled.
+
+  If the recipe does not contain a :host, it default to 'github.
+
+  If the recipe is only a string, it is considered a github repo.
+
+  DEPRECATED: If the RECIPE is :auto, use the recipe provided by [M]ELPA. This is deprecated in favor of providing an explicit recipe. A recipe allows greater control over packages while also providing an easier path to cutting-edge updates.
+
+  Usage of this macro allows simplified refactoring when changing packaging systems, as Aero is wont
+  to do every few years."
+    (declare (indent defun)) ; indent like use-package
+
+    (when (stringp recipe)
+      (setq recipe (list :repo recipe)))
+
+    (when (memq :auto body)
+      (display-warning
+       'aero
+       (format "Package %s uses :auto, which is deprecated. Specify recipe instead" package)
+       :warning))
+
+    (cond
+     ((memq :disabled body)
+      (format "%s :disabled by Aero package!" package))
+
+     ((equal recipe :builtin)
+      `(use-package ,package :straight (:type built-in) ,@body))
+
+     ((equal recipe :local)
+      `(use-package ,package :straight nil ,@body))
+
+     ((equal recipe :localpackage)
+      `(use-package ,package :straight nil :load-path "lib/localpackages" ,@body))
+
+     ;; Use straight
+     (t
+      (progn
+        (when (and (not (equal recipe :auto))
+                   (and (not (memq :host recipe))
+                        (not (memq :source recipe))))
+          (setq recipe (plist-put recipe :host 'github)))
+
+        `(use-package ,package :straight ,(or (equal recipe :auto) recipe) ,@body)))))
+
+  
+  ;; utils
+
+  (defun aero/fetch-melpa-recipe (package-name)
+    "Fetch the MELPA recipe for the given PACKAGE-NAME and display it in a buffer."
+    (interactive "sPackage Name: ")
+    (let ((url (format "https://raw.githubusercontent.com/melpa/melpa/master/recipes/%s" package-name)))
+      (with-current-buffer (url-retrieve-synchronously url)
+        (goto-char (point-min))
+        (re-search-forward "\n\n")
+        (delete-region (point-min) (point))
+        (let ((content (buffer-string)))
+          (kill-buffer)
+          (with-current-buffer (get-buffer-create "*MELPA Recipe*")
+            (erase-buffer)
+            (insert content)
+            (goto-char (point-min))
+            (emacs-lisp-mode)
+            (display-buffer (current-buffer)))))))
+#+END_SRC
+
+
+* Core setup (prelude)
+#+BEGIN_SRC emacs-lisp
+  ;; Set up automatic compilation for everything past this point
+  (package! compile-angel "jamescherti/compile-angel.el"
+    :demand t
+    :hook (emacs-lisp-mode-hook . compile-angel-on-save-local-mode)
+
+    :custom
+    (compile-angel-verbose t)
+    (compile-angel-enable-byte-compile nil) ; only native compile
+
+    :config
+    ;; Exclude these files
+    (with-eval-after-load "savehist" (push (concat "/" (file-name-nondirectory savehist-file))
+                                           compile-angel-excluded-files))
+    (with-eval-after-load "recentf" (push (concat "/" (file-name-nondirectory recentf-save-file))
+                                          compile-angel-excluded-files))
+    (with-eval-after-load "cus-edit" (push (concat "/" (file-name-nondirectory custom-file))
+                                           compile-angel-excluded-files))
+
+    (compile-angel-on-load-mode))
+
+  ;; The ELPA keyring sometimes gets screwed up, this fixes it
+  (package! gnu-elpa-keyring-update :auto)
+
+  ;; Requirements for lib
+  (package! dash "magnars/dash.el")
+  (package! memo (:host gitlab :repo "thornjad/emacs-memo" :branch "main"))
+  (package! async "jwiegley/emacs-async" :commands (async-save))
+  (package! popup "auto-complete/popup-el")
+  (package! spinner "Malabarba/spinner.el")
+
+  ;; used by gptel-quick and available for other stuff
+  (package! posframe "tumashu/posframe" :defer 1)
+
+  ;; Used by eglot, dape, copilot, etc
+  (package! jsonrpc :builtin
+    :config
+    ;; Don't waste time logging events
+    (fset #'jsonrpc--log-event #'ignore))
+
+  ;; Mostly only required for MacOS, we need to grab environment variables from the default shell.
+  (package! exec-path-from-shell "purcell/exec-path-from-shell"
+    :when (or (memq window-system '(mac ns x)) (daemonp))
+    :config
+    (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH" "PATH" "MANPATH" "INFOPATH" "LSP_USE_PLISTS" "HOMEBREW_PREFIX" "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"))
+      (add-to-list 'exec-path-from-shell-variables var))
+    (exec-path-from-shell-initialize))
+
+  ;; Faster than grep, but requires ripgrep to be installed locally
+  (package! ripgrep "nlamirault/ripgrep.el" :defer 3)
+
+  ;; Make files executable if the first file has a shebang
+  (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
+#+END_SRC
+
+
+* Foundational functionality
+** Keybindings
+#+BEGIN_SRC emacs-lisp
+  (package! which-key "justbur/emacs-which-key"
+    :hook (on-first-input . which-key-mode)
+    :defines which-key-mode
+    :config
+    (which-key-mode)
+    (setq which-key-special-keys '("SPC" "TAB" "RET" "ESC" "DEL")))
+
+  (package! general "noctuid/general.el"
+    :functions (general-define-key aero-leader-def aero-mode-leader-def)
+    :init
+    (setq-default general-override-states
+                  '(insert hybrid normal visual motion operator replace))
+
+    ;; Most bindings will fall under this leader key, so we make a handy macro.
+    (general-create-definer aero-leader-def
+      :states '(normal visual emacs motion)
+      :prefix "SPC"
+      :non-normal-prefix "C-SPC")
+
+    ;; Mode-leader lets us put keybindings only in specific modes (usually major modes).
+    (general-create-definer aero-mode-leader-def
+      :states '(normal visual emacs motion)
+      :prefix "SPC ,")
+
+    :config
+    (general-define-key
+     :states '(normal visual motion)
+     :keymaps 'override
+     :prefix "SPC"
+     :non-normal-prefix "C-SPC"
+     "" nil)
+
+    ;; Main configuration
+
+    (general-def
+      ;; Emacs chose ^? for the help system for some despicable reason. Fuck that.
+      (kbd "C-h") 'delete-backward-char
+      (kbd "C-w") 'aero/smarter-backward-kill-word
+      (kbd "C-TAB") 'insert-tab
+      (kbd "M-TAB") 'aero/alternate-buffer
+      (kbd "C-RET") 'aero/browse-url-open)
+
+    (general-define-key
+     :states 'normal
+     :prefix "SPC"
+     "fW" 'evil-write-all
+     "w/" '(evil-window-vsplit :wk "split vertical")
+     "w-" '(evil-window-split :wk "split horizontal")
+     "w2" 'aero/layout-two-columns
+     "w3" 'aero/layout-three-columns
+     "cm" 'evil-make)
+
+    (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
+
+    ;; mode-specific overrides
+    (general-define-key
+     :states '(normal insert motion)
+     :keymaps 'override
+     :prefix ","
+     "" nil)
+
+    (general-define-key
+     :states '(normal insert motion)
+     :keymaps 'override
+     :prefix "SPC"
+     :non-normal-prefix "C-SPC"
+     "" nil
+
+     ;; independent keys
+     "SPC" 'execute-extended-command
+     "TAB" '(aero/alternate-buffer :wk "alternate buffer")
+     (kbd "ESC") 'keyboard-quit
+     (kbd "C-g") 'keyboard-quit
+     (kbd "<pause>") 'keyboard-quit
+     "'" 'eshell
+     "\"" '(aero/eshell-new :wk "eshell-new")
+     ":" 'eval-expression
+     ";" 'aero/comment-dwim
+     "!" 'shell-command
+     "=" 'quick-calc
+
+     "," '(:ignore t :wk "mode") ; reserved for mode-specific
+
+     "e" '(:ignore t :wk "errors")
+     "ed" 'toggle-debug-on-error
+     "eq" 'toggle-debug-on-quit
+
+     "T TAB" 'tab-recent
+     "T" '(:ignore t :wk "tab")
+     "Tn" 'tab-next
+     "Tp" 'tab-previous
+     "Tk" 'tab-close
+     "T," 'tab-rename
+     "Tc" '(tab-new :wk "create tab")
+     "Tb" 'switch-to-buffer-other-tab
+     "Tf" 'find-file-other-tab
+     "Ts" '(tab-duplicate :wk "tab duplicate split")
+     "Tu" 'tab-undo
+
+     "U" 'universal-argument
+
+     "a" '(:ignore t :wk "applications")
+     "ai" '(:ignore t :wk "AI functions")
+
+     "b" '(:ignore t :wk "buffers")
+     "bs" 'switch-to-scratch-buffer
+     "bS" 'switch-to-new-scratch-buffer
+     "bd" 'kill-current-buffer
+     "bi" 'indent-buffer
+     "bl" 'ibuffer
+     "bm" 'switch-to-messages-buffer
+     "bn" 'next-buffer
+     "bp" 'previous-buffer
+     "br" '(aero/reopen-file-at-buffer :wk "buffer replace")
+     "bR" '(revert-buffer-quick :wk "buffer revert")
+     "bw" '(whitespace-mode :wk "whitespace")
+     "bx" 'kill-buffer-and-window
+
+     "n" '(:ignore t :wk "narrow")
+     "nn" 'narrow-to-region
+     "np" 'narrow-to-page
+     "nw" 'widen
+     "nd" 'narrow-to-defun
+
+     "c" '(:ignore t :wk "compile")
+     "ct" 'aero/tail-compilation-buffer
+     "ci" '(ielm :wk "ielm repl")
+     "cc" 'compile
+     "ce" '(:ignore t :wk "elisp")
+     "ceb" 'eval-buffer
+     "ced" 'eval-defun
+     "cer" 'eval-region
+     "ck" 'kill-compilation
+     "cr" 'recompile
+
+     "f" '(:ignore t :wk "files")
+     "ff" 'find-file
+     "fc" 'aero/copy-file-relative-to-project
+     "fD" '(aero/delete-this-file :wk "delete this file")
+     "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
+     "fo" '(:ignore t :wk "open special files")
+     "fot" '(:ignore t :wk "thornlog")
+     "fota" 'aero/open-agenda-file
+     "fott" '(aero/thornlog-todo :wk "thornlog todo")
+     "fotl" '(aero/thornlog-log :wk "thornlog log")
+     "fotd" '(aero/thornlog-dir :wk "thornlog all")
+     "fw" '(save-buffer :wk "write buffer")
+     "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
+
+     "g" '(:ignore t :wk "git")
+     "gf" '(:ignore t :wk "files")
+
+     "h" '(:ignore t :wk "help/manual")
+     "hI" 'info-apropos
+     "hM" 'woman
+     "hd" '(:ignore t :wk "describe")
+     "hdF" 'describe-face
+     "hdb" 'describe-bindings
+     "hdM" 'describe-mode
+     "hdK" 'describe-keymap
+     "hdC" 'describe-char
+     "hdp" 'describe-package
+     "hdi" '(emacs-index-search :wk "search emacs manual")
+     "hdl" '(find-library :wk "describe library")
+     "hi" 'info
+     "hm" 'man
+     "hw" '(:ignore t :wk "which-key")
+     "hwm" '(which-key-show-major-mode :wk "major mode map")
+
+     "j" '(:ignore t :wk "jump")
+     "l" '(:ignore t :wk "lsp")
+
+     "m" '(:ignore t :wk "mode")
+     "m" '(tmm-menubar :wk "Context menu")
+
+     "o" '(:ignore t :wk "org / outline")
+     "oh" '(outline-hide-body :wk "hide all")
+     "oS" '(outline-show-all :wk "show all")
+
+     "p" '(:ignore t :wk "project")
+     "pr" '(xref-find-definitions :wk "find ref")
+     "ps" '(:ignore t :wk "spelling")
+
+     "r" '(:ignore t :wk "xref")
+     "rf" 'xref-find-definitions
+     "rF" 'xref-find-definitions-other-window
+     "rp" 'xref-go-back
+     "rn" 'xref-go-forward
+     "ra" 'xref-find-apropos
+     "rr" 'xref-find-references
+
+     "q" '(:ignore t :wk "quoted insert")
+     "ql" 'insert-lambda
+     "qq" 'quoted-insert
+     "qp" 'aero/insert-pdb
+     "qu" 'insert-char
+
+     "s" '(:ignore t :wk "sexp")
+
+     "t" '(:ignore t :wk "tabs/text")
+     "td" 'dictionary-lookup-definition
+     "tD" 'downcase-dwim
+     "tU" 'upcase-dwim
+     "tf" 'fill-paragraph
+     "tF" 'aero/fill-to-80
+     "tn" '(:ignore t :wk "number")
+     "tnd" 'decrement-number-at-point
+     "tni" 'increment-number-at-point
+     "ts" 'sort-lines
+
+     "u" 'undo-tree-visualize
+
+     "w" '(:ignore t :wk "window/web")
+     "w=" 'balance-windows
+     "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
+     "ws" '(eww-search-words :which-key "web search")
+     "ww" 'eww
+     "wb" '(:ignore t :wk "browse")
+     "wbb" 'eww-list-buffers
+     "wbh" 'eww-list-histories
+     "wbm" 'eww-list-bookmarks
+     "wbp" 'browse-url-at-point
+     "wp" 'browse-url-at-point
+     "wc" 'aero/toggle-compilation-buffer
+     "wd" 'delete-window
+     "wh" 'windmove-left
+     "wi" 'minimize-window
+     "wj" 'windmove-down
+     "wk" 'windmove-up
+     "wl" 'windmove-right
+     "wm" 'maximize-window
+     "wo" 'aero/browse-url-open
+     "w{" 'shrink-window
+     "w}" 'enlarge-window
+
+     "z" 'repeat))
+
+  (package! casual "kickingvegas/casual"
+  	:after (dired)
+    :defines (casual-editkit-main-tmenu
+              casual-dired-tmenu
+              casual-dired-sort-by-tmenu
+              casual-dired-search-replace-tmenu)
+    :bind (("C-o" . #'casual-editkit-main-tmenu)
+
+           :map dired-mode-map
+           ("C-o" . #'casual-dired-tmenu)
+           ("s" . #'casual-dired-sort-by-tmenu)
+           ("/" . #'casual-dired-search-replace-tmenu)))
+#+END_SRC
+
+** Evil
+#+BEGIN_SRC emacs-lisp
+  (package! evil
+    (:host github
+     :repo "emacs-evil/evil"
+     :files (:defaults
+             "doc/build/texinfo/evil.texi"
+             (:exclude "evil-test-helpers.el")))
+    :init
+    ;; Need to be in init because of something in the way the "want" variables are used
+    (setq evil-want-keybinding nil ; handled by evil-collection
+          ;; to change undo-system without restart, use SPC-: `evil-set-undo-system'
+          evil-undo-system 'undo-tree
+          evil-want-fine-undo t
+          evil-want-C-i-jump nil
+          evil-want-C-u-scroll t
+          evil-search-module 'isearch)
+
+    :config
+
+    ;; Free these up for other bindings, they're not useful anyway
+    (define-key evil-motion-state-map " " nil)
+    (define-key evil-motion-state-map (kbd "RET") nil)
+    (define-key evil-motion-state-map (kbd "C-o") nil)
+
+    ;; default states
+    (setq evil-default-state 'normal)
+    (evil-set-initial-state 'dired-mode 'emacs)
+    (evil-set-initial-state 'message-mode 'motion)
+
+    ;; Make movement keys work like they should by remapping next to next-visual, etc.
+    (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>") 'evil-next-visual-line)
+    (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>") 'evil-previous-visual-line)
+    (define-key evil-motion-state-map (kbd "<remap> <evil-next-line>") 'evil-next-visual-line)
+    (define-key evil-motion-state-map (kbd "<remap> <evil-previous-line>") 'evil-previous-visual-line)
+
+    ;; Ensure horizontal movement doesn't cross to the next/previous line
+    (setq-default evil-cross-lines nil)
+
+    ;; Undo in region
+    (define-key evil-visual-state-map (kbd "u") 'undo)
+
+    ;; By default, these two operate on half pages, but I prefer the smaller jump
+    (defun aero/scroll-quarter-page-down ()
+      (interactive)
+      (evil-scroll-down (/ (window-body-height) 4)))
+    (defun aero/scroll-quarter-page ()
+      (interactive)
+      (evil-scroll-up (/ (window-body-height) 4)))
+    (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
+    (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
+
+    ;; Define vig and vag, etc. to look for all paren types
+    (defun aero/evil-paren-range (count beg end type inclusive)
+      "Get minimum range of paren text object.
+  COUNT, BEG, END, TYPE is used.  If INCLUSIVE is t, the text object is inclusive."
+      (let* ((parens '("()" "[]" "{}" "<>"))
+             range
+             found-range)
+        (dolist (p parens)
+          (condition-case nil
+              (setq range (evil-select-paren (aref p 0) (aref p 1) beg end type count inclusive))
+            (error nil))
+          (when range
+            (cond
+             (found-range
+              (when (< (- (nth 1 range) (nth 0 range))
+                       (- (nth 1 found-range) (nth 0 found-range)))
+                (setf (nth 0 found-range) (nth 0 range))
+                (setf (nth 1 found-range) (nth 1 range))))
+             (t
+              (setq found-range range)))))
+        found-range))
+    (evil-define-text-object aero/evil-a-paren (count &optional beg end type)
+      "Select a paren."
+      :extend-selection t
+      (aero/evil-paren-range count beg end type t))
+    (evil-define-text-object aero/evil-inner-paren (count &optional beg end type)
+      "Select 'inner' paren."
+      :extend-selection nil
+      (aero/evil-paren-range count beg end type nil))
+    (define-key evil-inner-text-objects-map "g" #'aero/evil-inner-paren)
+    (define-key evil-outer-text-objects-map "g" #'aero/evil-a-paren)
+
+    ;; Very useful, in visual mode, use < and > to indent/unindent the line(s)
+    (defun aero/evil-shift-right ()
+      (interactive)
+      (evil-shift-right evil-visual-beginning evil-visual-end)
+      (evil-normal-state)
+      (evil-visual-restore))
+    (defun aero/evil-shift-left ()
+      (interactive)
+      (evil-shift-left evil-visual-beginning evil-visual-end)
+      (evil-normal-state)
+      (evil-visual-restore))
+    (evil-define-key 'visual global-map (kbd ">") 'aero/evil-shift-right)
+    (evil-define-key 'visual global-map (kbd "<") 'aero/evil-shift-left)
+
+    ;; :q should kill the current buffer rather than quitting Emacs entirely
+    (evil-ex-define-cmd "q" 'kill-current-buffer)
+
+    ;; Unless I'm mistaken, there's no Evil backward equivalent to "e", so we'll invent it.
+    (evil-define-key '(normal visual motion) global-map
+      (kbd "C-e") #'evil-backward-word-end)
+    (evil-define-key '(normal visual motion) global-map
+      (kbd "C-M-e") #'evil-backward-WORD-end)
+
+    ;; Useful for pasting into the minibuffer where Evil modes usually don't properly function
+    (evil-define-key '(insert) global-map (kbd "C-y") #'evil-paste-after)
+    (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
+
+    ;; Run macro in register q
+    (evil-define-key 'normal 'global "Q" "@q")
+    (evil-define-key 'visual 'global
+      ;; run macro in register q on region
+      "Q" (kbd ":norm @q RET")
+      ;; repeat on region
+      "." (kbd ":norm . RET"))
+
+    ;; activate
+    (evil-mode +1))
+
+  ;; Provides defaults for many modes which evil proper overlooks
+  (package! evil-collection (:repo "emacs-evil/evil-collection" :files (:defaults "modes"))
+    :after evil
+    :config (evil-collection-init))
+
+  ;; allows % to jump matching tags
+  (package! evil-matchit "redguardtoo/evil-matchit"
+    :defer 5
+    :after evil
+    :defines global-evil-matchit-mode
+    :config (global-evil-matchit-mode 1))
+#+END_SRC
+
+** Treesitter
+#+BEGIN_SRC emacs-lisp
+  ;; Automatically install treesitter grammars when missing
+  (package! treesit-auto "renzmann/treesit-auto"
+    :when (treesitterp)
+    :custom
+    (treesit-auto-install 'prompt)
+
+    :config
+    (treesit-auto-add-to-auto-mode-alist 'all)
+
+    ;; Python is not playing nicely, so we'll pin it to a working version
+    (defvar aero/python-treesit-auto-recipe
+      (make-treesit-auto-recipe
+       :lang 'python
+       :ts-mode 'python-ts-mode
+       :remap 'python-mode
+       :url "https://github.com/tree-sitter/tree-sitter-python"
+       :ext "\\.py[iw]?\\'"
+       :revision "v0.21.0")
+      "Recipe for libtree-sitter-python.dylib")
+    (add-to-list 'treesit-auto-recipe-list aero/python-treesit-auto-recipe)
+
+    (global-treesit-auto-mode +1))
+
+  ;; Provide selection of functions
+  (package! evil-textobj-tree-sitter
+    (:repo "meain/evil-textobj-tree-sitter" :files (:defaults "queries" "treesit-queries"))
+    :when (treesitterp)
+    :after (evil)
+    :config
+    ;; vaf, select function outer
+    (define-key evil-outer-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
+    ;; vif, select inner funciton
+    (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner")))
+#+END_SRC
+
+** Completion and navigation
+#+BEGIN_SRC emacs-lisp
+  (package! vertico "minad/vertico"
+    :init (vertico-mode)
+    :custom
+    (vertico-cycle t)  ; enable wrap
+    :config
+    (defun aero/vertico-directory-up-maybe ()
+      "Go up a directory if completing a file name, otherwise delete char."
+      (interactive)
+      (if (and (eq (char-before) ?/)
+               (minibufferp)
+               minibuffer-completing-file-name)
+          (vertico-directory-up)
+        (delete-char -1)))
+    (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
+
+  (package! marginalia "minad/marginalia"
+    :init (marginalia-mode))
+
+  ;; Orderless completion style: space-separated chunks to match in any order
+  (package! orderless "oantolin/orderless"
+    :custom
+    (completion-styles '(substring orderless basic))
+    (completion-category-defaults nil)
+    (completion-category-overrides '((file (styles partial-completion))))
+    (read-file-name-completion-ignore-case t)
+    (read-buffer-completion-ignore-case t)
+    (completion-ignore-case t))
+
+  (package! consult "minad/consult"
+    :after (general evil orderless)
+    :commands (consult-line
+               consult-buffer
+               consult-outline
+               consult-imenu
+               consult-flymake
+               consult-theme
+               consult-ripgrep)
+    :custom
+    (xref-show-xrefs-function #'consult-xref)
+    (xref-show-definitions-function #'consult-xref)
+    (consult-preview-key '(:debounce 0.4 any))
+
+    :init
+    (aero-leader-def
+      "/" 'consult-line
+      "bb" 'consult-buffer
+      "jo" 'consult-outline
+      "ji" 'consult-imenu
+      "je" 'consult-flymake
+      "ja" 'consult-org-agenda
+      "jh" 'consult-org-heading
+      "p/" 'consult-ripgrep
+      "Et" 'consult-theme
+      "j'" 'consult-mark)
+
+    :config
+    ;; Support jumping to eshell prompts with consult-outline
+    (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
+
+    ;; Use Orderless to compile the regexp for consult-ripgrep
+    (defun consult--orderless-regexp-compiler (input type &rest _config)
+      (setq input (cdr (orderless-compile input)))
+      (cons
+       (mapcar (lambda (r) (consult--convert-regexp r type)) input)
+       (lambda (str) (orderless--highlight input t str))))
+
+    (defun consult--with-orderless (&rest args)
+      "Use Orderless to compile the regexp for consult-ripgrep."
+      (minibuffer-with-setup-hook
+          (lambda ()
+            (setq-local consult--regexp-compiler #'consult--orderless-regexp-compiler))
+        (apply args)))
+    (advice-add #'consult-ripgrep :around #'consult--with-orderless)
+
+    (defun aero/consult-line-isearch-history (&rest _)
+      "Add latest `consult-line' search pattern to the isearch history.
+
+      This allows n and N to continue the search after `consult-line' exits.
+
+      Note this only supports the first search term when using orderless syntax."
+      (when (and (bound-and-true-p evil-mode)
+                 (eq evil-search-module 'isearch)
+                 consult--line-history)
+        (let* ((pattern (car consult--line-history))
+               (pattern (car (split-string pattern)))
+               (regexp (if (string-prefix-p "\\_" pattern)
+                           (substring pattern 2)
+                         pattern)))
+          (add-to-history 'regexp-search-ring regexp)
+          (setq evil-ex-search-direction 'forward))))
+    (advice-add #'consult-line :after #'aero/consult-line-isearch-history)
+
+    (defun crm-indicator (args)
+      "Add prompt indicator to `completing-read-multiple'.
+      We display [CRM<separator>], e.g., [CRM,] if the separator is a comma."
+      (cons (format "[CRM%s] %s"
+                    (replace-regexp-in-string
+                     "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
+                     crm-separator)
+                    (car args))
+            (cdr args)))
+    (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
+
+  ;; Enhances `execute-extended-command' by showing recently used commands and keyboard shortcuts
+  (package! amx "DarwinAwardWinner/amx"
+    :defer 1
+    :init (amx-mode 1))
+
+  (package! yasnippet "joaotavora/yasnippet"
+    :custom
+    (yas-installed-snippets-dir aero-snippets-dir)
+    :config
+    (yas-global-mode 1))
+
+  (package! consult-yasnippet "mohkale/consult-yasnippet"
+    :after (consult yasnippet)
+    :config
+    (aero-leader-def
+      "y" 'consult-yasnippet))
+
+  (package! recentf :builtin
+    :defer 1
+    ;; Doesn't seem like indent activates properly for me without this intervention. Here we move it
+    ;; to a known cache file and set up an auto-save every 5 minutes.
+    :defines (recentf-mode)
+    :preface
+    (defun aero/recentf-save-list-quiet ()
+      "Wrapper for `recentf-save-list' with no message."
+      (let ((inhibit-message t))
+        (recentf-save-list)))
+    :custom
+    (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
+    (recentf-max-saved-items 500)
+    :config
+    (recentf-mode 1)
+
+    ;; Would be a great place for `aero/advice-no-message' but there's no need to hide messaging if
+    ;; recentf saves for some other reason. Here, we run it regularly so we don't care about the
+    ;; constant messaging.
+    (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
+
+  ;; Add support for icon insertion, and use as a lib in other packages
+  (package! all-the-icons (:repo "domtronn/all-the-icons.el" :files (:defaults "data"))
+    :after (general)
+    :defer 1
+    :when (display-graphic-p)
+    :config (aero-leader-def "qi" 'all-the-icons-insert))
+
+  ;; visual navigation utility
+  (package! avy "abo-abo/avy"
+    :after (general)
+    :init
+    (general-define-key
+     :states '(normal visual)
+     :prefix "SPC"
+     "jl" '(avy-goto-line :wk "jump to line")
+     "jc" '(avy-goto-char :wk "jump to char")
+     "jj" '(avy-goto-char :wk "jump to char")
+     "jw" '(avy-goto-word-1 :wk "jump to word")))
+
+  ;; jump to search results in eww
+  (package! ace-link "abo-abo/ace-link"
+    :after (avy eww)
+    :functions (ace-link-setup-default)
+    :config (ace-link-setup-default))
+
+  ;; Gives us the M-n and M-p symbol-following ability
+  (package! smartscan "mickeynp/smart-scan"
+    :hook (prog-mode . smartscan-mode)
+    :config
+    (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
+    (advice-add 'smartscan-symbol-go-backward :around #'aero/advice-disable-subword))
+
+  (package! undo-tree "apchamberlain/undo-tree.el"
+    :custom
+    ;; Disable undo-in-region. It sounds like a cool feature, but
+    ;; unfortunately the implementation is very buggy and usually causes
+    ;; you to lose your undo history if you use it by accident.
+    (undo-tree-enable-undo-in-region nil)
+    (undo-tree-auto-save-history nil)
+    (undo-tree-history-directory-alist
+     `((".*" . ,(expand-file-name "undo-tree/" aero-cache-dir))))
+    (undo-tree-visualizer-timestamps t)
+    (undo-tree-visualizer-diff t)
+
+    :config
+    (global-undo-tree-mode +1)
+    ;; enable in non-file buffers too
+    (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
+
+  (package! winner :builtin
+    :after (general)
+    :defines winner-boring-buffers
+    :config
+    ;; list of buffers that winner-undo won't restore
+    (setq winner-boring-buffers
+          '("*Completions*"
+            "*Compile-Log*"
+            "*inferior-lisp*"
+            "*Fuzzy Completions*"
+            "*Apropos*"
+            "*Help*"
+            "*cvs*"
+            "*Buffer List*"
+            "*Ibuffer*"
+            "*esh command on file*"))
+    (winner-mode 1)
+    (aero-leader-def
+      "wu" 'winner-undo
+      "wU" 'winner-redo))
+
+  ;; Jump to windows by number. 1 is the upper-left-most
+  (package! winum "deb0ch/emacs-winum"
+    :defer 5
+    :after (general which-key)
+    :init
+    (winum-mode)
+    :config
+    (aero-leader-def
+      "1" '(winum-select-window-1 :wk "window-1")
+      "2" '(winum-select-window-2 :wk "window-2")
+      "3" '(winum-select-window-3 :wk "window-3")
+      "4" '(winum-select-window-4 :wk "window-4")
+      "5" '(winum-select-window-5 :wk "window-5")
+      "6" '(winum-select-window-6 :wk "window-6")
+      "7" '(winum-select-window-7 :wk "window-7")
+      "8" '(winum-select-window-8 :wk "window-8")
+      "9" '(winum-select-window-9 :wk "window-9")))
+
+  
+    ;;; Company completions
+
+  (package! company
+    (:repo "company-mode/company-mode"
+     :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
+    :after (evil)
+    :hook ((prog-mode . company-mode)
+           (company-mode-hook . evil-normalize-keymaps))
+    :init
+    (setq company-idle-delay 0.2
+          company-selection-wrap-around t
+          company-minimum-prefix-length 2
+          company-dabbrev-downcase nil
+          company-tooltip-limit 15
+          company-tooltip-margin 2
+          company-require-match nil
+          company-show-numbers t
+          company-tooltip-align-annotations t
+          company-dabbrev-other-buffers t ; only look in open buffers with same major mode
+          company-global-modes '(not
+                                 erc-mode message-mode help-mode gud-mode vterm-mode))
+    :config
+    ;; Wait until it's defined, then disable preview after point
+    (setq company-frontends (delq 'company-preview-if-just-one-frontend company-frontends)))
+
+  ;; Move commonly-used completions to the top
+  (package! company-prescient
+    (:host github
+     :repo "radian-software/prescient.el"
+     :files ("company-prescient.el"))
+    :after (company)
+    :hook (company-mode . company-prescient-mode)
+    :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
+    :config (prescient-persist-mode +1))
+
+  ;; Better popup interface for company
+  (package! company-box
+    (:repo "sebastiencs/company-box" :files (:defaults "images"))
+    :hook (company-mode . company-box-mode))
+
+  ;; We use the most up-to-date tramp instead of the built-in since it gave us
+  ;; trouble in the past
+  (package! tramp (tramp :host nil :repo "git://git.savannah.gnu.org/tramp.git")
+    :defer t
+    :functions tramp-cleanup-all-connection
+    :custom
+    (tramp-auto-save-directory
+     (expand-file-name "tramp/autosave" aero-cache-dir))
+    (tramp-persistency-file-name
+     (expand-file-name "tramp/persistency" aero-cache-dir))
+    (tramp-use-ssh-controlmaster-options nil)  ; use system settings instead
+    (tramp-default-method "rsync")
+    (tramp-terminal-type "tramp"))
+
+  (package! dired :builtin
+    :hook ((dired-mode . hl-line-mode)
+           (dired-mode . dired-async-mode))
+    :bind (:map dired-mode-map
+           ("M-n" . #'dired-next-dirline)
+           ("M-p" . #'dired-prev-dirline)
+           ("TAB" . #'dired-next-subdir)))
+#+END_SRC
+
+** Language server
+#+BEGIN_SRC emacs-lisp
+  (package! eglot :builtin
+    :hook ((python-mode
+            python-ts-mode
+            clojure-mode
+            typescript-mode
+            typescript-ts-mode
+            js-mode
+            js-ts-mode)
+           . eglot-ensure)
+    :after (general project)
+
+    :custom
+    (eglot-confirm-server-initiated-edits nil) ; don't ask to edit file immediately after I told it to
+    (eglot-autoshutdown t) ; shutdown server after killing last managed buffer
+    (eglot-events-buffer-size 0) ; disable event logging
+    (eglot-send-changes-idle-time 0.75)
+    ;; LSP highlighting is ridiculously slow, we use highlight-thing instead
+    (eglot-ignored-server-capabilities '(:documentHighlightProvider))
+
+    :config
+    ;; Individual server configuration
+    (setq-default eglot-workspace-configuration
+                  '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
+                                      ;; :pyflakes (:enabled :json-false)
+                                      :pyls_mypy (:enabled t
+                                                  :live_mode :json-false)
+                                      :pyls_black (:enabled t)
+                                      :pyls_isort (:enabled t)))))
+
+    (aero-leader-def
+      "la" 'eglot-code-actions
+      "lf" '(:ignore t :wk "find")
+      "lfr" 'xref-find-references
+      "lfd" 'eglot-find-declaration
+      "lfi" 'eglot-find-implementation
+      "lft" 'eglot-find-typeDefinition
+      "lr" '(:ignore t :wk "refactor")
+      "lrr" 'eglot-rename
+      "lrf" 'eglot-format
+      "lro" 'eglot-code-action-organize-imports))
+
+  ;; Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booster must have been
+  ;; installed already (its a Rust binary), which can be done with `make install-deps' or the more
+  ;; specific `make lsp-booster'
+  (package! eglot-booster "jdtsmith/eglot-booster"
+    :after eglot
+    :config (eglot-booster-mode))
+
+  ;; Make eglot send more info to eldoc, including parameter and function documentation
+  (package! eglot-signature-eldoc-talkative
+    (:host codeberg :repo "mekeor/eglot-signature-eldoc-talkative" :branch "default")
+    :after (eglot)
+    :config (advice-add #'eglot-signature-eldoc-function :override #'eglot-signature-eldoc-talkative))
+
+  ;; puts eldoc in a child frame instead of the echo area
+  (package! eldoc-box "casouri/eldoc-box"
+    :after general
+
+    :preface
+    (defun aero/eldoc-set-documentation-strategy ()
+      (setq-local eldoc-documentation-strategy #'eldoc-documentation-compose))
+
+    (defun aero/eldoc-box-help-at-point ()
+      "Display full eldoc at point on command"
+      (interactive)
+      (let ((eldoc-echo-area-use-multiline-p t))
+        (call-interactively #'eldoc-box-help-at-point)))
+
+    ;; Fix documentation strategy to show all of the available eldoc information when we want it. This
+    ;; way Flymake errors don't just get clobbered by docstrings.
+    :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
+
+    :custom
+    (eldoc-idle-delay 0.5)
+    (eldoc-box-only-multi-line nil) ; leave single-line docs in minibuffer
+    (eldoc-echo-area-use-multiline-p nil) ; normally use one line unless requested
+    (eldoc-box-max-pixel-height 99999)
+    (eldoc-box-max-pixel-width 99999)
+
+    :init
+    (aero-leader-def "i" 'aero/eldoc-box-help-at-point)
+
+    :config
+    ;; attempt to prettify typescript errors
+    (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
+#+END_SRC
+
+** System-specific setup
+#+BEGIN_SRC emacs-lisp
+  ;; Mac needs some extra hand-holding to connect the kill-ring to the system
+  ;; clipboard.
+  (when (system-is-mac)
+    (declare-function aero/pbcopier-select-text "aero-pbcopier.el")
+    (declare-function aero/pbcopier-selection-value "aero-pbcopier.el")
+    (setq interprogram-cut-function #'aero/pbcopier-select-text)
+    (setq interprogram-paste-function #'aero/pbcopier-selection-value)
+
+    (setq-default ns-use-native-fullscreen nil)
+    (if (executable-find "gls")
+        (progn
+          (setq insert-directory-program "gls")
+          (setq dired-listing-switches "-lFaGh1v --group-directories-first"))
+      (setq dired-listing-switches "-ahlF")))
+
+  ;; Linux just needs the functionality enabled
+  (when (system-is-linux)
+    (setq select-enable-clipboard t
+          interprogram-paste-function #'gui-selection-value
+          x-gtk-use-system-tooltips t
+          dired-listing-switches "-lFaGh1v --group-directories-first"))
+#+END_SRC
+
+** Editor setup
+#+BEGIN_SRC emacs-lisp
+  (package! editorconfig "editorconfig/editorconfig-emacs"
+    :defer 1
+    :functions (editorconfig-mode)
+    :config (editorconfig-mode +1))
+
+  ;; detects when the buffer matches what's on disk and marks it unmodified. If, for example, you
+  ;; visit a file, change something, then undo the change, this package ensures the buffer doesn't
+  ;; think its still modified.
+  (package! unmodified-buffer "arthurcgusmao/unmodified-buffer"
+    :defer 1
+    :hook ((prog-mode text-mode) . unmodified-buffer-mode))
+
+  ;; Use `so-long-revert' in a buffer to get back to what it would otherwise have loaded as.
+  (package! so-long :builtin
+    :config (global-so-long-mode +1))
+
+  (package! savehist :builtin
+    :init (savehist-mode)
+    :custom (savehist-file (expand-file-name "history" aero-cache-dir)))
+
+  ;; Improved version of help buffers
+  (package! helpful "Wilfred/helpful"
+    :commands (helpful-function
+               helpful-variable
+               helpful-macro
+               helpful-key
+               helpful-callable)
+    :after (evil general)
+    :init
+
+    ;; HACK `help-fns--autoloaded-p's signature changed on Emacs 29. This
+    ;; suppresses the error until it is addressed upstream. Basically we just
+    ;; override the function to ignore the second argument.
+    ;; TODO trying this out without the hack, Jan 27, 2025. If you're reading this and thinking wow
+    ;; that was a long time ago, rip it out
+    ;; (unless (version< emacs-version "29")
+    ;;   (advice-add #'help-fns--autoloaded-p :around
+    ;;               (lambda (fn sym &rest args)
+    ;;                 (apply fn (list sym)))))
+
+    (general-define-key
+     :states 'normal
+     :prefix "SPC"
+     "hdf" 'helpful-function
+     "hda" 'helpful-symbol
+     "hdv" 'helpful-variable
+     "hdm" 'helpful-macro
+     "hdk" 'helpful-key
+     "hdc" 'helpful-callable)
+
+    :config
+    (evil-define-key 'normal helpful-mode-map
+      "q" 'kill-current-buffer
+      "?" 'describe-mode))
+#+END_SRC
+
+* Project management
+#+BEGIN_SRC emacs-lisp
+  (package! project :builtin
+    :after (general)
+
+    :preface
+    (defun aero/project-root-override (dir)
+      "Find DIR's project root by searching for a '.project.el' file.
+
+  If this file exists, it marks the project root. For convenient compatibility with Projectile, '.projectile' is also considered a project root marker.
+
+  https://jmthornton.net/blog/p/emacs-project-override"
+      (let ((root (or (locate-dominating-file dir ".project.el")
+                      (locate-dominating-file dir ".projectile")))
+            (backend (ignore-errors (vc-responsible-backend dir))))
+        (when root (if (version<= emacs-version "28")
+                       (cons 'vc root)
+                     (list 'vc backend root)))))
+
+    (defun aero/project-switch-magit ()
+      "Call magit-status on the project being switched to."
+      (interactive)
+      (magit-status project-current-directory-override))
+
+    :custom
+    (project-vc-ignores '("node_modules/" "straight/" "target/")) ; globally ignored
+    (project-vc-extra-root-markers '(".project.el" ".projectile" ".git"))
+    (project-compilation-buffer-name-function #'project-prefixed-buffer-name)
+
+    :config
+    ;; Note that we cannot use :hook here because `project-find-functions' doesn't end in "-hook", and
+    ;; we can't use this in :init because it won't be defined yet.
+    (add-hook 'project-find-functions #'aero/project-root-override)
+
+    ;; Set our own list of actions on `project-switch-project'
+    (setq project-switch-commands '((project-find-file "Find file" "f")
+                                    (aero/project-switch-magit "Magit status" "g")
+                                    (project-eshell "Eshell" "e")
+                                    (project-compile "Compile" "c")
+                                    (project-find-dir "Find directory" "d")
+                                    (project-find-regexp "Find regexp" "r")
+                                    (project-any-command "Any command" "a")))
+
+    (aero-leader-def
+      "pf" 'project-find-file
+      "pp" 'project-switch-project
+      "p:" 'project-shell-command
+      "p&" 'project-async-shell-command
+      "p'" 'project-eshell
+      "p\"" 'aero/project-eshell-new
+      "p`" 'project-shell
+      "p%" 'project-query-replace-regexp
+      "cp" 'project-compile))
+#+END_SRC
+
+* Magit
+#+BEGIN_SRC emacs-lisp
+  (package! magit :auto
+    :after (general)
+    :commands (magit-blame
+               magit-commit
+               magit-diff-unstaged
+               magit-init
+               magit-stage-file
+               magit-status
+               magit-unstage-file
+               magit-blame-mode)
+    :init
+    (aero-leader-def
+      "gs" 'magit-status
+      "gb" 'magit-blame
+      "gl" '(:ignore t :which-key "log")
+      "glb" 'magit-log-buffer-file
+      "gld" 'magit-log-trace-definition
+      "gll" 'magit-log-head
+      "gfS" 'magit-stage-file
+      "gfU" 'magit-unstage-file
+      "gm" '(:ignore t :which-key "smerge")
+      "gmm" 'smerge-start-session
+      "gmu" 'smerge-keep-upper
+      "gml" 'smerge-keep-lower
+      "gmn" 'smerge-next
+      "gmp" 'smerge-prev
+      "gma" 'smerge-keep-all
+      "gmE" 'smerge-ediff)
+
+    :custom
+    (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+    (magit-process-finish-apply-ansi-colors t)
+    (magit-buffer-name-format "%x%M%v: %t%x")
+    (magit-list-refs-sortby "-creatordate")
+    (magit-diff-paint-whitespace-lines 'both)
+    (magit-diff-refine-hunk 'all)
+    (magit-diff-refine-ignore-whitespace t)
+    (git-commit-style-convention-checks '(non-empty-second-line overlong-summary-line))
+    (git-commit-summary-max-length 50)
+    (git-commit-fill-column 72)
+
+    :config
+    (add-hook 'with-editor-mode-hook #'evil-insert-state)
+    (magit-auto-revert-mode nil)
+
+    (defun aero/truncate-lines-off () (toggle-truncate-lines -1))
+    (add-hook 'magit-status-mode-hook #'aero/truncate-lines-off)
+
+    (defun aero/magit-switch-to-diff () (other-window 1))
+    (advice-add 'magit-diff :after #'aero/magit-switch-to-diff)
+
+    (defun aero/magit-diff-default-branch (&optional args)
+      "Show diff of default branch to working tree."
+      (interactive (list (magit-diff-arguments)))
+      (magit-diff-working-tree
+       (replace-regexp-in-string "refs/remotes/origin/" ""
+                                 (magit-git-string "symbolic-ref" "refs/remotes/origin/HEAD"))
+       args))
+
+    ;; Don't want no color from the pre-commit hook
+    (defun aero/magit--color-buffer (proc &rest args)
+      (interactive)
+      (with-current-buffer (process-buffer proc)
+        (read-only-mode -1)
+        (ansi-color-apply-on-region (point-min) (point-max))
+        (read-only-mode 1)))
+    (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
+
+    (defun aero/fetch-pr ()
+      "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
+      (interactive)
+      (let* ((pr (message-read-from-minibuffer "Enter PR number: "))
+             (new-branch (format "pr%s" pr))
+             (fetch-command
+              (format "git fetch origin pull/%s/head:%s" pr new-branch)))
+        (shell-command fetch-command)
+        (magit-status)
+        (message "Checked out PR as %s" new-branch))))
+
+  (package! git-gutter :auto
+    :hook ((prog-mode text-mode conf-mode) . git-gutter-mode)
+    :custom
+    (git-gutter:visual-line t)
+    (git-gutter:disabled-modes '(so-long-mode
+                                 image-mode asm-mode
+                                 doc-view-mode
+                                 fundamental-mode image-mode pdf-view-mode))
+    (git-gutter:update-interval 0.02)
+    (git-gutter:handled-backends
+     (cons 'git (cl-remove-if-not #'executable-find (list 'hg 'svn 'bzr)
+                                  :key #'symbol-name)))
+
+    :config
+    ;; Update git-gutter on focus (in case I was using git externally)
+    (add-hook 'focus-in-hook #'git-gutter:update-all-windows))
+
+  (when (display-graphic-p)
+    ;; Define as a no-op if not already defined, otherwise git-gutter-fringe errors
+    (unless (fboundp 'define-fringe-bitmap)
+      (defun define-fringe-bitmap (bitmap &rest _)
+        "This is a no-op placeholder function."
+        ;; Return the symbol, just like the normal function does.
+        bitmap))
+
+    (package! git-gutter-fringe :auto :after (git-gutter)
+      :custom
+      (fringes-outside-margins t)
+
+      :config
+      ;; Define a thin bar. Themes should give these a suitable foreground and nil background
+      (define-fringe-bitmap 'git-gutter-fr:added [224]
+        nil nil '(center repeated))
+      (define-fringe-bitmap 'git-gutter-fr:modified [224]
+        nil nil '(center repeated))
+      (define-fringe-bitmap 'git-gutter-fr:deleted
+        [0 0 0 0 0 0 0 0 0 0 0 0 0 128 192 224 240 248]
+        nil nil 'bottom)
+
+      ;; Don't use git-gutter in TRAMP, it murders connection bandwidth
+      (defun git-gutter-find-file-hook ()
+        (git-gutter-mode
+         (if (file-remote-p (buffer-file-name))
+             0
+           1)))
+      (add-hook 'find-file-hook #'git-gutter-find-file-hook)))
+
+  (package! ediff :builtin
+    :commands (ediff ediff3)
+    :custom
+    (ediff-split-window-function #'split-window-horizontally )
+    (ediff-window-setup-function #'ediff-setup-windows-plain))
+
+  (package! git-link :auto
+    :after (general)
+    :commands (git-link git-link-commit git-link-homepage)
+    :init (aero-leader-def "gL" 'git-link))
+#+END_SRC
+
+* UI
+
+* Org mode and org agenda
+#+BEGIN_SRC emacs-lisp
+  (package! org :builtin
+    :preface
+    (defun archive-buffer-closed-tasks ()
+      (interactive)
+      (org-map-entries
+       (lambda ()
+         (when (member (org-get-todo-state) org-done-keywords)
+           (org-archive-subtree-default)
+           ;; the archive alters the tree, so just go back to the top
+           (setq org-map-continue-from (point-min))))
+       nil 'file))
+
+    (defun trim-archive-entries ()
+      "Trim entries in the archive file older than 60 days."
+      (interactive)
+      (let ((archive-file (expand-file-name aero/thornlog-archive-file)))
+        (when (file-exists-p archive-file)
+          (let ((cutoff-date (time-subtract (current-time) (days-to-time 60))))
+            (with-current-buffer (find-file-noselect archive-file)
+              (goto-char (point-min))
+              (while (not (eobp))
+                (when (and (org-at-heading-p)
+                           (let ((archive-time-str (org-entry-get (point) "ARCHIVE_TIME")))
+                             (and archive-time-str
+                                  (time-less-p (org-read-date nil t archive-time-str) cutoff-date))))
+                  (org-cut-subtree)
+                  (org-back-to-heading t)
+                  (outline-previous-heading))
+                (outline-next-heading)))
+            (save-buffer)))))
+
+    (defun aero/org-archive-cleanup ()
+      "Archive closed tasks and trim archive entries."
+      (interactive)
+      (archive-buffer-closed-tasks)
+      (trim-archive-entries))
+
+    (defun aero/org-collapse-entry-if-done ()
+      "Collapse the current entry if it is marked as DONE."
+      (when (member org-state '("DONE"))
+        (hide-subtree)))
+
+    (defun aero/org-expand-entry-if-todo ()
+      "Expand the current entry if it is marked as TODO."
+      (when (member org-state '("TODO"))
+        (show-subtree)))
+
+    (defun jump-to-org-agenda ()
+      "Go to the org agenda. Used on idle timer."
+      (interactive)
+      (let ((buf (get-buffer "*Org Agenda*"))
+            wind)
+        (if buf
+            (if (setq wind (get-buffer-window buf))
+                (select-window wind)
+              (if (called-interactively-p 'any)
+                  (progn
+                    (select-window (display-buffer buf t t))
+                    (org-fit-window-to-buffer))
+                (with-selected-window (display-buffer buf)
+                  (org-fit-window-to-buffer))))
+          (call-interactively 'org-agenda-list))))
+
+    ;; https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
+    (defun aero/reorder-buffer-list (new-list)
+      (while new-list
+        (bury-buffer (car new-list))
+        (setq new-list (cdr new-list))))
+
+    (defun aero/keep-buffer-list-unaltered (orig-fun &rest args)
+      (let ((buffers (buffer-list))
+            (result (apply orig-fun args)))
+        (aero/reorder-buffer-list buffers)
+        result))
+
+    (defun org-schedule-and-refile ()
+      "Schedule the current entry and refile it."
+      (interactive)
+      (org-schedule t)
+      (org-refile))
+
+    (defun org-deadline-and-refile ()
+      "Deadline the current entry and refile it."
+      (interactive)
+      (org-deadline t)
+      (org-refile))
+
+    (defun aero/org-agenda-format-date (date)
+      "Format a DATE string for display in the daily/weekly agenda.
+  This function makes sure that dates are aligned for easy reading."
+      (require 'cal-iso)
+      (let* ((dayname (calendar-day-name date))
+  	         (day (cadr date))
+  	         (month (car date))
+  	         (monthname (calendar-month-name month))
+
+             ;; divisor must be float so (/) doesn't do integer division
+             (quarter (round (/ (1+ month) 3.0)))
+
+  	         (year (nth 2 date))
+  	         (iso-week (org-days-to-iso-week
+  		                  (calendar-absolute-from-gregorian date)))
+  	         (day-of-week (calendar-day-of-week date))
+  	         (weekstring (if (= day-of-week 1)
+  			                     (format " W%02d" iso-week)
+  		                     "")))
+        (format "%-10s %2d %s %4d%s   (Q%s)"
+  	            dayname day monthname year weekstring quarter)))
+
+    (defun aero/org-deindent-on-return (&rest _)
+      "De-indent the current line if there is only whitespace before the point when pressing ENTER.
+
+  This behavior is IDIOTIC and I cannot suffer to live with this automatic indentation any longer."
+      (when (and (derived-mode-p 'org-mode)
+                 (save-excursion
+                   (move-beginning-of-line 1)
+                   (looking-at-p "[ \t]*$")))
+        (delete-horizontal-space)))
+
+    :custom
+    (org-hide-leading-stars t)
+    (org-pretty-entities t)
+    (org-indent-mode-turns-on-hiding-stars nil) ; why would this even exist??
+    (org-fontify-quote-and-verse-blocks t)
+    (org-insert-heading-respect-content t) ; insert headings after current subtree
+    (org-fold-catch-invisible-edits 'smart) ; don't accidentally remove hidden text
+    (org-startup-with-inline-images t) ; default to showing images on startup
+    (org-startup-indented t)
+    (org-log-done 'time) ; log time when item is marked done
+    (org-log-into-drawer t) ; put logs in LOGBOOK
+    (org-refile-use-outline-path t) ; show path to outline level during refile
+    (org-fontify-done-headline t) ; let theme strike out done items
+    (org-return-follows-link t) ; follow links with RET
+
+    ;; always put blank before new headings, but be smart about list items
+    (org-blank-before-new-entry '((heading . t) (plain-list-item . auto)))
+
+    ;; re-scale images to 400px if no with attribute is set (see
+    ;; https://lists.gnu.org/archive/html/emacs-orgmode/2012-08/msg01402.html)
+    (org-image-actual-width '(400))
+
+    (org-capture-templates
+     `(("t" "Deadline/Scheduled Task" entry
+        (file+headline
+         ,(expand-file-name "todo.org" aero/roam-path)
+         "Tasks")
+        "* TODO [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        :empty-lines 1)
+       ("p" "Ticket (PR)" entry
+        (file+headline
+         ,(expand-file-name "todo.org" aero/roam-path)
+         "Tasks")
+        "* TICKET [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        :empty-lines 1)
+       ("r" "Review (PR or tech design)" entry
+        (file+headline
+         ,(expand-file-name "todo.org" aero/roam-path)
+         "Tasks")
+        "* REVIEW [#B] %? :review:\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\nLink: "
+        :empty-lines 1)
+       ("s" "School inbox item" entry
+        (file+headline
+         ,(expand-file-name "school_todo.org" aero/roam-path)
+         "Tasks")
+        "* TODO [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        :empty-lines 1)
+       ("n" "Note" entry
+        (file+headline
+         ,(expand-file-name "notes_inbox.org" aero/roam-path)
+         "Notes")
+        "* %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        :jump-to-captured t
+        :empty-lines 1)
+       ("e" "Experimentation idea" entry
+        (file+headline
+         ,(expand-file-name "todo.org" aero/roam-path)
+         "Experimentation")
+        "* TODO %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        :empty-lines 1)
+       ("R" "Reading" entry
+        (file+headline
+         ,(expand-file-name "todo.org" aero/roam-path)
+         "Reading")
+        "* TODO [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        :empty-lines 1)
+       ("s" "Time sink" entry
+        (file+headline
+         ,(expand-file-name "20250123102747-time_sinks_at_dd.org" aero/roam-path)
+         "Time sinks")
+        "* %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        :empty-lines 1)
+       ("m" "Mistake" entry
+        (file+headline
+         ,(expand-file-name "20250123103552-mistakes_to_learn_from_at_dd.org" aero/roam-path)
+         "Mistakes")
+        "* %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        :empty-lines 1)))
+
+    (org-todo-keywords
+     '((sequence "TODO(t)" "WAITING(w!)" "BLOCKED(b!)" "|" "DONE(d!)" "REMOVED(k)")
+       (sequence "TICKET(T)" "PR(p!)" "|" "DONE(d!)" "CLOSED(x)")
+       (sequence "REVIEW(r)" "WAITING(w!)" "BLOCKED(b!)" "|" "DONE(d!)" "CLOSED(x)")))
+
+    (org-use-fast-todo-selection 'expert) ; don't fuck up the window layout
+    (org-default-notes-file (expand-file-name "notes_inbox.org" aero/roam-path))
+    (org-priority-faces '((?A . error)
+                          (?B . warning)
+                          (?C . success)
+                          (?D . org-priority)
+                          (?E . org-priority)))
+    (org-priority-highest ?A)
+    (org-priority-lowest ?E) ; default is C
+    (org-reverse-note-order nil) ; put notes at the end of the entry, instead of the top
+    (org-archive-location (concat aero/thornlog-archive-file "::* From %s"))
+
+    ;; don't consider empty lines between entries to be part of the entry
+    (org-cycle-separator-lines -2)
+
+    (org-link-frame-setup '((vm . vm-visit-folder-other-frame)
+                            (vm-imap . vm-visit-imap-folder-other-frame)
+                            (gnus . org-gnus-no-new-news)
+                            (file . find-file)
+                            (wl . wl-other-frame)))
+
+    ;; Agenda
+    (org-agenda-span 1) ; days to show at a time
+    (org-agenda-start-day nil) ; day to start at
+    (org-agenda-start-on-weekday nil) ; start week on current day
+    (org-agenda-format-date #'aero/org-agenda-format-date)
+    (org-agenda-prefix-format '((agenda . " %i %?-12t% s")
+                                (todo . " %i %-12:c")
+                                (tags . " %i %-12:c")
+                                (search . " %i %-12:c")))
+
+    ;; all agenda files
+    (org-agenda-files `(,(expand-file-name "todo.org" aero/roam-path)
+                        ,(expand-file-name "log.org" aero/roam-path)
+                        ,(expand-file-name "ritual.org" aero/roam-path)
+                        ,(expand-file-name "holidays.org" aero/roam-path)
+                        ,(expand-file-name "notes_inbox.org" aero/roam-path)))
+
+    ;; holidays I don't want to display
+    (holiday-bahai-holidays nil)
+    (holiday-hebrew-holidays nil)
+    (holiday-islamic-holidays nil)
+    (holiday-christian-holidays nil)
+    (holiday-oriental-holidays nil)
+
+    ;; local holidays
+    (holiday-local-holidays '((holiday-fixed 3 14 "Pi Day")
+                              (holiday-fixed 10 23 "Mole Day")
+                              (holiday-fixed 11 23 "Fibonacci Day")
+                              (holiday-fixed 12 23 "Festivus")
+                              (holiday-fixed 9 19 "Talk Like a Pirate Day")
+                              (holiday-fixed 10 9 "Leif Erikson Day")
+                              (holiday-fixed 5 4 "Star Wars Day")
+                              (holiday-fixed 6 28 "Tau Day")
+
+                              (holiday-fixed 2 27 "Hangover (first day)")
+                              (holiday-fixed 2 28 "Hangover (second day")
+                              (holiday-fixed 2 29 "Hangover (third day")
+                              (holiday-fixed 3 1 "Hangover (fourth day")
+                              (holiday-fixed 3 2 "Hangover (fifth day")
+                              (holiday-fixed 3 3 "Hangover (sixth day")
+                              (holiday-fixed 3 4 "Hangover (seventh day")
+                              (holiday-fixed 3 5 "Hangover (eighth day")
+                              (holiday-fixed 3 6 "The Day of the Dude")))
+
+    (org-agenda-log-mode-items nil) ; don't show closed nor clocked items
+    (org-agenda-tags-column -70) ; shift tags over
+    (org-agenda-sticky nil) ; don't bury on close buffer
+    (org-agenda-use-tag-inheritance t)
+    (org-agenda-show-log t)
+    (org-agenda-skip-deadline-if-done t)
+    (org-agenda-skip-deadline-prewarning-if-scheduled 'pre-scheduled)
+    (org-agenda-skip-scheduled-if-done t)
+    (org-agenda-skip-scheduled-if-deadline-is-shown t) ; don't duplicate deadline & scheduled
+    (org-agenda-skip-timestamp-if-done t)
+    (org-agenda-skip-timestamp-if-deadline-is-shown t)
+    (org-agenda-window-setup 'current-window) ; stop agenda opening a new window
+    (org-agenda-skip-unavailable-files t)
+    (org-agenda-show-future-repeats nil) ; don't show repeating tasks on future agenda dates
+    (org-agenda-custom-commands
+     `(("n" "Agenda and all TODOs" ((agenda "") (alltodo "")))
+       ("s" "School items" agenda ""
+        ((org-agenda-files '(,(expand-file-name "school_todo.org" aero/roam-path)))))
+       ("e" "Experimentation tag" tags "experimentation")))
+
+    :init
+    (aero-leader-def
+      "oa" '(aero/org-agenda-list :wk "agenda")
+      "oc" '(aero/org-class-agenda-list :wk "class agenda")
+      "oA" '(org-agenda :wk "agenda menu")
+      "os" 'org-schedule
+      "od" 'org-deadline
+      "oj" 'org-clock-goto
+      "ot" 'aero/org-set-tags
+      "ol" 'org-store-link
+      "oT" '(org-tags-view :wk "list tags")
+      "vo" 'org-capture)
+
+    :config
+    (aero-mode-leader-def
+      :keymaps 'org-mode-map
+      "t" 'org-todo
+      "f" 'org-forward-heading-same-level
+      "F" 'org-backward-heading-same-level
+      "w" 'org-open-at-point
+      "p" 'org-priority
+      "r" 'org-refile
+      "s" 'org-set-property
+      "i" '(:ignore t :wk "insert")
+      "il" '(org-insert-link :wk "link")
+      "it" 'org-time-stamp
+      "ii" 'org-insert-structure-template
+      "id" '(org-insert-drawer :wk "drawer")
+      "im" 'insert-meeting-task
+      "is" 'insert-class-task
+      "A" 'aero/org-archive-cleanup
+      "c" '(:ignore t :wk "clock / cell")
+      "cc" '(org-babel-execute-src-block :wk "exec cell")
+      "ci" 'org-clock-in
+      "co" 'org-clock-out
+      "ck" 'org-clock-cancel
+      "cs" 'org-clock-display
+      "ce" 'org-set-effort
+      "cE" 'org-clock-modify-effort-estimate)
+
+    ;; keep org-save-all from messing up buffer list
+    (advice-add 'org-save-all-org-buffers :around #'aero/keep-buffer-list-unaltered)
+
+    ;; org tries to take this binding back, so wrest control back once more
+    (define-key org-mode-map (kbd "M-h") #'windmove-left)
+
+    ;; Collapse entries when they are marked as done, and expand when reopened
+    (add-hook 'org-after-todo-state-change-hook #'aero/org-collapse-entry-if-done)
+    (add-hook 'org-after-todo-state-change-hook #'aero/org-expand-entry-if-todo)
+
+    ;; Get rid of the idiotic indentation after pressing enter
+    (advice-add 'org-return :after #'aero/org-deindent-on-return)
+    (with-eval-after-load 'evil
+      (advice-add 'evil-org-open-below :after #'aero/org-deindent-on-return))
+
+    ;; Also save after state change
+    (add-hook 'org-after-todo-state-change-hook #'org-save-all-org-buffers)
+
+    ;; start with all levels collapsed
+    (add-hook 'org-mode-hook #'org-hide-block-all)
+
+    ;; Save org files when using clock
+    (add-hook 'org-clock-in-hook #'org-save-all-org-buffers)
+    (add-hook 'org-clock-out-hook #'org-save-all-org-buffers)
+
+    ;; Force org-capture to not open new windows
+    (defun aero/org-capture-place-template-dont-delete-windows (oldfun &rest args)
+      (cl-letf (((symbol-function 'delete-other-windows) 'ignore))
+        (apply oldfun args)))
+    (with-eval-after-load "org-capture"
+      (advice-add 'org-capture-place-template
+                  :around #'aero/org-capture-place-template-dont-delete-windows))
+
+    ;; set up stuff for clock persistence
+    (org-clock-persistence-insinuate)
+
+    ;; Show agenda when Emacs is idle for 10 minutes, from
+    ;; https://sachachua.com/dotemacs/index.html#idle-timer
+    (run-with-idle-timer 600 t 'jump-to-org-agenda))
+
+  ;; Show formatting markers when point is near
+  (package! org-appear "awth13/org-appear"
+    :custom (org-hide-emphasis-markers t)
+    :hook (org-mode . org-appear-mode))
+
+  ;; Org-mode UI improvements
+  (package! org-modern "minad/org-modern"
+    :hook ((org-mode . org-modern-mode)
+           (org-agenda-finalize-hook . org-modern-agenda))
+    :custom
+    (org-modern-star 'replace) ; uses the "replace" set of stars
+    )
+
+  ;; Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See
+  ;; https://github.com/Somelauw/evil-org-mode for a list of available commands
+  (package! evil-org-mode "Somelauw/evil-org-mode"
+    :after (evil org org-super-agenda)
+    :preface
+    (defun aero/evil-org-agenda-mode ()
+      "Shim in org-agenda evil mode."
+      (require 'evil-org-agenda)
+      (evil-org-agenda-set-keys))
+
+    :hook ((org-mode . evil-org-mode)
+           (org-agenda-mode . aero/evil-org-agenda-mode)))
+
+  ;; Custom display of org priorities
+  (package! org-fancy-priorities "harrybournis/org-fancy-priorities"
+    :after (org)
+    :hook (org-mode . org-fancy-priorities-mode)
+    :custom
+    (org-fancy-priorities-list '("!!" "↑" "·" "↓" "_")))
+
+  (package! org-super-agenda "alphapapa/org-super-agenda"
+    :preface
+    (defun aero/org-super-agenda-without-keymap ()
+      "Stops super-agenda from overriding evil-org bindings."
+      (org-super-agenda-mode)
+      (setq org-super-agenda-header-map (make-sparse-keymap)))
+
+    :hook ((org-agenda-after-show . recenter)
+           (org-agenda-mode . aero/org-super-agenda-without-keymap))
+
+    :custom
+    (org-super-agenda-groups
+     '((:name "Daily Routine" :and (:tag "ritual" :not (:time-grid t)))
+       (:name "Holidays" :tag "holiday" :category ("Holiday" "Anniversaries"))
+       (:name "Outstanding meetings" :and (:scheduled past :tag "meeting"))
+       (:time-grid t)
+       (:name "5-minute items" :effort< "0:05")
+       (:name "Reviews to do" :and (:tag "review" :todo "REVIEW" :not (:todo ("WAITING" "BLOCKED"))))
+       (:name "Support" :and (:tag "support" :not (:todo ("WAITING" "BLOCKED"))))
+       (:name "Past due" :and (:deadline past :not (:todo ("WAITING" "BLOCKED"))))
+       (:name "Due today" :and (:deadline today :not (:todo ("WAITING" "BLOCKED"))))
+       (:name "Prioritized" :and (:not (:todo ("WAITING" "BLOCKED"))))
+       (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))))
+
+    ;; add space between dates by adding space after the final group
+    (org-super-agenda-final-group-separator "\n"))
+
+  ;; Allow drag-and-drop of images from browser, finder, etc.
+  (package! org-download "abo-abo/org-download"
+    :after (org general)
+    :custom (org-download-method 'directory)
+    :init
+    (aero-mode-leader-def
+      :keymaps 'org-mode-map
+      "ic" '(org-download-clipboard :wk "insert image from clipboard")))
+
+  
+  ;; Functions for agenda and stuff
+
+  (defun aero/org-agenda-list ()
+    "`org-agenda', skipping command menu to list."
+    (interactive)
+    (org-agenda nil "a"))
+
+  (defun aero/org-class-agenda-list ()
+    "`org-agenda', skipping command menu to list."
+    (interactive)
+    (org-agenda nil "s"))
+
+  (defun aero/org-agenda-todo ()
+    "`org-agenda', skipping command menu to todos."
+    (interactive)
+    (org-agenda nil "t"))
+
+  (defun aero/org-agenda-new ()
+    "Create a new task at the current agenda item."
+    (interactive)
+    (org-agenda-switch-to)
+    (org-capture 0))
+
+  (defun org-agenda-list-closed-on-last-workday ()
+    (interactive)
+    (let* ((org-agenda-files (list (buffer-file-name)
+                                   (expand-file-name "archive/archive.org" aero/thornlog-path)
+                                   (expand-file-name "log.org" aero/roam-path)))
+           (today (current-time))
+           (weekday (format-time-string "%u" today))
+           (days-back (if (string= weekday "1") 3 1)) ; If today is Monday (1), go back 3 days to Friday
+           (specific-day (format-time-string "%Y-%m-%d" (time-subtract today (days-to-time days-back))))
+           (org-agenda-log-mode-items '(closed))
+           (org-agenda-skip-deadline-if-done nil)
+           (org-agenda-skip-scheduled-if-done nil)
+           (org-agenda-skipp-timestamp-if-done nil)
+           (org-super-agenda-groups '((:time-grid t))))
+      (org-agenda-list nil specific-day 'day)))
+
+  (defun insert-todays-timestamp-at-entry-end ()
+    "Insert today's timestamp at the end of the current org entry."
+    (interactive)
+    (save-excursion
+      (org-back-to-heading t)
+      (end-of-line)
+      (insert " ")
+      (org-insert-time-stamp (current-time) nil)))
+
+  
+  ;; Thornlog management
+
+  (defun aero/thornlog-log ()
+    "Personal persistent log."
+    (interactive)
+    (org-roam-node-visit (org-roam-node-from-title-or-alias "Work Log")))
+
+  (defun aero/thornlog-todo ()
+    "Personal todo list."
+    (interactive)
+    (org-roam-node-visit (org-roam-node-from-title-or-alias "Work Todo: Triaged Tasks and Inbox")))
+
+  (defun aero/thornlog-clean-save ()
+    "Automates the git commit in thornlog."
+    (interactive)
+    (let* ((default-directory aero/thornlog-path)
+           (timestamp (format-time-string "%Y-%m-%d %H:%M")))
+      (save-some-buffers t)
+      (let ((todo-file (expand-file-name "todo.org" aero/roam-path)))
+        (when (file-exists-p todo-file)
+          (with-current-buffer (find-file-noselect todo-file)
+            (aero/org-archive-cleanup)
+            (save-some-buffers t))))
+      (shell-command "git fetch origin")
+      (if (not (zerop (shell-command "git rev-list --count @{u}..")))
+          (user-error "Remote has changes, manual commit required")
+        (progn
+          (shell-command "git add -A")
+          (shell-command (format "git commit -m '%s'" timestamp))
+          (if (not (zerop (shell-command "git push origin")))
+              (user-error "Git push failed, manual inspection required")
+            (message "Done with Thornlog commit and push"))))))
+
+  (defun insert-meeting-task ()
+    (interactive)
+    (let* ((meeting-name (read-string "Meeting Name: "))
+           (meeting-time (read-string "Meeting Time (optional): "))
+           (today (format-time-string "%Y-%m-%d"))
+           (scheduled-string (if (not (string= meeting-time ""))
+                                 (format "<%s %s>" today meeting-time)
+                               (format "<%s>" today)))
+           (task-string (format "*** MEETING %s  :meeting:\nSCHEDULED: %s"
+                                meeting-name scheduled-string)))
+      (goto-char (point-max))
+      (re-search-backward "^\\*+ Meetings" nil t)
+      (org-end-of-subtree)
+      (insert "\n\n" task-string)))
+
+  (defun aero/org-add-file-tag ()
+    "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing it after the #+title: line if it exists."
+    (interactive)
+    (let* ((case-fold-search t)
+           (all-tags-query "SELECT DISTINCT tag FROM tags")
+           (all-tags-result (org-roam-db-query all-tags-query))
+           (all-tags (mapcar #'car all-tags-result))
+           (tag (completing-read "Tag: " all-tags)))
+      (save-excursion
+        (goto-char (point-min))
+        (if (re-search-forward "^#\\+filetags: \\(.*\\)$" nil t)
+            (let ((existing-tags (match-string-no-properties 1)))
+              (beginning-of-line)
+              (delete-region (point) (line-end-position))
+              (insert (format "#+filetags: %s%s:" existing-tags tag)))
+          ;; No existing tags, search for title line to place new tags after
+          (goto-char (point-min))
+          (if (re-search-forward "^#\\+title:.*$" nil t)
+              (progn
+                (end-of-line)
+                (insert (format "\n#+filetags: :%s:" tag)))
+            (goto-char (point-min))
+            (insert (format "#+filetags: :%s:\n" tag)))))))
+
+  (defun aero/org-set-tags ()
+    "Set tag on current entry or file."
+    (interactive)
+    (if (org-before-first-heading-p)
+        (aero/org-add-file-tag)
+      (org-set-tags-command)))
+
+  
+  ;; Org-roam created and updated timestamps
+
+  (defun aero/org-roam-insert-created-property ()
+    "Insert a :created: property for a new Org-roam node if it doesn't already have one."
+    (interactive)
+    (when (org-roam-file-p)
+      (unless (org-entry-get (point-min) "created" t)
+        (let ((creation-time (aero/org-roam-extract-timestamp-from-filepath
+                              (buffer-file-name))))
+          (when creation-time
+            (save-excursion
+              (goto-char (point-min))
+              (org-set-property "created" creation-time)))))))
+
+  (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
+    "Extract timestamp from the Org-roam FILEPATH assuming it follows the default naming scheme."
+    (let ((filename (file-name-nondirectory filepath)))
+      (when (string-match "\\([0-9]\\{8\\}\\)\\([0-9]\\{4\\}\\)" filename)
+        (let ((year (substring filename (match-beginning 1) (+ (match-beginning 1) 4)))
+              (month (substring filename (+ (match-beginning 1) 4) (+ (match-beginning 1) 6)))
+              (day (substring filename (+ (match-beginning 1) 6) (+ (match-beginning 1) 8)))
+              (hour (substring filename (match-beginning 2) (+ (match-beginning 2) 2)))
+              (minute (substring filename (+ (match-beginning 2) 2) (+ (match-beginning 2) 4))))
+          (let ((time-struct (date-to-time (format "%s-%s-%sT%s:%s" year month day hour minute))))
+            (format-time-string "[%Y-%m-%d %a %H:%M]" time-struct))))))
+
+  (defun aero/org-roam-insert-modified-property ()
+    "Update the :modified: property for an Org-roam node upon saving."
+    (when (org-roam-file-p)
+      (save-excursion
+        (goto-char (point-min))  ; Ensure property is applied to the whole file
+        (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))))
+
+  
+  ;; Roam
+
+  (package! org-roam
+    (:repo "org-roam/org-roam" :files (:defaults "extensions/*"))
+    :defer 1  ; don't load immediately, but soon after init
+
+    :after (general org)
+
+    :custom
+    (org-roam-directory (expand-file-name "roam" aero/thornlog-path))
+    (org-roam-mode-sections
+     (list #'org-roam-backlinks-section
+           #'org-roam-reflinks-section
+           #'org-roam-unlinked-references-section))
+
+    (org-id-locations-file (expand-file-name ".org-id-locations" aero-cache-dir))
+
+    (org-roam-capture-templates
+     '(("d" "default" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+        :immediate-finish t  ; skip capture buffer, just open the file
+        :unnarrowed t)))
+
+    (org-roam-node-display-template
+     (concat "${title} " (propertize "${tags}" 'face 'org-tag)))
+
+    :config
+    (org-roam-db-autosync-mode)
+
+    (add-hook 'before-save-hook #'aero/org-roam-insert-created-property)
+    (add-hook 'before-save-hook #'aero/org-roam-insert-modified-property)
+
+    (aero-leader-def
+      "vf" 'org-roam-node-find
+      "vF" 'org-roam-capture
+      "vi" 'org-roam-node-insert
+      "vc" '(org-id-get-create :wk "create org ID for node")
+      "va" 'org-roam-alias-add
+      "vr" 'org-roam-refile))
+
+  (package! consult-org-roam "jgru/consult-org-roam"
+    :after (org-roam general)
+    :custom
+    (consult-org-roam-grep-func #'consult-ripgrep)
+    :config
+    (aero-leader-def
+      "vb" 'consult-org-roam-backlinks
+      "vB" 'consult-org-roam-backlinks-recursive
+      "vl" 'consult-org-roam-forward-links
+      "v'" 'consult-org-roam-search))
+#+END_SRC
+
+* Writing
+#+BEGIN_SRC emacs-lisp
+  ;; Mark passive voice, duplicate words and weasel words
+  (package! writegood-mode (:repo "bnbeckwith/writegood-mode")
+    :hook ((text-mode) . writegood-mode))
+
+  ;; Mark E′ violations
+  (package! eprime-mode (:host gitlab :repo "thornjad/eprime-mode" :branch "main")
+    :after (general)
+    ;; :hook text-mode
+    :commands (eprime-check-buffer eprime-mode)
+    :init
+    (aero-leader-def
+      "tp" 'eprime-check-buffer
+      "tP" 'eprime-mode))
+#+END_SRC
+
+* Applications
+#+BEGIN_SRC emacs-lisp
+  ;; My pomodoro package
+  (package! pomp (:host gitlab :repo "thornjad/pomp")
+    :after (general evil)
+    :commands (pomp)
+    :custom
+    (pomp-pomodoro-length 55)
+    (pomp-short-break-length 10)
+    (pomp-long-break-length 15)
+    :init
+    (aero-leader-def "ap" 'pomp))
+
+  (package! restclient :auto
+    :after (general)
+    :commands (restclient-mode)
+    :mode ("\\.http\\'" . restclient-mode)
+    :config
+    (require 'general)
+    (aero-mode-leader-def
+      :keymaps 'restclient-mode-map
+      "RET" '(restclient-http-send-current-stay-in-window :wk "Run query at point")
+      "c" '(restclient-http-send-current :wk "Run query at point and focus")
+      "r" '(restclient-http-send-current-raw :wk "Run query, no pretty print")
+      "n" 'restclient-jump-next
+      "p" 'restclient-jump-prev
+      "." 'restclient-mark-current
+      "y" 'restclient-copy-curl-command))
+
+  ;; startup profiler
+  (package! esup "jschaf/esup"
+    :commands (esup)
+    :config
+    ;; Work around a bug where esup tries to profile cl-lib and fails by doing some nil checking
+    (defun esup-read-results ()
+      "Read all `esup-result' objects from `esup-incoming-results-buffer'.
+
+  HACKED by Aero to add nil checking."
+      (let (results sep-end-point)
+        (with-current-buffer (get-buffer esup-incoming-results-buffer)
+          (goto-char esup-last-result-start-point)
+          (message "at %s" esup-last-result-start-point)
+          (unless (eobp)
+            (while (setq sep-end-point (esup-next-separator-end-point))
+              (when-let ((result (car (esup-read-result (point)))))
+                (push result results))
+              (setq esup-last-result-start-point sep-end-point)
+              (goto-char esup-last-result-start-point))))
+        (nreverse results))))
+
+  ;; Use the bindings below to insert a virtual comment which displays in the buffer but never saves
+  ;; to disk.
+  (package! virtual-comment "thanhvg/emacs-virtual-comment"
+    :hook ((virtual-comment-make-mode . evil-insert-state))
+    :after (general evil)
+    :commands (virtual-comment-make
+               virtual-comment-next
+               virtual-comment-previous
+               virtual-comment-delete
+               virtual-comment-paste
+               virtual-comment-show)
+    :custom (virtual-comment-face 'virtual-comment-face)
+    :init
+    ;; Doesn't define its own faces, using a variable instead, so we need to declare it
+    (defface virtual-comment-face
+      '((t :inherit highlight))
+      "Face for virtual comments"
+      :group 'virtual-comment)
+
+    (aero-leader-def
+      "v" '(:ignore t :wk "virtual comment")
+      "vv" 'virtual-comment-make
+      "vn" 'virtual-comment-next
+      "vp" 'virtual-comment-previous
+      "vk" 'virtual-comment-delete
+      "vP" 'virtual-comment-paste
+      "vs" 'virtual-comment-show))
+
+  ;; Weather
+  (require 'wttrin (expand-file-name "lib/localpackages/wttrin.el" user-emacs-directory))
+#+END_SRC
+
+* Prog modes
+#+BEGIN_SRC emacs-lisp
+  ;; C language
+  (package! cc-mode :builtin
+    :mode (("\\.c\\'" . c-mode)
+           ("\\.h\\'" . c-mode)
+           ("\\.cpp\\'" . cpp-mode)
+           ("\\.hpp\\'" . cpp-mode))
+    :preface
+    (defun aero/c-mode-common-hook ()
+      "Hook to run in all C modes"
+      (set (make-local-variable 'parens-require-spaces) nil))
+    :hook (c-mode-common . aero/c-mode-common-hook))
+
+  (package! markdown-mode "jrblevin/markdown-mode"
+    :after (general smartparens)
+    :mode (("\\.md\\'" . gfm-mode)
+           ("\\.markdown\\'" . gfm-mode)
+           ("github\\.com.*\\.txt\\'" . gfm-mode))
+    :hook (markdown-mode . flyspell-mode)
+
+    :custom
+    ;; Fix table to teach it that quotes mean string, regardless of what the dev says
+    (markdown-mode-syntax-table (make-syntax-table text-mode-syntax-table))
+    (markdown-header-scaling t)
+    (markdown-display-remote-images t)
+    (markdown-header-scaling-values '(1.3 1.2 1.1 1.0 1.0 1.0))
+    (markdown-enable-wiki-links t)
+    (markdown-italic-underscore t)
+    (markdown-make-gfm-checkboxes-buttons t)
+    (markdown-gfm-additional-languages '("sh"))
+    (markdown-fontify-code-blocks-natively t)
+
+    :config
+    ;; Don't expand checkboxes
+    (sp-local-pair 'gfm-mode "- [ " "]"))
+
+  (package! markdown-toc (:repo "ardumont/markdown-toc")
+    :commands (markdown-toc-generate-toc markdown-toc-refresh-toc))
+
+  (package! yaml-mode (:repo "yoshiki/yaml-mode")
+    :mode "\\.ya?ml\\'")
+
+  ;; TODO is this overridden by the yarn lock below?
+  ;; (package! aero-yarn-lock :localpackage
+  ;;   :mode "yarn\\.lock\\'")
+
+
+  (add-to-list 'auto-mode-alist '("\\(README\\|readme\\)\\'" . text-mode))
+  ;; Use text mode for file that doesn't have an extension.
+  (add-to-list 'auto-mode-alist '("/[^./]*\\'" . text-mode))
+  (add-to-list 'auto-mode-alist '("/\\.dir-locals\\.el\\'" . emacs-lisp-mode))
+  (add-to-list 'auto-mode-alist '("/Cask\\'" . emacs-lisp-mode))
+
+  ;; somehow makefile-mode stopped activating?
+  (add-to-list 'auto-mode-alist '("Makefile" . makefile-mode))
+
+  ;; Ocaml
+  (package! tuareg :auto :mode ("\\.mli?\\'" . tuareg-mode))
+
+  ;; SQL
+  (package! sql :builtin
+    :defer t
+    :after (general)
+    :commands (sql-connect)
+    :init
+    (aero-leader-def
+      "Sc" 'sql-connect)
+
+    :config
+    (setq sql-sqlite-program "sqlite3")
+
+    (aero-mode-leader-def
+      :keymaps 'sql-mode-map
+      "b" 'sql-send-buffer
+      "B" 'aero/sql-send-buffer-and-focus
+      "r" 'sql-send-region
+      "R" 'aero/sql-send-region-and-focus
+      "p" 'sql-send-paragraph
+      "P" 'aero/sql-send-paragraph-and-focus
+      "s" 'sql-send-string
+      "S" 'aero/sql-send-string-and-focus)
+
+    ;; for sql comint
+    (add-to-list 'same-window-buffer-names "*SQL: *")
+    (add-hook 'sql-interactive-mode-hook #'evil-insert-state)
+
+    (defun aero/sql-send-string-and-focus ()
+      "Send a string to SQLi and switch to SQLi in `insert state'."
+      (interactive)
+      (let ((sql-pop-to-buffer-after-send-region t))
+        (call-interactively 'sql-send-string)
+        (evil-insert-state)))
+
+    (defun aero/sql-send-buffer-and-focus ()
+      "Send the buffer to SQLi and switch to SQLi in `insert state'."
+      (interactive)
+      (let ((sql-pop-to-buffer-after-send-region t))
+        (sql-send-buffer)
+        (evil-insert-state)))
+
+    (defun aero/sql-send-paragraph-and-focus ()
+      "Send the paragraph to SQLi and switch to SQLi in `insert state'."
+      (interactive)
+      (let ((sql-pop-to-buffer-after-send-region t))
+        (sql-send-paragraph)
+        (evil-insert-state)))
+
+    (defun aero/sql-send-region-and-focus (start end)
+      "Send region to SQLi and switch to SQLi in `insert state'."
+      (interactive "r")
+      (let ((sql-pop-to-buffer-after-send-region t))
+        (sql-send-region start end)
+        (evil-insert-state)))
+
+    (defun my-sql-save-history-hook ()
+      (let ((lval 'sql-input-ring-file-name)
+            (rval 'sql-product))
+        (if (symbol-value rval)
+            (let ((filename
+                   (concat "~/.emacs.d/sql/"
+                           (symbol-name (symbol-value rval))
+                           "-history.sql")))
+              (set (make-local-variable lval) filename))
+          (error
+           (format "SQL history will not be saved because %s is nil"
+                   (symbol-name rval))))))
+    (add-hook 'sql-interactive-mode-hook 'my-sql-save-history-hook))
+
+  ;; Docker
+
+  (package! docker-compose-mode :auto :mode "docker-compose.*\.yml\\'")
+  (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
+
+  (package! nix-mode :auto :mode "\\.nix\\'")
+  (package! lua-mode :auto :mode "\\.lua\\'")
+  (package! applescript-mode :auto :mode "\\.applescript\\'")
+  (package! nhexl-mode :auto :defer t) ; improved version of `hexl-mode'
+  (package! pdf-tools :auto :defer t)
+  (package! terraform-mode :auto :mode "\\.tf\\'")
+  (package! glsl-mode (:repo "jimhourihan/glsl-mode")
+    :mode "\\.\\(vert\\|frag\\)\\'"
+    :config (add-hook 'glsl-mode-hook #'(lambda () (setq tab-width 4 c-basic-offset 4))))
+  (package! graphql-mode :auto :mode "\\.graphql\\'")
+  (package! groovy-mode :auto :mode "\\(\\.groovy\\'\\|Jenkinsfile\\)")
+  (package! csv-mode :auto :mode "\\.csv\\'")
+  (package! logstash-conf :auto :commands (logstash-conf-mode))
+
+  (add-hook
+   'orson-mode-hook
+   (lambda ()
+     (setq-local indent-tabs-mode nil)
+     (prettify-symbols-mode nil)))
+
+  ;; Elm-mode is supposed to enable elm-indent-mode by default, but for some reason it stopped doing
+  ;; this on Dec 21, 2022. Probably caused this myself, but this fixes it.
+  (package! elm-mode :auto :hook (elm-mode . elm-indent-mode))
+
+  (package! tcl :builtin
+    :mode ("\\(\\.tcl\\|\\.test\\)\\'" . tcl-mode)
+    :custom
+    (tcl-application "tclsh")
+    :config
+    (add-to-list 'tcl-type-alist '("namespace" "eval" tcl-expr tcl-commands)))
+
+  (package! rivet-mode "thornjad/rivet-mode")
+#+END_SRC
+
+* Formatting
+#+BEGIN_SRC emacs-lisp
+  (package! apheleia
+    (:repo "radian-software/apheleia"
+     :files (:defaults ("scripts" "scripts/formatters")))
+    :after general
+    :init (apheleia-global-mode +1)
+    :config
+    (dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
+                   (cljfmt . ("lein" "cljfmt" "fix" filepath))))
+      (add-to-list 'apheleia-formatters cmd))
+
+    (add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
+
+    (aero-leader-def
+      "bI" 'apheleia-format-buffer))
+#+END_SRC
+
+* Debugging
+#+BEGIN_SRC emacs-lisp
+  ;; Debug adapter, see https://github.com/svaante/dape for setup instructions, there's a lot of
+  ;; manual setup required
+  (package! dape "svaante/dape"
+    :after (general project eglot)
+    :custom
+    (dape-buffer-window-arrangement 'right)
+    (dape-adapter-dir (expand-file-name "debug-adapters/" user-emacs-directory))
+    (dape-inlay-hints t)
+    :config
+    ;; Save buffers on startup, useful for interpreted languages
+    (add-hook 'dape-on-start-hooks (lambda () (save-some-buffers t t)))
+
+    (setq dape-configs-port 4711)
+
+    (defun aero/install-vscode-js-debug ()
+      "Run installation procedure to install JS debugging support"
+      (interactive)
+      (let ((vscode-js-debug-dir (expand-file-name "js-debug" dape-adapter-dir)))
+        (mkdir vscode-js-debug-dir t)
+        (let ((default-directory (expand-file-name vscode-js-debug-dir)))
+          (vc-git-clone "https://github.com/microsoft/vscode-js-debug.git" "." nil)
+          (message "git repository created")
+          (call-process "npm" nil "*aero-install*" t "install")
+          (message "npm dependencies installed")
+          (call-process "npx" nil "*aero-install*" t "gulp" "dapDebugServer")
+          (message "vscode-js-debug installed"))))
+
+    ;; Set up JS
+    (add-to-list 'dape-configs
+                 `(js-debug-node
+                   modes (js-mode js-ts-mode typescript-mode typescript-ts-mode)
+                   ;; Command to start the debug adapter
+                   command "node"
+                   command-cwd ,(concat dape-adapter-dir "js-debug")
+                   command-args ("src/dapDebugServer.js" ,(format "%d" dape-configs-port))
+                   ;; Port that Emacs will connect to the debug adapter
+                   port ,dape-configs-port
+                   ;; Debug configuration
+                   :type "pwa-node"
+                   :request "attach"
+                   :name "Attach to Jest Test"
+                   :address "localhost"
+                   :port 9229 ;; Node.js debug port (from --inspect-brk)
+                   :localRoot dape-cwd-fn
+                   :remoteRoot nil
+                   :skipFiles ["<node_internals>/**" "**/node_modules/**"]
+                   :resolveSourceMapLocations ["!**/node_modules/**" "**/*"]
+                   :suppressSourceMapWarning t
+                   )))
+#+END_SRC
+
+* Whitespace and indentation
+#+BEGIN_SRC emacs-lisp
+  (package! ws-butler :auto
+    :functions (ws-butler-global-mode)
+    :init (ws-butler-global-mode)
+    :custom
+    ;; default is just markdown-mode, which is a mode where I really want this in particular. Instead,
+    ;; only exempt modes where whitespace could be important.
+    (ws-butler-global-exempt-modes '(special-mode comint-mode term-mode eshell-mode)))
+#+END_SRC
+
+* EWW and Elfeed
+#+BEGIN_SRC emacs-lisp
+  (package! eww :builtin
+    :after (general evil ace-link)
+    :commands (eww eww-browse-url eww-search-words browse-url-at-point)
+
+    :preface
+    (defmacro shr-display-block (tag)
+      "Register TAG a paragraph (in CSS parlance \"display:block;\").
+
+  See https://developer.mozilla.org/en-US/docs/Glossary/Block-level_content"
+      (let ((fname
+             (intern (format "shr-tag-%s" tag)))
+            (docstring
+             (format "Render \"%s\" tag as paragraph." tag)))
+        `(defun ,fname (dom)
+           ,docstring
+           (shr-ensure-paragraph)
+           (shr-generic dom)
+           (shr-ensure-paragraph))))
+
+    (defun aero/set-eww-buffer-title ()
+      "Rename eww mode buffer so the title of the page is displayed, making
+       fake-tabbed-browsing easier"
+      (let ((title (plist-get eww-data :title)))
+        (when (eq major-mode 'eww-mode)
+          (if title
+              (rename-buffer (concat "eww - " title) t)
+            (rename-buffer "eww" t)))))
+
+    (defun aero/wiki-news () (interactive)
+           (eww-browse-url "https://en.wikipedia.org/wiki/Portal:Current_events"))
+
+    (defun aero/xwidgets-search-ddg (&optional term)
+      (interactive "sSearch DuckDuckGo: ")
+      (xwidget-webkit-browse-url (format "https://duckduckgo.com/?q=%s" (or term "")) t))
+
+    (defun aero/ace-link-eww-new-buffer ()
+      "Call `ace-link-eww' but open in a new buffer.
+
+  This simply calls `ace-link-eww' with a fake double prefix, which is equivalent to the list containing 16."
+      (interactive)
+      (ace-link-eww '(16)))
+
+    (defun aero/pocket-add-current-url ()
+      "Add the URL currently visited to Pocket."
+      (interactive)
+      (when (require 'pocket-reader nil t)
+        (let ((url (eww-current-url)))
+          (if (pocket-lib-add-urls url)
+              (message "Added: %s" url)
+            (message "Failed to add to Pocket")))))
+
+    :hook ((eww-mode . visual-line-mode)
+           (eww-after-render . aero/set-eww-buffer-title))
+
+    :custom
+    ;; Open everything in eww, except for these few sites which just don't work in eww
+    (browse-url-browser-function
+     '((".*google.*maps.*" . browse-url-generic)
+       ("docs.google.com" . browse-url-generic)
+       ("*.atlassian.com" . browse-url-generic)
+       ("*.atlassian.net" . browse-url-generic)
+       ("github.com" . browse-url-generic)
+       ("gitlab.com" . browse-url-generic)
+       ("melpa.org" . browse-url-generic)
+       ("zoom.us" . browse-url-generic)
+       ("t.co" . browse-url-generic)
+       ("twitter.com" . browse-url-generic)
+       ("youtube.com" . browse-url-generic)
+       ("*.reddit.com" . browse-url-generic)
+       ("." . eww-browse-url)))
+
+    ;; MacOS needs its hand held to find the binary
+    (browse-url-generic-program (if (system-is-mac)
+                                    "/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox"
+                                  "firefox"))
+
+    (eww-search-prefix "https://lite.duckduckgo.com/lite?q=")
+    (shr-max-width 90)
+    (shr-indentation 2)
+    (url-privacy-level 'high) ; don't send email nor last location
+
+    :init
+    (aero-leader-def "wbn" '(aero/wiki-news :wk "wikipedia news"))
+
+    :config
+    (evil-define-key 'normal eww-mode-map
+      "SPC SPC" 'execute-extended-command
+      "?" 'describe-mode
+      "^" 'eww-up-url
+      "u" 'eww-up-url
+      "U" 'eww-top-url
+      (kbd "<backspace>") 'eww-back-url
+      "H" 'eww-back-url
+      "L" 'eww-forward-url
+      "&" 'eww-browse-with-external-browser
+      "D" 'eww-download
+      "o" 'eww
+      "O" 'eww-open-in-new-buffer
+      "p" 'pocket-reader-eww-add-link
+      "P" 'aero/pocket-add-current-url
+      "f" 'ace-link-eww
+      "F" 'aero/ace-link-eww-new-buffer
+      "m" 'eww-add-bookmark
+      "R" 'eww-readable
+      "r" 'eww-reload
+      "gr" 'eww-reload
+      "J" 'eww-buffer-show-next
+      "K" 'eww-buffer-show-previous
+      "T" 'eww-open-in-new-buffer
+      "W" 'eww-copy-page-url
+      "q" 'kill-current-buffer
+      "Q" 'quit-window
+      "go" 'eww
+      "gf" 'eww-view-source
+      "gc" 'url-cookie-list
+      "gh" 'eww-list-histories
+      "gb" 'eww-list-buffers
+      "gt" 'eww-list-buffers)
+
+    ;; viewing history
+    (evil-set-initial-state 'eww-history-mode 'normal)
+    (evil-define-key 'normal eww-history-mode-map
+      (kbd "RET") 'eww-history-browse
+      "q" 'quit-window)
+
+    ;; viewing buffers
+    (evil-set-initial-state 'eww-buffers-mode 'normal)
+    (evil-define-key 'normal eww-buffers-mode-map
+      "D" 'eww-buffer-kill
+      (kbd "RET") 'eww-buffer-select
+      "q" 'quit-window)
+
+    ;; Handle display block elements
+    (shr-display-block "article")
+    (shr-display-block "aside")
+    (shr-display-block "footer")
+    (shr-display-block "header")
+    (shr-display-block "nav")
+    (shr-display-block "section")
+
+    ;; bookmarks
+    (evil-set-initial-state 'eww-bookmark-mode 'normal)
+    (evil-define-key 'normal eww-bookmark-mode-map
+      "D" 'eww-bookmark-kill
+      "P" 'eww-bookmark-yank
+      (kbd "RET") 'eww-bookmark-browse
+      "q" 'quit-window))
+
+  ;; Add some org-like features
+  (package! shrface (:host github :repo "chenyanming/shrface")
+    :defer t
+    :after (eww)
+    :hook (eww-after-render . shrface-mode)
+    :custom (shrface-href-versatile t)
+    :config
+    (shrface-basic)
+    (shrface-trial)
+    (shrface-default-keybindings))
+
+  ;; Add syntax highlighting to HTML pre tags
+  (package! shr-tag-pre-highlight "xuchunyang/shr-tag-pre-highlight.el"
+    :after (shr)
+    :config
+    (add-to-list 'shr-external-rendering-functions '(pre . shr-tag-pre-highlight)))
+
+  (package! devdocs (:host github :repo "astoff/devdocs.el")
+    :after (general)
+    :commands (devdocs-lookup)
+    :custom (devdocs-data-dir (expand-file-name "devdocs" aero-cache-dir))
+    :init
+    (aero-leader-def "hD" 'devdocs-lookup)
+    (add-hook 'python-mode-hook (lambda () (setq-local devdocs-current-docs '("python~3.12"))))
+    (add-hook 'python-ts-mode-hook (lambda () (setq-local devdocs-current-docs '("python~3.12"))))
+    (add-hook 'typescript-mode-hook (lambda ()
+                                      (setq-local devdocs-current-docs
+                                                  '("typescript" "rxjs" "angular" "javascript"))))
+    (add-hook 'ng2-ts-mode-hook (lambda ()
+                                  (setq-local devdocs-current-docs
+                                              '("typescript" "angular" "rxjs" "javascript" "html"))))
+    (add-hook 'web-mode-hook (lambda ()
+                               (setq-local devdocs-current-docs
+                                           '("angular" "rxjs" "javascript" "html"))))
+    (add-hook 'clojure-mode-hook (lambda ()
+                                   (setq-local devdocs-current-docs
+                                               '("clojure~1.11")))))
+
+  (package! elfeed "skeeto/elfeed"
+    :commands (elfeed elfeed-db-compact)
+    :after (general evil)
+    :custom
+    (elfeed-search-title-max-width 120)
+    (elfeed-db-directory aero/thornlog-elfeed-directory)
+    (elfeed-search-filter "+unread")
+    (elfeed-sort-order 'ascending)
+    :config
+    (evil-set-initial-state 'elfeed-search-mode 'normal)
+    (evil-set-initial-state 'elfeed-show-mode 'normal))
+
+  ;; lets us use an elfeed.org file to manage our feeds and their tags.
+  (package! aero-elfeed-org :localpackage
+    :config
+    (when aero/thornlog-elfeed-org-file
+      (setq aero-elfeed-org-file aero/thornlog-elfeed-org-file))
+    (aero-elfeed-org))
+#+END_SRC
+
+* AI
+#+BEGIN_SRC emacs-lisp
+  (package! gptel "karthink/gptel"
+    :after (general)
+    :commands (gptel gptel-send gptel-menu)
+    :custom
+    (gptel-api-key openai-api-key)
+    (gptel-model 'o1) ; default model when starting a buffer
+    (gptel-use-header-line t)
+    (gptel-display-buffer-action '(pop-to-buffer-same-window)) ; chat in same window
+    (gptel-prompt-prefix-alist '((markdown-mode . "\n### ")
+                                 (org-mode . "-----\n*** ")
+                                 (text-mode . "------\n### ")))
+    (gptel-response-prefix-alist '((markdown-mode . "\n")
+                                   (org-mode . "-----\n")
+                                   (text-mode . "------\n")))
+    (gptel-directives
+     '((default
+         . "You are a large language model living in Emacs and a helpful, competent assistant. You do not have feelings and you do not apologize for anything. The user is a senior software engineer with limited time; you treat the user's time as precious, but you are not afraid to ask for clarification when needed. Respond concisely and cite sources for factual claims. NEVER explain code unless asked to do so, the explanation is a waste of time unless you are instructed to provide it. Do not add explanations or descriptions unless asked. Use Github-flavored Markdown for code snippets. When using Python, assume the user is using version 3.9 or newer. When using Typescript, assume the user is using version 4.8 or newer. When using SQL, use lowercase keywords. Do no use LaTeX.")
+       (programming
+        . "You are a large language model and a careful, competent programmer. Provide code and only code as output without any additional text, prompt or note.")
+       (writing . "You are a large language model and a writing assistant. Respond concisely.")
+       (chat . "You are a large language model and a conversation partner. Respond concisely.")))
+
+    :init
+    (aero-leader-def
+      "aic" 'gptel
+      "ais" '(gptel-send :wk "send region or buffer to point")
+      "aim" 'gptel-menu)
+
+    (defun aero/gptel-send-buffer ()
+      "If in gptel buffer, goto end and call gptel-send."
+      (interactive)
+      (when gptel-mode
+        (save-excursion
+          (goto-char (point-max))
+          (call-interactively 'gptel-send))))
+
+    (general-define-key
+     :keymaps 'gptel-mode-map
+     (kbd "C-<return>") 'aero/gptel-send-buffer)
+
+    :config
+    ;; Register Claude backend, but we don't set it as default because it hallucinates much more than
+    ;; GPT.
+    (when (and (boundp 'anthropic-api-key) anthropic-api-key)
+      (gptel-make-anthropic "Claude" :stream t :key anthropic-api-key)))
+
+  ;; Quick llm lookup at point or region. Uses posframe if its installed (prelude)
+  (package! gptel-quick "karthink/gptel-quick"
+    :after (general)
+    :commands (gptel-quick)
+    :init
+    (aero-leader-def "aiq" 'gptel-quick))
+
+  ;; Works best with company-box, so we consider it a requirement
+  (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
+    :after (company-box general)
+    :hook (prog-mode . copilot-mode)
+    :custom (copilot-idle-delay 0.2) ; longer than default so it doesn't mess with typing
+    :bind (:map copilot-mode-map
+           ("C-<tab>" . copilot-accept-completion)
+           ("C-c C-i" . copilot-accept-completion)
+           ("C-c C-n" . copilot-next-completion)
+           ("C-c C-p" . copilot-previous-completion)))
+#+END_SRC
+
+* Shell
+#+BEGIN_SRC emacs-lisp
+  (package! xterm-color :auto
+    :commands (xterm-color-filter)
+    :init
+    (setq compilation-environment '("TERM=xterm-256color"))
+    (defun aero/advice-compilation-filter (f proc string)
+      (funcall f proc (xterm-color-filter string)))
+    (advice-add 'compilation-filter :around #'aero/advice-compilation-filter))
+
+  (package! eshell :builtin
+    :after (general evil)
+    :commands eshell
+    :defines (evil-move-cursor-back
+              eshell-save-history-on-exit
+              eshell-history-size
+              eshell-glob-case-insensitive
+              eshell-ls-initial-args
+              eshell-cmpl-dir-ignore
+              eshell-visual-commands
+              eshell-visual-subcommands)
+    :functions (eshell-previous-input
+                eshell-next-input)
+    :config
+    ;; Ensure eshell doesn't override these
+    (define-key eshell-mode-map (kbd "M-h") #'windmove-left)
+    (define-key eshell-mode-map (kbd "M-l") #'windmove-right)
+    (define-key eshell-mode-map (kbd "M-p") #'eshell-previous-input)
+    (define-key eshell-mode-map (kbd "M-n") #'eshell-next-input)
+    (define-key eshell-mode-map (kbd "M-r") #'consult-history)
+
+    (setq
+     eshell-save-history-on-exit t
+     eshell-buffer-maximum-lines 12000
+     eshell-glob-case-insensitive t
+     eshell-aliases-file (expand-file-name "eshell-alias" aero-etc-dir)
+     eshell-history-size 350
+     eshell-ls-initial-args "-lah"
+     eshell-cmpl-dir-ignore "\\`\\(\\.\\.?\\|CVS\\|\\.svn\\|\\.git\\)/\\'"
+     eshell-visual-commands '("vi" "screen" "top" "less" "more" "lynx"
+                              "ncftp" "pine" "tin" "trn" "elm" "vim"
+                              "nmtui" "alsamixer" "htop" "el" "elinks"
+                              "ssh" "nethack" "dtop" "dstat" "docker-compose")
+     eshell-visual-subcommands '(("git" "log" "diff" "show"))
+     eshell-cmpl-cycle-completions nil ; tab cycles the completion list
+     eshell-buffer-maximum-lines 12000 ; auto truncate after 12k lines
+     eshell-history-size 500 ; history size
+     eshell-buffer-shorthand t ; buffer shorthand -> echo foo > #'buffer
+     eshell-plain-echo-behavior t ; treat 'echo' like shell echo
+     eshell-banner-message '(format "%s %s\n"
+                                    (propertize (format " %s " (string-trim (buffer-name)))
+                                                'face 'mode-line-highlight)
+                                    (propertize (current-time-string)
+                                                'face 'font-lock-keyword-face))
+     eshell-scroll-to-bottom-on-input 'all
+     eshell-kill-processes-on-exit t
+     eshell-hist-ignoredups t
+     eshell-error-if-no-glob t  ; mimics zsh behavior
+     completion-ignore-case t)
+
+    ;; Enable autopairing in eshell
+    (add-hook 'eshell-mode-hook #'smartparens-mode)
+
+    ;; Try to load in PATH
+    (let ((default-directory (expand-file-name "~")))
+      (setq eshell-path-env (getenv "PATH")))
+
+    ;; doesn't handle less too well
+    ;; (setenv "PAGER" "cat")
+    (setenv "PAGER" "bat")
+    (setenv "TERM" "xterm-256color")
+
+    ;; Remove hscroll-margin in shells, otherwise you get jumpiness when the
+    ;; cursor comes close to the left/right edges of the window.
+    (add-hook 'eshell-mode-hook
+              (lambda () (setq-local hscroll-margin 0
+                                     evil-move-cursor-back nil)))
+
+    ;; Use tab to cycle completions
+    (add-hook 'eshell-mode-hook (lambda () (setq-local pcomplete-cycle-completions nil)))
+
+    (defalias 'eshell/emacs 'find-file)
+
+    (defun eshell/e (pattern)
+      (if (stringp pattern)
+          (find-file pattern)
+        (mapc #'find-file (mapcar #'expand-file-name pattern))))
+
+    (defun eshell/rmdanglingdockers ()
+      (let ((dangling-images (shell-command-to-string "docker images -f \"dangling=true\" -q")))
+        (if (string-empty-p dangling-images)
+            (message "No dangling images found.")
+          (eshell-command (concat "docker rmi " dangling-images)))))
+
+    (defun eshell/dockerkillorphans ()
+      (let ((orphan-volumes (shell-command-to-string "docker volume ls -qf dangling=true")))
+        (if (string-empty-p orphan-volumes)
+            (message "No orphan volumes found.")
+          (eshell-command (concat "docker volume rm " orphan-volumes)))))
+
+    (defun eshell/dockercleanup ()
+      (eshell/dockerkillorphans)
+      (eshell/rmdanglingdockers))
+
+    ;; So the history vars are defined
+    (require 'em-hist)
+    (when (boundp 'eshell-save-history-on-exit)
+      ;; Don't ask, just save
+      (setq eshell-save-history-on-exit t))
+
+    (eval-after-load 'esh-opt
+  		'(progn
+         (require 'em-cmpl)
+         (require 'em-prompt)
+         (require 'em-term))))
+
+  (package! eshell-prompt-extras :auto
+    :after (eshell)
+    :config
+    (with-eval-after-load "esh-opt"
+      (autoload 'epe-theme-multiline-with-status "eshell-prompt-extras")
+      (setq eshell-highlight-prompt nil
+            eshell-prompt-function 'epe-theme-multiline-with-status)))
+
+  (package! eshell-syntax-highlighting :auto
+    :after eshell-mode
+    :hook (eshell-mode . eshell-syntax-highlighting-mode))
+
+  (package! esh-help :auto
+    :after eshell
+    :config (setup-esh-help-eldoc))
+
+  ;; Provides overlay suggestions in eshell. Use M-f to insert the next suggested word
+  (package! capf-autosuggest "emacs-straight/capf-autosuggest"
+    :hook (eshell-mode . capf-autosuggest-mode))
+
+  
+  ;; shell scripting
+
+  (package! sh-script :builtin :defer t
+    :mode ("\\.\\(sh\\|bash\\|zsh\\|zsh-theme\\)\\'" . sh-mode)
+    :config
+    (defun indent-paragraph ()
+      (interactive)
+      (save-excursion
+        (mark-paragraph) (indent-region (region-beginning) (region-end)))))
+#+END_SRC
+
+* Lisp editing environment
+#+BEGIN_SRC emacs-lisp
+  (package! common-lisp-mode :builtin
+    :mode "\\(Lakefile|\\.\\(cl|lisp\\)\\)\\'")
+  (package! slime :auto
+    :commands slime
+    :init
+    (setq-default
+     inferior-lisp-program "ecl"
+     slime-contribs '(slime-fancy))
+    ;; Load SBCL faster by using preset socket and POSIX shit.
+    ;; NOTE: this requires some set-up beforehand in the SBCL REPL:
+    ;;   * (mapc 'require '(sb-bsd-sockets sb-posix sb-introspect sb-cltl2 asdf))
+    ;;   * (save-lisp-and-die "sbcl.core-for-slime")
+    (defvar slime-lisp-implementations)
+    (setq slime-lisp-implementations
+          '((sbcl ("sbcl" "--core" "sbcl.core-for-slime"))
+            (ecl ("ecl")))))
+
+  (defun indent-defun ()
+    "Indent current defun"
+    (interactive)
+    (save-excursion
+      (mark-defun)
+      (indent-region (region-beginning) (region-end))))
+
+
+  ;; redefined to turn this:
+  ;; (:foo bar
+  ;;       :spam ham)
+  ;; into this:
+  ;; (:foo bar
+  ;;  :spam ham)
+  (eval-after-load "lisp-mode"
+    '(defun lisp-indent-function (indent-point state)
+       "This function is the normal value of the variable `lisp-indent-function'.
+    The function `calculate-lisp-indent' calls this to determine if the arguments of
+    a Lisp function call should be indented specially. INDENT-POINT is the position
+    at which the line being indented begins. Point is located at the point to indent
+    under (for default indentation); STATE is the `parse-partial-sexp' state for
+    that position. If the current line is in a call to a Lisp function that has a
+    non-nil property `lisp-indent-function' (or the deprecated `lisp-indent-hook'),
+    it specifies how to indent. The property value can be:
+
+    - `defun', meaning indent `defun'-style \(this is also the case if there is no
+      property and the function has a name that begins with \"def\", and three or
+      more arguments);
+
+    - an integer N, meaning indent the first N arguments specially (like ordinary
+      function arguments), and then indent any further arguments like a body;
+
+    - a function to call that returns the indentation (or nil).
+      `lisp-indent-function' calls this function with the same two arguments that it
+      itself received.
+
+    This function returns either the indentation to use, or nil if the Lisp function
+    does not specify a special indentation."
+       (let ((normal-indent (current-column))
+             (orig-point (point)))
+         (goto-char (1+ (elt state 1)))
+         (defvar calculate-lisp-indent-last-sexp)
+         (parse-partial-sexp (point) calculate-lisp-indent-last-sexp 0 t)
+         (cond
+          ;; car of form doesn't seem to be a symbol, or is a keyword
+          ((and (elt state 2)
+                (or (not (looking-at "\\sw\\|\\s_"))
+                    (looking-at ":")))
+           (if (not (> (save-excursion (forward-line 1) (point))
+                       calculate-lisp-indent-last-sexp))
+               (progn (goto-char calculate-lisp-indent-last-sexp)
+                      (beginning-of-line)
+                      (parse-partial-sexp (point)
+                                          calculate-lisp-indent-last-sexp 0 t)))
+           ;; Indent under the list or under the first sexp on the same line as
+           ;; calculate-lisp-indent-last-sexp. Note that first thing on that line
+           ;; has to be complete sexp since we are inside the innermost containing
+           ;; sexp.
+           (backward-prefix-chars)
+           (current-column))
+          ((and (save-excursion
+                  (goto-char indent-point)
+                  (skip-syntax-forward " ")
+                  (not (looking-at ":")))
+                (save-excursion
+                  (goto-char orig-point)
+                  (looking-at ":")))
+           (save-excursion
+             (goto-char (+ 2 (elt state 1)))
+             (current-column)))
+          (t
+           (let ((function (buffer-substring (point)
+                                             (progn (forward-sexp 1) (point))))
+                 method)
+             (setq method (or (function-get (intern-soft function)
+                                            'lisp-indent-function)
+                              (get (intern-soft function) 'lisp-indent-hook)))
+             (cond ((or (eq method 'defun)
+                        (and (null method)
+                             (> (length function) 3)
+                             (string-match "\\`def" function)))
+                    (lisp-indent-defform state indent-point))
+                   ((integerp method)
+                    (lisp-indent-specform method state
+                                          indent-point normal-indent))
+                   (method
+                    (funcall method indent-point state)))))))))
+
+  (add-hook 'emacs-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+  (add-hook 'common-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+  (add-hook 'lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+
+  
+  ;; Clojure
+
+  (package! clojure-mode :auto :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
+  (package! cider :auto
+    :hook (clojure-mode . cider-mode)
+    :after (clojure-mode general)
+    :commands (cider
+               cider-jack-in)
+    :custom
+    (cider-show-error-buffer t)
+    (cider-repl-history-file (expand-file-name "cider-history" aero-cache-dir))
+    :config
+    (aero-mode-leader-def
+      :keymaps '(clojure-mode-map cider-mode-map)
+      "c" '(:ignore t :wk "cider")
+      "c RET" 'cider-run
+
+      "c'" 'cider-switch-to-repl-buffer
+      "c," 'cider-pop-back
+      "cQ" 'cider-quit
+      "cl" '(:ignore t :wk "load")
+      "clb" 'cider-load-buffer
+      "clf" 'cider-load-file
+      "cld" '(cider-load-all-files :wk "load directory")
+      "cR" 'cider-ns-refresh
+      "ch" '(:ignore t :wk "help")
+      "chd" 'cider-doc
+      "chj" 'cider-javadoc
+      "chc" 'cider-clojuredocs
+      "chC" 'cider-clojuredocs-web
+      "cha" 'cider-apropos
+      "chD" 'cider-apropos-documentation
+      "ct" '(:ignore t :wk "test")
+      "ctt" 'cider-test-run-test
+      "ctr" 'cider-test-rerun-test
+      "ctn" 'cider-test-run-ns-tests
+      "ctp" 'cider-test-run-project-tests
+      "ctf" 'cider-test-rerun-failed-tests
+      "ctp" 'cider-test-show-report
+      "cb" 'cider-load-buffer-and-switch-to-repl-buffer
+      "cd" 'cider-eval-defun-at-point
+      "cs" 'cider-eval-sexp-at-point
+      "cr" 'cider-eval-region
+      "cm" '(:ignore t :wk "macro expand")
+      "cmm" 'cider-macroexpand-1
+      "cma" 'cider-macroexpand-all
+      "cN" 'cider-eval-ns-form
+      "ce" '(:ignore t :wk "echo")
+      "cee" '(cider-eval-last-sexp :wk "echo last sexp")
+      "cer" '(cider-eval-last-sexp-to-repl :wk "eval last sexp to repl")
+      "cep" '(cider-pprint-eval-last-sexp :wk "pprint last sexp"))
+
+    (with-eval-after-load 'lsp-mode
+      (aero-mode-leader-def
+        :keymaps 'clojure-mode-map
+        "r" '(:ignore t :wk "refactor")
+        "rt" '(:ignore t :wk "thread")
+        "rtt" 'lsp-clojure-thread-first
+        "rtT" 'lsp-clojure-thread-first-all
+        "rtl" 'lsp-clojure-thread-last
+        "rtL" 'lsp-clojure-thread-last-all
+        "rL" 'lsp-clojure-add-missing-libspec
+        "rC" 'lsp-clojure-cycle-coll
+        "rl" '(:ignore t :wk "let")
+        "rle" 'lsp-clojure-expand-let
+        "rli" 'lsp-clojure-introduce-let
+        "rlm" 'lsp-clojure-move-to-let
+        "rU" 'lsp-clojure-unwind-all
+        "rp" 'lsp-clojure-cycle-privacy
+        "re" 'lsp-clojure-extract-function
+        "rs" 'lsp-clojure-inline-symbol)))
+
+  
+  ;; Elisp-specific
+
+  ;; Linting for Emacs packages
+  (package! package-lint "purcell/package-lint"
+    :commands (package-lint-current-buffer))
+
+  (package! elisp-autofmt :auto
+    :commands (elisp-autofmt-buffer
+               elisp-autofmt-region)
+    :custom
+    (elisp-autofmt-cache-directory
+     (expand-file-name "elisp-autofmt-cache" aero-cache-dir)))
+
+  (package! el2md (:host gitlab :repo "thornjad/el2md")
+    :after (general)
+    :commands (el2md-write-readme
+               el2md-view-buffer
+               el2md-write-file)
+    :init
+    (aero-mode-leader-def
+      :keymaps 'emacs-lisp-mode-map
+      "m" '(:ignore t :wk "el2md")
+      "mr" 'el2md-write-readme
+      "mv" 'el2md-view-buffer
+      "mw" 'el2md-write-file))
+#+END_SRC
+
+* Yarn-lock derived mode
+
+#+BEGIN_SRC emacs-lisp
+  (defvar yarn-lock-mode-syntax-table
+    (let ((syntable (make-syntax-table)))
+      (modify-syntax-entry ?# "<" syntable)
+      (modify-syntax-entry ?\n ">" syntable)
+      (modify-syntax-entry ?\" "\"" syntable)
+      syntable))
+
+  (defvar yarn-lock-mode-package-re "\\(^\\|,\\s-\\)\\([a-zA-Z-_0-9]+\\)@")
+  (defvar yarn-lock-mode-dependencies-re "\\s-\\{4,\\}\\([a-zA-Z-_0-9]+\\)\\s-")
+  (defvar yarn-lock-mode-attributes-re
+    (regexp-opt '("version" "resolved" "dependencies" "integrity")))
+  (defvar yarn-lock-mode-font-lock-defaults
+    `((,yarn-lock-mode-attributes-re . '((t :inherit font-lock-builtin-face)))
+      (,yarn-lock-mode-package-re . (2 '((t :inherit bold)) t)) ;; Direct deps
+      (,yarn-lock-mode-dependencies-re . (1 '((t :inherit bold)) t)) ;; Dep of another dep (nested)
+      ))
+  (define-derived-mode yarn-lock-mode text-mode "Yarn Lock"
+    "Simple mode for yarn.lock."
+    :syntax-table yarn-lock-mode-syntax-table
+    (setq font-lock-defaults '(yarn-lock-mode-font-lock-defaults)
+          buffer-read-only t))
+#+END_SRC
+
+* General variable configuration
+This is loaded toward the end so that it overrides other packages. This solves some occasional issues where a mode overrides indenting, for example.
+
+#+BEGIN_SRC emacs-lisp
+  (setq-default
+   ;; general
+   ring-bell-function 'ignore ; supprime cette putain de cloche.
+   use-dialog-box nil ; use minibuffer to ask questions instead
+   use-short-answers t ; y-or-n instead of yes-or-no
+   sentence-end-double-space nil ; the world will not go to shit today
+   default-fill-column 100 ; i am mortal, not Arthur Whitney
+   fill-column 100
+   help-window-select t ; focus help window when opened
+   help-clean-buttons t ; remove quotes from buttons (why isn't this the default)
+   kill-ring-max 5000 ; truncate kill ring after 5000 entries
+   mark-ring-max 5000 ; truncate mark ring after 5000 entries
+   kill-do-not-save-duplicates t ; don't add duplicate strings to kill-ring
+   apropos-do-all t ; apropos is apropos
+   global-display-line-numbers-mode nil ; fuck line numbers
+   gnutls-min-prime-bits 4096 ; 256 est absurde
+   confirm-kill-emacs 'yes-or-no-p ; too easy to kill when looking for alt file
+   switch-to-buffer-preserve-window-point t ; try to preserve point position in closed buffers
+   next-error-message-highlight t
+   line-move-visual t ; move lines by display, not reality
+   make-pointer-invisible t ; le curseur est une chienne
+   auto-revert-interval 10 ; wait just a little longer (default is 5)
+   pop-up-windows nil ; make new window for pop-ups
+   window-sides-slots '(0 1 1 1) ; side-window slots (left top right bottom)
+   shared-game-score-directory (expand-file-name "game-scores/" aero-etc-dir)
+   idle-update-delay 0.5 ; default is 0.5
+   bidi-paragraph-direction 'left-to-right ; no need to check
+   bidi-inhibit-bpa t ; don't look for bidi paren balancing
+   create-lockfiles nil ; tries to solve a non-existent problem and causes trouble doing it
+   jit-lock-defer-time 0 ; wait to fontify until input ends, but no longer
+   ns-use-srgb-colorspace nil ;; REVIEW what is this?
+   show-paren-context-when-offscreen t ; for some langs, show context in echo area
+   mail-user-agent nil ; disable email click opening mail message; error instead
+   context-menu-mode t ; enable context menu when clicked, should be default
+   isearch-forward t ; ensures evil repeats searches in the correct direction
+   debugger-stack-frame-as-list t ; more readable Elisp stack traces
+   enable-recursive-minibuffers t ; allow minibuffer commands in the minibuffer
+
+   ;; Do not allow the cursor in the minibuffer prompt
+   minibuffer-prompt-properties '(read-only t cursor-intangible t face minibuffer-prompt)
+
+   ;; Emacs should just have code that automatically sets this threshold according to some function
+   ;; involving a constant, the current date, and Moore's Law.
+   large-file-warning-threshold 500000000
+
+   ;; Defaults:
+   ;; '("gnutls-cli --insecure -p %p %h"
+   ;;   "gnutls-cli --insecure -p %p %h --protocols ssl3"
+   ;;   "openssl s_client -connect %h:%p -no_ssl2 -ign_eof")
+   tls-program '("gnutls-cli -p %p %h"
+                 "openssl s_client -connect %h:%p -no_ssl2 -no_ssl3 -ign_eof")
+
+   ;; Scrolling
+   ;; Emacs spends too much effort recentering the screen if you scroll the
+   ;; cursor more than N lines past window edges (where N is the settings of
+   ;; `scroll-conservatively'). This is especially slow in larger files
+   ;; during large-scale scrolling commands. If kept over 100, the window is
+   ;; never automatically re-centered.
+   scroll-conservatively 101
+   scroll-margin 3 ; keep 3 lines at top and bottom of buffer when scrolling
+   scroll-preserve-screen-position t ; see variable documentation; this is the modern expectation
+   mouse-wheel-scroll-amount '(3 ((shift) . 1)) ; make scroll wheel scroll more at a time
+   pixel-resolution-fine-flag 1 ; use pixel scrolling
+   hscroll-margin 5 ; like scroll-margin but horizontal
+   hscroll-step 1 ; on horizontal scroll, scroll by one column at a time
+   ;; Reduce cursor lag by a tiny bit by not auto-adjusting `window-vscroll'
+   ;; for tall lines. Thanks to Sacha Chua for the time saved!
+   auto-window-vscroll nil
+   mouse-wheel-progressive-speed nil ; don't accelerate TODO may not want this?
+   comint-scroll-to-bottom-on-input t ; insert at bottom
+   comint-scroll-to-bottom-on-output nil ; don't scroll on output by default
+   comint-input-ignoredups t ; ignore duplicate inputs in history
+   comint-prompt-read-only nil ; breaks shell-command sometimes
+
+   compilation-scroll-output t ; scroll with compilation output
+   compilation-max-output-line-length nil ; don't collapse long lines in compilation
+
+   eww-search-prefix "https://lite.duckduckgo.com/lite?q=" ; eww search DuckDuckGo
+   dictionary-server "dict.org" ; skip trying to search localhost
+
+   ;; simple frame title; I find the default distracting
+   frame-title-format '("Emacs — "
+                        (:eval (if (buffer-file-name)
+                                   (abbreviate-file-name (buffer-file-name))
+                                 "%b"))
+                        (:eval (when (and (buffer-modified-p) (not buffer-read-only))
+                                 " •")))
+   ns-use-proxy-icon nil ; remove icon from frame title in NS
+
+   initial-scratch-message (concat ";; Welcome to GNU Emacs v" emacs-version
+                                   "." (number-to-string emacs-build-number)
+                                   "\n;;\n"
+                                   ";; Go placidly amid the noise and haste,\n"
+                                   ";; and remember what peace there may be in silence.\n"
+                                   ";;\n"
+                                   ";; Booted in " (emacs-init-time "%.3f seconds")
+                                   (format " with %d garbage collections" gcs-done)
+                                   (when (boundp 'straight--profile-cache)
+                                     (format "\n;; Initialized %d packages"
+                                             (+ (hash-table-size straight--profile-cache)
+                                                (if (bound-and-true-p package-alist)
+                                                    (length package-activated-list)
+                                                  0))))
+                                   "\n\n")
+
+   use-package-verbose nil ; ignore verbose output from use-package
+
+   ;; Save backups to system temp (somewhere in /var on MacOS)
+   backup-directory-alist `((".*" . ,temporary-file-directory))
+   auto-save-file-name-transforms `((".*" ,temporary-file-directory t))
+   backup-by-copying t ; don't clobber symlinks, our file is what we want
+   kept-new-versions 6 ; how many backups to keep
+   kept-old-versions 2 ; keep first two versions forever
+   delete-old-versions t ; delete backups older than `kept-new-versions' except `kept-old-versions'
+   version-control t ; use version numbers in backup files
+
+   git-commit-fill-column 72 ; best length in my opinion
+   auto-save-file-name-transforms '((".*" "~/.config/emacs/auto-save-list/" t))
+   save-interprogram-paste-before-kill t ; see variable documentation
+   diff-switches "-u" ; unified diff by default
+
+   ;; files
+   confirm-nonexistent-file-or-buffer nil ; don't ask to create a buffer
+   require-final-newline t ; add newline to end of files if there isn't one
+   load-prefer-newer t ; load the newer of equivalent el, elc, eln
+   completion-ignore-case t ; ignorer la capitalisation
+   read-file-name-completion-ignore-case t ; ignorer la capitalisation des fichiers
+   delete-auto-save-files t ; auto-delete auto-save auto-files automatically
+   vc-follow-symlinks t ; don't ask to follow symlinks
+
+   world-clock-list '(("America/New_York" "Home")
+                      ("America/Los_Angeles" "San Francisco")
+                      ("Europe/Warsaw" "Poland")
+                      ("Europe/Amsterdam" "Netherlands")
+                      ("Europe/London" "London")
+                      ("America/Chicago" "Texas")
+                      ("America/Denver" "Utah")
+                      ("America/Denver" "Colorado")
+                      ("Pacific/Auckland" "New Zealand")
+                      ("Australia/Sydney" "Sydney"))
+
+   world-clock-time-format "%R %Z (%z) %a %d %b "
+
+   ;; xref
+   ;; Use separate xref history for each window, allowing independent code navigation
+   xref-history-storage #'xref-window-local-history
+
+   ;; indentation
+   indent-tabs-mode nil
+   tab-width 2
+   c-basic-offset 2
+   cperl-indent-level 2
+   css-indent-offset 2
+   evil-shift-width 2
+   js-indent-level 2
+   js-switch-indent-offset 2
+   js-syntactic-mode-name nil ; just use normal mode name
+   js2-basic-offset 2
+   typescript-indent-level 2
+   python-indent-offset 4 ; 2 would be too much of a hassle
+   rust-indent-offset 4
+   sgml-basic-offset 2
+   sh-basic-offset 2
+   tcl-indent-level 2
+   tcl-tab-always-indent t
+   lua-indent-level 2
+   groovy-indent-offset 2
+   web-mode-attr-indent-offset 2
+   web-mode-code-indent-offset 2
+   web-mode-css-indent-offset 2
+   web-mode-markup-indent-offset 2
+   tab-stop-list (number-sequence 2 200 2))
+
+  ;; ensure lang is set properly
+  (setenv "LANG" "en_US.UTF-8")
+  (setenv "LC_ALL" "en_US.UTF-8")
+
+  ;; underscores delineate words
+  (modify-syntax-entry ?_ "w")
+
+  ;; make case statements indent properly
+  (with-eval-after-load 'prog-mode
+    (c-set-offset 'case-label '++))
+
+  ;; Show trailing whitespace in prog modes
+  (add-hook 'prog-mode-hook (lambda () (setq show-trailing-whitespace t)))
+
+  ;; enable narrow to region without asking
+  (put 'narrow-to-region 'disabled nil)
+
+  ;; prevent savehist cpu hogging
+  (setq history-length 100)
+  (put 'minibuffer-history 'history-length 50)
+  (put 'evil-ex-history 'history-length 50)
+  (put 'kill-ring 'history-length 25)
+
+  ;; Ensure emacsclient frames open with focus
+  (add-hook 'server-switch-hook (lambda () (select-frame-set-input-focus (selected-frame))))
+
+  ;; Enable mouse in TTY
+  (unless (display-graphic-p)
+    ;; activate mouse-based scrolling
+    (xterm-mouse-mode 1)
+    (global-set-key (kbd "<mouse-4>") 'scroll-down-line)
+    (global-set-key (kbd "<mouse-5>") 'scroll-up-line))
+
+  ;; Disable stupid super keybindings. These are defined in ns-win.el. In my view, super is the domain
+  ;; of the OS and nothing should be bound with it.
+  (global-unset-key (kbd "s-:"))
+  (global-unset-key (kbd "s-C"))
+  (global-unset-key (kbd "s-D"))
+  (global-unset-key (kbd "s-E"))
+  (global-unset-key (kbd "s-F"))
+  (global-unset-key (kbd "s-d"))
+  (global-unset-key (kbd "s-e"))
+  (global-unset-key (kbd "s-f"))
+  (global-unset-key (kbd "s-g"))
+  (global-unset-key (kbd "s-j"))
+  (global-unset-key (kbd "s-k"))
+  (global-unset-key (kbd "s-l"))
+  (global-unset-key (kbd "s-m"))
+  (global-unset-key (kbd "s-n"))
+  (global-unset-key (kbd "s-o"))
+  (global-unset-key (kbd "s-q"))
+  (global-unset-key (kbd "s-t"))
+  (global-unset-key (kbd "s-u"))
+  (global-unset-key (kbd "s-w"))
+
+  ;; type to get rid of active selection
+  (delete-selection-mode t)
+
+  ;; Try to save point position between sessions
+  (setq save-place-file (expand-file-name "saveplace" aero-etc-dir))
+  (save-place-mode 1)
+
+  ;; ensure buffer names are unique when their filenames are the same. The forward option will expand
+  ;; each duplicate buffer name to include their parent directories as far up as needed to make them
+  ;; unique.
+  (require 'uniquify)
+  (setq uniquify-buffer-name-style 'forward)
+
+  (defun display-startup-echo-area-message ()
+    "Override ridiculous built-in crap."
+    (message "Aero est prêt"))
+
+  (add-to-list 'display-buffer-alist
+               ;; Put eshell in bottom side window
+               '("e?shell\\*\\(?:<[[:digit:]]+>\\)?\\'"
+                 (display-buffer-reuse-window display-buffer-in-side-window)
+                 (side . bottom)
+                 (window-height . 23)))
+
+  ;; If we leave a buffer, set its mark as inactive
+  (transient-mark-mode 1)
+
+  ;; Word navigation stops inside camelCaseWords and the like
+  (global-subword-mode 1)
+
+  ;; Do not allow the cursor in the minibuffer prompt
+  (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+#+END_SRC
+
+
+* Load local file
+#+BEGIN_SRC emacs-lisp
+  ;; Load local init if it exists
+  (load (expand-file-name "init.local" user-emacs-directory) t t)
+#+END_SRC
