@@ -3062,7 +3062,21 @@ performance of this software.
     (pomp-long-break-length 15)
     :init
     (aero-leader-def "ap" 'pomp))
+#+END_SRC
 
+#+BEGIN_SRC emacs-lisp
+  (package! pomp (:host gitlab :repo "thornjad/pomp")
+    :after (general evil)
+    :commands (pomp)
+    :custom
+    (pomp-pomodoro-length 55)
+    (pomp-short-break-length 10)
+    (pomp-long-break-length 15)
+    :init
+    (aero-leader-def "ap" 'pomp))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
   (package! restclient :auto
     :after (general)
     :commands (restclient-mode)
@@ -3078,8 +3092,9 @@ performance of this software.
       "p" 'restclient-jump-prev
       "." 'restclient-mark-current
       "y" 'restclient-copy-curl-command))
+#+END_SRC
 
-  ;; startup profiler
+#+BEGIN_SRC emacs-lisp
   (package! esup "jschaf/esup"
     :commands (esup)
     :config
@@ -3099,9 +3114,12 @@ performance of this software.
               (setq esup-last-result-start-point sep-end-point)
               (goto-char esup-last-result-start-point))))
         (nreverse results))))
+#+END_SRC
 
-  ;; Use the bindings below to insert a virtual comment which displays in the buffer but never saves
-  ;; to disk.
+
+;; Use the bindings below to insert a virtual comment which displays in the buffer but never saves
+;; to disk.
+#+BEGIN_SRC emacs-lisp
   (package! virtual-comment "thanhvg/emacs-virtual-comment"
     :hook ((virtual-comment-make-mode . evil-insert-state))
     :after (general evil)
@@ -3126,8 +3144,9 @@ performance of this software.
       "vk" 'virtual-comment-delete
       "vP" 'virtual-comment-paste
       "vs" 'virtual-comment-show))
+#+END_SRC
 
-  ;; Weather
+#+BEGIN_SRC emacs-lisp
   (require 'wttrin (expand-file-name "lib/localpackages/wttrin.el" user-emacs-directory))
 #+END_SRC
 
@@ -3190,6 +3209,33 @@ performance of this software.
 
   ;; Ocaml
   (package! tuareg :auto :mode ("\\.mli?\\'" . tuareg-mode))
+
+  
+  ;; Web languages
+
+  (package! web-mode "fxbois/web-mode"
+    :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|jsx\\|s?css\\)\\'"
+    :custom (web-mode-enable-engine-detection t)
+    :config
+    ;; If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
+    (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
+
+  (package! emmet-mode :auto
+    :hook ((web-mode html-mode css-mode scss-mode js-mode) . emmet-mode)
+    :init (setq emmet-self-closing-tag-style " /")
+
+    :config
+    (add-hook
+     'js-mode-hook
+     (lambda () (setq emmet-expand-jsx-className? t))))
+
+  (package! jest "thornjad/emacs-jest"
+    :commands (jest jest-file jest-test)
+    :after (general))
+
+  ;; Expand className prop in JSX
+  (eval-when-compile (defvar emmet-expand-jsx-className?))
+  (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t)))
 
   ;; SQL
   (package! sql :builtin
@@ -3260,8 +3306,222 @@ performance of this software.
                    (symbol-name rval))))))
     (add-hook 'sql-interactive-mode-hook 'my-sql-save-history-hook))
 
-  ;; Docker
+  (package! python-mode :auto
+    :after (general)
+    :mode "\\.py\\'"
+    :custom
+    (python-indent-guess-indent-offset t)
+    (python-indent-guess-indent-offset-verbose nil)
+    :init
+    (setq-default python-shell-interpreter "python3")
+    (setq-default python-indent-offset 4)
 
+    :config
+    (defvar python-mode-initialized nil)
+
+    (aero-mode-leader-def
+      :keymaps 'python-mode-map
+      "p" 'run-python
+      "s" '(:ignore t :wk "shell send")
+      "sd" 'elpy-shell-send-defun
+      "sD" 'elpy-shell-send-defun-and-go
+      "sb" 'elpy-shell-send-buffer
+      "sB" 'elpy-shell-send-buffer-and-go
+      "sr" 'elpy-shell-send-region-or-buffer
+      "sR" 'elpy-shell-send-region-or-buffer-and-go
+      "sc" 'elpy-shell-send-defclass
+      "sC" 'elpy-shell-send-defclass-and-go
+      "e" '(:ignore t :wk "change executable")
+      "ey" 'elpy-switch-to-pypy
+      "ec" 'elpy-switch-to-cpython
+      "ei" 'elpy-switch-to-ipithon
+      "ej" 'elpy-switch-to-jupyter
+      "k" '(:ignore t :wk "kill")
+      "kk" 'elpy-shell-kill
+      "kA" 'elpy-shell-kill-all
+      "g" '(:ignore t :wk "go")
+      "ge" 'elpy-shell-goto-last-error
+      "gi" 'elpy-shell-goto-import-header
+      "d" '(:ignore t :wk "pdb")
+      "di" '(aero/insert-pdb :wk "insert pdb"))
+    (general-define-key
+     :keymaps 'python-mode-map
+     "s-e" 'python-shell-send-defun
+     "C-<return>" 'python-shell-send-line)
+
+    (defvar pdb-completion-at-point-script
+      (concat
+       "import rlcompleter;"
+       "__ECAP_N=locals().copy();__ECAP_N.update(**globals());"
+       "__ECAP_T='''%s''';"
+       "print(';'.join("
+       "getattr(rlcompleter.Completer(__ECAP_N), 'attr_matches' if '.' in __ECAP_T else 'global_matches')"
+       "(__ECAP_T)))"))
+
+    (defun pdb-completion-at-point-function ()
+      "Complete at point if in pdb prompt."
+      (let* ((buffer (current-buffer))
+             (process (get-buffer-process buffer)))
+        (defvar python-shell-prompt-pdb-regexp)
+        ;; Get completion only if there are process and we are at pdb prompt
+        (when (and
+               process
+               (save-excursion
+                 (forward-line 0)
+                 (looking-at python-shell-prompt-pdb-regexp)))
+          (let* ((end (point))
+                 ;; Beginning of prefix to search completion for
+                 ;; Get whole input and search backwards for delimiters
+                 (start (save-excursion (comint-goto-process-mark) (point)))
+                 (start (or (save-excursion
+                              (when (re-search-backward
+                                     "[([{]\\|[])}]\\|[[:space:]]\\|\\(?:\\(?:\\*\\*\\|//\\|<<\\|>>\\|[%&*+/|^-]\\)?=\\)"
+                                     start t)
+                                (1+ (point))))
+                            start)))
+            (when (> end start)
+              (let ((prefix (buffer-substring-no-properties start end))
+                    ;; this regexp is used to determine that output redirect is done
+                    (comint-prompt-regexp (concat "^" python-shell-prompt-pdb-regexp)))
+                (with-temp-buffer
+                  (comint-redirect-send-command-to-process
+                   (format pdb-completion-at-point-script prefix)
+                   (current-buffer) process nil t)
+                  ;; wait for command output
+                  (with-current-buffer buffer
+                    (while (null comint-redirect-completed)
+                      (accept-process-output nil 0.1)))
+                  (goto-char (point-min))
+                  ;; Skip first line in case process echoes input
+                  (unless (= (count-lines (point-min) (point-max)) 1)
+                    (forward-line 1))
+                  (let ((completions (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+                    ;; return nil instead of empty completions so other
+                    ;; completion functions can provide their completions
+                    (unless (string-empty-p completions)
+                      (list start end (split-string completions ";")))))))))))
+
+    (add-hook
+     'inferior-python-mode-hook
+     (lambda ()
+       (add-hook 'completion-at-point-functions
+                 'pdb-completion-at-point-function nil t))))
+
+  (defun pdb-poetry ()
+    "Like `py-pdb' but with poetry."
+    (interactive)
+    (require 'gud)
+    (let ((command-line
+           (read-from-minibuffer
+            "Run pdb like this: "
+            (concat
+             "poetry run python3 -m pdb "
+             (if (and (featurep 'tramp) (tramp-tramp-file-p (buffer-file-name)))
+                 (tramp-file-name-localname (tramp-dssect-file-name (buffer-file-name)))
+               (buffer-file-name))))))
+      (if command-line (pdb command-line) (error "command required"))))
+
+  (package! elpy (:host github :repo "jorgenschaefer/elpy")
+    :hook ((python-mode ein-mode) . elpy-mode)
+    :custom
+    (elpy-rpc-virtualenv-path 'default)
+    (elpy-rpc-python-command "python3")
+    (py-return-key #'py-newline-and-indent)
+
+    :config
+    (elpy-enable)
+
+    (defun elpy-goto-import-header ()
+      "Jump to the import header."
+      (interactive)
+      (evil-set-jump)
+      (goto-char (point-min))
+      (re-search-forward "^import"))
+
+    (defun elpy-shell-goto-last-error ()
+      "Jump to the last error reported by the shell."
+      (interactive)
+      (let ((filename (buffer-file-name)))
+        (elpy-shell-switch-to-shell)
+        (goto-char (point-max))
+        (search-backward filename nil t)
+        (while (condition-case nil
+                   (progn (compile-goto-error) nil)
+                 (error t))
+          (forward-line -1))))
+
+    (aero-mode-leader-def
+      :keymaps 'elpy-mode-map
+      "p" 'run-python
+      "'" 'elpy-shell-switch-to-shell
+      "s" '(:ignore t :wk "shell send")
+      "ss" '(elpy-shell-send-region-or-buffer :wk "send region or buffer")
+      "sS" '(elpy-shell-send-region-or-buffer-and-go :wk "send region or buffer and go")
+      "sd" '(elpy-shell-send-defun :wk "send defun")
+      "sD" '(elpy-shell-send-defun-and-go :wk "send defun and go")
+      "sb" '(elpy-shell-send-buffer :wk "send buffer")
+      "sB" '(elpy-shell-send-buffer-and-go :wk "send buffer and go")
+      "sc" '(elpy-shell-send-defclass :wk "send defclass")
+      "sC" '(elpy-shell-send-defclass-and-go :wk "send defclass and go")
+      "k" '(:ignore t :wk "kill")
+      "kk" '(elpy-shell-kill :wk "kill shell")
+      "kA" '(elpy-shell-kill-all :wk "kill all shells")
+      "g" '(:ignore t :wk "go")
+      "ge" '(elpy-shell-goto-last-error :wk "goto last error")
+      "gi" '(elpy-shell-goto-import-header :wk "goto import header")
+      "t" '(elpy-test :wk "run test")
+      "d" '(:ignore t :wk "debug")
+      "dd" '(elpy-pdb-debug-buffer :wk "debug buffer")
+      "db" '(elpy-pdb-toggle-breakpoint-at-point :wk "toggle breakpoint")
+      "r" '(:ignore t :wk "refactor")
+      "rb" '(elpy-black-fix-code :wk "black format")
+      "rr" '(elpy-refactor-rename :wk "rename")
+      "rv" '(elpy-refactor-extract-variable :wk "extract variable")
+      "rf" '(elpy-refactor-extract-function :wk "extract function")
+      "ri" '(elpy-refactor-inline :wk "inline variable")
+      "rF" '(elpy-format-code :wk "format buffer or region")))
+
+  (package! flymake-mypy "com4/flymake-mypy"
+    :after (eglot flymake)
+    :init
+    ;; Need to add after eglot so eglot doesn't clobber
+    (add-hook 'eglot-managed-mode-hook
+              (lambda ()
+                (when (derived-mode-p 'python-base-mode)
+                  (flymake-mypy-enable)))))
+
+  (package! flymake-ruff "erickgnavar/flymake-ruff"
+    :after (eglot flymake)
+    :functions (flymake-ruff-load)
+    :init
+    ;; Need to add after eglot so eglot doesn't clobber
+    (with-eval-after-load 'eglot
+      (add-hook 'eglot-managed-mode-hook
+                (lambda ()
+                  (when (derived-mode-p 'python-base-mode)
+                    (setq python-flymake-command '("ruff" "--quiet" "--stdin-filename=stdin" "-"))
+                    (flymake-ruff-load))))))
+
+  (package! rust-mode :auto
+    :mode "\\.rs\\'"
+    :config
+    (setenv "PATH" (concat "~/.cargo/bin:" (getenv "PATH")))
+    (require 'company)
+    (defvar company-tooltip-align-annotations)
+    (declare-function company-indent-or-complete-common "company")
+    (setq company-tooltip-align-annotations t)
+    (define-key rust-mode-map (kbd "TAB") #'company-indent-or-complete-common)
+    (add-hook 'rust-mode-hook
+              (lambda () (setq indent-tabs-mode t))))
+
+  (package! cargo :auto
+    :commands cargo-minor-mode
+    :hook (rust-mode . cargo-minor-mode))
+
+  (package! toml-mode :auto
+    :mode "\\(\\.toml\\|Cargo\\.lock\\)\\'")
+
+  ;; Docker
   (package! docker-compose-mode :auto :mode "docker-compose.*\.yml\\'")
   (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
 
@@ -3299,24 +3559,207 @@ performance of this software.
   (package! rivet-mode "thornjad/rivet-mode")
 #+END_SRC
 
-* Formatting
+* Parentheses
 #+BEGIN_SRC emacs-lisp
-  (package! apheleia
-    (:repo "radian-software/apheleia"
-     :files (:defaults ("scripts" "scripts/formatters")))
-    :after general
-    :init (apheleia-global-mode +1)
+  (package! smartparens "Fuco1/smartparens"
+    :after (general) :defer 5
+    :functions (show-smartparens-global-mode
+                sp-kill-sexp sp-local-pair
+                sp-local-pairs sp-pair
+                sp-up-sexp)
+    :after (evil general)
+    :hook ((after-init . smartparens-global-mode))
+    :init
+    ;; fix highlighting in normal mode
+    (setq sp-show-pair-from-inside t)
+    (smartparens-global-mode +1)
     :config
-    (dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
-                   (cljfmt . ("lein" "cljfmt" "fix" filepath))))
-      (add-to-list 'apheleia-formatters cmd))
+    ;; from spacemacs
+    (defun aero/smart-closing-parenthesis ()
+      "Insert a closing pair delimiter or move point past existing delimiter.
 
-    (add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
+  If the expression at point is already balanced and there is a closing delimiter
+  for that expression on the current line, move point forward past the closing
+  delimiter. If the expression is balanced but there is no closing delimiter on
+  the current line, insert a literal ')' character. If the expression is not
+  balanced, insert a closing delimiter for the current expression. This command
+  uses Smartparens navigation commands and therefore recognizes pair delimiters
+  that have been defined using `sp-pair' or `sp-local-pair'."
+      (interactive)
+      (let* ((sp-navigate-close-if-unbalanced t)
+             (current-pos (point))
+             (current-line (line-number-at-pos current-pos))
+             next-pos next-line)
+        (aero/voidvar! sp-navigate-close-if-unbalanced)
+        (save-excursion
+          (let ((buffer-undo-list)
+                (modified (buffer-modified-p)))
+            (unwind-protect
+                (progn
+                  (sp-up-sexp)
+                  (setq next-pos (point)
+                        next-line (line-number-at-pos)))
+              (primitive-undo (length buffer-undo-list)
+                              buffer-undo-list)
+              (set-buffer-modified-p modified))))
+        (cond
+         ((and (= current-line next-line)
+               (not (= current-pos next-pos)))
+          (sp-up-sexp))
+         (t
+          (insert-char ?\))))))
 
-    (aero-leader-def
-      "bI" 'apheleia-format-buffer))
+    (require 'smartparens-config)
+    (show-smartparens-global-mode t)
+
+    (defun aero/copy-sexp-as-kill (&optional arg)
+      "Copy the sexp to the kill ring without killing."
+      (interactive)
+      (funcall #'sp-kill-sexp arg t))
+
+    (defun aero/sp-wrap-double-quote () (interactive) (sp-wrap-with-pair "\""))
+    (defun aero/sp-wrap-single-quote () (interactive) (sp-wrap-with-pair "'"))
+    (defun aero/sp-wrap-backtick () (interactive) (sp-wrap-with-pair "`"))
+    (defun aero/sp-wrap-angle () (interactive) (sp-wrap-with-pair "<"))
+
+    (general-define-key
+     :states '(normal visual)
+     :prefix "SPC"
+     "s^" '(sp-beginning-of-sexp :which-key "beginning of sexp")
+     "s$" '(sp-end-of-sexp :which-key "end of sexp")
+     "sh" '(sp-backward-sexp :which-key "back")
+     "sl" '(sp-forward-sexp :which-key "forward")
+     "sw" '(:ignore t :which-key "wrap")
+     "sw(" 'sp-wrap-round
+     "sw{" 'sp-wrap-curly
+     "sw[" 'sp-wrap-square
+     "sw<" 'aero/sp-wrap-angle
+     "sw\"" '(aero/sp-wrap-double-quote :wk "wrap double quote")
+     "sw'" '(aero/sp-wrap-single-quote :wk "wrap single quote")
+     "sw`" '(aero/sp-wrap-backtick :wk "wrap backtick")
+     "swr" 'sp-rewrap-sexp
+     "su" '(sp-unwrap-sexp :which-key "unwrap")
+     "sk" '(sp-kill-sexp :which-key "kill")
+     "sK" '(aero/copy-sexp-as-kill :wk "copy as kill"))
+
+    (sp-local-pair 'web-mode "<?" "?>")
+    (sp-local-pair 'web-mode "{" "}")
+    (sp-local-pair 'web-mode "{ " " }")
+    (sp-local-pair 'web-mode "{%" "%}")
+    (sp-local-pair 'web-mode "{% " " %}")
+    (sp-local-pair 'web-mode "{{ " " }}")
+    (sp-local-pair 'web-mode "`" "`")
+    (sp-local-pair 'org-mode "$" "$")
+    (sp-local-pair 'org-mode "=" "=")
+    (sp-local-pair 'org-mode "/" "/" :trigger-wrap "/" )
+    (sp-local-pair 'markdown-mode "```" "```" :post-handlers '(:add ("||\n[i]" "RET")))
+
+    (sp-pair "<" ">")
+
+    ;; For these pairs, when hitting RET inside them, we add an extra newline to the middle and indent
+    ;; accordingly.
+    (sp-pair "{" "}" :post-handlers '(:add ("||\n[i]" "RET")))
+    (sp-pair "[" "]" :post-handlers '(:add ("||\n[i]" "RET")))
+    (sp-pair "(" ")" :post-handlers '(:add ("||\n[i]" "RET")))
+
+    (define-key evil-insert-state-map ")" 'aero/smart-closing-parenthesis))
+
+  (package! rainbow-delimiters "Fanael/rainbow-delimiters"
+    :hook ((prog-mode . rainbow-delimiters-mode)))
 #+END_SRC
 
+* Flymake & Flyspell
+#+BEGIN_SRC emacs-lisp
+  (package! flymake :builtin
+    :after (general)
+    :custom
+    ;; left-fringe is the default, but we're being explicit because git-gutter also uses left-fringe.
+    ;; Usually this works itself out.
+    (flymake-fringe-indicator-position 'left-fringe)
+    (flymake-wrap-around t)
+    (flymake-no-changes-timeout 0.6)
+
+    :config
+    ;; Buffer diagnostics in bottom window
+    (add-to-list 'display-buffer-alist
+                 '("\\*Flymake diagnostics for.*"
+                   (display-buffer-reuse-window display-buffer-in-side-window)
+                   (side . bottom)
+                   (window-height . 23)))
+
+    (aero-leader-def
+      "en" 'flymake-goto-next-error
+      "ep" 'flymake-goto-prev-error
+      "eb" 'flymake-show-buffer-diagnostics))
+
+  ;; makes flymake appear in popup
+  (package! flymake-diagnostic-at-point (:repo "meqif/flymake-diagnostic-at-point")
+    :after flymake
+    :hook (flymake-mode . flymake-diagnostic-at-point-mode))
+
+  (package! flymake-eslint "orzechowskid/flymake-eslint"
+    :after (eglot)
+    :init
+    ;; Need to add after eglot so eglot doesn't clobber
+    (add-hook 'eglot-managed-mode-hook
+              (lambda ()
+                (when (and (derived-mode-p '(typescript-mode typescript-ts-mode js-mode web-mode))
+                           (not (derived-mode-p 'json-mode))
+                           (executable-find "eslint"))
+                  (flymake-eslint-enable)))))
+
+  (package! flyspell :builtin
+    :after (general)
+    :hook ((prog-mode . flyspell-prog-mode)
+           (text-mode . flyspell-mode))
+    :config
+    (defvar aero-etc-dir)
+    (setq
+     flyspell-issue-message-flag nil
+     ispell-personal-dictionary (expand-file-name "ispell/personal_dictionary.aws" aero/thornlog-path)
+     flyspell-sort-corrections nil)
+
+    ;; Skip code inside org src blocks
+    (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_SRC" . "#\\+END_SRC"))
+    (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE"))
+
+    (aero-leader-def
+      "psP" 'flyspell-prog-mode
+      "psN" 'flyspell-goto-next-error
+      "psw" 'flyspell-word
+      "psb" 'flyspell-buffer
+      "psr" 'flyspell-region))
+
+  (package! flyspell-lazy (:repo "rolandwalker/flyspell-lazy")
+    :hook ((flyspell-mode . flyspell-lazy-mode)))
+
+  (package! flyspell-correct "d12frosted/flyspell-correct"
+    :after (general flyspell)
+    :config
+    (aero-leader-def
+      "psc" 'flyspell-correct-wrapper
+      "psC" 'flyspell-correct-at-point
+      "psp" 'flyspell-correct-previous
+      "psn" 'flyspell-correct-next))
+#+END_SRC
+
+* Formatting
+
+#+BEGIN_SRC emacs-lisp
+(package! apheleia
+(:repo "radian-software/apheleia"
+:files (:defaults ("scripts" "scripts/formatters")))
+:after general
+:init (apheleia-global-mode +1)
+:config
+(dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
+(cljfmt . ("lein" "cljfmt" "fix" filepath))))
+(add-to-list 'apheleia-formatters cmd))
+
+(add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
+
+(aero-leader-def
+"bI" 'apheleia-format-buffer))
 * Debugging
 #+BEGIN_SRC emacs-lisp
   ;; Debug adapter, see https://github.com/svaante/dape for setup instructions, there's a lot of
@@ -3653,7 +4096,8 @@ performance of this software.
            ("C-<tab>" . copilot-accept-completion)
            ("C-c C-i" . copilot-accept-completion)
            ("C-c C-n" . copilot-next-completion)
-           ("C-c C-p" . copilot-previous-completion)))
+           ("C-c C-p" . copilot-prev
+            ("C-c C-p" . copilot-previous-completion)))
 #+END_SRC
 
 * Shell
