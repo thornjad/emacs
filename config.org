@@ -1,6 +1,10 @@
 #+title: Thornjad's Emacs Configuration
 #+author: Jade Michael Thornton <thornjad>
 #+OPTIONS: num:nil
+#+STARTUP: showeverything
+#+PROPERTY: header-args:emacs-lisp+   :tangle yes :results silent :exports code :eval never-export
+#+FILETAGS: :emacs:
+#+LINK: emacsconfig https://github.com/thornjad/emacs
 
 * Introduction
 Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
