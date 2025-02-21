@@ -2146,9 +2146,6 @@ performance of this software.
       (apply func args)))
   (advice-add #'face-at-point :around #'aero/suggest-other-faces)
 
-  ;; allow navigation by visual wrapped lines rather than real lines
-  (global-visual-line-mode +1)
-
   ;; Adds a breadcrumb to the headerline
   (package! aero-breadcrumb :localpackage
     :hook ((prog-mode markdown-mode gfm-mode org-mode) . aero-breadcrumb-local-mode)
