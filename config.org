@@ -1179,7 +1179,6 @@ performance of this software.
   (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
 #+END_SRC
 
-
 * Foundational functionality
 ** Keybindings
 #+BEGIN_SRC emacs-lisp
@@ -2136,8 +2135,7 @@ performance of this software.
   (global-hl-line-mode +1)
   (defun aero/suggest-other-faces (func &rest args)
     "When hl-line-mode is active, suggest a face calculated without it.
-
-    Credit: Sacha Chua"
+     Credit: Sacha Chua"
     (if global-hl-line-mode
         (progn
           (global-hl-line-mode -1)
@@ -3808,20 +3806,22 @@ performance of this software.
 * Formatting
 
 #+BEGIN_SRC emacs-lisp
-(package! apheleia
-(:repo "radian-software/apheleia"
-:files (:defaults ("scripts" "scripts/formatters")))
-:after general
-:init (apheleia-global-mode +1)
-:config
-(dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
-(cljfmt . ("lein" "cljfmt" "fix" filepath))))
-(add-to-list 'apheleia-formatters cmd))
+  (package! apheleia
+    (:repo "radian-software/apheleia"
+     :files (:defaults ("scripts" "scripts/formatters")))
+    :after general
+    :init (apheleia-global-mode +1)
+    :config
+    (dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
+                   (cljfmt . ("lein" "cljfmt" "fix" filepath))))
+      (add-to-list 'apheleia-formatters cmd))
 
-(add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
+    (add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
 
-(aero-leader-def
-"bI" 'apheleia-format-buffer))
+    (aero-leader-def
+      "bI" 'apheleia-format-buffer))
+#+END_SRC
+
 * Debugging
 #+BEGIN_SRC emacs-lisp
   ;; Debug adapter, see https://github.com/svaante/dape for setup instructions, there's a lot of
@@ -4811,6 +4811,9 @@ This is loaded toward the end so that it overrides other packages. This solves s
 
   ;; Do not allow the cursor in the minibuffer prompt
   (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+
+  ;; always always always wrap lines
+  (global-visual-line-mode +1)
 #+END_SRC
 
 

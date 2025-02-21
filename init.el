@@ -74,9 +74,6 @@ so we use more cycles but less space, but not too little space.")
   (prefer-coding-system 'utf-8) ; Just in case early-init missed this one, or old Emacs
   (setq ad-redefinition-action 'accept) ; Accept advice redefinition without complaining
 
-  ;; always always always wrap lines
-  (global-visual-line-mode +1)
-
   ;; Define load-file directories
   (setq user-init-file (or load-file-name (buffer-file-name)))
   (setq user-emacs-directory (file-name-directory user-init-file))
