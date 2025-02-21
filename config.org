@@ -66,13 +66,11 @@ Like the Borg, my config amalgamates macros, functions, bindings and packages mo
 ** TODO
 TODO: automatic TOC
 TODO: split up by package
-TODO: claims this might just work by loading =(org-babel-load-file "~/.config/emacs/config.org")= from init.el
 TODO: explanation of how this all works right here
-TODO: replace readme with this? put all of readme here?
+TODO: replace readme with this
 TODO: reference sacha's config
-TODO: keybinding to open this file
-TODO: ensure keybinding exists to execute code block
 TODO: startup collapsed
+TODO: remove old files (give it a little time to check for missed stuff)
 
 ** Copyright Notice
 Copyright (c) 2016-2025 Jade Michael Thornton
