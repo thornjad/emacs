@@ -1,10 +1,10 @@
 #+title: Thornjad's Emacs Configuration
 #+author: Jade Michael Thornton <thornjad>
-#+OPTIONS: num:nil
-#+STARTUP: showeverything
-#+PROPERTY: header-args:emacs-lisp+ :tangle yes :results silent :exports code :eval never-export
-#+FILETAGS: :emacs:
-#+LINK: emacsconfig https://github.com/thornjad/emacs
+#+options: num:nil
+#+property: header-args:emacs-lisp+ :tangle yes :results silent :exports code :eval never-export
+#+filetags: :emacs:
+#+link: emacsconfig https://github.com/thornjad/emacs
+#+STARTUP: overview
 
 * Introduction
 Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
@@ -319,8 +319,14 @@ Some general helpers, not used much
     (interactive)
     (setenv "NODE_NO_READLINE" "1")  ; avoid fancy terminal codes
     (pop-to-buffer (make-comint "node-repl" "node" nil "--interactive")))
+#+END_SRC
 
-  ;; https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-fly/
+*** Change font size (zoom in and out)
+Especially useful when screen sharing, Google Meet in particular really makes things blurry.
+
+Based on https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-fly/
+
+#+BEGIN_SRC emacs-lisp
   (defun aero/increase-font-size ()
     (interactive)
     (set-face-attribute 'default nil :height (ceiling (* 1.10 (face-attribute 'default :height)))))
@@ -329,8 +335,11 @@ Some general helpers, not used much
     (set-face-attribute 'default nil :height (floor (* 0.9 (face-attribute 'default :height)))))
   (global-set-key (kbd "C-+") 'aero/increase-font-size)
   (global-set-key (kbd "C--") 'aero/decrease-font-size)
+#+END_SRC
 
-  ;; also allow = because that's just + without shift
+Also allow =C-==, just to be less annoying since that's just + without shift
+
+#+BEGIN_SRC emacs-lisp
   (global-set-key (kbd "C-=") 'aero/increase-font-size)
 #+END_SRC
 
@@ -473,6 +482,9 @@ Some general helpers, not used much
 #+END_SRC
 
 ** Files
+*** Reopen file at buffer
+It's occasionally useful to "restart" the current buffer. To my current knowledge this isn't a builtin functionality, so I have my own function.
+
 #+BEGIN_SRC emacs-lisp
   (defun aero/reopen-file-at-buffer ()
     "Re-open the file at buffer, replacing buffer.
@@ -499,7 +511,11 @@ Some general helpers, not used much
       ;; Finally, recenter the line. We may not have been centered before, but this is more often than
       ;; not what we want.
       (recenter)))
+#+END_SRC
 
+*** Other file helpers
+
+#+BEGIN_SRC emacs-lisp
   (defun aero/insert-date ()
     "Insert current date."
     (interactive)
@@ -1006,23 +1022,33 @@ Some general helpers, not used much
 #+END_SRC
 
 * Packaging setup
+** Straight.el
+We want to use the =develop= branch of =straight.el=, I don't remember why but this fixed a problem once and I never went back.
+
 #+BEGIN_SRC emacs-lisp
   ;; Use the more-cutting-edge develop branch of straight
   (eval-when-compile
     (defvar straight-repository-branch)
     (defvar straight-check-for-modifications))
   (setq straight-repository-branch "develop")
+#+END_SRC
 
-  ;; Don't allow straight to check for modifications in every repo on Emacs init, saving some startup
-  ;; time
+Don't allow straight to check for modifications in every repo on Emacs init, saving some startup time
+
+#+BEGIN_SRC emacs-lisp
   (setq straight-check-for-modifications nil)
+#+END_SRC
 
-  ;; Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we
-  ;; (or more likely any dependency) try to pull it in.
+Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we (or more likely any dependency) try to pull it in.
+
+#+BEGIN_SRC emacs-lisp
   (with-eval-after-load 'straight
     (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
+#+END_SRC
 
-  ;; Bootstrap straight.el
+Bootstrapping for =straight.el=
+
+#+BEGIN_SRC emacs-lisp
   (defvar bootstrap-version)
   (let ((bootstrap-file
          (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
@@ -1035,15 +1061,17 @@ Some general helpers, not used much
         (goto-char (point-max))
         (eval-print-last-sexp)))
     (load bootstrap-file nil 'nomessage))
+#+END_SRC
 
-  
-  ;; use-package
+I'm not certain straight needs to be set up before use-package, but before use-package was built in to Emacs something got messed up when use-package was loaded first.
 
-  ;; Not certain we need to set up straight first, but something got messed up back before use-package
-  ;; was built-in, so now it will never ever move.
+#+BEGIN_SRC emacs-lisp
   (require 'use-package)
+#+END_SRC
 
-  ;; Only expand minimally if we're byte-compiling, and only use verbose if we're in --debug-init.
+If we're byte-compiling something, only expand minimally
+
+#+BEGIN_SRC emacs-lisp
   (eval-when-compile
     (defvar use-package-expand-minimally)
     (defvar use-package-compute-statistics)
@@ -1052,12 +1080,19 @@ Some general helpers, not used much
   (setq use-package-expand-minimally byte-compile-current-file
         use-package-compute-statistics nil ; t then `use-package-report' to find packages not used
         package-native-compile t ; compile when installing (not sure if this works)
-        use-package-minimum-reported-time 0.1
-        use-package-verbose init-file-debug)
+        use-package-minimum-reported-time 0.1)
+#+END_SRC
 
-  
-  ;; Aero package macro
+If we're using =--debug-init=, make package loading verbose.
 
+#+BEGIN_SRC emacs-lisp
+(setq use-package-verbose init-file-debug)
+#+END_SRC
+
+** Custom package macro
+The rest of the config uses this custom =package!= macro to abstract away some internals that have changed in the past and may change again (such as using =straight.el=).
+
+#+BEGIN_SRC emacs-lisp
   (defmacro package! (package recipe &rest body)
     "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package'.
 
@@ -1116,9 +1151,12 @@ Some general helpers, not used much
 
         `(use-package ,package :straight ,(or (equal recipe :auto) recipe) ,@body)))))
 
-  
-  ;; utils
+#+END_SRC
 
+** Fetch arbitrary MELPA recipe
+And a helper that lets us check the MELPA recipe for a package, which is useful to setting up new packages sometimes, and slightly faster than searching on a browser.
+
+#+BEGIN_SRC emacs-lisp
   (defun aero/fetch-melpa-recipe (package-name)
     "Fetch the MELPA recipe for the given PACKAGE-NAME and display it in a buffer."
     (interactive "sPackage Name: ")
@@ -2611,7 +2649,7 @@ Some general helpers, not used much
         (file+headline
          ,(expand-file-name "todo.org" aero/roam-path)
          "Tasks")
-        "* REVIEW [#B] %? :review:\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\nLink: "
+        "* REVIEW [#B] %? :review:\nSCHEDULED: %t DEADLINE: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\nLink: "
         :empty-lines 1)
        ("s" "School inbox item" entry
         (file+headline
