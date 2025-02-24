@@ -95,40 +95,53 @@ Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= c
 
 This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
 
-* Constants
+* Directory constants
+These define some locations that we can referece later
+
 #+BEGIN_SRC emacs-lisp
   (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
   (defconst aero-snippets-dir (expand-file-name "snippets/" user-emacs-directory))
   (defconst aero-cache-dir (expand-file-name "cache/" aero-etc-dir))
   (defconst pcache-directory (expand-file-name "pcache/" aero-cache-dir))
   (unless (file-exists-p aero-cache-dir) (make-directory aero-cache-dir))
+#+END_SRC
 
-  (defvar aero/documents-path (expand-file-name "~/Documents/"))
-  (defvar aero/thornlog-path (expand-file-name "thornlog/" aero/documents-path))
-  (defvar aero/roam-path (expand-file-name "roam/" aero/thornlog-path))
-  (defvar aero/thornlog-archive-file (expand-file-name "archive/archive.org" aero/thornlog-path))
-  (defvar aero/thornlog-elfeed-directory (expand-file-name "elfeed/" aero/documents-path)
+We also need to set up locations for org-roam and thornlog. Thornlog is a custom daily logging and note-taking system, using org-roam. Check out the [[*Thornlog][Thornlog]] section for more.
+
+#+BEGIN_SRC emacs-lisp
+  (defconst aero/documents-path (expand-file-name "~/Documents/"))
+  (defconst aero/thornlog-path (expand-file-name "thornlog/" aero/documents-path))
+  (defconst aero/roam-path (expand-file-name "roam/" aero/thornlog-path))
+  (defconst aero/thornlog-archive-file (expand-file-name "archive/archive.org" aero/thornlog-path))
+  (defconst aero/thornlog-elfeed-directory (expand-file-name "elfeed/" aero/documents-path)
     "The directory where elfeed will store its database and other files.")
-  (defvar aero/thornlog-elfeed-org-file (expand-file-name "rss_feeds.org" aero/roam-path))
+  (defconst aero/thornlog-elfeed-org-file (expand-file-name "rss_feeds.org" aero/roam-path))
 #+END_SRC
 
 * Builtin requires
 #+BEGIN_SRC emacs-lisp
   (require 'cl-lib)
   (require 'subr-x)
+#+END_SRC
 
-  ;; mostly used by Org
+These are mostly used by Org, not sure if they're still needed.
+
+#+BEGIN_SRC emacs-lisp
   (require 'outline)
   (require 'notifications)
 #+END_SRC
 
 * Library functions
+TODO convert to package macro
+
 #+BEGIN_SRC emacs-lisp
   (require 'aero-pbcopier
            (expand-file-name
             "lib/localpackages/aero-pbcopier.el"
             user-emacs-directory))
 #+END_SRC
+
+Some general helpers, not used much
 
 #+BEGIN_SRC emacs-lisp
   (defun rand-nth (coll)
