@@ -2,7 +2,7 @@
 #+author: Jade Michael Thornton <thornjad>
 #+OPTIONS: num:nil
 #+STARTUP: showeverything
-#+PROPERTY: header-args:emacs-lisp+   :tangle yes :results silent :exports code :eval never-export
+#+PROPERTY: header-args:emacs-lisp+ :tangle yes :results silent :exports code :eval never-export
 #+FILETAGS: :emacs:
 #+LINK: emacsconfig https://github.com/thornjad/emacs
 
