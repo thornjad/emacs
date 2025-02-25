@@ -67,15 +67,6 @@ Like the Borg, my config amalgamates macros, functions, bindings and packages mo
 - [[https://github.com/purcell/emacs.d][Steve Purcell]]
 - [[https://github.com/sam217pa/emacs-config][Samuel Barreto]]
 
-** TODO
-TODO: automatic TOC
-TODO: split up by package
-TODO: explanation of how this all works right here
-TODO: replace readme with this
-TODO: reference sacha's config
-TODO: startup collapsed
-TODO: remove old files (give it a little time to check for missed stuff)
-
 ** Copyright Notice
 Copyright (c) 2016-2025 Jade Michael Thornton
 
