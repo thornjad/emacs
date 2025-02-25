@@ -1187,7 +1187,7 @@ And a helper that lets us check the MELPA recipe for a package, which is useful 
 I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution.
 
 ** Treesitter initialization
-To ensure we can use this easily later, require treesitter as long as it's available and wanted
+To ensure we can use this easily later, require treesitter as long as it's available and wanted. See [[*Treesitter][Treesitter]] section for the full config.
 
 #+BEGIN_SRC emacs-lisp
   (and (and aero/use-treesit-p
@@ -1745,45 +1745,66 @@ Allows % to jump matching tags
 #+END_SRC
 
 ** Treesitter
+*** Treesit-auto
+Automatically installs treesitter grammars when they're missing, because for some reason Emacs doesn't do this already.
+
 #+BEGIN_SRC emacs-lisp
-  ;; Automatically install treesitter grammars when missing
   (package! treesit-auto "renzmann/treesit-auto"
     :when (treesitterp)
     :custom
     (treesit-auto-install 'prompt)
 
     :config
-    ;; Add all ts modes to auto-mode as long as they are treesit-ready-p
-    (treesit-auto-add-to-auto-mode-alist)
+#+END_SRC
 
-    ;; Python is not playing nicely, so we'll pin it to a working version
-    (defvar aero/python-treesit-auto-recipe
-      (make-treesit-auto-recipe
-       :lang 'python
-       :ts-mode 'python-ts-mode
-       :remap 'python-mode
-       :url "https://github.com/tree-sitter/tree-sitter-python"
-       :ext "\\.py[iw]?\\'"
-       :revision "v0.21.0")
-      "Recipe for libtree-sitter-python.dylib")
-    (add-to-list 'treesit-auto-recipe-list aero/python-treesit-auto-recipe)
+Add all treesitter modes to auto-mode-alist as long as they're =treesit-ready-p=.
 
-    (global-treesit-auto-mode +1))
+I previously had this set to ='all= but this started installing some grammars which are in-progress and thus error when you try to use them.
 
-  ;; Provide selection of functions
+#+BEGIN_SRC emacs-lisp
+  (treesit-auto-add-to-auto-mode-alist)
+#+END_SRC
+
+Python does not play nice with treesitter, as of 2024, so we pin to a working version.
+
+#+BEGIN_SRC emacs-lisp
+  (defvar aero/python-treesit-auto-recipe
+    (make-treesit-auto-recipe
+     :lang 'python
+     :ts-mode 'python-ts-mode
+     :remap 'python-mode
+     :url "https://github.com/tree-sitter/tree-sitter-python"
+     :ext "\\.py[iw]?\\'"
+     :revision "v0.21.0")
+    "Recipe for libtree-sitter-python.dylib")
+  (add-to-list 'treesit-auto-recipe-list aero/python-treesit-auto-recipe)
+#+END_SRC
+
+Enable treesit-auto mode
+
+#+BEGIN_SRC emacs-lisp
+  (global-treesit-auto-mode +1))
+#+END_SRC
+
+*** Evil textobj with treesitter
+Allows selecting functions via Evil in treesitter major modes.
+
+This defines =vaf= and =vif= to select the outer and inner (respectively) functions.
+
+#+BEGIN_SRC emacs-lisp
   (package! evil-textobj-tree-sitter
     (:repo "meain/evil-textobj-tree-sitter" :files (:defaults "queries" "treesit-queries"))
     :when (treesitterp)
     :after (evil)
     :config
-    ;; vaf, select function outer
-    (define-key evil-outer-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
-    ;; vif, select inner funciton
-    (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner")))
+    (define-key evil-outer-text-objects-map
+      "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
+    (define-key evil-inner-text-objects-map
+      "f" (evil-textobj-tree-sitter-get-textobj "function.inner")))
 #+END_SRC
 
 ** Completion and navigation
-
+*** Vertico
 #+BEGIN_SRC emacs-lisp
   (package! vertico "minad/vertico"
     :init (vertico-mode)
