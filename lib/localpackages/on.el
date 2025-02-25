@@ -1,20 +1,12 @@
 ;;; on.el --- Hooks for faster startup -*- lexical-binding: t; -*-
 ;;
+;; Copyright (C) 2024-2025 Jade Michael Thornton
 ;; Copyright (C) 2022 Alex Griffin
-;;
-;; Author: Alex Griffin <a@ajgrf.com>
-;; Maintainer: Alex Griffin <a@ajgrf.com>
-;; Version: 0.1.0
-;; Keywords: convenience
-;; Homepage: https://github.com/ajgrf/on.el
-;; Package-Requires: ((emacs "27.1"))
+;; Copyright (c) 2014-2022 Henrik Lissner.
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
 ;; The MIT License (MIT)
-;;
-;; Copyright (c) 2014-2022 Henrik Lissner.
-;; Copyright (c) 2022 Alex Griffin
 ;;
 ;; Permission is hereby granted, free of charge, to any person obtaining
 ;; a copy of this software and associated documentation files (the
