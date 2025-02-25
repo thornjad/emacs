@@ -2173,22 +2173,36 @@ We begin with some high-level bindings, including overriding the questionable de
 #+END_SRC
 
 * UI
+** Aero modeline
+My custom modeline, stored under lib/.
+
+Note that we hook into eshell-mode in =:config= because it's probably not defined yet during =:hook= evaluation, and I can't be bothered to figure out the sequencing.
+
 #+BEGIN_SRC emacs-lisp
   (package! aero-modeline :localpackage
     :config
     (aero/modeline-global-mode +1)
-    ;; Not using :hook since it's not defined yet for some reason
     (add-hook 'eshell-mode-hook 'aero/modeline-hide-mode))
+#+END_SRC
 
+** Theme (Aero theme)
+My custom theme, stored as a submodule. Also sets the font.
+
+Sets the font-height to 140 only for Mac, it seems to scale normally by default in Linux.
+
+#+BEGIN_SRC emacs-lisp
   (package! aero-theme :local :load-path "lib/aero-theme"
     :init
     (when (system-is-mac)
-      ;; Default is fine in Linux
       (setq aero-theme-font-height 140))
     :config
     (setq aero-theme-font "JetBrains Mono")
     (load-theme 'aero t))
+#+END_SRC
 
+** Default frame setup
+
+#+BEGIN_SRC emacs-lisp
   (setq default-frame-alist
         ;; width assumes we want a buffer to be 106 columns wide
         (append (list '(width  . 212) '(height . 62)
