@@ -1322,7 +1322,17 @@ We begin with some high-level bindings, including overriding the questionable de
     (kbd "C-TAB") 'insert-tab
     (kbd "M-TAB") 'aero/alternate-buffer
     (kbd "C-RET") 'aero/browse-url-open)
+#+END_SRC
 
+Ensure keyboard quit does what we want
+
+#+BEGIN_SRC emacs-lisp
+  (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
+#+END_SRC
+
+Now a few bindings which apply only to Normal mode, rather than insert and motion as most bindings do.
+
+#+BEGIN_SRC emacs-lisp
   (general-define-key
    :states 'normal
    :prefix "SPC"
@@ -1331,18 +1341,22 @@ We begin with some high-level bindings, including overriding the questionable de
    "w-" '(evil-window-split :wk "split horizontal")
    "w2" 'aero/layout-two-columns
    "w3" 'aero/layout-three-columns
-   "cm" 'evil-make
-   )
+   "cm" 'evil-make)
+#+END_SRC
 
-  (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
+Set up the mode-specific leader.
 
-  ;; mode-specific overrides
+#+BEGIN_SRC emacs-lisp
   (general-define-key
    :states '(normal insert motion)
    :keymaps 'override
    :prefix ","
    "" nil)
+#+END_SRC
 
+Now the main show.
+
+#+BEGIN_SRC emacs-lisp
   (general-define-key
    :states '(normal insert motion)
    :keymaps 'override
