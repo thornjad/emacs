@@ -3899,7 +3899,8 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
     (sp-local-pair 'org-mode "/" "/" :trigger-wrap "/" )
     (sp-local-pair 'markdown-mode "```" "```" :post-handlers '(:add ("||\n[i]" "RET")))
 
-    (sp-pair "<" ">")
+    ;; Breaks in org mode (this file even)
+    ;; (sp-pair "<" ">")
 
     ;; For these pairs, when hitting RET inside them, we add an extra newline to the middle and indent
     ;; accordingly.
