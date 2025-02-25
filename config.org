@@ -1532,7 +1532,15 @@ Now the main show.
    "w}" 'enlarge-window
 
    "z" 'repeat))
+#+END_SRC
 
+*** Casual
+
+Casual provides a magit-like interface to some functionality.
+
+TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
+
+#+BEGIN_SRC emacs-lisp
   (package! casual "kickingvegas/casual"
     :after (dired)
     :defines (casual-editkit-main-tmenu
