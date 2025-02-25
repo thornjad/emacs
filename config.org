@@ -81,15 +81,17 @@ indirect, or consequential damages or any damages whatsoever resulting from
 loss of use, data or profits, whether in an action of contract, negligence or
 other tortious action, arising out of or in connection with the use or
 performance of this software.
+
 * How this file is loaded
 Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= converts (tangles) all the source block in this file into a =config.el= file, which is then actually executed to configure Emacs.
 
 This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
 
 * Directory constants
-These define some locations that we can referece later
+These define some locations that we can reference later
 
 #+BEGIN_SRC emacs-lisp
+  (defconst aero-lib-dir (expand-file-name "lib/" user-emacs-directory))
   (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
   (defconst aero-snippets-dir (expand-file-name "snippets/" user-emacs-directory))
   (defconst aero-cache-dir (expand-file-name "cache/" aero-etc-dir))
@@ -122,15 +124,22 @@ These are mostly used by Org, not sure if they're still needed.
   (require 'notifications)
 #+END_SRC
 
-* Library functions
-TODO convert to package macro
+* Non-builtin requires
+Provides some easy hooking, we want to have it available early.
+
+#+BEGIN_SRC emacs-lisp
+  (require 'on
+           (expand-file-name "lib/localpackages/on.el" user-emacs-directory))
+#+END_SRC
+
+Provides system clipboard integration
 
 #+BEGIN_SRC emacs-lisp
   (require 'aero-pbcopier
-           (expand-file-name
-            "lib/localpackages/aero-pbcopier.el"
-            user-emacs-directory))
+           (expand-file-name "lib/localpackages/aero-pbcopier.el" user-emacs-directory))
 #+END_SRC
+
+* Define Library functions
 
 Some general helpers, not used much
 
@@ -1013,6 +1022,15 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 #+END_SRC
 
 * Packaging setup
+** GnuTLS
+Evaluate =gnutls= and disallow TLS connections
+
+#+BEGIN_SRC emacs-lisp
+  (with-eval-after-load 'gnutls
+    (eval-when-compile (require 'gnutls))
+    (setq gnutls-verify-error t)) ; Do not allow insecure TLS connections.
+#+END_SRC
+
 ** Straight.el
 We want to use the =develop= branch of =straight.el=, I don't remember why but this fixed a problem once and I never went back.
 
@@ -1077,7 +1095,7 @@ If we're byte-compiling something, only expand minimally
 If we're using =--debug-init=, make package loading verbose.
 
 #+BEGIN_SRC emacs-lisp
-(setq use-package-verbose init-file-debug)
+  (setq use-package-verbose init-file-debug)
 #+END_SRC
 
 ** Custom package macro
@@ -1167,6 +1185,16 @@ And a helper that lets us check the MELPA recipe for a package, which is useful 
 #+END_SRC
 * Core setup (prelude)
 I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution.
+
+** Treesitter initialization
+To ensure we can use this easily later, require treesitter as long as it's available and wanted
+
+#+BEGIN_SRC emacs-lisp
+  (and (and aero/use-treesit-p
+            (functionp 'module-load)
+            (bound-and-true-p module-file-suffix))
+       (require 'treesit nil t))
+#+END_SRC
 
 ** Compile angel
 Set up automatic compilation for everything past this point
@@ -4884,6 +4912,26 @@ This is loaded toward the end so that it overrides other packages. This solves s
 
   ;; always always always wrap lines
   (global-visual-line-mode +1)
+#+END_SRC
+
+Log warnings but don't pop them up.
+
+#+BEGIN_SRC emacs-lisp
+  (setq warning-minimum-level :error)
+#+END_SRC
+
+** Disable custom system
+I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will add the customization line to =/dev/null= instead of =init.el=.
+
+#+BEGIN_SRC emacs-lisp
+  (setq-default custom-file "/dev/null")
+#+END_SRC
+
+* Idle garbage collection
+Do garbage collection when I'm not actively doing anything for seven seconds.
+
+#+BEGIN_SRC emacs-lisp
+  (run-with-idle-timer 7 t 'garbage-collect)
 #+END_SRC
 
 * Load local file
