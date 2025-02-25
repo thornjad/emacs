@@ -1290,247 +1290,247 @@ The vast majority of keybindings are set up with General. A lot of this could be
 Most bindings will fall under the =SPC= leader key, so we generate a macro called =aero-leader-def= to make it easier for other packages to add their own bindings under this leader.
 
 #+BEGIN_SRC emacs-lisp
-    (general-create-definer aero-leader-def
-      :states '(normal visual emacs motion)
-      :prefix "SPC"
-      :non-normal-prefix "C-SPC")
+  (general-create-definer aero-leader-def
+    :states '(normal visual emacs motion)
+    :prefix "SPC"
+    :non-normal-prefix "C-SPC")
 #+END_SRC
 
 For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding =aero-mode-leader-def= to suit.
 
 #+BEGIN_SRC emacs-lisp
-    (general-create-definer aero-mode-leader-def
-      :states '(normal visual emacs motion)
-      :prefix "SPC ,")
+  (general-create-definer aero-mode-leader-def
+    :states '(normal visual emacs motion)
+    :prefix "SPC ,")
 
-    :config
-    (general-define-key
-     :states '(normal visual motion)
-     :keymaps 'override
-     :prefix "SPC"
-     :non-normal-prefix "C-SPC"
-     "" nil)
+  :config
+  (general-define-key
+   :states '(normal visual motion)
+   :keymaps 'override
+   :prefix "SPC"
+   :non-normal-prefix "C-SPC"
+   "" nil)
 #+END_SRC
 
 **** Main keybinding configuration
 We begin with some high-level bindings, including overriding the questionable default choice of =^?= being the help system.
 
 #+BEGIN_SRC emacs-lisp
-      (general-def
-        (kbd "C-h") 'delete-backward-char
-        (kbd "C-w") 'aero/smarter-backward-kill-word
-        (kbd "C-TAB") 'insert-tab
-        (kbd "M-TAB") 'aero/alternate-buffer
-        (kbd "C-RET") 'aero/browse-url-open)
+  (general-def
+    (kbd "C-h") 'delete-backward-char
+    (kbd "C-w") 'aero/smarter-backward-kill-word
+    (kbd "C-TAB") 'insert-tab
+    (kbd "M-TAB") 'aero/alternate-buffer
+    (kbd "C-RET") 'aero/browse-url-open)
 
-      (general-define-key
-       :states 'normal
-       :prefix "SPC"
-       "fW" 'evil-write-all
-       "w/" '(evil-window-vsplit :wk "split vertical")
-       "w-" '(evil-window-split :wk "split horizontal")
-       "w2" 'aero/layout-two-columns
-       "w3" 'aero/layout-three-columns
-       "cm" 'evil-make
-       )
+  (general-define-key
+   :states 'normal
+   :prefix "SPC"
+   "fW" 'evil-write-all
+   "w/" '(evil-window-vsplit :wk "split vertical")
+   "w-" '(evil-window-split :wk "split horizontal")
+   "w2" 'aero/layout-two-columns
+   "w3" 'aero/layout-three-columns
+   "cm" 'evil-make
+   )
 
-      (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
+  (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
 
-      ;; mode-specific overrides
-      (general-define-key
-       :states '(normal insert motion)
-       :keymaps 'override
-       :prefix ","
-       "" nil)
+  ;; mode-specific overrides
+  (general-define-key
+   :states '(normal insert motion)
+   :keymaps 'override
+   :prefix ","
+   "" nil)
 
-      (general-define-key
-       :states '(normal insert motion)
-       :keymaps 'override
-       :prefix "SPC"
-       :non-normal-prefix "C-SPC"
-       "" nil
+  (general-define-key
+   :states '(normal insert motion)
+   :keymaps 'override
+   :prefix "SPC"
+   :non-normal-prefix "C-SPC"
+   "" nil
 
-       ;; independent keys
-       "SPC" 'execute-extended-command
-       "TAB" '(aero/alternate-buffer :wk "alternate buffer")
-       (kbd "ESC") 'keyboard-quit
-       (kbd "C-g") 'keyboard-quit
-       (kbd "<pause>") 'keyboard-quit
-       "'" 'eshell
-       "\"" '(aero/eshell-new :wk "eshell-new")
-       ":" 'eval-expression
-       ";" 'aero/comment-dwim
-       "!" 'shell-command
-       "=" 'quick-calc
+   ;; independent keys
+   "SPC" 'execute-extended-command
+   "TAB" '(aero/alternate-buffer :wk "alternate buffer")
+   (kbd "ESC") 'keyboard-quit
+   (kbd "C-g") 'keyboard-quit
+   (kbd "<pause>") 'keyboard-quit
+   "'" 'eshell
+   "\"" '(aero/eshell-new :wk "eshell-new")
+   ":" 'eval-expression
+   ";" 'aero/comment-dwim
+   "!" 'shell-command
+   "=" 'quick-calc
 
-       "," '(:ignore t :wk "mode") ; reserved for mode-specific
+   "," '(:ignore t :wk "mode") ; reserved for mode-specific
 
-       "e" '(:ignore t :wk "errors")
-       "ed" 'toggle-debug-on-error
-       "eq" 'toggle-debug-on-quit
+   "e" '(:ignore t :wk "errors")
+   "ed" 'toggle-debug-on-error
+   "eq" 'toggle-debug-on-quit
 
-       "T TAB" 'tab-recent
-       "T" '(:ignore t :wk "tab")
-       "Tn" 'tab-next
-       "Tp" 'tab-previous
-       "Tk" 'tab-close
-       "T," 'tab-rename
-       "Tc" '(tab-new :wk "create tab")
-       "Tb" 'switch-to-buffer-other-tab
-       "Tf" 'find-file-other-tab
-       "Ts" '(tab-duplicate :wk "tab duplicate split")
-       "Tu" 'tab-undo
+   "T TAB" 'tab-recent
+   "T" '(:ignore t :wk "tab")
+   "Tn" 'tab-next
+   "Tp" 'tab-previous
+   "Tk" 'tab-close
+   "T," 'tab-rename
+   "Tc" '(tab-new :wk "create tab")
+   "Tb" 'switch-to-buffer-other-tab
+   "Tf" 'find-file-other-tab
+   "Ts" '(tab-duplicate :wk "tab duplicate split")
+   "Tu" 'tab-undo
 
-       "U" 'universal-argument
+   "U" 'universal-argument
 
-       "a" '(:ignore t :wk "applications")
-       "ai" '(:ignore t :wk "AI functions")
+   "a" '(:ignore t :wk "applications")
+   "ai" '(:ignore t :wk "AI functions")
 
-       "b" '(:ignore t :wk "buffers")
-       "bs" 'switch-to-scratch-buffer
-       "bS" 'switch-to-new-scratch-buffer
-       "bd" 'kill-current-buffer
-       "bi" 'indent-buffer
-       "bl" 'ibuffer
-       "bm" 'switch-to-messages-buffer
-       "bn" 'next-buffer
-       "bp" 'previous-buffer
-       "br" '(aero/reopen-file-at-buffer :wk "buffer replace")
-       "bR" '(revert-buffer-quick :wk "buffer revert")
-       "bw" '(whitespace-mode :wk "whitespace")
-       "bx" 'kill-buffer-and-window
+   "b" '(:ignore t :wk "buffers")
+   "bs" 'switch-to-scratch-buffer
+   "bS" 'switch-to-new-scratch-buffer
+   "bd" 'kill-current-buffer
+   "bi" 'indent-buffer
+   "bl" 'ibuffer
+   "bm" 'switch-to-messages-buffer
+   "bn" 'next-buffer
+   "bp" 'previous-buffer
+   "br" '(aero/reopen-file-at-buffer :wk "buffer replace")
+   "bR" '(revert-buffer-quick :wk "buffer revert")
+   "bw" '(whitespace-mode :wk "whitespace")
+   "bx" 'kill-buffer-and-window
 
-       "n" '(:ignore t :wk "narrow")
-       "nn" 'narrow-to-region
-       "np" 'narrow-to-page
-       "nw" 'widen
-       "nd" 'narrow-to-defun
+   "n" '(:ignore t :wk "narrow")
+   "nn" 'narrow-to-region
+   "np" 'narrow-to-page
+   "nw" 'widen
+   "nd" 'narrow-to-defun
 
-       "c" '(:ignore t :wk "compile")
-       "ct" 'aero/tail-compilation-buffer
-       "ci" '(ielm :wk "ielm repl")
-       "cc" 'compile
-       "ce" '(:ignore t :wk "elisp")
-       "ceb" 'eval-buffer
-       "ced" 'eval-defun
-       "cer" 'eval-region
-       "ck" 'kill-compilation
-       "cr" 'recompile
+   "c" '(:ignore t :wk "compile")
+   "ct" 'aero/tail-compilation-buffer
+   "ci" '(ielm :wk "ielm repl")
+   "cc" 'compile
+   "ce" '(:ignore t :wk "elisp")
+   "ceb" 'eval-buffer
+   "ced" 'eval-defun
+   "cer" 'eval-region
+   "ck" 'kill-compilation
+   "cr" 'recompile
 
-       "f" '(:ignore t :wk "files")
-       "ff" 'find-file
-       "fc" 'aero/copy-file-relative-to-project
-       "fD" '(aero/delete-this-file :wk "delete this file")
-       "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
-       "fo" '(:ignore t :wk "open special files")
-       "fot" '(:ignore t :wk "thornlog")
-       "fota" 'aero/open-agenda-file
-       "fott" '(aero/thornlog-todo :wk "thornlog todo")
-       "fotl" '(aero/thornlog-log :wk "thornlog log")
-       "fotd" '(aero/thornlog-dir :wk "thornlog all")
-       "fw" '(save-buffer :wk "write buffer")
-       "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
+   "f" '(:ignore t :wk "files")
+   "ff" 'find-file
+   "fc" 'aero/copy-file-relative-to-project
+   "fD" '(aero/delete-this-file :wk "delete this file")
+   "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
+   "fo" '(:ignore t :wk "open special files")
+   "fot" '(:ignore t :wk "thornlog")
+   "fota" 'aero/open-agenda-file
+   "fott" '(aero/thornlog-todo :wk "thornlog todo")
+   "fotl" '(aero/thornlog-log :wk "thornlog log")
+   "fotd" '(aero/thornlog-dir :wk "thornlog all")
+   "fw" '(save-buffer :wk "write buffer")
+   "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
 
-       "g" '(:ignore t :wk "git")
-       "gf" '(:ignore t :wk "files")
+   "g" '(:ignore t :wk "git")
+   "gf" '(:ignore t :wk "files")
 
-       "h" '(:ignore t :wk "help/manual")
-       "hI" 'info-apropos
-       "hM" 'woman
-       "hd" '(:ignore t :wk "describe")
-       "hdF" 'describe-face
-       "hdb" 'describe-bindings
-       "hdM" 'describe-mode
-       "hdK" 'describe-keymap
-       "hdC" 'describe-char
-       "hdp" 'describe-package
-       "hdi" '(emacs-index-search :wk "search emacs manual")
-       "hdl" '(find-library :wk "describe library")
-       "hi" 'info
-       "hm" 'man
-       "hw" '(:ignore t :wk "which-key")
-       "hwm" '(which-key-show-major-mode :wk "major mode map")
+   "h" '(:ignore t :wk "help/manual")
+   "hI" 'info-apropos
+   "hM" 'woman
+   "hd" '(:ignore t :wk "describe")
+   "hdF" 'describe-face
+   "hdb" 'describe-bindings
+   "hdM" 'describe-mode
+   "hdK" 'describe-keymap
+   "hdC" 'describe-char
+   "hdp" 'describe-package
+   "hdi" '(emacs-index-search :wk "search emacs manual")
+   "hdl" '(find-library :wk "describe library")
+   "hi" 'info
+   "hm" 'man
+   "hw" '(:ignore t :wk "which-key")
+   "hwm" '(which-key-show-major-mode :wk "major mode map")
 
-       "j" '(:ignore t :wk "jump")
-       "l" '(:ignore t :wk "lsp")
+   "j" '(:ignore t :wk "jump")
+   "l" '(:ignore t :wk "lsp")
 
-       "m" '(:ignore t :wk "mode")
-       "m" '(tmm-menubar :wk "Context menu")
+   "m" '(:ignore t :wk "mode")
+   "m" '(tmm-menubar :wk "Context menu")
 
-       "o" '(:ignore t :wk "org / outline")
-       "oh" '(outline-hide-body :wk "hide all")
-       "oS" '(outline-show-all :wk "show all")
+   "o" '(:ignore t :wk "org / outline")
+   "oh" '(outline-hide-body :wk "hide all")
+   "oS" '(outline-show-all :wk "show all")
 
-       "p" '(:ignore t :wk "project")
-       "pr" '(xref-find-definitions :wk "find ref")
-       "ps" '(:ignore t :wk "spelling")
+   "p" '(:ignore t :wk "project")
+   "pr" '(xref-find-definitions :wk "find ref")
+   "ps" '(:ignore t :wk "spelling")
 
-       "r" '(:ignore t :wk "xref")
-       "rf" 'xref-find-definitions
-       "rF" 'xref-find-definitions-other-window
-       "rp" 'xref-go-back
-       "rn" 'xref-go-forward
-       "ra" 'xref-find-apropos
-       "rr" 'xref-find-references
+   "r" '(:ignore t :wk "xref")
+   "rf" 'xref-find-definitions
+   "rF" 'xref-find-definitions-other-window
+   "rp" 'xref-go-back
+   "rn" 'xref-go-forward
+   "ra" 'xref-find-apropos
+   "rr" 'xref-find-references
 
-       "q" '(:ignore t :wk "quoted insert")
-       "ql" 'insert-lambda
-       "qq" 'quoted-insert
-       "qp" 'aero/insert-pdb
-       "qu" 'insert-char
+   "q" '(:ignore t :wk "quoted insert")
+   "ql" 'insert-lambda
+   "qq" 'quoted-insert
+   "qp" 'aero/insert-pdb
+   "qu" 'insert-char
 
-       "s" '(:ignore t :wk "sexp")
+   "s" '(:ignore t :wk "sexp")
 
-       "t" '(:ignore t :wk "tabs/text")
-       "td" 'dictionary-lookup-definition
-       "tD" 'downcase-dwim
-       "tU" 'upcase-dwim
-       "tf" 'fill-paragraph
-       "tF" 'aero/fill-to-80
-       "tn" '(:ignore t :wk "number")
-       "tnd" 'decrement-number-at-point
-       "tni" 'increment-number-at-point
-       "ts" 'sort-lines
+   "t" '(:ignore t :wk "tabs/text")
+   "td" 'dictionary-lookup-definition
+   "tD" 'downcase-dwim
+   "tU" 'upcase-dwim
+   "tf" 'fill-paragraph
+   "tF" 'aero/fill-to-80
+   "tn" '(:ignore t :wk "number")
+   "tnd" 'decrement-number-at-point
+   "tni" 'increment-number-at-point
+   "ts" 'sort-lines
 
-       "u" 'undo-tree-visualize
+   "u" 'undo-tree-visualize
 
-       "w" '(:ignore t :wk "window/web")
-       "w=" 'balance-windows
-       "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
-       "ws" '(eww-search-words :which-key "web search")
-       "ww" 'eww
-       "wb" '(:ignore t :wk "browse")
-       "wbb" 'eww-list-buffers
-       "wbh" 'eww-list-histories
-       "wbm" 'eww-list-bookmarks
-       "wbp" 'browse-url-at-point
-       "wp" 'browse-url-at-point
-       "wc" 'aero/toggle-compilation-buffer
-       "wd" 'delete-window
-       "wh" 'windmove-left
-       "wi" 'minimize-window
-       "wj" 'windmove-down
-       "wk" 'windmove-up
-       "wl" 'windmove-right
-       "wm" 'maximize-window
-       "wo" 'aero/browse-url-open
-       "w{" 'shrink-window
-       "w}" 'enlarge-window
+   "w" '(:ignore t :wk "window/web")
+   "w=" 'balance-windows
+   "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
+   "ws" '(eww-search-words :which-key "web search")
+   "ww" 'eww
+   "wb" '(:ignore t :wk "browse")
+   "wbb" 'eww-list-buffers
+   "wbh" 'eww-list-histories
+   "wbm" 'eww-list-bookmarks
+   "wbp" 'browse-url-at-point
+   "wp" 'browse-url-at-point
+   "wc" 'aero/toggle-compilation-buffer
+   "wd" 'delete-window
+   "wh" 'windmove-left
+   "wi" 'minimize-window
+   "wj" 'windmove-down
+   "wk" 'windmove-up
+   "wl" 'windmove-right
+   "wm" 'maximize-window
+   "wo" 'aero/browse-url-open
+   "w{" 'shrink-window
+   "w}" 'enlarge-window
 
-       "z" 'repeat))
+   "z" 'repeat))
 
-    (package! casual "kickingvegas/casual"
-      :after (dired)
-      :defines (casual-editkit-main-tmenu
-                casual-dired-tmenu
-                casual-dired-sort-by-tmenu
-                casual-dired-search-replace-tmenu)
-      :bind (("C-o" . #'casual-editkit-main-tmenu)
+  (package! casual "kickingvegas/casual"
+    :after (dired)
+    :defines (casual-editkit-main-tmenu
+              casual-dired-tmenu
+              casual-dired-sort-by-tmenu
+              casual-dired-search-replace-tmenu)
+    :bind (("C-o" . #'casual-editkit-main-tmenu)
 
-             :map dired-mode-map
-             ("C-o" . #'casual-dired-tmenu)
-             ("s" . #'casual-dired-sort-by-tmenu)
-             ("/" . #'casual-dired-search-replace-tmenu)))
+           :map dired-mode-map
+           ("C-o" . #'casual-dired-tmenu)
+           ("s" . #'casual-dired-sort-by-tmenu)
+           ("/" . #'casual-dired-search-replace-tmenu)))
 #+END_SRC
 
 ** Evil
