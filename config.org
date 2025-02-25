@@ -1556,6 +1556,12 @@ TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
 #+END_SRC
 
 ** Evil
+#+begin_quote
+"Emacs is a great operating system, lacking only a decent editor." — ancient Vi proverb
+#+end_quote
+
+I'm going to say it, Vi has a better navigation scheme than default Emacs. Even with a thumb-cluster keyboard, I don't want to hold Ctrl basically at all. Evil provides the best of Vi with the power of Emacs, but it needs some heavy configuration to work well.
+
 #+BEGIN_SRC emacs-lisp
   (package! evil
     (:host github
@@ -1563,126 +1569,174 @@ TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
      :files (:defaults
   	         "doc/build/texinfo/evil.texi"
   	         (:exclude "evil-test-helpers.el")))
-    :init
-    ;; Need to be in init because of something in the way the "want" variables are used
-    (setq evil-want-keybinding nil ; handled by evil-collection
-          ;; to change undo-system without restart, use SPC-: `evil-set-undo-system'
-          evil-undo-system 'undo-tree
-          evil-want-fine-undo t
-          evil-want-C-i-jump nil
-          evil-want-C-u-scroll t
-          evil-search-module 'isearch)
+#+END_SRC
 
-    :config
+Set up some "wants" for Evil. These /must/ be in =:init= because Evil needs these set prior to setting up everything else.
 
-    ;; Free these up for other bindings, they're not useful anyway
-    (define-key evil-motion-state-map " " nil)
-    (define-key evil-motion-state-map (kbd "RET") nil)
-    (define-key evil-motion-state-map (kbd "C-o") nil)
+Note that =evil-want-keybinding= is set to =nil= because =evil-collection= will handle that for us.
 
-    ;; default states
-    (setq evil-default-state 'normal)
-    (evil-set-initial-state 'dired-mode 'emacs)
-    (evil-set-initial-state 'message-mode 'motion)
+To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system)=.
+#+BEGIN_SRC emacs-lisp
+  :init
+  (setq evil-want-keybinding nil
+        evil-undo-system 'undo-tree
+        evil-want-fine-undo t
+        evil-want-C-i-jump nil
+        evil-want-C-u-scroll t
+        evil-search-module 'isearch)
+#+END_SRC
 
-    ;; Make movement keys work like they should by remapping next to next-visual, etc.
-    (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>") 'evil-next-visual-line)
-    (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>") 'evil-previous-visual-line)
-    (define-key evil-motion-state-map (kbd "<remap> <evil-next-line>") 'evil-next-visual-line)
-    (define-key evil-motion-state-map (kbd "<remap> <evil-previous-line>") 'evil-previous-visual-line)
+Free up some non-useful bindings for other uses.
 
-    ;; Ensure horizontal movement doesn't cross to the next/previous line
-    (setq-default evil-cross-lines nil)
+#+BEGIN_SRC emacs-lisp
+  :config
+  (define-key evil-motion-state-map " " nil)
+  (define-key evil-motion-state-map (kbd "RET") nil)
+  (define-key evil-motion-state-map (kbd "C-o") nil)
 
-    ;; Undo in region
-    (define-key evil-visual-state-map (kbd "u") 'undo)
+#+END_SRC
 
-    ;; By default, these two operate on half pages, but I prefer the smaller jump
-    (defun aero/scroll-quarter-page-down ()
-      (interactive)
-      (evil-scroll-down (/ (window-body-height) 4)))
-    (defun aero/scroll-quarter-page ()
-      (interactive)
-      (evil-scroll-up (/ (window-body-height) 4)))
-    (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
-    (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
+Set up default states. It's Normal for almost everything, but Evil doesn't handle Dired very well, so we fall back on Emacs mode for that.
 
-    ;; Define vig and vag, etc. to look for all paren types
-    (defun aero/evil-paren-range (count beg end type inclusive)
-      "Get minimum range of paren text object.
-  COUNT, BEG, END, TYPE is used.  If INCLUSIVE is t, the text object is inclusive."
-      (let* ((parens '("()" "[]" "{}" "<>"))
-             range
-             found-range)
-        (dolist (p parens)
-          (condition-case nil
-              (setq range (evil-select-paren (aref p 0) (aref p 1) beg end type count inclusive))
-            (error nil))
-          (when range
-            (cond
-             (found-range
-              (when (< (- (nth 1 range) (nth 0 range))
-                       (- (nth 1 found-range) (nth 0 found-range)))
-                (setf (nth 0 found-range) (nth 0 range))
-                (setf (nth 1 found-range) (nth 1 range))))
-             (t
-              (setq found-range range)))))
-        found-range))
-    (evil-define-text-object aero/evil-a-paren (count &optional beg end type)
-      "Select a paren."
-      :extend-selection t
-      (aero/evil-paren-range count beg end type t))
-    (evil-define-text-object aero/evil-inner-paren (count &optional beg end type)
-      "Select 'inner' paren."
-      :extend-selection nil
-      (aero/evil-paren-range count beg end type nil))
-    (define-key evil-inner-text-objects-map "g" #'aero/evil-inner-paren)
-    (define-key evil-outer-text-objects-map "g" #'aero/evil-a-paren)
+#+BEGIN_SRC emacs-lisp
+  (setq evil-default-state 'normal)
+  (evil-set-initial-state 'dired-mode 'emacs)
+  (evil-set-initial-state 'message-mode 'motion)
+#+END_SRC
 
-    ;; Very useful, in visual mode, use < and > to indent/unindent the line(s)
-    (defun aero/evil-shift-right ()
-      (interactive)
-      (evil-shift-right evil-visual-beginning evil-visual-end)
-      (evil-normal-state)
-      (evil-visual-restore))
-    (defun aero/evil-shift-left ()
-      (interactive)
-      (evil-shift-left evil-visual-beginning evil-visual-end)
-      (evil-normal-state)
-      (evil-visual-restore))
-    (evil-define-key 'visual global-map (kbd ">") 'aero/evil-shift-right)
-    (evil-define-key 'visual global-map (kbd "<") 'aero/evil-shift-left)
+Make movement keys work visually, just like other kinds of movement, by remapping.
 
-    ;; :q should kill the current buffer rather than quitting Emacs entirely
-    (evil-ex-define-cmd "q" 'kill-current-buffer)
+#+BEGIN_SRC emacs-lisp
+  (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>")
+    'evil-next-visual-line)
+  (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>")
+    'evil-previous-visual-line)
+  (define-key evil-motion-state-map (kbd "<remap> <evil-next-line>")
+    'evil-next-visual-line)
+  (define-key evil-motion-state-map (kbd "<remap> <evil-previous-line>")
+    'evil-previous-visual-line)
 
-    ;; Unless I'm mistaken, there's no Evil backward equivalent to "e", so we'll invent it.
-    (evil-define-key '(normal visual motion) global-map
-      (kbd "C-e") #'evil-backward-word-end)
-    (evil-define-key '(normal visual motion) global-map
-      (kbd "C-M-e") #'evil-backward-WORD-end)
+#+END_SRC
 
-    ;; Useful for pasting into the minibuffer where Evil modes usually don't properly function
-    (evil-define-key '(insert) global-map (kbd "C-y") #'evil-paste-after)
-    (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
+Ensure horizontal movement doesn't cross to the next/previous line
 
-    ;; Run macro in register q
-    (evil-define-key 'normal 'global "Q" "@q")
-    (evil-define-key 'visual 'global
-      ;; run macro in register q on region
-      "Q" (kbd ":norm @q RET")
-      ;; repeat on region
-      "." (kbd ":norm . RET"))
+#+BEGIN_SRC emacs-lisp
+  (setq-default evil-cross-lines nil)
+#+END_SRC
 
-    ;; activate
-    (evil-mode +1))
+Undo in region
 
-  ;; Provides defaults for many modes which evil proper overlooks
+#+BEGIN_SRC emacs-lisp
+  (define-key evil-visual-state-map (kbd "u") 'undo)
+#+END_SRC
+
+
+By default, these two operate on half pages, but I prefer the smaller jump
+
+#+BEGIN_SRC emacs-lisp
+  (defun aero/scroll-quarter-page-down ()
+    (interactive)
+    (evil-scroll-down (/ (window-body-height) 4)))
+  (defun aero/scroll-quarter-page ()
+    (interactive)
+    (evil-scroll-up (/ (window-body-height) 4)))
+  (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
+  (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
+
+#+END_SRC
+
+Define =vig= and =vag= to look for all paren types
+
+#+BEGIN_SRC emacs-lisp
+  (defun aero/evil-paren-range (count beg end type inclusive)
+    "Get minimum range of paren text object.
+    COUNT, BEG, END, TYPE is used.  If INCLUSIVE is t, the text object is inclusive."
+    (let* ((parens '("()" "[]" "{}" "<>"))
+           range
+           found-range)
+      (dolist (p parens)
+        (condition-case nil
+            (setq range (evil-select-paren (aref p 0) (aref p 1) beg end type count inclusive))
+          (error nil))
+        (when range
+          (cond
+           (found-range
+            (when (< (- (nth 1 range) (nth 0 range))
+                     (- (nth 1 found-range) (nth 0 found-range)))
+              (setf (nth 0 found-range) (nth 0 range))
+              (setf (nth 1 found-range) (nth 1 range))))
+           (t
+            (setq found-range range)))))
+      found-range))
+  (evil-define-text-object aero/evil-a-paren (count &optional beg end type)
+    "Select a paren."
+    :extend-selection t
+    (aero/evil-paren-range count beg end type t))
+  (evil-define-text-object aero/evil-inner-paren (count &optional beg end type)
+    "Select 'inner' paren."
+    :extend-selection nil
+    (aero/evil-paren-range count beg end type nil))
+  (define-key evil-inner-text-objects-map "g" #'aero/evil-inner-paren)
+  (define-key evil-outer-text-objects-map "g" #'aero/evil-a-paren)
+#+END_SRC
+
+Super useful, in visual mode, use =<= and =>= to indent/unindent the line(s)
+
+#+BEGIN_SRC emacs-lisp
+  (defun aero/evil-shift-right ()
+    (interactive)
+    (evil-shift-right evil-visual-beginning evil-visual-end)
+    (evil-normal-state)
+    (evil-visual-restore))
+  (defun aero/evil-shift-left ()
+    (interactive)
+    (evil-shift-left evil-visual-beginning evil-visual-end)
+    (evil-normal-state)
+    (evil-visual-restore))
+  (evil-define-key 'visual global-map (kbd ">") 'aero/evil-shift-right)
+  (evil-define-key 'visual global-map (kbd "<") 'aero/evil-shift-left)
+#+END_SRC
+
+Make =:q= kill the buffer instead of Emacs itself
+
+#+BEGIN_SRC emacs-lisp
+  (evil-ex-define-cmd "q" 'kill-current-buffer)
+#+END_SRC
+
+AFAIK there's no "backward" equivalent to "e", so we set it to backward word
+
+#+BEGIN_SRC emacs-lisp
+  (evil-define-key '(normal visual motion) global-map
+    (kbd "C-e") #'evil-backward-word-end)
+  (evil-define-key '(normal visual motion) global-map
+    (kbd "C-M-e") #'evil-backward-WORD-end)
+#+END_SRC
+
+Useful for pasting into the minibuffer, since Evil doesn't properly function there
+
+#+BEGIN_SRC emacs-lisp
+  (evil-define-key '(insert) global-map (kbd "C-y") #'evil-paste-after)
+  (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
+#+END_SRC
+
+Activate Evil
+
+#+BEGIN_SRC emacs-lisp
+  (evil-mode +1))
+#+END_SRC
+
+*** Evil collection
+Provides Evil defaults for many modes which Evil proper overlooks
+#+BEGIN_SRC emacs-lisp
   (package! evil-collection (:repo "emacs-evil/evil-collection" :files (:defaults "modes"))
     :after evil
     :config (evil-collection-init))
+#+END_SRC
 
-  ;; allows % to jump matching tags
+*** Evil-matchit
+Allows % to jump matching tags
+
+#+BEGIN_SRC emacs-lisp
   (package! evil-matchit "redguardtoo/evil-matchit"
     :defer 5
     :after evil
