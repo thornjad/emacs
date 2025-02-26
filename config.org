@@ -1816,23 +1816,23 @@ Vertico provides a completion system similar to Ivy, but it's faster and more li
 Enable wrap-around cycling.
 
 #+BEGIN_SRC emacs-lisp
-    (vertico-cycle t)
+  (vertico-cycle t)
 
-    :config
+  :config
 #+END_SRC
 
 When completing a file name, =DEL= goes up a directory, otherwise it deletes a character.
 
 #+BEGIN_SRC emacs-lisp
-    (defun aero/vertico-directory-up-maybe ()
-      "Go up a directory if completing a file name, otherwise delete char."
-      (interactive)
-      (if (and (eq (char-before) ?/)
-               (minibufferp)
-               minibuffer-completing-file-name)
-          (vertico-directory-up)
-        (delete-char -1)))
-    (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
+  (defun aero/vertico-directory-up-maybe ()
+    "Go up a directory if completing a file name, otherwise delete char."
+    (interactive)
+    (if (and (eq (char-before) ?/)
+             (minibufferp)
+             minibuffer-completing-file-name)
+        (vertico-directory-up)
+      (delete-char -1)))
+  (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
 #+END_SRC
 
 *** Marginalia
@@ -1875,93 +1875,93 @@ Super useful package, providing a variety of wrappers that provide a powerful an
 Hook consult into xref
 
 #+BEGIN_SRC emacs-lisp
-    :custom
-    (xref-show-xrefs-function #'consult-xref)
-    (xref-show-definitions-function #'consult-xref)
+  :custom
+  (xref-show-xrefs-function #'consult-xref)
+  (xref-show-definitions-function #'consult-xref)
 #+END_SRC
 
 Debounce buffer previews, improves performance with minimal downside.
 
 #+BEGIN_SRC emacs-lisp
-    (consult-preview-key '(:debounce 0.4 any))
+  (consult-preview-key '(:debounce 0.4 any))
 #+END_SRC
 
 Set up some keybindings
 
 #+BEGIN_SRC emacs-lisp
-    :init
-    (aero-leader-def
-      "/" 'consult-line
-      "bb" 'consult-buffer
-      "jo" 'consult-outline
-      "ji" 'consult-imenu
-      "je" 'consult-flymake
-      "ja" 'consult-org-agenda
-      "jh" 'consult-org-heading
-      "p/" 'consult-ripgrep
-      "Et" 'consult-theme
-      "j'" 'consult-mark)
+  :init
+  (aero-leader-def
+    "/" 'consult-line
+    "bb" 'consult-buffer
+    "jo" 'consult-outline
+    "ji" 'consult-imenu
+    "je" 'consult-flymake
+    "ja" 'consult-org-agenda
+    "jh" 'consult-org-heading
+    "p/" 'consult-ripgrep
+    "Et" 'consult-theme
+    "j'" 'consult-mark)
 
-    :config
+  :config
 #+END_SRC
 
 Support jumping to eshell prompts with consult-outline
 
 #+BEGIN_SRC emacs-lisp
-    (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
+  (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
 
 #+END_SRC
 
 Use Orderless to compile the regexp for consult-ripgrep
 
 #+BEGIN_SRC emacs-lisp
-    (defun consult--orderless-regexp-compiler (input type &rest _config)
-      (setq input (cdr (orderless-compile input)))
-      (cons
-       (mapcar (lambda (r) (consult--convert-regexp r type)) input)
-       (lambda (str) (orderless--highlight input t str))))
-    (defun consult--with-orderless (&rest args)
-      "Use Orderless to compile the regexp for consult-ripgrep."
-      (minibuffer-with-setup-hook
-          (lambda ()
-            (setq-local consult--regexp-compiler #'consult--orderless-regexp-compiler))
-        (apply args)))
-    (advice-add #'consult-ripgrep :around #'consult--with-orderless)
+  (defun consult--orderless-regexp-compiler (input type &rest _config)
+    (setq input (cdr (orderless-compile input)))
+    (cons
+     (mapcar (lambda (r) (consult--convert-regexp r type)) input)
+     (lambda (str) (orderless--highlight input t str))))
+  (defun consult--with-orderless (&rest args)
+    "Use Orderless to compile the regexp for consult-ripgrep."
+    (minibuffer-with-setup-hook
+        (lambda ()
+          (setq-local consult--regexp-compiler #'consult--orderless-regexp-compiler))
+      (apply args)))
+  (advice-add #'consult-ripgrep :around #'consult--with-orderless)
 
 #+END_SRC
 
 Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only supports the first search term when using orderless syntax.
 
 #+BEGIN_SRC emacs-lisp
-    (defun aero/consult-line-isearch-history (&rest _)
-      "Add latest `consult-line' search pattern to the isearch history."
-      (when (and (bound-and-true-p evil-mode)
-                 (eq evil-search-module 'isearch)
-                 consult--line-history)
-        (let* ((pattern (car consult--line-history))
-               (pattern (car (split-string pattern)))
-               (regexp (if (string-prefix-p "\\_" pattern)
-                           (substring pattern 2)
-                         pattern)))
-          (add-to-history 'regexp-search-ring regexp)
-          (setq evil-ex-search-direction 'forward))))
-    (advice-add #'consult-line :after #'aero/consult-line-isearch-history)
+  (defun aero/consult-line-isearch-history (&rest _)
+    "Add latest `consult-line' search pattern to the isearch history."
+    (when (and (bound-and-true-p evil-mode)
+               (eq evil-search-module 'isearch)
+               consult--line-history)
+      (let* ((pattern (car consult--line-history))
+             (pattern (car (split-string pattern)))
+             (regexp (if (string-prefix-p "\\_" pattern)
+                         (substring pattern 2)
+                       pattern)))
+        (add-to-history 'regexp-search-ring regexp)
+        (setq evil-ex-search-direction 'forward))))
+  (advice-add #'consult-line :after #'aero/consult-line-isearch-history)
 
 #+END_SRC
 
 Add a prompt indicator when multiple completions are available
 
 #+BEGIN_SRC emacs-lisp
-    (defun crm-indicator (args)
-      "Add prompt indicator to `completing-read-multiple'.
-      We display [CRM<separator>], e.g., [CRM,] if the separator is a comma."
-      (cons (format "[CRM%s] %s"
-                    (replace-regexp-in-string
-                     "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
-                     crm-separator)
-                    (car args))
-            (cdr args)))
-    (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
+  (defun crm-indicator (args)
+    "Add prompt indicator to `completing-read-multiple'.
+    We display [CRM<separator>], e.g., [CRM,] if the separator is a comma."
+    (cons (format "[CRM%s] %s"
+                  (replace-regexp-in-string
+                   "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
+                   crm-separator)
+                  (car args))
+          (cdr args)))
+  (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
 
 #+END_SRC
 
@@ -2008,32 +2008,32 @@ Recentf provides a list of recently opened files, and is honestly one of the mai
 Doesn't seem like indent activates properly for me without this intervention. Here we move it to a known cache file and set up an auto-save every 5 minutes.
 
 #+BEGIN_SRC emacs-lisp
-    :preface
-    (defun aero/recentf-save-list-quiet ()
-      "Wrapper for `recentf-save-list' with no message."
-      (let ((inhibit-message t))
-        (recentf-save-list)))
+  :preface
+  (defun aero/recentf-save-list-quiet ()
+    "Wrapper for `recentf-save-list' with no message."
+    (let ((inhibit-message t))
+      (recentf-save-list)))
 #+END_SRC
 
 Set the known cache file and the maximum number of saved items
 
 #+BEGIN_SRC emacs-lisp
-    :custom
-    (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
-    (recentf-max-saved-items 500)
+  :custom
+  (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
+  (recentf-max-saved-items 500)
 #+END_SRC
 
 Enable
 
 #+BEGIN_SRC emacs-lisp
-    :config
-    (recentf-mode 1)
+  :config
+  (recentf-mode 1)
 #+END_SRC
 
 Would be a great place for =aero/advice-no-message= but there's no need to hide messaging if recentf saves for some other reason. Here, we run it regularly so we don't care about the constant messaging.
 
 #+BEGIN_SRC emacs-lisp
-    (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
+  (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
 #+END_SRC
 
 *** All-the-icons
@@ -2110,15 +2110,15 @@ Enable timestamps and diffs in the visualizer
 Disable undo-in-region, as it's buggy and can cause you to lose your undo history if you use it by accident.
 
 #+BEGIN_SRC emacs-lisp
-    (undo-tree-enable-undo-in-region nil)
+  (undo-tree-enable-undo-in-region nil)
 #+END_SRC
 
 Enable globally. By default this doesn't enable in non-file buffers like =*scratch*=, so we do that manually.
 
 #+BEGIN_SRC emacs-lisp
-    :config
-    (global-undo-tree-mode +1)
-    (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
+  :config
+  (global-undo-tree-mode +1)
+  (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
 #+END_SRC
 
 *** Winner
@@ -2229,6 +2229,11 @@ Provides a way to undo/redo window configurations.
 #+END_SRC
 
 ** Language server
+*** Eglot
+The introduction of the language server has been a game-changer. It provides a consistent interface for code completion, linting, and refactoring across quite a few languages. I've tried LSP-mode, but it's too slow and heavy for my taste. Eglot is built-in and lightweight.
+
+Using =:hook= we ensure it's enabled for particular languages, rather than trying to enable in every buffer.
+
 #+BEGIN_SRC emacs-lisp
   (package! eglot :builtin
     :hook ((python-mode
@@ -2242,47 +2247,89 @@ Provides a way to undo/redo window configurations.
     :after (general project)
 
     :custom
-    (eglot-confirm-server-initiated-edits nil) ; don't ask to edit file immediately after I told it to
-    (eglot-autoshutdown t) ; shutdown server after killing last managed buffer
-    (eglot-events-buffer-size 0) ; disable event logging
-    (eglot-send-changes-idle-time 0.75)
-    ;; LSP highlighting is ridiculously slow, we use highlight-thing instead
-    (eglot-ignored-server-capabilities '(:documentHighlightProvider))
+#+END_SRC
 
-    :config
-    ;; Individual server configuration
-    (setq-default eglot-workspace-configuration
-                  '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-  				                            :pyls_mypy (:enabled t :live_mode :json-false)
-  				                            :pyls_black (:enabled t)
-  				                            :pyls_isort (:enabled t)))))
+Stop an infuriating default behavior that confirms editing a file immediately after explicitly initiating editing the file.
 
-    (aero-leader-def
-      "la" 'eglot-code-actions
-      "lf" '(:ignore t :wk "find")
-      "lfr" 'xref-find-references
-      "lfd" 'eglot-find-declaration
-      "lfi" 'eglot-find-implementation
-      "lft" 'eglot-find-typeDefinition
-      "lr" '(:ignore t :wk "refactor")
-      "lrr" 'eglot-rename
-      "lrf" 'eglot-format
-      "lro" 'eglot-code-action-organize-imports))
+#+BEGIN_SRC emacs-lisp
+  (eglot-confirm-server-initiated-edits nil)
+#+END_SRC
 
-  ;; Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booster must have been
-  ;; installed already (its a Rust binary), which can be done with `make install-deps' or the more
-  ;; specific `make lsp-booster'
+Shut down the server after the last managed buffer is killed.
+
+#+BEGIN_SRC emacs-lisp
+  (eglot-autoshutdown t)
+#+END_SRC
+
+Disable event logging, providing a slight performance boost with no real downside.
+
+#+BEGIN_SRC emacs-lisp
+  (eglot-events-buffer-size 0)
+#+END_SRC
+
+Tweak the idle time for sending changes to the server
+
+#+BEGIN_SRC emacs-lisp
+  (eglot-send-changes-idle-time 0.75)
+#+END_SRC
+
+Language server highlighting is ridiculously slow, I use highlight-thing instead.
+
+#+BEGIN_SRC emacs-lisp
+  (eglot-ignored-server-capabilities '(:documentHighlightProvider))
+
+  :config
+#+END_SRC
+
+Individual server configuration. Right now only Python needs special treatment, where we turn on =pyls_mypy= and =pyls_black=, and turn off =pycodestyle=.
+
+#+BEGIN_SRC emacs-lisp
+  (setq-default eglot-workspace-configuration
+                '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
+  				                          :pyls_mypy (:enabled t :live_mode :json-false)
+  				                          :pyls_black (:enabled t)
+  				                          :pyls_isort (:enabled t)))))
+#+END_SRC
+
+Keybindings for interacting with the language server.
+
+#+BEGIN_SRC emacs-lisp
+  (aero-leader-def
+    "la" 'eglot-code-actions
+    "lf" '(:ignore t :wk "find")
+    "lfr" 'xref-find-references
+    "lfd" 'eglot-find-declaration
+    "lfi" 'eglot-find-implementation
+    "lft" 'eglot-find-typeDefinition
+    "lr" '(:ignore t :wk "refactor")
+    "lrr" 'eglot-rename
+    "lrf" 'eglot-format
+    "lro" 'eglot-code-action-organize-imports))
+#+END_SRC
+
+**** Eglot-booster
+Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booster must have been installed already (its a Rust binary), which can be done with =make install-deps= or the more specific =make lsp-booster=
+
+#+BEGIN_SRC emacs-lisp
   (package! eglot-booster "jdtsmith/eglot-booster"
     :after eglot
     :config (eglot-booster-mode))
+#+END_SRC
 
-  ;; Make eglot send more info to eldoc, including parameter and function documentation
+**** Eglot-signature-eldoc-talkative
+Make eglot send more info to eldoc, including parameter and function documentation
+
+#+BEGIN_SRC emacs-lisp
   (package! eglot-signature-eldoc-talkative
     (:host codeberg :repo "mekeor/eglot-signature-eldoc-talkative" :branch "default")
     :after (eglot)
     :config (advice-add #'eglot-signature-eldoc-function :override #'eglot-signature-eldoc-talkative))
+#+END_SRC
 
-  ;; puts eldoc in a child frame instead of the echo area
+*** Eldoc-box
+Puts eldoc in a child frame instead of the echo area. It's set up so that it only shows up when you want it to, rather than clobbering the minibuffer or showing on top of other code.
+
+#+BEGIN_SRC emacs-lisp
   (package! eldoc-box "casouri/eldoc-box"
     :after general
 
@@ -2295,24 +2342,34 @@ Provides a way to undo/redo window configurations.
       (interactive)
       (let ((eldoc-echo-area-use-multiline-p t))
         (call-interactively #'eldoc-box-help-at-point)))
+#+END_SRC
 
-    ;; Fix documentation strategy to show all of the available eldoc information when we want it. This
-    ;; way Flymake errors don't just get clobbered by docstrings.
-    :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
+Fix the documentation strategy to show all of the available eldoc information when we want it. This way Flymake errors don't just get clobbered by docstrings.
 
-    :custom
-    (eldoc-idle-delay 0.5)
-    (eldoc-box-only-multi-line nil) ; leave single-line docs in minibuffer
-    (eldoc-echo-area-use-multiline-p nil) ; normally use one line unless requested
-    (eldoc-box-max-pixel-height 99999)
-    (eldoc-box-max-pixel-width 99999)
+#+BEGIN_SRC emacs-lisp
+  :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
+#+END_SRC
 
-    :init
-    (aero-leader-def "i" 'aero/eldoc-box-help-at-point)
+Set up the idle delay. We leave single-line docs in the minibuffer, but show multi-line docs in the child frame when requested. Since we always show when the user requests it, max height and width are not important.
 
-    :config
-    ;; attempt to prettify typescript errors
-    (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
+#+BEGIN_SRC emacs-lisp
+
+  :custom
+  (eldoc-idle-delay 0.5)
+  (eldoc-box-only-multi-line nil)
+  (eldoc-echo-area-use-multiline-p nil)
+  (eldoc-box-max-pixel-height 99999)
+  (eldoc-box-max-pixel-width 99999)
+
+  :init
+  (aero-leader-def "i" 'aero/eldoc-box-help-at-point)
+#+END_SRC
+
+An attempt to prettify typescript errors
+
+#+BEGIN_SRC emacs-lisp
+  :config
+  (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
 #+END_SRC
 
 ** System-specific setup
