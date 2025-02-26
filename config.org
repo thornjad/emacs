@@ -1805,12 +1805,25 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
 
 ** Completion and navigation
 *** Vertico
+Vertico provides a completion system similar to Ivy, but it's faster and more lightweight.
+
 #+BEGIN_SRC emacs-lisp
   (package! vertico "minad/vertico"
     :init (vertico-mode)
     :custom
-    (vertico-cycle t)  ; enable wrap
+#+END_SRC
+
+Enable wrap-around cycling.
+
+#+BEGIN_SRC emacs-lisp
+    (vertico-cycle t)
+
     :config
+#+END_SRC
+
+When completing a file name, =DEL= goes up a directory, otherwise it deletes a character.
+
+#+BEGIN_SRC emacs-lisp
     (defun aero/vertico-directory-up-maybe ()
       "Go up a directory if completing a file name, otherwise delete char."
       (interactive)
@@ -1820,11 +1833,20 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
           (vertico-directory-up)
         (delete-char -1)))
     (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
+#+END_SRC
 
+*** Marginalia
+Marginalia provides a more informative completion system, showing more information about the candidates.
+
+#+BEGIN_SRC emacs-lisp
   (package! marginalia "minad/marginalia"
     :init (marginalia-mode))
+#+END_SRC
 
-  ;; Orderless completion style: space-separated chunks to match in any order
+*** Orderless
+This provides a more flexible completion system where we can use spaces to separate search terms, inputting them in any order.
+
+#+BEGIN_SRC emacs-lisp
   (package! orderless "oantolin/orderless"
     :custom
     (completion-styles '(substring orderless basic))
@@ -1833,7 +1855,12 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
     (read-file-name-completion-ignore-case t)
     (read-buffer-completion-ignore-case t)
     (completion-ignore-case t))
+#+END_SRC
 
+*** Consult
+Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface.
+
+#+BEGIN_SRC emacs-lisp
   (package! consult "minad/consult"
     :after (general evil orderless)
     :commands (consult-line
@@ -1843,11 +1870,25 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
                consult-flymake
                consult-theme
                consult-ripgrep)
+#+END_SRC
+
+Hook consult into xref
+
+#+BEGIN_SRC emacs-lisp
     :custom
     (xref-show-xrefs-function #'consult-xref)
     (xref-show-definitions-function #'consult-xref)
-    (consult-preview-key '(:debounce 0.4 any))
+#+END_SRC
 
+Debounce buffer previews, improves performance with minimal downside.
+
+#+BEGIN_SRC emacs-lisp
+    (consult-preview-key '(:debounce 0.4 any))
+#+END_SRC
+
+Set up some keybindings
+
+#+BEGIN_SRC emacs-lisp
     :init
     (aero-leader-def
       "/" 'consult-line
@@ -1862,16 +1903,23 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
       "j'" 'consult-mark)
 
     :config
-    ;; Support jumping to eshell prompts with consult-outline
+#+END_SRC
+
+Support jumping to eshell prompts with consult-outline
+
+#+BEGIN_SRC emacs-lisp
     (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
 
-    ;; Use Orderless to compile the regexp for consult-ripgrep
+#+END_SRC
+
+Use Orderless to compile the regexp for consult-ripgrep
+
+#+BEGIN_SRC emacs-lisp
     (defun consult--orderless-regexp-compiler (input type &rest _config)
       (setq input (cdr (orderless-compile input)))
       (cons
        (mapcar (lambda (r) (consult--convert-regexp r type)) input)
        (lambda (str) (orderless--highlight input t str))))
-
     (defun consult--with-orderless (&rest args)
       "Use Orderless to compile the regexp for consult-ripgrep."
       (minibuffer-with-setup-hook
@@ -1880,12 +1928,13 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
         (apply args)))
     (advice-add #'consult-ripgrep :around #'consult--with-orderless)
 
+#+END_SRC
+
+Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only supports the first search term when using orderless syntax.
+
+#+BEGIN_SRC emacs-lisp
     (defun aero/consult-line-isearch-history (&rest _)
-      "Add latest `consult-line' search pattern to the isearch history.
-
-      This allows n and N to continue the search after `consult-line' exits.
-
-      Note this only supports the first search term when using orderless syntax."
+      "Add latest `consult-line' search pattern to the isearch history."
       (when (and (bound-and-true-p evil-mode)
                  (eq evil-search-module 'isearch)
                  consult--line-history)
@@ -1898,6 +1947,11 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
           (setq evil-ex-search-direction 'forward))))
     (advice-add #'consult-line :after #'aero/consult-line-isearch-history)
 
+#+END_SRC
+
+Add a prompt indicator when multiple completions are available
+
+#+BEGIN_SRC emacs-lisp
     (defun crm-indicator (args)
       "Add prompt indicator to `completing-read-multiple'.
       We display [CRM<separator>], e.g., [CRM,] if the separator is a comma."
@@ -1909,52 +1963,94 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
             (cdr args)))
     (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
 
-  ;; Enhances `execute-extended-command' by showing recently used commands and keyboard shortcuts
+#+END_SRC
+
+*** Amx
+Enhances =execute-extended-command= by showing recently used commands and keyboard shortcuts.
+
+#+BEGIN_SRC emacs-lisp
   (package! amx "DarwinAwardWinner/amx"
     :defer 1
     :init (amx-mode 1))
+#+END_SRC
 
+*** Yasnippet
+Yasnippet provides a powerful templating system for inserting boilerplate code.
+
+#+BEGIN_SRC emacs-lisp
   (package! yasnippet "joaotavora/yasnippet"
     :custom
     (yas-installed-snippets-dir aero-snippets-dir)
     :config
     (yas-global-mode 1))
+#+END_SRC
 
+**** Consult-yasnippet
+Plug yasnipet into consult for a better interface to snippets
+
+#+BEGIN_SRC emacs-lisp
   (package! consult-yasnippet "mohkale/consult-yasnippet"
     :after (consult yasnippet)
     :config
     (aero-leader-def
       "y" 'consult-yasnippet))
+#+END_SRC
 
+*** Recentf (builtin)
+Recentf provides a list of recently opened files, and is honestly one of the main ways I open buffers.
+
+#+BEGIN_SRC emacs-lisp
   (package! recentf :builtin
     :defer 1
-    ;; Doesn't seem like indent activates properly for me without this intervention. Here we move it
-    ;; to a known cache file and set up an auto-save every 5 minutes.
     :defines (recentf-mode)
+#+END_SRC
+
+Doesn't seem like indent activates properly for me without this intervention. Here we move it to a known cache file and set up an auto-save every 5 minutes.
+
+#+BEGIN_SRC emacs-lisp
     :preface
     (defun aero/recentf-save-list-quiet ()
       "Wrapper for `recentf-save-list' with no message."
       (let ((inhibit-message t))
         (recentf-save-list)))
+#+END_SRC
+
+Set the known cache file and the maximum number of saved items
+
+#+BEGIN_SRC emacs-lisp
     :custom
     (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
     (recentf-max-saved-items 500)
+#+END_SRC
+
+Enable
+
+#+BEGIN_SRC emacs-lisp
     :config
     (recentf-mode 1)
+#+END_SRC
 
-    ;; Would be a great place for `aero/advice-no-message' but there's no need to hide messaging if
-    ;; recentf saves for some other reason. Here, we run it regularly so we don't care about the
-    ;; constant messaging.
+Would be a great place for =aero/advice-no-message= but there's no need to hide messaging if recentf saves for some other reason. Here, we run it regularly so we don't care about the constant messaging.
+
+#+BEGIN_SRC emacs-lisp
     (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
+#+END_SRC
 
-  ;; Add support for icon insertion, and use as a lib in other packages
+*** All-the-icons
+Support for icon insertion, and used as a lib in other packages
+
+#+BEGIN_SRC emacs-lisp
   (package! all-the-icons (:repo "domtronn/all-the-icons.el" :files (:defaults "data"))
     :after (general)
     :defer 1
     :when (display-graphic-p)
     :config (aero-leader-def "qi" 'all-the-icons-insert))
+#+END_SRC
 
-  ;; visual navigation utility
+*** Avy
+Utility for visual navgation
+
+#+BEGIN_SRC emacs-lisp
   (package! avy "abo-abo/avy"
     :after (general)
     :init
@@ -1965,37 +2061,70 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
      "jc" '(avy-goto-char :wk "jump to char")
      "jj" '(avy-goto-char :wk "jump to char")
      "jw" '(avy-goto-word-1 :wk "jump to word")))
+#+END_SRC
 
-  ;; jump to search results in eww
+**** Ace-link
+Jump to links in eww with Avy
+
+#+BEGIN_SRC emacs-lisp
   (package! ace-link "abo-abo/ace-link"
     :after (avy eww)
     :functions (ace-link-setup-default)
     :config (ace-link-setup-default))
+#+END_SRC
 
-  ;; Gives us the M-n and M-p symbol-following ability
+*** Smartscan
+Gives us the =M-n= and =M-p= symbol-following ability
+
+#+BEGIN_SRC emacs-lisp
   (package! smartscan "mickeynp/smart-scan"
     :hook (prog-mode . smartscan-mode)
     :config
     (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
     (advice-add 'smartscan-symbol-go-backward :around #'aero/advice-disable-subword))
+#+END_SRC
 
+*** Undo-tree
+Provides a visual representation of the undo history
+
+#+BEGIN_SRC emacs-lisp
   (package! undo-tree "apchamberlain/undo-tree.el"
     :custom
-    ;; Disable undo-in-region. It sounds like a cool feature, but
-    ;; unfortunately the implementation is very buggy and usually causes
-    ;; you to lose your undo history if you use it by accident.
-    (undo-tree-enable-undo-in-region nil)
-    (undo-tree-auto-save-history nil)
-    (undo-tree-history-directory-alist
-     `((".*" . ,(expand-file-name "undo-tree/" aero-cache-dir))))
-    (undo-tree-visualizer-timestamps t)
-    (undo-tree-visualizer-diff t)
+#+END_SRC
 
+By default, auto-saves to the local directory, but that's annoying, so we move it to the cache directory
+
+#+BEGIN_SRC emacs-lisp
+  (undo-tree-auto-save-history nil)
+  (undo-tree-history-directory-alist
+   `((".*" . ,(expand-file-name "undo-tree/" aero-cache-dir))))
+#+END_SRC
+
+Enable timestamps and diffs in the visualizer
+
+#+BEGIN_SRC emacs-lisp
+  (undo-tree-visualizer-timestamps t)
+  (undo-tree-visualizer-diff t)
+#+END_SRC
+
+Disable undo-in-region, as it's buggy and can cause you to lose your undo history if you use it by accident.
+
+#+BEGIN_SRC emacs-lisp
+    (undo-tree-enable-undo-in-region nil)
+#+END_SRC
+
+Enable globally. By default this doesn't enable in non-file buffers like =*scratch*=, so we do that manually.
+
+#+BEGIN_SRC emacs-lisp
     :config
     (global-undo-tree-mode +1)
-    ;; enable in non-file buffers too
     (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
+#+END_SRC
 
+*** Winner
+Provides a way to undo/redo window configurations.
+
+#+BEGIN_SRC emacs-lisp
   (package! winner :builtin
     :after (general)
     :defines winner-boring-buffers
