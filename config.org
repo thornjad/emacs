@@ -2373,9 +2373,9 @@ An attempt to prettify typescript errors
 #+END_SRC
 
 ** System-specific setup
+Mac needs some extra hand-holding to connect the kill-ring to the system clipboard. Linux just needs the functionality enabled.
+
 #+BEGIN_SRC emacs-lisp
-  ;; Mac needs some extra hand-holding to connect the kill-ring to the system
-  ;; clipboard.
   (when (system-is-mac)
     (declare-function aero/pbcopier-select-text "aero-pbcopier.el")
     (declare-function aero/pbcopier-selection-value "aero-pbcopier.el")
@@ -2389,7 +2389,6 @@ An attempt to prettify typescript errors
           (setq dired-listing-switches "-lFaGh1v --group-directories-first"))
       (setq dired-listing-switches "-ahlF")))
 
-  ;; Linux just needs the functionality enabled
   (when (system-is-linux)
     (setq select-enable-clipboard t
           interprogram-paste-function #'gui-selection-value
