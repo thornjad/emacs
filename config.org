@@ -1267,8 +1267,9 @@ We only really need this in MacOS, grabbing environment variables from the defau
 ** Keybindings
 *** Which-key
 Gives us a variety of menus for keybindings, and integrates nicely with General
+
 #+BEGIN_SRC emacs-lisp
-  (package! which-key "justbur/emacs-which-key"
+  (package! which-key :builtin
     :hook (on-first-input . which-key-mode)
     :defines which-key-mode
     :config
