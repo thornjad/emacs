@@ -2145,8 +2145,12 @@ Provides a way to undo/redo window configurations.
     (aero-leader-def
       "wu" 'winner-undo
       "wU" 'winner-redo))
+#+END_SRC
 
-  ;; Jump to windows by number. 1 is the upper-left-most
+** Winum
+Jump to windows by number. 1 is the upper-left-most
+
+#+BEGIN_SRC emacs-lisp
   (package! winum "deb0ch/emacs-winum"
     :defer 5
     :after (general which-key)
@@ -2163,10 +2167,12 @@ Provides a way to undo/redo window configurations.
       "7" '(winum-select-window-7 :wk "window-7")
       "8" '(winum-select-window-8 :wk "window-8")
       "9" '(winum-select-window-9 :wk "window-9")))
+#+END_SRC
 
-  
-    ;;; Company completions
+** Company completions
+I can't believe this isn't built-in. Company provides a completion system that's more powerful than the default.
 
+#+BEGIN_SRC emacs-lisp
   (package! company
     (:repo "company-mode/company-mode"
      :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
@@ -2189,8 +2195,12 @@ Provides a way to undo/redo window configurations.
     :config
     ;; Wait until it's defined, then disable preview after point
     (setq company-frontends (delq 'company-preview-if-just-one-frontend company-frontends)))
+#+END_SRC
 
-  ;; Move commonly-used completions to the top
+*** Company-prescient
+Moves commonly-used completions to the top, and provides a better sorting algorithm.
+
+#+BEGIN_SRC emacs-lisp
   (package! company-prescient
     (:host github
      :repo "radian-software/prescient.el"
@@ -2199,15 +2209,22 @@ Provides a way to undo/redo window configurations.
     :hook (company-mode . company-prescient-mode)
     :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
     :config (prescient-persist-mode +1))
+#+END_SRC
 
-  ;; Better popup interface for company
+*** Company-box
+Provides a better popup interface for company
+
+#+BEGIN_SRC emacs-lisp
   (package! company-box
     (:repo "sebastiencs/company-box" :files (:defaults "images"))
     :hook (company-mode . company-box-mode))
+#+END_SRC
 
-  ;; We use the most up-to-date tramp instead of the built-in since it gave us
-  ;; trouble in the past
-  (package! tramp (tramp :host nil :repo "git://git.savannah.gnu.org/tramp.git")
+** Tramp
+Tramp provides a way to edit files on remote servers. This was a way of life in a previous job, but I haven't touched it in several years. I'm keeping it around just in case, frozen in time. The =:defer t= ensures it's not loaded until it's needed.
+
+#+BEGIN_SRC emacs-lisp
+  (package! tramp :builtin
     :defer t
     :functions tramp-cleanup-all-connection
     :custom
@@ -2218,7 +2235,12 @@ Provides a way to undo/redo window configurations.
     (tramp-use-ssh-controlmaster-options nil)  ; use system settings instead
     (tramp-default-method "rsync")
     (tramp-terminal-type "tramp"))
+#+END_SRC
 
+** Dired
+This is a file manager in Emacs. I really struggle to use it, but I'm trying to reach for it more often with the help of Casual
+
+#+BEGIN_SRC emacs-lisp
   (package! dired :builtin
     :hook ((dired-mode . hl-line-mode)
            (dired-mode . dired-async-mode))
