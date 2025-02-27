@@ -2752,6 +2752,8 @@ Bindings, these are some of the most heavily used day-to-day.
 #+END_SRC
 
 * Magit
+One of the truly great packages in Emacs. I use it for everything git-related.
+
 #+BEGIN_SRC emacs-lisp
   (package! magit :auto
     :after (general)
@@ -2811,8 +2813,11 @@ Bindings, these are some of the most heavily used day-to-day.
        (replace-regexp-in-string "refs/remotes/origin/" ""
                                  (magit-git-string "symbolic-ref" "refs/remotes/origin/HEAD"))
        args))
+#+END_SRC
 
-    ;; Don't want no color from the pre-commit hook
+We don't want none of that fancy "color" in the pre-commit hook
+
+#+BEGIN_SRC emacs-lisp
     (defun aero/magit--color-buffer (proc &rest args)
       (interactive)
       (with-current-buffer (process-buffer proc)
@@ -2821,6 +2826,11 @@ Bindings, these are some of the most heavily used day-to-day.
         (read-only-mode 1)))
     (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
 
+#+END_SRC
+
+Useful function to fetch a PR into a new branch by the PR number
+
+#+BEGIN_SRC emacs-lisp
     (defun aero/fetch-pr ()
       "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
       (interactive)
@@ -2831,7 +2841,12 @@ Bindings, these are some of the most heavily used day-to-day.
         (shell-command fetch-command)
         (magit-status)
         (message "Checked out PR as %s" new-branch))))
+#+END_SRC
 
+** git-gutter
+Provides a visual indicator of changes in the gutter. I use it to quickly see what's changed in a file. The backends is set to git by default, and only loads the others if they actually exist on the system, which they never do.
+
+#+BEGIN_SRC emacs-lisp
   (package! git-gutter :auto
     :hook ((prog-mode text-mode conf-mode) . git-gutter-mode)
     :custom
@@ -2846,23 +2861,33 @@ Bindings, these are some of the most heavily used day-to-day.
                                   :key #'symbol-name)))
 
     :config
-    ;; Update git-gutter on focus (in case I was using git externally)
     (add-hook 'focus-in-hook #'git-gutter:update-all-windows))
+#+END_SRC
 
+*** git-gutter-fringe
+Redefine the fringe bitmap definer to a no-op in GUI, if it's not already bound, otherwise git-gutter-fringe will error. I've never tracked down the real cause, but this makes things work smoothly.
+
+#+BEGIN_SRC emacs-lisp
   (when (display-graphic-p)
-    ;; Define as a no-op if not already defined, otherwise git-gutter-fringe errors
     (unless (fboundp 'define-fringe-bitmap)
       (defun define-fringe-bitmap (bitmap &rest _)
         "This is a no-op placeholder function."
         ;; Return the symbol, just like the normal function does.
         bitmap))
+#+END_SRC
 
+The actual package, which moves the git-gutter functionality to the buffer fringe where it doesn't push text around.
+
+The fringe bitmaps are a thin bar, expecting the theme to give them suitable coloring.
+
+The functionality is disabled in Tramp because it hogs the connection bandwidth.
+
+#+BEGIN_SRC emacs-lisp
     (package! git-gutter-fringe :auto :after (git-gutter)
       :custom
       (fringes-outside-margins t)
 
       :config
-      ;; Define a thin bar. Themes should give these a suitable foreground and nil background
       (define-fringe-bitmap 'git-gutter-fr:added [224]
         nil nil '(center repeated))
       (define-fringe-bitmap 'git-gutter-fr:modified [224]
@@ -2871,20 +2896,29 @@ Bindings, these are some of the most heavily used day-to-day.
         [0 0 0 0 0 0 0 0 0 0 0 0 0 128 192 224 240 248]
         nil nil 'bottom)
 
-      ;; Don't use git-gutter in TRAMP, it murders connection bandwidth
       (defun git-gutter-find-file-hook ()
         (git-gutter-mode
          (if (file-remote-p (buffer-file-name))
              0
            1)))
       (add-hook 'find-file-hook #'git-gutter-find-file-hook)))
+#+END_SRC
 
+** Ediff
+A decent way to compare diffs. I've set it up to split horizontally and use a plain window setup.
+
+#+BEGIN_SRC emacs-lisp
   (package! ediff :builtin
     :commands (ediff ediff3)
     :custom
     (ediff-split-window-function #'split-window-horizontally )
     (ediff-window-setup-function #'ediff-setup-windows-plain))
+#+END_SRC
 
+** Git-link
+Super simple way to get a link to a file or line in a file on GitHub
+
+#+BEGIN_SRC emacs-lisp
   (package! git-link :auto
     :after (general)
     :commands (git-link git-link-commit git-link-homepage)
