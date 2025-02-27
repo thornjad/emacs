@@ -2483,10 +2483,10 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
 #+END_SRC
 
 ** Default frame setup
+Set up the default frame in an agreeable fashion. The width is based on a buffer that's 106 columns wide, in two columns. The rest has been tweaked over the years to look extra nice on startup.
 
 #+BEGIN_SRC emacs-lisp
   (setq default-frame-alist
-        ;; width assumes we want a buffer to be 106 columns wide
         (append (list '(width  . 212) '(height . 62)
                       '(tool-bar-lines . 0)
                       '(menu-bar-lines . 0)
@@ -2494,10 +2494,9 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
                       '(left-fringe . 8) '(right-fringe . 8)
                       '(vertical-scroll-bars . nil)
                       '(ns-transparent-titlebar . t))))
-  (split-window-horizontally) ; default to two windows
+  (split-window-horizontally)
   (if (fboundp 'fringe-mode) (fringe-mode '8))
-  (set-frame-parameter (selected-frame)
-                       'internal-border-width 8)
+  (set-frame-parameter (selected-frame) 'internal-border-width 8)
   (when (fboundp 'pixel-scroll-precision-mode)
     (pixel-scroll-precision-mode +1))
 
@@ -2505,28 +2504,42 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
         window-divider-default-bottom-width 1
         window-divider-default-places 'right-only
         window-divider-mode t)
+#+END_SRC
 
-  ;; window margins
+Set up window margins
+
+#+BEGIN_SRC emacs-lisp
   (add-hook 'window-configuration-change-hook
             (lambda ()
               (set-window-margins
                (car (get-buffer-window-list (current-buffer) nil t)) 1 1)))
+#+END_SRC
 
-  ;; Make sure new frames use window-divider
+Make sure new frames use window-divider
+
+#+BEGIN_SRC emacs-lisp
   (add-hook 'before-make-frame-hook 'window-divider-mode)
+#+END_SRC
 
-  ;; Better fringe symbols.
+** General UI
+Better fringe symbols
+
+#+BEGIN_SRC emacs-lisp
   (when (and (require 'disp-table nil 'noerror) standard-display-table)
     (set-display-table-slot standard-display-table 'truncation ?…)
     (set-display-table-slot standard-display-table 'wrap ?↩)
     (set-display-table-slot standard-display-table 'selective-display
                             (string-to-vector " …")))
+#+END_SRC
 
-  (blink-cursor-mode 0)  ; stop cursor from blinking
-  (show-paren-mode 1)  ; highlight matching parens
-  (pixel-scroll-mode 1)  ; smoother scrolling
+Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight the current line.
 
+#+BEGIN_SRC emacs-lisp
+  (blink-cursor-mode 0)
+  (show-paren-mode 1)
+  (pixel-scroll-mode 1)
   (global-hl-line-mode +1)
+
   (defun aero/suggest-other-faces (func &rest args)
     "When hl-line-mode is active, suggest a face calculated without it.
      Credit: Sacha Chua"
@@ -2537,62 +2550,11 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
             (global-hl-line-mode 1)))
       (apply func args)))
   (advice-add #'face-at-point :around #'aero/suggest-other-faces)
+#+END_SRC
 
-  ;; Adds a breadcrumb to the headerline
-  (package! aero-breadcrumb :localpackage
-    :hook ((prog-mode markdown-mode gfm-mode org-mode) . aero-breadcrumb-local-mode)
-    :config
-    (with-eval-after-load 'gptel
-      ;; No breadcrumbs when gptel is running the show
-      (add-hook 'gptel-mode-hook (lambda () (aero-breadcrumb-local-mode -1))))
-    (with-eval-after-load 'lsp-headerline
-      ;; No breadcrumbs when the better lsp-headerline is available
-      (add-hook 'lsp-headerline-breadcrumb-mode-hook (lambda () (aero-breadcrumb-local-mode -1)))))
+Simple rainbow mode to highlight hex colors in code.
 
-  ;; improved pixel-based smooth scrolling. Mostly used when screen sharing, doesn't really do much
-  ;; for normal navigation
-  (package! good-scroll "io12/good-scroll.el"
-    :functions (good-scroll-mode)
-    :init
-    ;; Avoid bug with evil-mode, https://github.com/io12/good-scroll.el/issues/16
-    (setq good-scroll-avoid-vscroll-reset nil)
-    :config (good-scroll-mode +1))
-
-  ;; Display formfeed characters
-  (package! formfeeder "thornjad/formfeeder"
-    :defines (formfeeder-line-width)
-    :config
-    (setq formfeeder-line-width (- fill-column 1))
-    (declare-function global-formfeeder-mode "formfeeder.el")
-    (global-formfeeder-mode 1))
-
-  ;; Highlight the current thing at point, kind of like what lsp-ui does for some language, but in all
-  ;; buffers and modes
-  (package! highlight-thing (:host github :repo "fgeller/highlight-thing.el")
-    :hook (prog-mode . highlight-thing-mode)
-    :commands (highlight-thing-mode)
-    :custom
-    (highlight-thing-delay-seconds 0.5)
-
-    ;; In large buffers, only look in close-by lines
-    (highlight-thing-limit-to-region-in-large-buffers-p t)
-    (highlight-thing-narrow-region-lines 70)
-    (highlight-thing-large-buffer-limit 5000))
-
-  ;; show all matching selections (from region)
-  (package! selection-highlight-mode
-    (:host github :repo "balloneij/selection-highlight-mode")
-    :hook (prog-mode . selection-highlight-mode)
-    :custom (selection-highlight-mode-min-length 3))
-
-  ;; highlight todo and similar words
-  (package! todo-light "thornjad/todo-light"
-    :init (global-todo-light-mode +1))
-
-  ;; display time and date in echo area
-  (package! aero-echo-area :localpackage :defer 4 :config (aero/echo-area-mode +1))
-
-  ;; Display hex values as their color
+#+BEGIN_SRC emacs-lisp
   (defun aero/rainbow-mode ()
     "Display colors represented as hex values."
     (interactive)
@@ -2613,19 +2575,17 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
   (add-hook 'prog-mode-hook #'aero/rainbow-mode)
   (add-hook 'org-mode-hook #'aero/rainbow-mode)
   (add-hook 'conf-space-mode-hook #'aero/rainbow-mode)
+#+END_SRC
 
-  ;; make links in comments clickable
+Makes links in comments clickable
+
+#+BEGIN_SRC emacs-lisp
   (global-goto-address-mode +1)
+#+END_SRC
 
-  ;; Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert mode
-  (unless (display-graphic-p)
-    (package! evil-terminal-cursor-changer
-      (:host github :repo "7696122/evil-terminal-cursor-changer")
-      :after evil
-      :functions (evil-terminal-cursor-changer-activate)
-      :config (evil-terminal-cursor-changer-activate)))
+Pulse the current line when changing windows. There's whole packages that do this functionality and more, but I only care about switching windows, so there's no need to pull in a whole package.
 
-  ;; Pulse the current line when changing windows
+#+BEGIN_SRC emacs-lisp
   (dolist (fn '(other-window
                 windmove-up
                 windmove-down
@@ -2634,6 +2594,96 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
                 aero/alternate-buffer
                 aero/alternate-window))
     (advice-add fn :after #'pulse-line))
+#+END_SRC
+
+** Breadcrumbs in the headerline
+Breadcrumbs are disabled for gptel since it uses its own system.
+
+#+BEGIN_SRC emacs-lisp
+  (package! aero-breadcrumb :localpackage
+    :hook ((prog-mode markdown-mode gfm-mode org-mode) . aero-breadcrumb-local-mode)
+    :config
+    (with-eval-after-load 'gptel
+      (add-hook 'gptel-mode-hook (lambda () (aero-breadcrumb-local-mode -1)))))
+#+END_SRC
+
+** Good scroll
+Improved pixel-based smooth scrolling. Mostly used when screen sharing, doesn't really do much for normal navigation.
+
+Setting =good-scroll-avoid-vscroll-reset= to nil avoids a bug with evil-mode. https://github.com/io12/good-scroll.el/issues/16
+
+#+BEGIN_SRC emacs-lisp
+  (package! good-scroll "io12/good-scroll.el"
+    :functions (good-scroll-mode)
+    :init (setq good-scroll-avoid-vscroll-reset nil)
+    :config (good-scroll-mode +1))
+#+END_SRC
+
+** Formfeeder
+Displays formfeed characters, which are often used by convention in Elisp
+
+#+BEGIN_SRC emacs-lisp
+  (package! formfeeder "thornjad/formfeeder"
+    :defines (formfeeder-line-width)
+    :config
+    (setq formfeeder-line-width (- fill-column 1))
+    (declare-function global-formfeeder-mode "formfeeder.el")
+    (global-formfeeder-mode 1))
+#+END_SRC
+
+** Highlight-thing
+Highlight the current thing at point, kind of like what lsp-ui does for some language, but in all buffers and modes.
+
+We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffers, only look at nearby lines
+
+
+#+BEGIN_SRC emacs-lisp
+  (package! highlight-thing (:host github :repo "fgeller/highlight-thing.el")
+    :hook (prog-mode . highlight-thing-mode)
+    :commands (highlight-thing-mode)
+    :custom
+    (highlight-thing-delay-seconds 0.5)
+    (highlight-thing-narrow-region-lines 70)
+    (highlight-thing-large-buffer-limit 5000)
+    (highlight-thing-limit-to-region-in-large-buffers-p t))
+#+END_SRC
+
+** Selection highlight
+Shows all matching selections from region. Very useful for comparing and editing multiple instances of the same thing.
+
+#+BEGIN_SRC emacs-lisp
+  (package! selection-highlight-mode
+    (:host github :repo "balloneij/selection-highlight-mode")
+    :hook (prog-mode . selection-highlight-mode)
+    :custom (selection-highlight-mode-min-length 3))
+#+END_SRC
+
+** Todo-light
+Highlight todo and similar words
+
+#+BEGIN_SRC emacs-lisp
+  (package! todo-light "thornjad/todo-light"
+    :init (global-todo-light-mode +1))
+#+END_SRC
+
+** Aero-echo-area
+Display time and date in the echo area
+
+#+BEGIN_SRC emacs-lisp
+  (package! aero-echo-area :localpackage :defer 4
+    :config (aero/echo-area-mode +1))
+#+END_SRC
+
+** Evil-terminal-cursor-changer
+Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert mode
+
+#+BEGIN_SRC emacs-lisp
+  (unless (display-graphic-p)
+    (package! evil-terminal-cursor-changer
+      (:host github :repo "7696122/evil-terminal-cursor-changer")
+      :after evil
+      :functions (evil-terminal-cursor-changer-activate)
+      :config (evil-terminal-cursor-changer-activate)))
 #+END_SRC
 
 * Project management
@@ -2666,11 +2716,17 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
     (project-compilation-buffer-name-function #'project-prefixed-buffer-name)
 
     :config
-    ;; Note that we cannot use :hook here because `project-find-functions' doesn't end in "-hook", and
-    ;; we can't use this in :init because it won't be defined yet.
-    (add-hook 'project-find-functions #'aero/project-root-override)
+#+END_SRC
 
-    ;; Set our own list of actions on `project-switch-project'
+Note that we can't use =:hook= here because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
+
+#+BEGIN_SRC emacs-lisp
+    (add-hook 'project-find-functions #'aero/project-root-override)
+#+END_SRC
+
+Set our own list of actions on =project-switch-project=
+
+#+BEGIN_SRC emacs-lisp
     (setq project-switch-commands '((project-find-file "Find file" "f")
                                     (aero/project-switch-magit "Magit status" "g")
                                     (project-eshell "Eshell" "e")
@@ -2678,7 +2734,11 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
                                     (project-find-dir "Find directory" "d")
                                     (project-find-regexp "Find regexp" "r")
                                     (project-any-command "Any command" "a")))
+#+END_SRC
 
+Bindings, these are some of the most heavily used day-to-day.
+
+#+BEGIN_SRC emacs-lisp
     (aero-leader-def
       "pf" 'project-find-file
       "pp" 'project-switch-project
