@@ -107,7 +107,7 @@ These define some locations that we can reference later
   (unless (file-exists-p aero-cache-dir) (make-directory aero-cache-dir))
 #+END_SRC
 
-We also need to set up locations for org-roam and thornlog. Thornlog is a custom daily logging and note-taking system, using org-roam. Check out the [[*Thornlog][Thornlog]] section for more.
+We also need to set up locations for org-roam and thornlog. Thornlog is a custom daily logging and note-taking system, using org-roam. Check out the [[Thornlog]] section for more.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defconst aero/documents-path (expand-file-name "~/Documents/"))
