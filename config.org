@@ -3278,7 +3278,45 @@ Allow drag-and-drop of images from browser, finder, etc.
       (org-insert-time-stamp (current-time) nil)))
 #+END_SRC
 
-** Thornlog
+** Org-roam
+A fantastic note-taking system, used for building a second brain.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! org-roam (:repo "org-roam/org-roam" :files (:defaults "extensions/*"))
+    :defer 1
+    :after (general org)
+
+    :custom
+    (org-roam-directory (expand-file-name "roam" aero/thornlog-path))
+    (org-roam-mode-sections
+     (list #'org-roam-backlinks-section
+           #'org-roam-reflinks-section
+           #'org-roam-unlinked-references-section))
+
+    (org-id-locations-file (expand-file-name ".org-id-locations" aero-cache-dir))
+
+    (org-roam-capture-templates
+     '(("d" "default" plain "%?"
+        :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+        :immediate-finish t  ; skip capture buffer, just open the file
+        :unnarrowed t)))
+
+    (org-roam-node-display-template
+     (concat "${title} " (propertize "${tags}" 'face 'org-tag)))
+
+    :config
+    (org-roam-db-autosync-mode)
+
+    (aero-leader-def
+      "vf" 'org-roam-node-find
+      "vF" 'org-roam-capture
+      "vi" 'org-roam-node-insert
+      "vc" '(org-id-get-create :wk "create org ID for node")
+      "va" 'org-roam-alias-add
+      "vr" 'org-roam-refile))
+#+END_SRC
+
+*** Thornlog
 This is a personal logging and note taking system, based on org-roam. It's evolved drastically over the years, from a bespoke system to a more generic org-roam setup. The functions here are for managing the thornlog system.
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -3361,44 +3399,6 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
 
 #+END_SRC
 
-** Org-roam
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-roam
-    (:repo "org-roam/org-roam" :files (:defaults "extensions/*"))
-    :defer 1  ; don't load immediately, but soon after init
-
-    :after (general org)
-
-    :custom
-    (org-roam-directory (expand-file-name "roam" aero/thornlog-path))
-    (org-roam-mode-sections
-     (list #'org-roam-backlinks-section
-           #'org-roam-reflinks-section
-           #'org-roam-unlinked-references-section))
-
-    (org-id-locations-file (expand-file-name ".org-id-locations" aero-cache-dir))
-
-    (org-roam-capture-templates
-     '(("d" "default" plain "%?"
-        :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
-        :immediate-finish t  ; skip capture buffer, just open the file
-        :unnarrowed t)))
-
-    (org-roam-node-display-template
-     (concat "${title} " (propertize "${tags}" 'face 'org-tag)))
-
-    :config
-    (org-roam-db-autosync-mode)
-
-    (aero-leader-def
-      "vf" 'org-roam-node-find
-      "vF" 'org-roam-capture
-      "vi" 'org-roam-node-insert
-      "vc" '(org-id-get-create :wk "create org ID for node")
-      "va" 'org-roam-alias-add
-      "vr" 'org-roam-refile))
-#+END_SRC
 
 *** Update and created timestamps in Org-roam
 This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
