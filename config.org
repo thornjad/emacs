@@ -1,7 +1,7 @@
 # -*- lexical-binding: t; -*-
 #+title: Thornjad's Emacs Configuration
 #+author: Jade Michael Thornton <thornjad>
-#+options: num:nil
+#+options: num:nil toc:2
 #+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
 #+filetags: :emacs:
 #+link: emacsconfig https://github.com/thornjad/emacs
