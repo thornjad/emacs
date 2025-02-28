@@ -2744,34 +2744,34 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
 Note that we can't use =:hook= here because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
 
 #+BEGIN_SRC emacs-lisp
-    (add-hook 'project-find-functions #'aero/project-root-override)
+  (add-hook 'project-find-functions #'aero/project-root-override)
 #+END_SRC
 
 Set our own list of actions on =project-switch-project=
 
 #+BEGIN_SRC emacs-lisp
-    (setq project-switch-commands '((project-find-file "Find file" "f")
-                                    (aero/project-switch-magit "Magit status" "g")
-                                    (project-eshell "Eshell" "e")
-                                    (project-compile "Compile" "c")
-                                    (project-find-dir "Find directory" "d")
-                                    (project-find-regexp "Find regexp" "r")
-                                    (project-any-command "Any command" "a")))
+  (setq project-switch-commands '((project-find-file "Find file" "f")
+                                  (aero/project-switch-magit "Magit status" "g")
+                                  (project-eshell "Eshell" "e")
+                                  (project-compile "Compile" "c")
+                                  (project-find-dir "Find directory" "d")
+                                  (project-find-regexp "Find regexp" "r")
+                                  (project-any-command "Any command" "a")))
 #+END_SRC
 
 Bindings, these are some of the most heavily used day-to-day.
 
 #+BEGIN_SRC emacs-lisp
-    (aero-leader-def
-      "pf" 'project-find-file
-      "pp" 'project-switch-project
-      "p:" 'project-shell-command
-      "p&" 'project-async-shell-command
-      "p'" 'project-eshell
-      "p\"" 'aero/project-eshell-new
-      "p`" 'project-shell
-      "p%" 'project-query-replace-regexp
-      "cp" 'project-compile))
+  (aero-leader-def
+    "pf" 'project-find-file
+    "pp" 'project-switch-project
+    "p:" 'project-shell-command
+    "p&" 'project-async-shell-command
+    "p'" 'project-eshell
+    "p\"" 'aero/project-eshell-new
+    "p`" 'project-shell
+    "p%" 'project-query-replace-regexp
+    "cp" 'project-compile))
 #+END_SRC
 
 * Magit
@@ -2841,29 +2841,29 @@ One of the truly great packages in Emacs. I use it for everything git-related.
 We don't want none of that fancy "color" in the pre-commit hook
 
 #+BEGIN_SRC emacs-lisp
-    (defun aero/magit--color-buffer (proc &rest args)
-      (interactive)
-      (with-current-buffer (process-buffer proc)
-        (read-only-mode -1)
-        (ansi-color-apply-on-region (point-min) (point-max))
-        (read-only-mode 1)))
-    (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
+  (defun aero/magit--color-buffer (proc &rest args)
+    (interactive)
+    (with-current-buffer (process-buffer proc)
+      (read-only-mode -1)
+      (ansi-color-apply-on-region (point-min) (point-max))
+      (read-only-mode 1)))
+  (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
 
 #+END_SRC
 
 Useful function to fetch a PR into a new branch by the PR number
 
 #+BEGIN_SRC emacs-lisp
-    (defun aero/fetch-pr ()
-      "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
-      (interactive)
-      (let* ((pr (message-read-from-minibuffer "Enter PR number: "))
-             (new-branch (format "pr%s" pr))
-             (fetch-command
-              (format "git fetch origin pull/%s/head:%s" pr new-branch)))
-        (shell-command fetch-command)
-        (magit-status)
-        (message "Checked out PR as %s" new-branch))))
+  (defun aero/fetch-pr ()
+    "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
+    (interactive)
+    (let* ((pr (message-read-from-minibuffer "Enter PR number: "))
+           (new-branch (format "pr%s" pr))
+           (fetch-command
+            (format "git fetch origin pull/%s/head:%s" pr new-branch)))
+      (shell-command fetch-command)
+      (magit-status)
+      (message "Checked out PR as %s" new-branch))))
 #+END_SRC
 
 ** git-gutter
@@ -2906,25 +2906,25 @@ The fringe bitmaps are a thin bar, expecting the theme to give them suitable col
 The functionality is disabled in Tramp because it hogs the connection bandwidth.
 
 #+BEGIN_SRC emacs-lisp
-    (package! git-gutter-fringe :auto :after (git-gutter)
-      :custom
-      (fringes-outside-margins t)
+  (package! git-gutter-fringe :auto :after (git-gutter)
+    :custom
+    (fringes-outside-margins t)
 
-      :config
-      (define-fringe-bitmap 'git-gutter-fr:added [224]
-        nil nil '(center repeated))
-      (define-fringe-bitmap 'git-gutter-fr:modified [224]
-        nil nil '(center repeated))
-      (define-fringe-bitmap 'git-gutter-fr:deleted
-        [0 0 0 0 0 0 0 0 0 0 0 0 0 128 192 224 240 248]
-        nil nil 'bottom)
+    :config
+    (define-fringe-bitmap 'git-gutter-fr:added [224]
+      nil nil '(center repeated))
+    (define-fringe-bitmap 'git-gutter-fr:modified [224]
+      nil nil '(center repeated))
+    (define-fringe-bitmap 'git-gutter-fr:deleted
+      [0 0 0 0 0 0 0 0 0 0 0 0 0 128 192 224 240 248]
+      nil nil 'bottom)
 
-      (defun git-gutter-find-file-hook ()
-        (git-gutter-mode
-         (if (file-remote-p (buffer-file-name))
-             0
-           1)))
-      (add-hook 'find-file-hook #'git-gutter-find-file-hook)))
+    (defun git-gutter-find-file-hook ()
+      (git-gutter-mode
+       (if (file-remote-p (buffer-file-name))
+           0
+         1)))
+    (add-hook 'find-file-hook #'git-gutter-find-file-hook)))
 #+END_SRC
 
 ** Ediff
