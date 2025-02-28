@@ -92,7 +92,7 @@ This conversion kicks off from =init.el=, which also sets up some critical early
 Before any other code, we have to make sure the tangled =config.el= has lexical binding, or else we're in for a world of pain. I cannot understand why this isn't the default. Emacs should at least have an option to make everything lexical by default, forcing old code to opt-out.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-;;; -*- lexical-binding: t -*-
+  ;;; -*- lexical-binding: t -*-
 #+END_SRC
 
 * Directory constants
@@ -1288,259 +1288,235 @@ Gives us a variety of menus for keybindings, and integrates nicely with General
 *** General
 The vast majority of keybindings are set up with General. A lot of this could be done almost as easily with regular keybinding, but General gives us an easier time setting up a leader key and better which-key integration.
 
+Most bindings will fall under the =SPC= leader key, so we generate a macro called =aero-leader-def= to make it easier for other packages to add their own bindings under this leader. For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding =aero-mode-leader-def= to suit.
+
+From there, we set up all the main keybindings.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! general "noctuid/general.el"
     :functions (general-define-key aero-leader-def aero-mode-leader-def)
     :init
     (setq-default general-override-states
                   '(insert hybrid normal visual motion operator replace))
-#+END_SRC
 
-Most bindings will fall under the =SPC= leader key, so we generate a macro called =aero-leader-def= to make it easier for other packages to add their own bindings under this leader.
+    (general-create-definer aero-leader-def
+      :states '(normal visual emacs motion)
+      :prefix "SPC"
+      :non-normal-prefix "C-SPC")
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (general-create-definer aero-leader-def
-    :states '(normal visual emacs motion)
-    :prefix "SPC"
-    :non-normal-prefix "C-SPC")
-#+END_SRC
+    (general-create-definer aero-mode-leader-def
+      :states '(normal visual emacs motion)
+      :prefix "SPC ,")
 
-For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding =aero-mode-leader-def= to suit.
+    :config
+    (general-define-key
+     :states '(normal visual motion)
+     :keymaps 'override
+     :prefix "SPC"
+     :non-normal-prefix "C-SPC"
+     "" nil)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (general-create-definer aero-mode-leader-def
-    :states '(normal visual emacs motion)
-    :prefix "SPC ,")
+    (general-def
+      (kbd "C-h") 'delete-backward-char
+      (kbd "C-w") 'aero/smarter-backward-kill-word
+      (kbd "C-TAB") 'insert-tab
+      (kbd "M-TAB") 'aero/alternate-buffer
+      (kbd "C-RET") 'aero/browse-url-open)
 
-  :config
-  (general-define-key
-   :states '(normal visual motion)
-   :keymaps 'override
-   :prefix "SPC"
-   :non-normal-prefix "C-SPC"
-   "" nil)
-#+END_SRC
+    ;; Ensure keyboard quit does what we want
+    (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
 
-**** Main keybinding configuration
-We begin with some high-level bindings, including overriding the questionable default choice of =^?= being the help system.
+    (general-define-key
+     :states 'normal
+     :prefix "SPC"
+     "fW" 'evil-write-all
+     "w/" '(evil-window-vsplit :wk "split vertical")
+     "w-" '(evil-window-split :wk "split horizontal")
+     "w2" 'aero/layout-two-columns
+     "w3" 'aero/layout-three-columns
+     "cm" 'evil-make)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (general-def
-    (kbd "C-h") 'delete-backward-char
-    (kbd "C-w") 'aero/smarter-backward-kill-word
-    (kbd "C-TAB") 'insert-tab
-    (kbd "M-TAB") 'aero/alternate-buffer
-    (kbd "C-RET") 'aero/browse-url-open)
-#+END_SRC
+    (general-define-key
+     :states '(normal insert motion)
+     :keymaps 'override
+     :prefix ","
+     "" nil)
 
-Ensure keyboard quit does what we want
+    (general-define-key
+     :states '(normal insert motion)
+     :keymaps 'override
+     :prefix "SPC"
+     :non-normal-prefix "C-SPC"
+     "" nil
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
-#+END_SRC
+     ;; independent keys
+     "SPC" 'execute-extended-command
+     "TAB" '(aero/alternate-buffer :wk "alternate buffer")
+     (kbd "ESC") 'keyboard-quit
+     (kbd "C-g") 'keyboard-quit
+     (kbd "<pause>") 'keyboard-quit
+     "'" 'eshell
+     "\"" '(aero/eshell-new :wk "eshell-new")
+     ":" 'eval-expression
+     ";" 'aero/comment-dwim
+     "!" 'shell-command
+     "=" 'quick-calc
 
-Now a few bindings which apply only to Normal mode, rather than insert and motion as most bindings do.
+     "," '(:ignore t :wk "mode") ; reserved for mode-specific
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (general-define-key
-   :states 'normal
-   :prefix "SPC"
-   "fW" 'evil-write-all
-   "w/" '(evil-window-vsplit :wk "split vertical")
-   "w-" '(evil-window-split :wk "split horizontal")
-   "w2" 'aero/layout-two-columns
-   "w3" 'aero/layout-three-columns
-   "cm" 'evil-make)
-#+END_SRC
+     "e" '(:ignore t :wk "errors")
+     "ed" 'toggle-debug-on-error
+     "eq" 'toggle-debug-on-quit
 
-Set up the mode-specific leader.
+     "T TAB" 'tab-recent
+     "T" '(:ignore t :wk "tab")
+     "Tn" 'tab-next
+     "Tp" 'tab-previous
+     "Tk" 'tab-close
+     "T," 'tab-rename
+     "Tc" '(tab-new :wk "create tab")
+     "Tb" 'switch-to-buffer-other-tab
+     "Tf" 'find-file-other-tab
+     "Ts" '(tab-duplicate :wk "tab duplicate split")
+     "Tu" 'tab-undo
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (general-define-key
-   :states '(normal insert motion)
-   :keymaps 'override
-   :prefix ","
-   "" nil)
-#+END_SRC
+     "U" 'universal-argument
 
-Now the main show.
+     "a" '(:ignore t :wk "applications")
+     "ai" '(:ignore t :wk "AI functions")
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (general-define-key
-   :states '(normal insert motion)
-   :keymaps 'override
-   :prefix "SPC"
-   :non-normal-prefix "C-SPC"
-   "" nil
+     "b" '(:ignore t :wk "buffers")
+     "bs" 'switch-to-scratch-buffer
+     "bS" 'switch-to-new-scratch-buffer
+     "bd" 'kill-current-buffer
+     "bi" 'indent-buffer
+     "bl" 'ibuffer
+     "bm" 'switch-to-messages-buffer
+     "bn" 'next-buffer
+     "bp" 'previous-buffer
+     "br" '(aero/reopen-file-at-buffer :wk "buffer replace")
+     "bR" '(revert-buffer-quick :wk "buffer revert")
+     "bw" '(whitespace-mode :wk "whitespace")
+     "bx" 'kill-buffer-and-window
 
-   ;; independent keys
-   "SPC" 'execute-extended-command
-   "TAB" '(aero/alternate-buffer :wk "alternate buffer")
-   (kbd "ESC") 'keyboard-quit
-   (kbd "C-g") 'keyboard-quit
-   (kbd "<pause>") 'keyboard-quit
-   "'" 'eshell
-   "\"" '(aero/eshell-new :wk "eshell-new")
-   ":" 'eval-expression
-   ";" 'aero/comment-dwim
-   "!" 'shell-command
-   "=" 'quick-calc
+     "n" '(:ignore t :wk "narrow")
+     "nn" 'narrow-to-region
+     "np" 'narrow-to-page
+     "nw" 'widen
+     "nd" 'narrow-to-defun
 
-   "," '(:ignore t :wk "mode") ; reserved for mode-specific
+     "c" '(:ignore t :wk "compile")
+     "ct" 'aero/tail-compilation-buffer
+     "ci" '(ielm :wk "ielm repl")
+     "cc" 'compile
+     "ce" '(:ignore t :wk "elisp")
+     "ceb" 'eval-buffer
+     "ced" 'eval-defun
+     "cer" 'eval-region
+     "ck" 'kill-compilation
+     "cr" 'recompile
 
-   "e" '(:ignore t :wk "errors")
-   "ed" 'toggle-debug-on-error
-   "eq" 'toggle-debug-on-quit
+     "f" '(:ignore t :wk "files")
+     "ff" 'find-file
+     "fc" 'aero/copy-file-relative-to-project
+     "fD" '(aero/delete-this-file :wk "delete this file")
+     "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
+     "fo" '(:ignore t :wk "open special files")
+     "fot" '(:ignore t :wk "thornlog")
+     "fota" 'aero/open-agenda-file
+     "fott" '(aero/thornlog-todo :wk "thornlog todo")
+     "fotl" '(aero/thornlog-log :wk "thornlog log")
+     "fotd" '(aero/thornlog-dir :wk "thornlog all")
+     "fw" '(save-buffer :wk "write buffer")
+     "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
 
-   "T TAB" 'tab-recent
-   "T" '(:ignore t :wk "tab")
-   "Tn" 'tab-next
-   "Tp" 'tab-previous
-   "Tk" 'tab-close
-   "T," 'tab-rename
-   "Tc" '(tab-new :wk "create tab")
-   "Tb" 'switch-to-buffer-other-tab
-   "Tf" 'find-file-other-tab
-   "Ts" '(tab-duplicate :wk "tab duplicate split")
-   "Tu" 'tab-undo
+     "g" '(:ignore t :wk "git")
+     "gf" '(:ignore t :wk "files")
 
-   "U" 'universal-argument
+     "h" '(:ignore t :wk "help/manual")
+     "hI" 'info-apropos
+     "hM" 'woman
+     "hd" '(:ignore t :wk "describe")
+     "hdF" 'describe-face
+     "hdb" 'describe-bindings
+     "hdM" 'describe-mode
+     "hdK" 'describe-keymap
+     "hdC" 'describe-char
+     "hdp" 'describe-package
+     "hdi" '(emacs-index-search :wk "search emacs manual")
+     "hdl" '(find-library :wk "describe library")
+     "hi" 'info
+     "hm" 'man
+     "hw" '(:ignore t :wk "which-key")
+     "hwm" '(which-key-show-major-mode :wk "major mode map")
 
-   "a" '(:ignore t :wk "applications")
-   "ai" '(:ignore t :wk "AI functions")
+     "j" '(:ignore t :wk "jump")
+     "l" '(:ignore t :wk "lsp")
 
-   "b" '(:ignore t :wk "buffers")
-   "bs" 'switch-to-scratch-buffer
-   "bS" 'switch-to-new-scratch-buffer
-   "bd" 'kill-current-buffer
-   "bi" 'indent-buffer
-   "bl" 'ibuffer
-   "bm" 'switch-to-messages-buffer
-   "bn" 'next-buffer
-   "bp" 'previous-buffer
-   "br" '(aero/reopen-file-at-buffer :wk "buffer replace")
-   "bR" '(revert-buffer-quick :wk "buffer revert")
-   "bw" '(whitespace-mode :wk "whitespace")
-   "bx" 'kill-buffer-and-window
+     "m" '(:ignore t :wk "mode")
+     "m" '(tmm-menubar :wk "Context menu")
 
-   "n" '(:ignore t :wk "narrow")
-   "nn" 'narrow-to-region
-   "np" 'narrow-to-page
-   "nw" 'widen
-   "nd" 'narrow-to-defun
+     "o" '(:ignore t :wk "org / outline")
+     "oh" '(outline-hide-body :wk "hide all")
+     "oS" '(outline-show-all :wk "show all")
 
-   "c" '(:ignore t :wk "compile")
-   "ct" 'aero/tail-compilation-buffer
-   "ci" '(ielm :wk "ielm repl")
-   "cc" 'compile
-   "ce" '(:ignore t :wk "elisp")
-   "ceb" 'eval-buffer
-   "ced" 'eval-defun
-   "cer" 'eval-region
-   "ck" 'kill-compilation
-   "cr" 'recompile
+     "p" '(:ignore t :wk "project")
+     "pr" '(xref-find-definitions :wk "find ref")
+     "ps" '(:ignore t :wk "spelling")
 
-   "f" '(:ignore t :wk "files")
-   "ff" 'find-file
-   "fc" 'aero/copy-file-relative-to-project
-   "fD" '(aero/delete-this-file :wk "delete this file")
-   "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
-   "fo" '(:ignore t :wk "open special files")
-   "fot" '(:ignore t :wk "thornlog")
-   "fota" 'aero/open-agenda-file
-   "fott" '(aero/thornlog-todo :wk "thornlog todo")
-   "fotl" '(aero/thornlog-log :wk "thornlog log")
-   "fotd" '(aero/thornlog-dir :wk "thornlog all")
-   "fw" '(save-buffer :wk "write buffer")
-   "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
+     "r" '(:ignore t :wk "xref")
+     "rf" 'xref-find-definitions
+     "rF" 'xref-find-definitions-other-window
+     "rp" 'xref-go-back
+     "rn" 'xref-go-forward
+     "ra" 'xref-find-apropos
+     "rr" 'xref-find-references
 
-   "g" '(:ignore t :wk "git")
-   "gf" '(:ignore t :wk "files")
+     "q" '(:ignore t :wk "quoted insert")
+     "ql" 'insert-lambda
+     "qq" 'quoted-insert
+     "qp" 'aero/insert-pdb
+     "qu" 'insert-char
 
-   "h" '(:ignore t :wk "help/manual")
-   "hI" 'info-apropos
-   "hM" 'woman
-   "hd" '(:ignore t :wk "describe")
-   "hdF" 'describe-face
-   "hdb" 'describe-bindings
-   "hdM" 'describe-mode
-   "hdK" 'describe-keymap
-   "hdC" 'describe-char
-   "hdp" 'describe-package
-   "hdi" '(emacs-index-search :wk "search emacs manual")
-   "hdl" '(find-library :wk "describe library")
-   "hi" 'info
-   "hm" 'man
-   "hw" '(:ignore t :wk "which-key")
-   "hwm" '(which-key-show-major-mode :wk "major mode map")
+     "s" '(:ignore t :wk "sexp")
 
-   "j" '(:ignore t :wk "jump")
-   "l" '(:ignore t :wk "lsp")
+     "t" '(:ignore t :wk "tabs/text")
+     "td" 'dictionary-lookup-definition
+     "tD" 'downcase-dwim
+     "tU" 'upcase-dwim
+     "tf" 'fill-paragraph
+     "tF" 'aero/fill-to-80
+     "tn" '(:ignore t :wk "number")
+     "tnd" 'decrement-number-at-point
+     "tni" 'increment-number-at-point
+     "ts" 'sort-lines
 
-   "m" '(:ignore t :wk "mode")
-   "m" '(tmm-menubar :wk "Context menu")
+     "u" 'undo-tree-visualize
 
-   "o" '(:ignore t :wk "org / outline")
-   "oh" '(outline-hide-body :wk "hide all")
-   "oS" '(outline-show-all :wk "show all")
+     "w" '(:ignore t :wk "window/web")
+     "w=" 'balance-windows
+     "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
+     "ws" '(eww-search-words :which-key "web search")
+     "ww" 'eww
+     "wb" '(:ignore t :wk "browse")
+     "wbb" 'eww-list-buffers
+     "wbh" 'eww-list-histories
+     "wbm" 'eww-list-bookmarks
+     "wbp" 'browse-url-at-point
+     "wp" 'browse-url-at-point
+     "wc" 'aero/toggle-compilation-buffer
+     "wd" 'delete-window
+     "wh" 'windmove-left
+     "wi" 'minimize-window
+     "wj" 'windmove-down
+     "wk" 'windmove-up
+     "wl" 'windmove-right
+     "wm" 'maximize-window
+     "wo" 'aero/browse-url-open
+     "w{" 'shrink-window
+     "w}" 'enlarge-window
 
-   "p" '(:ignore t :wk "project")
-   "pr" '(xref-find-definitions :wk "find ref")
-   "ps" '(:ignore t :wk "spelling")
-
-   "r" '(:ignore t :wk "xref")
-   "rf" 'xref-find-definitions
-   "rF" 'xref-find-definitions-other-window
-   "rp" 'xref-go-back
-   "rn" 'xref-go-forward
-   "ra" 'xref-find-apropos
-   "rr" 'xref-find-references
-
-   "q" '(:ignore t :wk "quoted insert")
-   "ql" 'insert-lambda
-   "qq" 'quoted-insert
-   "qp" 'aero/insert-pdb
-   "qu" 'insert-char
-
-   "s" '(:ignore t :wk "sexp")
-
-   "t" '(:ignore t :wk "tabs/text")
-   "td" 'dictionary-lookup-definition
-   "tD" 'downcase-dwim
-   "tU" 'upcase-dwim
-   "tf" 'fill-paragraph
-   "tF" 'aero/fill-to-80
-   "tn" '(:ignore t :wk "number")
-   "tnd" 'decrement-number-at-point
-   "tni" 'increment-number-at-point
-   "ts" 'sort-lines
-
-   "u" 'undo-tree-visualize
-
-   "w" '(:ignore t :wk "window/web")
-   "w=" 'balance-windows
-   "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
-   "ws" '(eww-search-words :which-key "web search")
-   "ww" 'eww
-   "wb" '(:ignore t :wk "browse")
-   "wbb" 'eww-list-buffers
-   "wbh" 'eww-list-histories
-   "wbm" 'eww-list-bookmarks
-   "wbp" 'browse-url-at-point
-   "wp" 'browse-url-at-point
-   "wc" 'aero/toggle-compilation-buffer
-   "wd" 'delete-window
-   "wh" 'windmove-left
-   "wi" 'minimize-window
-   "wj" 'windmove-down
-   "wk" 'windmove-up
-   "wl" 'windmove-right
-   "wm" 'maximize-window
-   "wo" 'aero/browse-url-open
-   "w{" 'shrink-window
-   "w}" 'enlarge-window
-
-   "z" 'repeat))
+     "z" 'repeat))
 #+END_SRC
 
 *** Casual
@@ -1571,6 +1547,14 @@ TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
 
 I'm going to say it, Vi has a better navigation scheme than default Emacs. Even with a thumb-cluster keyboard, I don't want to hold Ctrl basically at all. Evil provides the best of Vi with the power of Emacs, but it needs some heavy configuration to work well.
 
+The "wants" setup /must/ be in =:init= because Evil needs these set prior to setting up everything else.
+
+Note that =evil-want-keybinding= is set to =nil= because =evil-collection= will handle that for us.
+
+To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system)=.
+
+In visual mode, use =<= and =>= to indent/unindent the line(s)
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! evil
     (:host github
@@ -1578,164 +1562,113 @@ I'm going to say it, Vi has a better navigation scheme than default Emacs. Even 
      :files (:defaults
   	         "doc/build/texinfo/evil.texi"
   	         (:exclude "evil-test-helpers.el")))
-#+END_SRC
 
-Set up some "wants" for Evil. These /must/ be in =:init= because Evil needs these set prior to setting up everything else.
+    :init
+    (setq evil-want-keybinding nil
+          evil-undo-system 'undo-tree
+          evil-want-fine-undo t
+          evil-want-C-i-jump nil
+          evil-want-C-u-scroll t
+          evil-search-module 'isearch)
 
-Note that =evil-want-keybinding= is set to =nil= because =evil-collection= will handle that for us.
+    :config
+    ;; Free up some non-useful bindings for other uses.
+    (define-key evil-motion-state-map " " nil)
+    (define-key evil-motion-state-map (kbd "RET") nil)
+    (define-key evil-motion-state-map (kbd "C-o") nil)
 
-To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system)=.
-#+BEGIN_SRC emacs-lisp :lexical t
-  :init
-  (setq evil-want-keybinding nil
-        evil-undo-system 'undo-tree
-        evil-want-fine-undo t
-        evil-want-C-i-jump nil
-        evil-want-C-u-scroll t
-        evil-search-module 'isearch)
-#+END_SRC
+    ;; Set up default states. It's Normal for almost everything, but Evil doesn't handle Dired very well, so we fall back on Emacs mode for that.
+    (setq evil-default-state 'normal)
+    (evil-set-initial-state 'dired-mode 'emacs)
+    (evil-set-initial-state 'message-mode 'motion)
 
-Free up some non-useful bindings for other uses.
+    ;; Make movement keys work visually, just like other kinds of movement, by remapping.
+    (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>")
+      'evil-next-visual-line)
+    (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>")
+      'evil-previous-visual-line)
+    (define-key evil-motion-state-map (kbd "<remap> <evil-next-line>")
+      'evil-next-visual-line)
+    (define-key evil-motion-state-map (kbd "<remap> <evil-previous-line>")
+      'evil-previous-visual-line)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  :config
-  (define-key evil-motion-state-map " " nil)
-  (define-key evil-motion-state-map (kbd "RET") nil)
-  (define-key evil-motion-state-map (kbd "C-o") nil)
+    (setq-default evil-cross-lines nil)
+    (define-key evil-visual-state-map (kbd "u") 'undo)
 
-#+END_SRC
+    ;; By default, these two operate on half pages, but I prefer the smaller jump
+    (defun aero/scroll-quarter-page-down ()
+      (interactive)
+      (evil-scroll-down (/ (window-body-height) 4)))
+    (defun aero/scroll-quarter-page ()
+      (interactive)
+      (evil-scroll-up (/ (window-body-height) 4)))
+    (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
+    (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
 
-Set up default states. It's Normal for almost everything, but Evil doesn't handle Dired very well, so we fall back on Emacs mode for that.
+    ;; Define =vig= and =vag= to look for all paren types
+    (defun aero/evil-paren-range (count beg end type inclusive)
+      "Get minimum range of paren text object.
+      COUNT, BEG, END, TYPE is used.  If INCLUSIVE is t, the text object is inclusive."
+      (let* ((parens '("()" "[]" "{}" "<>"))
+             range
+             found-range)
+        (dolist (p parens)
+          (condition-case nil
+              (setq range (evil-select-paren (aref p 0) (aref p 1) beg end type count inclusive))
+            (error nil))
+          (when range
+            (cond
+             (found-range
+              (when (< (- (nth 1 range) (nth 0 range))
+                       (- (nth 1 found-range) (nth 0 found-range)))
+                (setf (nth 0 found-range) (nth 0 range))
+                (setf (nth 1 found-range) (nth 1 range))))
+             (t
+              (setq found-range range)))))
+        found-range))
+    (evil-define-text-object aero/evil-a-paren (count &optional beg end type)
+      "Select a paren."
+      :extend-selection t
+      (aero/evil-paren-range count beg end type t))
+    (evil-define-text-object aero/evil-inner-paren (count &optional beg end type)
+      "Select 'inner' paren."
+      :extend-selection nil
+      (aero/evil-paren-range count beg end type nil))
+    (define-key evil-inner-text-objects-map "g" #'aero/evil-inner-paren)
+    (define-key evil-outer-text-objects-map "g" #'aero/evil-a-paren)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (setq evil-default-state 'normal)
-  (evil-set-initial-state 'dired-mode 'emacs)
-  (evil-set-initial-state 'message-mode 'motion)
-#+END_SRC
+    (defun aero/evil-shift-right ()
+      (interactive)
+      (evil-shift-right evil-visual-beginning evil-visual-end)
+      (evil-normal-state)
+      (evil-visual-restore))
+    (defun aero/evil-shift-left ()
+      (interactive)
+      (evil-shift-left evil-visual-beginning evil-visual-end)
+      (evil-normal-state)
+      (evil-visual-restore))
+    (evil-define-key 'visual global-map (kbd ">") 'aero/evil-shift-right)
+    (evil-define-key 'visual global-map (kbd "<") 'aero/evil-shift-left)
 
-Make movement keys work visually, just like other kinds of movement, by remapping.
+    ;; Make =:q= kill the buffer instead of Emacs itself
+    (evil-ex-define-cmd "q" 'kill-current-buffer)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>")
-    'evil-next-visual-line)
-  (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>")
-    'evil-previous-visual-line)
-  (define-key evil-motion-state-map (kbd "<remap> <evil-next-line>")
-    'evil-next-visual-line)
-  (define-key evil-motion-state-map (kbd "<remap> <evil-previous-line>")
-    'evil-previous-visual-line)
+    ;; AFAIK there's no "backward" equivalent to "e", so we set it to backward word
+    (evil-define-key '(normal visual motion) global-map
+      (kbd "C-e") #'evil-backward-word-end)
+    (evil-define-key '(normal visual motion) global-map
+      (kbd "C-M-e") #'evil-backward-WORD-end)
 
-#+END_SRC
+    ;; Useful for pasting into the minibuffer, since Evil doesn't properly function there
+    (evil-define-key '(insert) global-map (kbd "C-y") #'evil-paste-after)
+    (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
 
-Ensure horizontal movement doesn't cross to the next/previous line
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (setq-default evil-cross-lines nil)
-#+END_SRC
-
-Undo in region
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (define-key evil-visual-state-map (kbd "u") 'undo)
-#+END_SRC
-
-
-By default, these two operate on half pages, but I prefer the smaller jump
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/scroll-quarter-page-down ()
-    (interactive)
-    (evil-scroll-down (/ (window-body-height) 4)))
-  (defun aero/scroll-quarter-page ()
-    (interactive)
-    (evil-scroll-up (/ (window-body-height) 4)))
-  (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
-  (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
-
-#+END_SRC
-
-Define =vig= and =vag= to look for all paren types
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/evil-paren-range (count beg end type inclusive)
-    "Get minimum range of paren text object.
-    COUNT, BEG, END, TYPE is used.  If INCLUSIVE is t, the text object is inclusive."
-    (let* ((parens '("()" "[]" "{}" "<>"))
-           range
-           found-range)
-      (dolist (p parens)
-        (condition-case nil
-            (setq range (evil-select-paren (aref p 0) (aref p 1) beg end type count inclusive))
-          (error nil))
-        (when range
-          (cond
-           (found-range
-            (when (< (- (nth 1 range) (nth 0 range))
-                     (- (nth 1 found-range) (nth 0 found-range)))
-              (setf (nth 0 found-range) (nth 0 range))
-              (setf (nth 1 found-range) (nth 1 range))))
-           (t
-            (setq found-range range)))))
-      found-range))
-  (evil-define-text-object aero/evil-a-paren (count &optional beg end type)
-    "Select a paren."
-    :extend-selection t
-    (aero/evil-paren-range count beg end type t))
-  (evil-define-text-object aero/evil-inner-paren (count &optional beg end type)
-    "Select 'inner' paren."
-    :extend-selection nil
-    (aero/evil-paren-range count beg end type nil))
-  (define-key evil-inner-text-objects-map "g" #'aero/evil-inner-paren)
-  (define-key evil-outer-text-objects-map "g" #'aero/evil-a-paren)
-#+END_SRC
-
-Super useful, in visual mode, use =<= and =>= to indent/unindent the line(s)
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/evil-shift-right ()
-    (interactive)
-    (evil-shift-right evil-visual-beginning evil-visual-end)
-    (evil-normal-state)
-    (evil-visual-restore))
-  (defun aero/evil-shift-left ()
-    (interactive)
-    (evil-shift-left evil-visual-beginning evil-visual-end)
-    (evil-normal-state)
-    (evil-visual-restore))
-  (evil-define-key 'visual global-map (kbd ">") 'aero/evil-shift-right)
-  (evil-define-key 'visual global-map (kbd "<") 'aero/evil-shift-left)
-#+END_SRC
-
-Make =:q= kill the buffer instead of Emacs itself
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (evil-ex-define-cmd "q" 'kill-current-buffer)
-#+END_SRC
-
-AFAIK there's no "backward" equivalent to "e", so we set it to backward word
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (evil-define-key '(normal visual motion) global-map
-    (kbd "C-e") #'evil-backward-word-end)
-  (evil-define-key '(normal visual motion) global-map
-    (kbd "C-M-e") #'evil-backward-WORD-end)
-#+END_SRC
-
-Useful for pasting into the minibuffer, since Evil doesn't properly function there
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (evil-define-key '(insert) global-map (kbd "C-y") #'evil-paste-after)
-  (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
-#+END_SRC
-
-Activate Evil
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (evil-mode +1))
+    (evil-mode +1))
 #+END_SRC
 
 *** Evil collection
 Provides Evil defaults for many modes which Evil proper overlooks
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-collection (:repo "emacs-evil/evil-collection" :files (:defaults "modes"))
     :after evil
@@ -1757,6 +1690,8 @@ Allows % to jump matching tags
 *** Treesit-auto
 Automatically installs treesitter grammars when they're missing, because for some reason Emacs doesn't do this already.
 
+The call to =treesit-auto-add-to-auto-mode-alist= adds all treesitter modes to auto-mode-alist as long as they're =treesit-ready-p=. I previously had this set to ='all= but this started installing some grammars which are in-progress and thus error when you try to use them.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! treesit-auto "renzmann/treesit-auto"
     :when (treesitterp)
@@ -1764,35 +1699,21 @@ Automatically installs treesitter grammars when they're missing, because for som
     (treesit-auto-install 'prompt)
 
     :config
-#+END_SRC
+    (treesit-auto-add-to-auto-mode-alist)
 
-Add all treesitter modes to auto-mode-alist as long as they're =treesit-ready-p=.
+    ;; Python does not play nice with treesitter, as of 2024, so we pin to a working version.
+    (defvar aero/python-treesit-auto-recipe
+      (make-treesit-auto-recipe
+       :lang 'python
+       :ts-mode 'python-ts-mode
+       :remap 'python-mode
+       :url "https://github.com/tree-sitter/tree-sitter-python"
+       :ext "\\.py[iw]?\\'"
+       :revision "v0.21.0")
+      "Recipe for libtree-sitter-python.dylib")
+    (add-to-list 'treesit-auto-recipe-list aero/python-treesit-auto-recipe)
 
-I previously had this set to ='all= but this started installing some grammars which are in-progress and thus error when you try to use them.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (treesit-auto-add-to-auto-mode-alist)
-#+END_SRC
-
-Python does not play nice with treesitter, as of 2024, so we pin to a working version.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defvar aero/python-treesit-auto-recipe
-    (make-treesit-auto-recipe
-     :lang 'python
-     :ts-mode 'python-ts-mode
-     :remap 'python-mode
-     :url "https://github.com/tree-sitter/tree-sitter-python"
-     :ext "\\.py[iw]?\\'"
-     :revision "v0.21.0")
-    "Recipe for libtree-sitter-python.dylib")
-  (add-to-list 'treesit-auto-recipe-list aero/python-treesit-auto-recipe)
-#+END_SRC
-
-Enable treesit-auto mode
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (global-treesit-auto-mode +1))
+    (global-treesit-auto-mode +1))
 #+END_SRC
 
 *** Evil textobj with treesitter
@@ -1814,38 +1735,28 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
 
 ** Completion and navigation
 *** Vertico
-Vertico provides a completion system similar to Ivy, but it's faster and more lightweight.
+Provides a completion system similar to Ivy, but it's faster and more lightweight. Also make sure selections can wrap around the top and bottom of the menu.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! vertico "minad/vertico"
     :init (vertico-mode)
     :custom
-#+END_SRC
+    (vertico-cycle t)
 
-Enable wrap-around cycling.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (vertico-cycle t)
-
-  :config
-#+END_SRC
-
-When completing a file name, =DEL= goes up a directory, otherwise it deletes a character.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/vertico-directory-up-maybe ()
-    "Go up a directory if completing a file name, otherwise delete char."
-    (interactive)
-    (if (and (eq (char-before) ?/)
-             (minibufferp)
-             minibuffer-completing-file-name)
-        (vertico-directory-up)
-      (delete-char -1)))
-  (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
+    :config
+    (defun aero/vertico-directory-up-maybe ()
+      "Go up a directory if completing a file name, otherwise delete char."
+      (interactive)
+      (if (and (eq (char-before) ?/)
+               (minibufferp)
+               minibuffer-completing-file-name)
+          (vertico-directory-up)
+        (delete-char -1)))
+    (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
 #+END_SRC
 
 *** Marginalia
-Marginalia provides a more informative completion system, showing more information about the candidates.
+This provides a more informative completion system, showing more information about the candidates.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! marginalia "minad/marginalia"
@@ -1867,7 +1778,9 @@ This provides a more flexible completion system where we can use spaces to separ
 #+END_SRC
 
 *** Consult
-Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface.
+Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface. I also hook it into Xref for more seamless integration.
+
+Buffer previews are debounced, since I often don't want them.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! consult "minad/consult"
@@ -1879,98 +1792,65 @@ Super useful package, providing a variety of wrappers that provide a powerful an
                consult-flymake
                consult-theme
                consult-ripgrep)
-#+END_SRC
+    :custom
+    (xref-show-xrefs-function #'consult-xref)
+    (xref-show-definitions-function #'consult-xref)
+    (consult-preview-key '(:debounce 0.4 any))
 
-Hook consult into xref
+    :init
+    (aero-leader-def
+      "/" 'consult-line
+      "bb" 'consult-buffer
+      "jo" 'consult-outline
+      "ji" 'consult-imenu
+      "je" 'consult-flymake
+      "ja" 'consult-org-agenda
+      "jh" 'consult-org-heading
+      "p/" 'consult-ripgrep
+      "Et" 'consult-theme
+      "j'" 'consult-mark)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  :custom
-  (xref-show-xrefs-function #'consult-xref)
-  (xref-show-definitions-function #'consult-xref)
-#+END_SRC
+    :config
+    (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
 
-Debounce buffer previews, improves performance with minimal downside.
+    (defun consult--orderless-regexp-compiler (input type &rest _config)
+      (setq input (cdr (orderless-compile input)))
+      (cons
+       (mapcar (lambda (r) (consult--convert-regexp r type)) input)
+       (lambda (str) (orderless--highlight input t str))))
+    (defun consult--with-orderless (&rest args)
+      "Use Orderless to compile the regexp for consult-ripgrep."
+      (minibuffer-with-setup-hook
+          (lambda ()
+            (setq-local consult--regexp-compiler #'consult--orderless-regexp-compiler))
+        (apply args)))
+    (advice-add #'consult-ripgrep :around #'consult--with-orderless)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (consult-preview-key '(:debounce 0.4 any))
-#+END_SRC
+    ;; Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only supports the first search term when using orderless syntax.
+    (defun aero/consult-line-isearch-history (&rest _)
+      "Add latest `consult-line' search pattern to the isearch history."
+      (when (and (bound-and-true-p evil-mode)
+                 (eq evil-search-module 'isearch)
+                 consult--line-history)
+        (let* ((pattern (car consult--line-history))
+               (pattern (car (split-string pattern)))
+               (regexp (if (string-prefix-p "\\_" pattern)
+                           (substring pattern 2)
+                         pattern)))
+          (add-to-history 'regexp-search-ring regexp)
+          (setq evil-ex-search-direction 'forward))))
+    (advice-add #'consult-line :after #'aero/consult-line-isearch-history)
 
-Set up some keybindings
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  :init
-  (aero-leader-def
-    "/" 'consult-line
-    "bb" 'consult-buffer
-    "jo" 'consult-outline
-    "ji" 'consult-imenu
-    "je" 'consult-flymake
-    "ja" 'consult-org-agenda
-    "jh" 'consult-org-heading
-    "p/" 'consult-ripgrep
-    "Et" 'consult-theme
-    "j'" 'consult-mark)
-
-  :config
-#+END_SRC
-
-Support jumping to eshell prompts with consult-outline
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
-
-#+END_SRC
-
-Use Orderless to compile the regexp for consult-ripgrep
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun consult--orderless-regexp-compiler (input type &rest _config)
-    (setq input (cdr (orderless-compile input)))
-    (cons
-     (mapcar (lambda (r) (consult--convert-regexp r type)) input)
-     (lambda (str) (orderless--highlight input t str))))
-  (defun consult--with-orderless (&rest args)
-    "Use Orderless to compile the regexp for consult-ripgrep."
-    (minibuffer-with-setup-hook
-        (lambda ()
-          (setq-local consult--regexp-compiler #'consult--orderless-regexp-compiler))
-      (apply args)))
-  (advice-add #'consult-ripgrep :around #'consult--with-orderless)
-
-#+END_SRC
-
-Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only supports the first search term when using orderless syntax.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/consult-line-isearch-history (&rest _)
-    "Add latest `consult-line' search pattern to the isearch history."
-    (when (and (bound-and-true-p evil-mode)
-               (eq evil-search-module 'isearch)
-               consult--line-history)
-      (let* ((pattern (car consult--line-history))
-             (pattern (car (split-string pattern)))
-             (regexp (if (string-prefix-p "\\_" pattern)
-                         (substring pattern 2)
-                       pattern)))
-        (add-to-history 'regexp-search-ring regexp)
-        (setq evil-ex-search-direction 'forward))))
-  (advice-add #'consult-line :after #'aero/consult-line-isearch-history)
-
-#+END_SRC
-
-Add a prompt indicator when multiple completions are available
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun crm-indicator (args)
-    "Add prompt indicator to `completing-read-multiple'.
+    (defun crm-indicator (args)
+      "Add prompt indicator to `completing-read-multiple'.
     We display [CRM<separator>], e.g., [CRM,] if the separator is a comma."
-    (cons (format "[CRM%s] %s"
-                  (replace-regexp-in-string
-                   "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
-                   crm-separator)
-                  (car args))
-          (cdr args)))
-  (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
+      (cons (format "[CRM%s] %s"
+                    (replace-regexp-in-string
+                     "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
+                     crm-separator)
+                    (car args))
+            (cdr args)))
+    (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
 
 #+END_SRC
 
@@ -2008,41 +1888,26 @@ Plug yasnipet into consult for a better interface to snippets
 *** Recentf (builtin)
 Recentf provides a list of recently opened files, and is honestly one of the main ways I open buffers.
 
+Doesn't seem like indent activates properly for me without an intervention into the save list. Here we move it to a known cache file and set up an auto-save every 5 minutes.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! recentf :builtin
     :defer 1
     :defines (recentf-mode)
-#+END_SRC
 
-Doesn't seem like indent activates properly for me without this intervention. Here we move it to a known cache file and set up an auto-save every 5 minutes.
+    :preface
+    (defun aero/recentf-save-list-quiet ()
+      "Wrapper for `recentf-save-list' with no message."
+      (let ((inhibit-message t))
+        (recentf-save-list)))
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  :preface
-  (defun aero/recentf-save-list-quiet ()
-    "Wrapper for `recentf-save-list' with no message."
-    (let ((inhibit-message t))
-      (recentf-save-list)))
-#+END_SRC
+    :custom
+    (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
+    (recentf-max-saved-items 500)
 
-Set the known cache file and the maximum number of saved items
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  :custom
-  (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
-  (recentf-max-saved-items 500)
-#+END_SRC
-
-Enable
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  :config
-  (recentf-mode 1)
-#+END_SRC
-
-Would be a great place for =aero/advice-no-message= but there's no need to hide messaging if recentf saves for some other reason. Here, we run it regularly so we don't care about the constant messaging.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
+    :config
+    (recentf-mode 1)
+    (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
 #+END_SRC
 
 *** All-the-icons
@@ -2094,40 +1959,25 @@ Gives us the =M-n= and =M-p= symbol-following ability
 #+END_SRC
 
 *** Undo-tree
-Provides a visual representation of the undo history
+Provides a visual representation of the undo history.
+
+By default, auto-saves to the local directory, but that's annoying, so we move it to the cache directory. Also enable timestamps and diffs in the visualizer.
+
+=undo-in-region= is disabled entirely because it's buggy enough that it will drop your undo history in some situations without warning.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! undo-tree "apchamberlain/undo-tree.el"
     :custom
-#+END_SRC
+    (undo-tree-auto-save-history nil)
+    (undo-tree-history-directory-alist
+     `((".*" . ,(expand-file-name "undo-tree/" aero-cache-dir))))
+    (undo-tree-visualizer-timestamps t)
+    (undo-tree-visualizer-diff t)
+    (undo-tree-enable-undo-in-region nil)
 
-By default, auto-saves to the local directory, but that's annoying, so we move it to the cache directory
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (undo-tree-auto-save-history nil)
-  (undo-tree-history-directory-alist
-   `((".*" . ,(expand-file-name "undo-tree/" aero-cache-dir))))
-#+END_SRC
-
-Enable timestamps and diffs in the visualizer
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (undo-tree-visualizer-timestamps t)
-  (undo-tree-visualizer-diff t)
-#+END_SRC
-
-Disable undo-in-region, as it's buggy and can cause you to lose your undo history if you use it by accident.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (undo-tree-enable-undo-in-region nil)
-#+END_SRC
-
-Enable globally. By default this doesn't enable in non-file buffers like =*scratch*=, so we do that manually.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  :config
-  (global-undo-tree-mode +1)
-  (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
+    :config
+    (global-undo-tree-mode +1)
+    (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
 #+END_SRC
 
 *** Winner
@@ -2265,6 +2115,12 @@ The introduction of the language server has been a game-changer. It provides a c
 
 Using =:hook= we ensure it's enabled for particular languages, rather than trying to enable in every buffer.
 
+Set =eglot-confirm-server-initiated-edits= to nil to stop an infuriating default behavior that confirms editing a file immediately after explicitly initiating editing the file.
+
+Event logging is disabled to provide a slight performance boost, with no real downside.
+
+Document highlighting is disabled because most language servers are pretty slow at it. We use =highlight-thing= instead.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! eglot :builtin
     :hook ((python-mode
@@ -2278,64 +2134,29 @@ Using =:hook= we ensure it's enabled for particular languages, rather than tryin
     :after (general project)
 
     :custom
-#+END_SRC
+    (eglot-confirm-server-initiated-edits nil)
+    (eglot-autoshutdown t)
+    (eglot-events-buffer-size 0)
+    (eglot-send-changes-idle-time 0.75)
+    (eglot-ignored-server-capabilities '(:documentHighlightProvider))
 
-Stop an infuriating default behavior that confirms editing a file immediately after explicitly initiating editing the file.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (eglot-confirm-server-initiated-edits nil)
-#+END_SRC
-
-Shut down the server after the last managed buffer is killed.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (eglot-autoshutdown t)
-#+END_SRC
-
-Disable event logging, providing a slight performance boost with no real downside.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (eglot-events-buffer-size 0)
-#+END_SRC
-
-Tweak the idle time for sending changes to the server
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (eglot-send-changes-idle-time 0.75)
-#+END_SRC
-
-Language server highlighting is ridiculously slow, I use highlight-thing instead.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (eglot-ignored-server-capabilities '(:documentHighlightProvider))
-
-  :config
-#+END_SRC
-
-Individual server configuration. Right now only Python needs special treatment, where we turn on =pyls_mypy= and =pyls_black=, and turn off =pycodestyle=.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (setq-default eglot-workspace-configuration
-                '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-  				                          :pyls_mypy (:enabled t :live_mode :json-false)
-  				                          :pyls_black (:enabled t)
-  				                          :pyls_isort (:enabled t)))))
-#+END_SRC
-
-Keybindings for interacting with the language server.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (aero-leader-def
-    "la" 'eglot-code-actions
-    "lf" '(:ignore t :wk "find")
-    "lfr" 'xref-find-references
-    "lfd" 'eglot-find-declaration
-    "lfi" 'eglot-find-implementation
-    "lft" 'eglot-find-typeDefinition
-    "lr" '(:ignore t :wk "refactor")
-    "lrr" 'eglot-rename
-    "lrf" 'eglot-format
-    "lro" 'eglot-code-action-organize-imports))
+    :config
+    (setq-default eglot-workspace-configuration
+                  '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
+  				                            :pyls_mypy (:enabled t :live_mode :json-false)
+  				                            :pyls_black (:enabled t)
+  				                            :pyls_isort (:enabled t)))))
+    (aero-leader-def
+      "la" 'eglot-code-actions
+      "lf" '(:ignore t :wk "find")
+      "lfr" 'xref-find-references
+      "lfd" 'eglot-find-declaration
+      "lfi" 'eglot-find-implementation
+      "lft" 'eglot-find-typeDefinition
+      "lr" '(:ignore t :wk "refactor")
+      "lrr" 'eglot-rename
+      "lrf" 'eglot-format
+      "lro" 'eglot-code-action-organize-imports))
 #+END_SRC
 
 **** Eglot-booster
@@ -2360,6 +2181,11 @@ Make eglot send more info to eldoc, including parameter and function documentati
 *** Eldoc-box
 Puts eldoc in a child frame instead of the echo area. It's set up so that it only shows up when you want it to, rather than clobbering the minibuffer or showing on top of other code.
 
+Includes a function to ensure we fix the documentation strategy to show all of the available eldoc information when we want it. This way Flymake errors don't just get clobbered by docstrings.
+
+The configuration leaves single-line docs in the minibuffer, and shows multi-line docs in the child frame only when requested. Since we always show when the user requests it, max height and width are not important.
+
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! eldoc-box "casouri/eldoc-box"
     :after general
@@ -2373,34 +2199,21 @@ Puts eldoc in a child frame instead of the echo area. It's set up so that it onl
       (interactive)
       (let ((eldoc-echo-area-use-multiline-p t))
         (call-interactively #'eldoc-box-help-at-point)))
-#+END_SRC
 
-Fix the documentation strategy to show all of the available eldoc information when we want it. This way Flymake errors don't just get clobbered by docstrings.
+    :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
-#+END_SRC
+    :custom
+    (eldoc-idle-delay 0.5)
+    (eldoc-box-only-multi-line nil)
+    (eldoc-echo-area-use-multiline-p nil)
+    (eldoc-box-max-pixel-height 99999)
+    (eldoc-box-max-pixel-width 99999)
 
-Set up the idle delay. We leave single-line docs in the minibuffer, but show multi-line docs in the child frame when requested. Since we always show when the user requests it, max height and width are not important.
+    :init
+    (aero-leader-def "i" 'aero/eldoc-box-help-at-point)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-
-  :custom
-  (eldoc-idle-delay 0.5)
-  (eldoc-box-only-multi-line nil)
-  (eldoc-echo-area-use-multiline-p nil)
-  (eldoc-box-max-pixel-height 99999)
-  (eldoc-box-max-pixel-width 99999)
-
-  :init
-  (aero-leader-def "i" 'aero/eldoc-box-help-at-point)
-#+END_SRC
-
-An attempt to prettify typescript errors
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  :config
-  (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
+    :config
+    (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
 #+END_SRC
 
 ** System-specific setup
@@ -2718,6 +2531,10 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
 #+END_SRC
 
 * Project management
+Nearly all my code is organized within projects, and navigated using this built-in package.
+
+Note that we can't use =:hook= for the =project-find-functions= because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! project :builtin
     :after (general)
@@ -2747,39 +2564,25 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
     (project-compilation-buffer-name-function #'project-prefixed-buffer-name)
 
     :config
-#+END_SRC
+    (add-hook 'project-find-functions #'aero/project-root-override)
+    (setq project-switch-commands '((project-find-file "Find file" "f")
+                                    (aero/project-switch-magit "Magit status" "g")
+                                    (project-eshell "Eshell" "e")
+                                    (project-compile "Compile" "c")
+                                    (project-find-dir "Find directory" "d")
+                                    (project-find-regexp "Find regexp" "r")
+                                    (project-any-command "Any command" "a")))
 
-Note that we can't use =:hook= here because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (add-hook 'project-find-functions #'aero/project-root-override)
-#+END_SRC
-
-Set our own list of actions on =project-switch-project=
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (setq project-switch-commands '((project-find-file "Find file" "f")
-                                  (aero/project-switch-magit "Magit status" "g")
-                                  (project-eshell "Eshell" "e")
-                                  (project-compile "Compile" "c")
-                                  (project-find-dir "Find directory" "d")
-                                  (project-find-regexp "Find regexp" "r")
-                                  (project-any-command "Any command" "a")))
-#+END_SRC
-
-Bindings, these are some of the most heavily used day-to-day.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (aero-leader-def
-    "pf" 'project-find-file
-    "pp" 'project-switch-project
-    "p:" 'project-shell-command
-    "p&" 'project-async-shell-command
-    "p'" 'project-eshell
-    "p\"" 'aero/project-eshell-new
-    "p`" 'project-shell
-    "p%" 'project-query-replace-regexp
-    "cp" 'project-compile))
+    (aero-leader-def
+      "pf" 'project-find-file
+      "pp" 'project-switch-project
+      "p:" 'project-shell-command
+      "p&" 'project-async-shell-command
+      "p'" 'project-eshell
+      "p\"" 'aero/project-eshell-new
+      "p`" 'project-shell
+      "p%" 'project-query-replace-regexp
+      "cp" 'project-compile))
 #+END_SRC
 
 * Magit
@@ -2844,34 +2647,25 @@ One of the truly great packages in Emacs. I use it for everything git-related.
        (replace-regexp-in-string "refs/remotes/origin/" ""
                                  (magit-git-string "symbolic-ref" "refs/remotes/origin/HEAD"))
        args))
-#+END_SRC
 
-We don't want none of that fancy "color" in the pre-commit hook
+    (defun aero/magit--color-buffer (proc &rest args)
+      (interactive)
+      (with-current-buffer (process-buffer proc)
+        (read-only-mode -1)
+        (ansi-color-apply-on-region (point-min) (point-max))
+        (read-only-mode 1)))
+    (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
 
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/magit--color-buffer (proc &rest args)
-    (interactive)
-    (with-current-buffer (process-buffer proc)
-      (read-only-mode -1)
-      (ansi-color-apply-on-region (point-min) (point-max))
-      (read-only-mode 1)))
-  (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
-
-#+END_SRC
-
-Useful function to fetch a PR into a new branch by the PR number
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/fetch-pr ()
-    "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
-    (interactive)
-    (let* ((pr (message-read-from-minibuffer "Enter PR number: "))
-           (new-branch (format "pr%s" pr))
-           (fetch-command
-            (format "git fetch origin pull/%s/head:%s" pr new-branch)))
-      (shell-command fetch-command)
-      (magit-status)
-      (message "Checked out PR as %s" new-branch))))
+    (defun aero/fetch-pr ()
+      "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
+      (interactive)
+      (let* ((pr (message-read-from-minibuffer "Enter PR number: "))
+             (new-branch (format "pr%s" pr))
+             (fetch-command
+              (format "git fetch origin pull/%s/head:%s" pr new-branch)))
+        (shell-command fetch-command)
+        (magit-status)
+        (message "Checked out PR as %s" new-branch))))
 #+END_SRC
 
 ** git-gutter
@@ -2909,9 +2703,7 @@ Redefine the fringe bitmap definer to a no-op in GUI, if it's not already bound,
 
 The actual package, which moves the git-gutter functionality to the buffer fringe where it doesn't push text around.
 
-The fringe bitmaps are a thin bar, expecting the theme to give them suitable coloring.
-
-The functionality is disabled in Tramp because it hogs the connection bandwidth.
+The fringe bitmaps are a thin bar, expecting the theme to give them suitable coloring. The functionality is disabled in Tramp because it hogs the connection bandwidth.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! git-gutter-fringe :auto :after (git-gutter)
