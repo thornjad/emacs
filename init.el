@@ -73,6 +73,6 @@ so we use more cycles but less space, but not too little space.")
   ;; burn baby burn
   (require 'org)
   (require 'ob-tangle)
-  (org-babel-load-file (expand-file-name "config.org" user-emacs-directory))
+  (org-babel-load-file (expand-file-name "config.org" user-emacs-directory)))
 
 ;;; init.el ends here
