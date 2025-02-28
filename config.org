@@ -3210,13 +3210,13 @@ Super simple way to get a link to a file or line in a file on GitHub
                               (holiday-fixed 6 28 "Tau Day")
 
                               (holiday-fixed 2 27 "Hangover (first day)")
-                              (holiday-fixed 2 28 "Hangover (second day")
-                              (holiday-fixed 2 29 "Hangover (third day")
-                              (holiday-fixed 3 1 "Hangover (fourth day")
-                              (holiday-fixed 3 2 "Hangover (fifth day")
-                              (holiday-fixed 3 3 "Hangover (sixth day")
-                              (holiday-fixed 3 4 "Hangover (seventh day")
-                              (holiday-fixed 3 5 "Hangover (eighth day")
+                              (holiday-fixed 2 28 "Hangover (second day)")
+                              (holiday-fixed 2 29 "Hangover (third day)")
+                              (holiday-fixed 3 1 "Hangover (fourth day)")
+                              (holiday-fixed 3 2 "Hangover (fifth day)")
+                              (holiday-fixed 3 3 "Hangover (sixth day)")
+                              (holiday-fixed 3 4 "Hangover (seventh day)")
+                              (holiday-fixed 3 5 "Hangover (eighth day)")
                               (holiday-fixed 3 6 "The Day of the Dude")))
 
     (org-agenda-log-mode-items nil) ; don't show closed nor clocked items
