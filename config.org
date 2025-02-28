@@ -312,7 +312,7 @@ Some general helpers, not used much
 
   (defun treesitterp ()
     "Evaluate whether Emacs has treesitter support."
-    (and aero/use-treesit-p (functionp 'treesit-available-p) (treesit-available-p)))
+    (and (functionp 'treesit-available-p) (treesit-available-p)))
 
   (defun node-repl ()
     "Launch a Node.js comint REPL."
@@ -1190,7 +1190,7 @@ I use "prelude" here as a nod to earlier iterations of this configuration, where
 To ensure we can use this easily later, require treesitter as long as it's available and wanted. See [[*Treesitter][Treesitter]] section for the full config.
 
 #+BEGIN_SRC emacs-lisp
-  (and (and aero/use-treesit-p
+  (and (and (treesitterp)
             (functionp 'module-load)
             (bound-and-true-p module-file-suffix))
        (require 'treesit nil t))
