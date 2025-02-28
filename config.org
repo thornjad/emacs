@@ -2749,126 +2749,138 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Org mode and org agenda
+Org is an incredibly powerful tool in Emacs, and I make the most use of it for task management and note-taking.
+
+Before the actual package config, let's define some useful functions.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun archive-buffer-closed-tasks ()
+    (interactive)
+    (org-map-entries
+     (lambda ()
+       (when (member (org-get-todo-state) org-done-keywords)
+         (org-archive-subtree-default)
+         ;; the archive alters the tree, so just go back to the top
+         (setq org-map-continue-from (point-min))))
+     nil 'file))
+
+  (defun trim-archive-entries ()
+    "Trim entries in the archive file older than 60 days."
+    (interactive)
+    (let ((archive-file (expand-file-name aero/thornlog-archive-file)))
+      (when (file-exists-p archive-file)
+        (let ((cutoff-date (time-subtract (current-time) (days-to-time 60))))
+          (with-current-buffer (find-file-noselect archive-file)
+            (goto-char (point-min))
+            (while (not (eobp))
+              (when (and (org-at-heading-p)
+                         (let ((archive-time-str (org-entry-get (point) "ARCHIVE_TIME")))
+                           (and archive-time-str
+                                (time-less-p (org-read-date nil t archive-time-str) cutoff-date))))
+                (org-cut-subtree)
+                (org-back-to-heading t)
+                (outline-previous-heading))
+              (outline-next-heading)))
+          (save-buffer)))))
+
+  (defun aero/org-archive-cleanup ()
+    "Archive closed tasks and trim archive entries."
+    (interactive)
+    (archive-buffer-closed-tasks)
+    (trim-archive-entries))
+
+  (defun aero/org-collapse-entry-if-done ()
+    "Collapse the current entry if it is marked as DONE."
+    (when (member org-state '("DONE"))
+      (hide-subtree)))
+
+  (defun aero/org-expand-entry-if-todo ()
+    "Expand the current entry if it is marked as TODO."
+    (when (member org-state '("TODO"))
+      (show-subtree)))
+
+  (defun jump-to-org-agenda ()
+    "Go to the org agenda. Used on idle timer."
+    (interactive)
+    (let ((buf (get-buffer "*Org Agenda*"))
+          wind)
+      (if buf
+          (if (setq wind (get-buffer-window buf))
+              (select-window wind)
+            (if (called-interactively-p 'any)
+                (progn
+                  (select-window (display-buffer buf t t))
+                  (org-fit-window-to-buffer))
+              (with-selected-window (display-buffer buf)
+                (org-fit-window-to-buffer))))
+        (call-interactively 'org-agenda-list))))
+#+END_SRC
+
+Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/reorder-buffer-list (new-list)
+    (while new-list
+      (bury-buffer (car new-list))
+      (setq new-list (cdr new-list))))
+
+  (defun aero/keep-buffer-list-unaltered (orig-fun &rest args)
+    (let ((buffers (buffer-list))
+          (result (apply orig-fun args)))
+      (aero/reorder-buffer-list buffers)
+      result))
+
+  (defun org-schedule-and-refile ()
+    "Schedule the current entry and refile it."
+    (interactive)
+    (org-schedule t)
+    (org-refile))
+
+  (defun org-deadline-and-refile ()
+    "Deadline the current entry and refile it."
+    (interactive)
+    (org-deadline t)
+    (org-refile))
+
+  (defun aero/org-agenda-format-date (date)
+    "Format a DATE string for display in the daily/weekly agenda.
+  This function makes sure that dates are aligned for easy reading."
+    (require 'cal-iso)
+    (let* ((dayname (calendar-day-name date))
+  	       (day (cadr date))
+  	       (month (car date))
+  	       (monthname (calendar-month-name month))
+
+           ;; divisor must be float so (/) doesn't do integer division
+           (quarter (round (/ (1+ month) 3.0)))
+
+  	       (year (nth 2 date))
+  	       (iso-week (org-days-to-iso-week
+  		                (calendar-absolute-from-gregorian date)))
+  	       (day-of-week (calendar-day-of-week date))
+  	       (weekstring (if (= day-of-week 1)
+  			                   (format " W%02d" iso-week)
+  		                   "")))
+      (format "%-10s %2d %s %4d%s   (Q%s)"
+  	          dayname day monthname year weekstring quarter)))
+
+  (defun aero/org-deindent-on-return (&rest _)
+    "De-indent the current line if there is only whitespace before the point when pressing ENTER.
+
+  This behavior is IDIOTIC and I cannot suffer to live with this automatic indentation any longer."
+    (when (and (derived-mode-p 'org-mode)
+               (save-excursion
+                 (move-beginning-of-line 1)
+                 (looking-at-p "[ \t]*$")))
+      (delete-horizontal-space)))
+#+END_SRC
+
+** Org package
+Now for the actual package configuration. This is a long one, so I've made a lot of comments within the code block rather than putting everything up here.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! org :builtin
     :preface
-    (defun archive-buffer-closed-tasks ()
-      (interactive)
-      (org-map-entries
-       (lambda ()
-         (when (member (org-get-todo-state) org-done-keywords)
-           (org-archive-subtree-default)
-           ;; the archive alters the tree, so just go back to the top
-           (setq org-map-continue-from (point-min))))
-       nil 'file))
-
-    (defun trim-archive-entries ()
-      "Trim entries in the archive file older than 60 days."
-      (interactive)
-      (let ((archive-file (expand-file-name aero/thornlog-archive-file)))
-        (when (file-exists-p archive-file)
-          (let ((cutoff-date (time-subtract (current-time) (days-to-time 60))))
-            (with-current-buffer (find-file-noselect archive-file)
-              (goto-char (point-min))
-              (while (not (eobp))
-                (when (and (org-at-heading-p)
-                           (let ((archive-time-str (org-entry-get (point) "ARCHIVE_TIME")))
-                             (and archive-time-str
-                                  (time-less-p (org-read-date nil t archive-time-str) cutoff-date))))
-                  (org-cut-subtree)
-                  (org-back-to-heading t)
-                  (outline-previous-heading))
-                (outline-next-heading)))
-            (save-buffer)))))
-
-    (defun aero/org-archive-cleanup ()
-      "Archive closed tasks and trim archive entries."
-      (interactive)
-      (archive-buffer-closed-tasks)
-      (trim-archive-entries))
-
-    (defun aero/org-collapse-entry-if-done ()
-      "Collapse the current entry if it is marked as DONE."
-      (when (member org-state '("DONE"))
-        (hide-subtree)))
-
-    (defun aero/org-expand-entry-if-todo ()
-      "Expand the current entry if it is marked as TODO."
-      (when (member org-state '("TODO"))
-        (show-subtree)))
-
-    (defun jump-to-org-agenda ()
-      "Go to the org agenda. Used on idle timer."
-      (interactive)
-      (let ((buf (get-buffer "*Org Agenda*"))
-            wind)
-        (if buf
-            (if (setq wind (get-buffer-window buf))
-                (select-window wind)
-              (if (called-interactively-p 'any)
-                  (progn
-                    (select-window (display-buffer buf t t))
-                    (org-fit-window-to-buffer))
-                (with-selected-window (display-buffer buf)
-                  (org-fit-window-to-buffer))))
-          (call-interactively 'org-agenda-list))))
-
-    ;; https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
-    (defun aero/reorder-buffer-list (new-list)
-      (while new-list
-        (bury-buffer (car new-list))
-        (setq new-list (cdr new-list))))
-
-    (defun aero/keep-buffer-list-unaltered (orig-fun &rest args)
-      (let ((buffers (buffer-list))
-            (result (apply orig-fun args)))
-        (aero/reorder-buffer-list buffers)
-        result))
-
-    (defun org-schedule-and-refile ()
-      "Schedule the current entry and refile it."
-      (interactive)
-      (org-schedule t)
-      (org-refile))
-
-    (defun org-deadline-and-refile ()
-      "Deadline the current entry and refile it."
-      (interactive)
-      (org-deadline t)
-      (org-refile))
-
-    (defun aero/org-agenda-format-date (date)
-      "Format a DATE string for display in the daily/weekly agenda.
-    This function makes sure that dates are aligned for easy reading."
-      (require 'cal-iso)
-      (let* ((dayname (calendar-day-name date))
-    	       (day (cadr date))
-    	       (month (car date))
-    	       (monthname (calendar-month-name month))
-
-             ;; divisor must be float so (/) doesn't do integer division
-             (quarter (round (/ (1+ month) 3.0)))
-
-    	       (year (nth 2 date))
-    	       (iso-week (org-days-to-iso-week
-    		                (calendar-absolute-from-gregorian date)))
-    	       (day-of-week (calendar-day-of-week date))
-    	       (weekstring (if (= day-of-week 1)
-    			                   (format " W%02d" iso-week)
-    		                   "")))
-        (format "%-10s %2d %s %4d%s   (Q%s)"
-    	          dayname day monthname year weekstring quarter)))
-
-    (defun aero/org-deindent-on-return (&rest _)
-      "De-indent the current line if there is only whitespace before the point when pressing ENTER.
-
-    This behavior is IDIOTIC and I cannot suffer to live with this automatic indentation any longer."
-      (when (and (derived-mode-p 'org-mode)
-                 (save-excursion
-                   (move-beginning-of-line 1)
-                   (looking-at-p "[ \t]*$")))
-        (delete-horizontal-space)))
 
     :custom
     (org-hide-leading-stars t)
@@ -3118,22 +3130,32 @@ Super simple way to get a link to a file or line in a file on GitHub
     ;; Show agenda when Emacs is idle for 10 minutes, from
     ;; https://sachachua.com/dotemacs/index.html#idle-timer
     (run-with-idle-timer 600 t 'jump-to-org-agenda))
+#+END_SRC
 
-  ;; Show formatting markers when point is near
+** Org-appear
+Show formatting markers when point is near
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org-appear "awth13/org-appear"
     :custom (org-hide-emphasis-markers t)
     :hook (org-mode . org-appear-mode))
+#+END_SRC
 
-  ;; Org-mode UI improvements
+** Org-modern
+Some trivial UI improvements for org files. Uses the "replace" set of stars for headings.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org-modern "minad/org-modern"
     :hook ((org-mode . org-modern-mode)
            (org-agenda-finalize-hook . org-modern-agenda))
     :custom
-    (org-modern-star 'replace) ; uses the "replace" set of stars
-    )
+    (org-modern-star 'replace))
+#+END_SRC
 
-  ;; Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See
-  ;; https://github.com/Somelauw/evil-org-mode for a list of available commands
+** Evil-org-mode
+Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See https://github.com/Somelauw/evil-org-mode for a list of available commands.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-org-mode "Somelauw/evil-org-mode"
     :after (evil org org-super-agenda)
     :preface
@@ -3144,14 +3166,23 @@ Super simple way to get a link to a file or line in a file on GitHub
 
     :hook ((org-mode . evil-org-mode)
            (org-agenda-mode . aero/evil-org-agenda-mode)))
+#+END_SRC
 
-  ;; Custom display of org priorities
+** Org-fancy-priorities
+Custom display of org priorities
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org-fancy-priorities "harrybournis/org-fancy-priorities"
     :after (org)
     :hook (org-mode . org-fancy-priorities-mode)
     :custom
     (org-fancy-priorities-list '("!!" "↑" "·" "↓" "_")))
+#+END_SRC
 
+** Org-super-agenda
+The workhorse of my task management. This package allows me to group tasks in the agenda in a way that makes sense to me.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org-super-agenda "alphapapa/org-super-agenda"
     :preface
     (defun aero/org-super-agenda-without-keymap ()
@@ -3182,8 +3213,12 @@ Super simple way to get a link to a file or line in a file on GitHub
 
     ;; add space between dates by adding space after the final group
     (org-super-agenda-final-group-separator "\n"))
+#+END_SRC
 
-  ;; Allow drag-and-drop of images from browser, finder, etc.
+** Org-download
+Allow drag-and-drop of images from browser, finder, etc.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org-download "abo-abo/org-download"
     :after (org general)
     :custom (org-download-method 'directory)
@@ -3191,10 +3226,11 @@ Super simple way to get a link to a file or line in a file on GitHub
     (aero-mode-leader-def
       :keymaps 'org-mode-map
       "ic" '(org-download-clipboard :wk "insert image from clipboard")))
+#+END_SRC
 
-  
-  ;; Functions for agenda and stuff
+** Functions for the org agenda
 
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/org-agenda-list ()
     "`org-agenda', skipping command menu to list."
     (interactive)
@@ -3240,10 +3276,12 @@ Super simple way to get a link to a file or line in a file on GitHub
       (end-of-line)
       (insert " ")
       (org-insert-time-stamp (current-time) nil)))
+#+END_SRC
 
-  
-  ;; Thornlog management
+** Thornlog
+This is a personal logging and note taking system, based on org-roam. It's evolved drastically over the years, from a bespoke system to a more generic org-roam setup. The functions here are for managing the thornlog system.
 
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/thornlog-log ()
     "Personal persistent log."
     (interactive)
@@ -3321,43 +3359,11 @@ Super simple way to get a link to a file or line in a file on GitHub
         (aero/org-add-file-tag)
       (org-set-tags-command)))
 
-  
-  ;; Org-roam created and updated timestamps
+#+END_SRC
 
-  (defun aero/org-roam-insert-created-property ()
-    "Insert a :created: property for a new Org-roam node if it doesn't already have one."
-    (interactive)
-    (when (org-roam-file-p)
-      (unless (org-entry-get (point-min) "created" t)
-        (let ((creation-time (aero/org-roam-extract-timestamp-from-filepath
-                              (buffer-file-name))))
-          (when creation-time
-            (save-excursion
-              (goto-char (point-min))
-              (org-set-property "created" creation-time)))))))
+** Org-roam
 
-  (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
-    "Extract timestamp from the Org-roam FILEPATH assuming it follows the default naming scheme."
-    (let ((filename (file-name-nondirectory filepath)))
-      (when (string-match "\\([0-9]\\{8\\}\\)\\([0-9]\\{4\\}\\)" filename)
-        (let ((year (substring filename (match-beginning 1) (+ (match-beginning 1) 4)))
-              (month (substring filename (+ (match-beginning 1) 4) (+ (match-beginning 1) 6)))
-              (day (substring filename (+ (match-beginning 1) 6) (+ (match-beginning 1) 8)))
-              (hour (substring filename (match-beginning 2) (+ (match-beginning 2) 2)))
-              (minute (substring filename (+ (match-beginning 2) 2) (+ (match-beginning 2) 4))))
-          (let ((time-struct (date-to-time (format "%s-%s-%sT%s:%s" year month day hour minute))))
-            (format-time-string "[%Y-%m-%d %a %H:%M]" time-struct))))))
-
-  (defun aero/org-roam-insert-modified-property ()
-    "Update the :modified: property for an Org-roam node upon saving."
-    (when (org-roam-file-p)
-      (save-excursion
-        (goto-char (point-min))  ; Ensure property is applied to the whole file
-        (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))))
-
-  
-  ;; Roam
-
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org-roam
     (:repo "org-roam/org-roam" :files (:defaults "extensions/*"))
     :defer 1  ; don't load immediately, but soon after init
@@ -3385,9 +3391,6 @@ Super simple way to get a link to a file or line in a file on GitHub
     :config
     (org-roam-db-autosync-mode)
 
-    (add-hook 'before-save-hook #'aero/org-roam-insert-created-property)
-    (add-hook 'before-save-hook #'aero/org-roam-insert-modified-property)
-
     (aero-leader-def
       "vf" 'org-roam-node-find
       "vF" 'org-roam-capture
@@ -3395,7 +3398,68 @@ Super simple way to get a link to a file or line in a file on GitHub
       "vc" '(org-id-get-create :wk "create org ID for node")
       "va" 'org-roam-alias-add
       "vr" 'org-roam-refile))
+#+END_SRC
 
+*** Update and created timestamps in Org-roam
+This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
+
+
+It's useful to know when an org-roam node was created and when it's updated, so I automatically add a ~:created:~ property when visiting a node if it doesn't already exist, and a ~:modified:~ property when saving a node. This way, I can see when a note was created and when it was last modified. Note that the ~:created:~ property parses the timestamp from the filename and relies on Org-roam's default naming scheme. If you use a different naming scheme, you'll need to modify the ~org-roam-extract-timestamp-from-filepath~ function to match your scheme.
+
+**** Automated creation date
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-roam-insert-created-property ()
+    "Insert a :created: property for a new Org-roam node if it doesn't already have one."
+    (interactive)
+    (when (org-roam-file-p)
+      (unless (org-entry-get (point-min) "created" t)
+        (let ((creation-time (aero/org-roam-extract-timestamp-from-filepath
+                              (buffer-file-name))))
+          (when creation-time
+            (save-excursion
+              (goto-char (point-min))
+              (org-set-property "created" creation-time)))))))
+#+END_SRC
+
+**** Extract timestamp from filename
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
+    "Extract timestamp from the Org-roam FILEPATH assuming it follows the default naming scheme."
+    (let ((filename (file-name-nondirectory filepath)))
+      (when (string-match "\\([0-9]\\{8\\}\\)\\([0-9]\\{4\\}\\)" filename)
+        (let ((year (substring filename (match-beginning 1) (+ (match-beginning 1) 4)))
+              (month (substring filename (+ (match-beginning 1) 4) (+ (match-beginning 1) 6)))
+              (day (substring filename (+ (match-beginning 1) 6) (+ (match-beginning 1) 8)))
+              (hour (substring filename (match-beginning 2) (+ (match-beginning 2) 2)))
+              (minute (substring filename (+ (match-beginning 2) 2) (+ (match-beginning 2) 4))))
+          (let ((time-struct (date-to-time (format "%s-%s-%sT%s:%s" year month day hour minute))))
+            (format-time-string "[%Y-%m-%d %a %H:%M]" time-struct))))))
+#+END_SRC
+
+**** Keeping modification dates current
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-roam-insert-modified-property ()
+    "Update the :modified: property for an Org-roam node upon saving."
+    (when (org-roam-file-p)
+      (save-excursion
+        (goto-char (point-min))  ; Ensure property is applied to the whole file
+        (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))))
+#+END_SRC
+
+**** Hooking it up
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (add-hook 'before-save-hook #'aero/org-roam-insert-created-property)
+  (add-hook 'before-save-hook #'aero/org-roam-insert-modified-property)
+#+END_SRC
+
+*** Consult-org-roam
+Provides a more powerful interface for searching org-roam nodes using ripgrep
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! consult-org-roam "jgru/consult-org-roam"
     :after (org-roam general)
     :custom
@@ -3409,15 +3473,20 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Writing
+** Writegood
+Mark passive voice, duplicate words and weasel words
+
 #+BEGIN_SRC emacs-lisp :lexical t
-  ;; Mark passive voice, duplicate words and weasel words
   (package! writegood-mode (:repo "bnbeckwith/writegood-mode")
     :hook ((text-mode) . writegood-mode))
+#+END_SRC
 
-  ;; Mark E′ violations
+** Eprime
+Mark E′ violations
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eprime-mode (:host gitlab :repo "thornjad/eprime-mode" :branch "main")
     :after (general)
-    ;; :hook text-mode
     :commands (eprime-check-buffer eprime-mode)
     :init
     (aero-leader-def
@@ -4465,7 +4534,7 @@ Super simple way to get a link to a file or line in a file on GitHub
   ;; Works best with company-box, so we consider it a requirement
   (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
     :after (company-box general)
-    :hook (prog-mode . copilot-mode)
+    :hook ((prog-mode org-mode) . copilot-mode)
     :custom (copilot-idle-delay 0.2) ; longer than default so it doesn't mess with typing
     :bind (:map copilot-mode-map
            ("C-<tab>" . copilot-accept-completion)
