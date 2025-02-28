@@ -70,9 +70,14 @@ so we use more cycles but less space, but not too little space.")
   ;; Had a problem once with user-emacs-directory, so set it for sure here
   (setq user-emacs-directory (file-name-directory user-init-file))
 
-  ;; burn baby burn
+  ;; Use org-babel to load the rest of the config (built-in to org)
   (require 'org)
   (require 'ob-tangle)
+
+  ;; Ensure org-babel always uses lexical binding. I can't believe this isn't the default.
+  (setq org-babel-default-header-args:emacs-lisp '((:lexical . "yes")))
+
+  ;; burn baby burn
   (org-babel-load-file (expand-file-name "config.org" user-emacs-directory)))
 
 ;;; init.el ends here

@@ -1,7 +1,8 @@
+# -*- lexical-binding: t; -*-
 #+title: Thornjad's Emacs Configuration
 #+author: Jade Michael Thornton <thornjad>
 #+options: num:nil
-#+property: header-args:emacs-lisp+ :tangle yes :results silent :exports code :eval never-export
+#+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
 #+filetags: :emacs:
 #+link: emacsconfig https://github.com/thornjad/emacs
 #+STARTUP: overview
@@ -87,10 +88,17 @@ Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= c
 
 This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
 
+* Lexical binding
+Before any other code, we have to make sure the tangled =config.el= has lexical binding, or else we're in for a world of pain. I cannot understand why this isn't the default. Emacs should at least have an option to make everything lexical by default, forcing old code to opt-out.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+;;; -*- lexical-binding: t -*-
+#+END_SRC
+
 * Directory constants
 These define some locations that we can reference later
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defconst aero-lib-dir (expand-file-name "lib/" user-emacs-directory))
   (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
   (defconst aero-snippets-dir (expand-file-name "snippets/" user-emacs-directory))
@@ -101,7 +109,7 @@ These define some locations that we can reference later
 
 We also need to set up locations for org-roam and thornlog. Thornlog is a custom daily logging and note-taking system, using org-roam. Check out the [[*Thornlog][Thornlog]] section for more.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defconst aero/documents-path (expand-file-name "~/Documents/"))
   (defconst aero/thornlog-path (expand-file-name "thornlog/" aero/documents-path))
   (defconst aero/roam-path (expand-file-name "roam/" aero/thornlog-path))
@@ -112,14 +120,14 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
 #+END_SRC
 
 * Builtin requires
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'cl-lib)
   (require 'subr-x)
 #+END_SRC
 
 These are mostly used by Org, not sure if they're still needed.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'outline)
   (require 'notifications)
 #+END_SRC
@@ -127,14 +135,14 @@ These are mostly used by Org, not sure if they're still needed.
 * Non-builtin requires
 Provides some easy hooking, we want to have it available early.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'on
            (expand-file-name "lib/localpackages/on.el" user-emacs-directory))
 #+END_SRC
 
 Provides system clipboard integration
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'aero-pbcopier
            (expand-file-name "lib/localpackages/aero-pbcopier.el" user-emacs-directory))
 #+END_SRC
@@ -143,7 +151,7 @@ Provides system clipboard integration
 
 Some general helpers, not used much
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun rand-nth (coll)
     "Return a random element of the list COLL."
     (nth (random (length coll)) coll))
@@ -170,7 +178,7 @@ Some general helpers, not used much
 #+END_SRC
 
 ** Advice helpers
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/advice-disable-subword (orig-fun &rest args)
     "Disable `subword-mode' around the given function."
     (let ((original-mode subword-mode))
@@ -185,7 +193,7 @@ Some general helpers, not used much
       (apply fn args)))
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defadvice kill-line (before kill-line-autoreindent activate)
     "Kill excess whitespace when joining lines.
   If the next line is joined to the current line, kill the extra indent whitespace in front of the next line."
@@ -223,7 +231,7 @@ Some general helpers, not used much
 #+END_SRC
 
 ** Utilities
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/keyboard-quit-context ()
     "Quit current context.
 
@@ -299,7 +307,7 @@ Some general helpers, not used much
 #+END_SRC
 
 ** System and logging
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun system-is-mac () (string= system-type 'darwin))
   (defun system-is-linux () (string= system-type 'gnu/linux))
   (defun system-is-mswindows () (string= system-type 'windows-nt))
@@ -326,7 +334,7 @@ Especially useful when screen sharing, Google Meet in particular really makes th
 
 Based on https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-fly/
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/increase-font-size ()
     (interactive)
     (set-face-attribute 'default nil :height (ceiling (* 1.10 (face-attribute 'default :height)))))
@@ -339,12 +347,12 @@ Based on https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-
 
 Also allow =C-==, just to be less annoying since that's just + without shift
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-set-key (kbd "C-=") 'aero/increase-font-size)
 #+END_SRC
 
 ** Buffers, windows, frames, tabs
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/switch-to-minibuffer-window ()
     "switch to minibuffer window (if active)"
     (interactive)
@@ -485,7 +493,7 @@ Also allow =C-==, just to be less annoying since that's just + without shift
 *** Reopen file at buffer
 It's occasionally useful to "restart" the current buffer. To my current knowledge this isn't a builtin functionality, so I have my own function.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/reopen-file-at-buffer ()
     "Re-open the file at buffer, replacing buffer.
 
@@ -515,7 +523,7 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 
 *** Other file helpers
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/insert-date ()
     "Insert current date."
     (interactive)
@@ -716,7 +724,7 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 #+END_SRC
 
 ** Et cetera
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; written by github user rompy
   (defun aero/smarter-backward-kill-word ()
     "Deletes the previous word, respecting:
@@ -1025,7 +1033,7 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 ** GnuTLS
 Evaluate =gnutls= and disallow TLS connections
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (with-eval-after-load 'gnutls
     (eval-when-compile (require 'gnutls))
     (setq gnutls-verify-error t)) ; Do not allow insecure TLS connections.
@@ -1034,7 +1042,7 @@ Evaluate =gnutls= and disallow TLS connections
 ** Straight.el
 We want to use the =develop= branch of =straight.el=, I don't remember why but this fixed a problem once and I never went back.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; Use the more-cutting-edge develop branch of straight
   (eval-when-compile
     (defvar straight-repository-branch)
@@ -1044,20 +1052,20 @@ We want to use the =develop= branch of =straight.el=, I don't remember why but t
 
 Don't allow straight to check for modifications in every repo on Emacs init, saving some startup time
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq straight-check-for-modifications nil)
 #+END_SRC
 
 Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we (or more likely any dependency) try to pull it in.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (with-eval-after-load 'straight
     (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
 #+END_SRC
 
 Bootstrapping for =straight.el=
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defvar bootstrap-version)
   (let ((bootstrap-file
          (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
@@ -1074,13 +1082,13 @@ Bootstrapping for =straight.el=
 
 I'm not certain straight needs to be set up before use-package, but before use-package was built in to Emacs something got messed up when use-package was loaded first.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'use-package)
 #+END_SRC
 
 If we're byte-compiling something, only expand minimally
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (eval-when-compile
     (defvar use-package-expand-minimally)
     (defvar use-package-compute-statistics)
@@ -1094,14 +1102,14 @@ If we're byte-compiling something, only expand minimally
 
 If we're using =--debug-init=, make package loading verbose.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq use-package-verbose init-file-debug)
 #+END_SRC
 
 ** Custom package macro
 The rest of the config uses this custom =package!= macro to abstract away some internals that have changed in the past and may change again (such as using =straight.el=).
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defmacro package! (package recipe &rest body)
     "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package'.
 
@@ -1165,7 +1173,7 @@ The rest of the config uses this custom =package!= macro to abstract away some i
 ** Fetch arbitrary MELPA recipe
 And a helper that lets us check the MELPA recipe for a package, which is useful to setting up new packages sometimes, and slightly faster than searching on a browser.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/fetch-melpa-recipe (package-name)
     "Fetch the MELPA recipe for the given PACKAGE-NAME and display it in a buffer."
     (interactive "sPackage Name: ")
@@ -1189,7 +1197,7 @@ I use "prelude" here as a nod to earlier iterations of this configuration, where
 ** Treesitter initialization
 To ensure we can use this easily later, require treesitter as long as it's available and wanted. See [[*Treesitter][Treesitter]] section for the full config.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (and (and (treesitterp)
             (functionp 'module-load)
             (bound-and-true-p module-file-suffix))
@@ -1199,7 +1207,7 @@ To ensure we can use this easily later, require treesitter as long as it's avail
 ** Compile angel
 Set up automatic compilation for everything past this point
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! compile-angel "jamescherti/compile-angel.el"
     :demand t
     :hook (emacs-lisp-mode-hook . compile-angel-on-save-local-mode)
@@ -1222,12 +1230,12 @@ Set up automatic compilation for everything past this point
 
 ** Fix GNU ELPA Keyring
 The ELPA keyring sometimes gets screwed up, this fixes it
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! gnu-elpa-keyring-update :auto)
 #+END_SRC
 
 ** Library requirements
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! dash "magnars/dash.el")
   (package! memo (:host gitlab :repo "thornjad/emacs-memo" :branch "main"))
   (package! async "jwiegley/emacs-async" :commands (async-save))
@@ -1238,13 +1246,13 @@ The ELPA keyring sometimes gets screwed up, this fixes it
 
 Posframe is used by gptel-quick and maybe some other stuff. I've tried using consult-posframe and others like it and can't really get used to it, so we only need the basic library in here.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! posframe "tumashu/posframe" :defer 1)
 #+END_SRC
 
 JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want to stop logging everything as a performance optimization.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! jsonrpc :builtin
     :config
     ;; Don't waste time logging events
@@ -1254,7 +1262,7 @@ JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want t
 ** PATH from shell
 We only really need this in MacOS, grabbing environment variables from the default shell
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! exec-path-from-shell "purcell/exec-path-from-shell"
     :when (or (memq window-system '(mac ns x)) (daemonp))
     :config
@@ -1268,7 +1276,7 @@ We only really need this in MacOS, grabbing environment variables from the defau
 *** Which-key
 Gives us a variety of menus for keybindings, and integrates nicely with General
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! which-key :builtin
     :hook (on-first-input . which-key-mode)
     :defines which-key-mode
@@ -1280,7 +1288,7 @@ Gives us a variety of menus for keybindings, and integrates nicely with General
 *** General
 The vast majority of keybindings are set up with General. A lot of this could be done almost as easily with regular keybinding, but General gives us an easier time setting up a leader key and better which-key integration.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! general "noctuid/general.el"
     :functions (general-define-key aero-leader-def aero-mode-leader-def)
     :init
@@ -1290,7 +1298,7 @@ The vast majority of keybindings are set up with General. A lot of this could be
 
 Most bindings will fall under the =SPC= leader key, so we generate a macro called =aero-leader-def= to make it easier for other packages to add their own bindings under this leader.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (general-create-definer aero-leader-def
     :states '(normal visual emacs motion)
     :prefix "SPC"
@@ -1299,7 +1307,7 @@ Most bindings will fall under the =SPC= leader key, so we generate a macro calle
 
 For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding =aero-mode-leader-def= to suit.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (general-create-definer aero-mode-leader-def
     :states '(normal visual emacs motion)
     :prefix "SPC ,")
@@ -1316,7 +1324,7 @@ For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding
 **** Main keybinding configuration
 We begin with some high-level bindings, including overriding the questionable default choice of =^?= being the help system.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (general-def
     (kbd "C-h") 'delete-backward-char
     (kbd "C-w") 'aero/smarter-backward-kill-word
@@ -1327,13 +1335,13 @@ We begin with some high-level bindings, including overriding the questionable de
 
 Ensure keyboard quit does what we want
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-set-key [remap keyboard-quit] #'aero/keyboard-quit-context)
 #+END_SRC
 
 Now a few bindings which apply only to Normal mode, rather than insert and motion as most bindings do.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (general-define-key
    :states 'normal
    :prefix "SPC"
@@ -1347,7 +1355,7 @@ Now a few bindings which apply only to Normal mode, rather than insert and motio
 
 Set up the mode-specific leader.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (general-define-key
    :states '(normal insert motion)
    :keymaps 'override
@@ -1357,7 +1365,7 @@ Set up the mode-specific leader.
 
 Now the main show.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (general-define-key
    :states '(normal insert motion)
    :keymaps 'override
@@ -1541,7 +1549,7 @@ Casual provides a magit-like interface to some functionality.
 
 TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! casual "kickingvegas/casual"
     :after (dired)
     :defines (casual-editkit-main-tmenu
@@ -1563,7 +1571,7 @@ TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
 
 I'm going to say it, Vi has a better navigation scheme than default Emacs. Even with a thumb-cluster keyboard, I don't want to hold Ctrl basically at all. Evil provides the best of Vi with the power of Emacs, but it needs some heavy configuration to work well.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! evil
     (:host github
      :repo "emacs-evil/evil"
@@ -1577,7 +1585,7 @@ Set up some "wants" for Evil. These /must/ be in =:init= because Evil needs thes
 Note that =evil-want-keybinding= is set to =nil= because =evil-collection= will handle that for us.
 
 To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system)=.
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :init
   (setq evil-want-keybinding nil
         evil-undo-system 'undo-tree
@@ -1589,7 +1597,7 @@ To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system
 
 Free up some non-useful bindings for other uses.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :config
   (define-key evil-motion-state-map " " nil)
   (define-key evil-motion-state-map (kbd "RET") nil)
@@ -1599,7 +1607,7 @@ Free up some non-useful bindings for other uses.
 
 Set up default states. It's Normal for almost everything, but Evil doesn't handle Dired very well, so we fall back on Emacs mode for that.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq evil-default-state 'normal)
   (evil-set-initial-state 'dired-mode 'emacs)
   (evil-set-initial-state 'message-mode 'motion)
@@ -1607,7 +1615,7 @@ Set up default states. It's Normal for almost everything, but Evil doesn't handl
 
 Make movement keys work visually, just like other kinds of movement, by remapping.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>")
     'evil-next-visual-line)
   (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>")
@@ -1621,20 +1629,20 @@ Make movement keys work visually, just like other kinds of movement, by remappin
 
 Ensure horizontal movement doesn't cross to the next/previous line
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq-default evil-cross-lines nil)
 #+END_SRC
 
 Undo in region
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (define-key evil-visual-state-map (kbd "u") 'undo)
 #+END_SRC
 
 
 By default, these two operate on half pages, but I prefer the smaller jump
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/scroll-quarter-page-down ()
     (interactive)
     (evil-scroll-down (/ (window-body-height) 4)))
@@ -1648,7 +1656,7 @@ By default, these two operate on half pages, but I prefer the smaller jump
 
 Define =vig= and =vag= to look for all paren types
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/evil-paren-range (count beg end type inclusive)
     "Get minimum range of paren text object.
     COUNT, BEG, END, TYPE is used.  If INCLUSIVE is t, the text object is inclusive."
@@ -1683,7 +1691,7 @@ Define =vig= and =vag= to look for all paren types
 
 Super useful, in visual mode, use =<= and =>= to indent/unindent the line(s)
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/evil-shift-right ()
     (interactive)
     (evil-shift-right evil-visual-beginning evil-visual-end)
@@ -1700,13 +1708,13 @@ Super useful, in visual mode, use =<= and =>= to indent/unindent the line(s)
 
 Make =:q= kill the buffer instead of Emacs itself
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (evil-ex-define-cmd "q" 'kill-current-buffer)
 #+END_SRC
 
 AFAIK there's no "backward" equivalent to "e", so we set it to backward word
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (evil-define-key '(normal visual motion) global-map
     (kbd "C-e") #'evil-backward-word-end)
   (evil-define-key '(normal visual motion) global-map
@@ -1715,20 +1723,20 @@ AFAIK there's no "backward" equivalent to "e", so we set it to backward word
 
 Useful for pasting into the minibuffer, since Evil doesn't properly function there
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (evil-define-key '(insert) global-map (kbd "C-y") #'evil-paste-after)
   (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
 #+END_SRC
 
 Activate Evil
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (evil-mode +1))
 #+END_SRC
 
 *** Evil collection
 Provides Evil defaults for many modes which Evil proper overlooks
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-collection (:repo "emacs-evil/evil-collection" :files (:defaults "modes"))
     :after evil
     :config (evil-collection-init))
@@ -1737,7 +1745,7 @@ Provides Evil defaults for many modes which Evil proper overlooks
 *** Evil-matchit
 Allows % to jump matching tags
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-matchit "redguardtoo/evil-matchit"
     :defer 5
     :after evil
@@ -1749,7 +1757,7 @@ Allows % to jump matching tags
 *** Treesit-auto
 Automatically installs treesitter grammars when they're missing, because for some reason Emacs doesn't do this already.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! treesit-auto "renzmann/treesit-auto"
     :when (treesitterp)
     :custom
@@ -1762,13 +1770,13 @@ Add all treesitter modes to auto-mode-alist as long as they're =treesit-ready-p=
 
 I previously had this set to ='all= but this started installing some grammars which are in-progress and thus error when you try to use them.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (treesit-auto-add-to-auto-mode-alist)
 #+END_SRC
 
 Python does not play nice with treesitter, as of 2024, so we pin to a working version.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defvar aero/python-treesit-auto-recipe
     (make-treesit-auto-recipe
      :lang 'python
@@ -1783,7 +1791,7 @@ Python does not play nice with treesitter, as of 2024, so we pin to a working ve
 
 Enable treesit-auto mode
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-treesit-auto-mode +1))
 #+END_SRC
 
@@ -1792,7 +1800,7 @@ Allows selecting functions via Evil in treesitter major modes.
 
 This defines =vaf= and =vif= to select the outer and inner (respectively) functions.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-textobj-tree-sitter
     (:repo "meain/evil-textobj-tree-sitter" :files (:defaults "queries" "treesit-queries"))
     :when (treesitterp)
@@ -1808,7 +1816,7 @@ This defines =vaf= and =vif= to select the outer and inner (respectively) functi
 *** Vertico
 Vertico provides a completion system similar to Ivy, but it's faster and more lightweight.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! vertico "minad/vertico"
     :init (vertico-mode)
     :custom
@@ -1816,7 +1824,7 @@ Vertico provides a completion system similar to Ivy, but it's faster and more li
 
 Enable wrap-around cycling.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (vertico-cycle t)
 
   :config
@@ -1824,7 +1832,7 @@ Enable wrap-around cycling.
 
 When completing a file name, =DEL= goes up a directory, otherwise it deletes a character.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/vertico-directory-up-maybe ()
     "Go up a directory if completing a file name, otherwise delete char."
     (interactive)
@@ -1839,7 +1847,7 @@ When completing a file name, =DEL= goes up a directory, otherwise it deletes a c
 *** Marginalia
 Marginalia provides a more informative completion system, showing more information about the candidates.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! marginalia "minad/marginalia"
     :init (marginalia-mode))
 #+END_SRC
@@ -1847,7 +1855,7 @@ Marginalia provides a more informative completion system, showing more informati
 *** Orderless
 This provides a more flexible completion system where we can use spaces to separate search terms, inputting them in any order.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! orderless "oantolin/orderless"
     :custom
     (completion-styles '(substring orderless basic))
@@ -1861,7 +1869,7 @@ This provides a more flexible completion system where we can use spaces to separ
 *** Consult
 Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! consult "minad/consult"
     :after (general evil orderless)
     :commands (consult-line
@@ -1875,7 +1883,7 @@ Super useful package, providing a variety of wrappers that provide a powerful an
 
 Hook consult into xref
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :custom
   (xref-show-xrefs-function #'consult-xref)
   (xref-show-definitions-function #'consult-xref)
@@ -1883,13 +1891,13 @@ Hook consult into xref
 
 Debounce buffer previews, improves performance with minimal downside.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (consult-preview-key '(:debounce 0.4 any))
 #+END_SRC
 
 Set up some keybindings
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :init
   (aero-leader-def
     "/" 'consult-line
@@ -1908,14 +1916,14 @@ Set up some keybindings
 
 Support jumping to eshell prompts with consult-outline
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
 
 #+END_SRC
 
 Use Orderless to compile the regexp for consult-ripgrep
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun consult--orderless-regexp-compiler (input type &rest _config)
     (setq input (cdr (orderless-compile input)))
     (cons
@@ -1933,7 +1941,7 @@ Use Orderless to compile the regexp for consult-ripgrep
 
 Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only supports the first search term when using orderless syntax.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/consult-line-isearch-history (&rest _)
     "Add latest `consult-line' search pattern to the isearch history."
     (when (and (bound-and-true-p evil-mode)
@@ -1952,7 +1960,7 @@ Allow =n= and =N= to continue the search after =consult-line= exits. Note that t
 
 Add a prompt indicator when multiple completions are available
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun crm-indicator (args)
     "Add prompt indicator to `completing-read-multiple'.
     We display [CRM<separator>], e.g., [CRM,] if the separator is a comma."
@@ -1969,7 +1977,7 @@ Add a prompt indicator when multiple completions are available
 *** Amx
 Enhances =execute-extended-command= by showing recently used commands and keyboard shortcuts.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! amx "DarwinAwardWinner/amx"
     :defer 1
     :init (amx-mode 1))
@@ -1978,7 +1986,7 @@ Enhances =execute-extended-command= by showing recently used commands and keyboa
 *** Yasnippet
 Yasnippet provides a powerful templating system for inserting boilerplate code.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! yasnippet "joaotavora/yasnippet"
     :custom
     (yas-installed-snippets-dir aero-snippets-dir)
@@ -1989,7 +1997,7 @@ Yasnippet provides a powerful templating system for inserting boilerplate code.
 **** Consult-yasnippet
 Plug yasnipet into consult for a better interface to snippets
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! consult-yasnippet "mohkale/consult-yasnippet"
     :after (consult yasnippet)
     :config
@@ -2000,7 +2008,7 @@ Plug yasnipet into consult for a better interface to snippets
 *** Recentf (builtin)
 Recentf provides a list of recently opened files, and is honestly one of the main ways I open buffers.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! recentf :builtin
     :defer 1
     :defines (recentf-mode)
@@ -2008,7 +2016,7 @@ Recentf provides a list of recently opened files, and is honestly one of the mai
 
 Doesn't seem like indent activates properly for me without this intervention. Here we move it to a known cache file and set up an auto-save every 5 minutes.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :preface
   (defun aero/recentf-save-list-quiet ()
     "Wrapper for `recentf-save-list' with no message."
@@ -2018,7 +2026,7 @@ Doesn't seem like indent activates properly for me without this intervention. He
 
 Set the known cache file and the maximum number of saved items
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :custom
   (recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
   (recentf-max-saved-items 500)
@@ -2026,21 +2034,21 @@ Set the known cache file and the maximum number of saved items
 
 Enable
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :config
   (recentf-mode 1)
 #+END_SRC
 
 Would be a great place for =aero/advice-no-message= but there's no need to hide messaging if recentf saves for some other reason. Here, we run it regularly so we don't care about the constant messaging.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
 #+END_SRC
 
 *** All-the-icons
 Support for icon insertion, and used as a lib in other packages
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! all-the-icons (:repo "domtronn/all-the-icons.el" :files (:defaults "data"))
     :after (general)
     :defer 1
@@ -2051,7 +2059,7 @@ Support for icon insertion, and used as a lib in other packages
 *** Avy
 Utility for visual navgation
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! avy "abo-abo/avy"
     :after (general)
     :init
@@ -2067,7 +2075,7 @@ Utility for visual navgation
 **** Ace-link
 Jump to links in eww with Avy
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! ace-link "abo-abo/ace-link"
     :after (avy eww)
     :functions (ace-link-setup-default)
@@ -2077,9 +2085,9 @@ Jump to links in eww with Avy
 *** Smartscan
 Gives us the =M-n= and =M-p= symbol-following ability
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! smartscan "mickeynp/smart-scan"
-    :hook (prog-mode . smartscan-mode)
+    :hook ((prog-mode org-mode) . smartscan-mode)
     :config
     (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
     (advice-add 'smartscan-symbol-go-backward :around #'aero/advice-disable-subword))
@@ -2088,14 +2096,14 @@ Gives us the =M-n= and =M-p= symbol-following ability
 *** Undo-tree
 Provides a visual representation of the undo history
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! undo-tree "apchamberlain/undo-tree.el"
     :custom
 #+END_SRC
 
 By default, auto-saves to the local directory, but that's annoying, so we move it to the cache directory
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (undo-tree-auto-save-history nil)
   (undo-tree-history-directory-alist
    `((".*" . ,(expand-file-name "undo-tree/" aero-cache-dir))))
@@ -2103,20 +2111,20 @@ By default, auto-saves to the local directory, but that's annoying, so we move i
 
 Enable timestamps and diffs in the visualizer
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (undo-tree-visualizer-timestamps t)
   (undo-tree-visualizer-diff t)
 #+END_SRC
 
 Disable undo-in-region, as it's buggy and can cause you to lose your undo history if you use it by accident.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (undo-tree-enable-undo-in-region nil)
 #+END_SRC
 
 Enable globally. By default this doesn't enable in non-file buffers like =*scratch*=, so we do that manually.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :config
   (global-undo-tree-mode +1)
   (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
@@ -2125,7 +2133,7 @@ Enable globally. By default this doesn't enable in non-file buffers like =*scrat
 *** Winner
 Provides a way to undo/redo window configurations.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! winner :builtin
     :after (general)
     :defines winner-boring-buffers
@@ -2151,7 +2159,7 @@ Provides a way to undo/redo window configurations.
 ** Winum
 Jump to windows by number. 1 is the upper-left-most
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! winum "deb0ch/emacs-winum"
     :defer 5
     :after (general which-key)
@@ -2173,7 +2181,7 @@ Jump to windows by number. 1 is the upper-left-most
 ** Company completions
 I can't believe this isn't built-in. Company provides a completion system that's more powerful than the default.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! company
     (:repo "company-mode/company-mode"
      :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
@@ -2201,7 +2209,7 @@ I can't believe this isn't built-in. Company provides a completion system that's
 *** Company-prescient
 Moves commonly-used completions to the top, and provides a better sorting algorithm.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! company-prescient
     (:host github
      :repo "radian-software/prescient.el"
@@ -2215,7 +2223,7 @@ Moves commonly-used completions to the top, and provides a better sorting algori
 *** Company-box
 Provides a better popup interface for company
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! company-box
     (:repo "sebastiencs/company-box" :files (:defaults "images"))
     :hook (company-mode . company-box-mode))
@@ -2224,7 +2232,7 @@ Provides a better popup interface for company
 ** Tramp
 Tramp provides a way to edit files on remote servers. This was a way of life in a previous job, but I haven't touched it in several years. I'm keeping it around just in case, frozen in time. The =:defer t= ensures it's not loaded until it's needed.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! tramp :builtin
     :defer t
     :functions tramp-cleanup-all-connection
@@ -2241,7 +2249,7 @@ Tramp provides a way to edit files on remote servers. This was a way of life in 
 ** Dired
 This is a file manager in Emacs. I really struggle to use it, but I'm trying to reach for it more often with the help of Casual
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! dired :builtin
     :hook ((dired-mode . hl-line-mode)
            (dired-mode . dired-async-mode))
@@ -2257,7 +2265,7 @@ The introduction of the language server has been a game-changer. It provides a c
 
 Using =:hook= we ensure it's enabled for particular languages, rather than trying to enable in every buffer.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eglot :builtin
     :hook ((python-mode
             python-ts-mode
@@ -2274,31 +2282,31 @@ Using =:hook= we ensure it's enabled for particular languages, rather than tryin
 
 Stop an infuriating default behavior that confirms editing a file immediately after explicitly initiating editing the file.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (eglot-confirm-server-initiated-edits nil)
 #+END_SRC
 
 Shut down the server after the last managed buffer is killed.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (eglot-autoshutdown t)
 #+END_SRC
 
 Disable event logging, providing a slight performance boost with no real downside.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (eglot-events-buffer-size 0)
 #+END_SRC
 
 Tweak the idle time for sending changes to the server
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (eglot-send-changes-idle-time 0.75)
 #+END_SRC
 
 Language server highlighting is ridiculously slow, I use highlight-thing instead.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (eglot-ignored-server-capabilities '(:documentHighlightProvider))
 
   :config
@@ -2306,7 +2314,7 @@ Language server highlighting is ridiculously slow, I use highlight-thing instead
 
 Individual server configuration. Right now only Python needs special treatment, where we turn on =pyls_mypy= and =pyls_black=, and turn off =pycodestyle=.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq-default eglot-workspace-configuration
                 '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
   				                          :pyls_mypy (:enabled t :live_mode :json-false)
@@ -2316,7 +2324,7 @@ Individual server configuration. Right now only Python needs special treatment, 
 
 Keybindings for interacting with the language server.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (aero-leader-def
     "la" 'eglot-code-actions
     "lf" '(:ignore t :wk "find")
@@ -2333,7 +2341,7 @@ Keybindings for interacting with the language server.
 **** Eglot-booster
 Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booster must have been installed already (its a Rust binary), which can be done with =make install-deps= or the more specific =make lsp-booster=
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eglot-booster "jdtsmith/eglot-booster"
     :after eglot
     :config (eglot-booster-mode))
@@ -2342,7 +2350,7 @@ Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booste
 **** Eglot-signature-eldoc-talkative
 Make eglot send more info to eldoc, including parameter and function documentation
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eglot-signature-eldoc-talkative
     (:host codeberg :repo "mekeor/eglot-signature-eldoc-talkative" :branch "default")
     :after (eglot)
@@ -2352,7 +2360,7 @@ Make eglot send more info to eldoc, including parameter and function documentati
 *** Eldoc-box
 Puts eldoc in a child frame instead of the echo area. It's set up so that it only shows up when you want it to, rather than clobbering the minibuffer or showing on top of other code.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eldoc-box "casouri/eldoc-box"
     :after general
 
@@ -2369,13 +2377,13 @@ Puts eldoc in a child frame instead of the echo area. It's set up so that it onl
 
 Fix the documentation strategy to show all of the available eldoc information when we want it. This way Flymake errors don't just get clobbered by docstrings.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
 #+END_SRC
 
 Set up the idle delay. We leave single-line docs in the minibuffer, but show multi-line docs in the child frame when requested. Since we always show when the user requests it, max height and width are not important.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
 
   :custom
   (eldoc-idle-delay 0.5)
@@ -2390,7 +2398,7 @@ Set up the idle delay. We leave single-line docs in the minibuffer, but show mul
 
 An attempt to prettify typescript errors
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   :config
   (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
 #+END_SRC
@@ -2398,7 +2406,7 @@ An attempt to prettify typescript errors
 ** System-specific setup
 Mac needs some extra hand-holding to connect the kill-ring to the system clipboard. Linux just needs the functionality enabled.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (when (system-is-mac)
     (declare-function aero/pbcopier-select-text "aero-pbcopier.el")
     (declare-function aero/pbcopier-selection-value "aero-pbcopier.el")
@@ -2420,7 +2428,7 @@ Mac needs some extra hand-holding to connect the kill-ring to the system clipboa
 #+END_SRC
 
 ** Editor setup
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! editorconfig "editorconfig/editorconfig-emacs"
     :defer 1
     :functions (editorconfig-mode)
@@ -2483,7 +2491,7 @@ My custom modeline, stored under lib/.
 
 Note that we hook into eshell-mode in =:config= because it's probably not defined yet during =:hook= evaluation, and I can't be bothered to figure out the sequencing.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! aero-modeline :localpackage
     :config
     (aero/modeline-global-mode +1)
@@ -2495,7 +2503,7 @@ My custom theme, stored as a submodule. Also sets the font.
 
 Sets the font-height to 140 only for Mac, it seems to scale normally by default in Linux.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! aero-theme :local :load-path "lib/aero-theme"
     :init
     (when (system-is-mac)
@@ -2508,7 +2516,7 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
 ** Default frame setup
 Set up the default frame in an agreeable fashion. The width is based on a buffer that's 106 columns wide, in two columns. The rest has been tweaked over the years to look extra nice on startup.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq default-frame-alist
         (append (list '(width  . 212) '(height . 62)
                       '(tool-bar-lines . 0)
@@ -2531,7 +2539,7 @@ Set up the default frame in an agreeable fashion. The width is based on a buffer
 
 Set up window margins
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'window-configuration-change-hook
             (lambda ()
               (set-window-margins
@@ -2540,14 +2548,14 @@ Set up window margins
 
 Make sure new frames use window-divider
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'before-make-frame-hook 'window-divider-mode)
 #+END_SRC
 
 ** General UI
 Better fringe symbols
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (when (and (require 'disp-table nil 'noerror) standard-display-table)
     (set-display-table-slot standard-display-table 'truncation ?…)
     (set-display-table-slot standard-display-table 'wrap ?↩)
@@ -2557,7 +2565,7 @@ Better fringe symbols
 
 Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight the current line.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (blink-cursor-mode 0)
   (show-paren-mode 1)
   (pixel-scroll-mode 1)
@@ -2577,7 +2585,7 @@ Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight
 
 Simple rainbow mode to highlight hex colors in code.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/rainbow-mode ()
     "Display colors represented as hex values."
     (interactive)
@@ -2602,13 +2610,13 @@ Simple rainbow mode to highlight hex colors in code.
 
 Makes links in comments clickable
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-goto-address-mode +1)
 #+END_SRC
 
 Pulse the current line when changing windows. There's whole packages that do this functionality and more, but I only care about switching windows, so there's no need to pull in a whole package.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (dolist (fn '(other-window
                 windmove-up
                 windmove-down
@@ -2622,7 +2630,7 @@ Pulse the current line when changing windows. There's whole packages that do thi
 ** Breadcrumbs in the headerline
 Breadcrumbs are disabled for gptel since it uses its own system.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! aero-breadcrumb :localpackage
     :hook ((prog-mode markdown-mode gfm-mode org-mode) . aero-breadcrumb-local-mode)
     :config
@@ -2635,7 +2643,7 @@ Improved pixel-based smooth scrolling. Mostly used when screen sharing, doesn't 
 
 Setting =good-scroll-avoid-vscroll-reset= to nil avoids a bug with evil-mode. https://github.com/io12/good-scroll.el/issues/16
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! good-scroll "io12/good-scroll.el"
     :functions (good-scroll-mode)
     :init (setq good-scroll-avoid-vscroll-reset nil)
@@ -2645,7 +2653,7 @@ Setting =good-scroll-avoid-vscroll-reset= to nil avoids a bug with evil-mode. ht
 ** Formfeeder
 Displays formfeed characters, which are often used by convention in Elisp
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! formfeeder "thornjad/formfeeder"
     :defines (formfeeder-line-width)
     :config
@@ -2660,7 +2668,7 @@ Highlight the current thing at point, kind of like what lsp-ui does for some lan
 We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffers, only look at nearby lines
 
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! highlight-thing (:host github :repo "fgeller/highlight-thing.el")
     :hook (prog-mode . highlight-thing-mode)
     :commands (highlight-thing-mode)
@@ -2674,7 +2682,7 @@ We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffe
 ** Selection highlight
 Shows all matching selections from region. Very useful for comparing and editing multiple instances of the same thing.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! selection-highlight-mode
     (:host github :repo "balloneij/selection-highlight-mode")
     :hook (prog-mode . selection-highlight-mode)
@@ -2684,7 +2692,7 @@ Shows all matching selections from region. Very useful for comparing and editing
 ** Todo-light
 Highlight todo and similar words
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! todo-light "thornjad/todo-light"
     :init (global-todo-light-mode +1))
 #+END_SRC
@@ -2692,7 +2700,7 @@ Highlight todo and similar words
 ** Aero-echo-area
 Display time and date in the echo area
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! aero-echo-area :localpackage :defer 4
     :config (aero/echo-area-mode +1))
 #+END_SRC
@@ -2700,7 +2708,7 @@ Display time and date in the echo area
 ** Evil-terminal-cursor-changer
 Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert mode
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (unless (display-graphic-p)
     (package! evil-terminal-cursor-changer
       (:host github :repo "7696122/evil-terminal-cursor-changer")
@@ -2710,7 +2718,7 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
 #+END_SRC
 
 * Project management
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! project :builtin
     :after (general)
 
@@ -2743,13 +2751,13 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
 
 Note that we can't use =:hook= here because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'project-find-functions #'aero/project-root-override)
 #+END_SRC
 
 Set our own list of actions on =project-switch-project=
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq project-switch-commands '((project-find-file "Find file" "f")
                                   (aero/project-switch-magit "Magit status" "g")
                                   (project-eshell "Eshell" "e")
@@ -2761,7 +2769,7 @@ Set our own list of actions on =project-switch-project=
 
 Bindings, these are some of the most heavily used day-to-day.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (aero-leader-def
     "pf" 'project-find-file
     "pp" 'project-switch-project
@@ -2777,7 +2785,7 @@ Bindings, these are some of the most heavily used day-to-day.
 * Magit
 One of the truly great packages in Emacs. I use it for everything git-related.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! magit :auto
     :after (general)
     :commands (magit-blame
@@ -2840,7 +2848,7 @@ One of the truly great packages in Emacs. I use it for everything git-related.
 
 We don't want none of that fancy "color" in the pre-commit hook
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/magit--color-buffer (proc &rest args)
     (interactive)
     (with-current-buffer (process-buffer proc)
@@ -2853,7 +2861,7 @@ We don't want none of that fancy "color" in the pre-commit hook
 
 Useful function to fetch a PR into a new branch by the PR number
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/fetch-pr ()
     "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
     (interactive)
@@ -2869,7 +2877,7 @@ Useful function to fetch a PR into a new branch by the PR number
 ** git-gutter
 Provides a visual indicator of changes in the gutter. I use it to quickly see what's changed in a file. The backends is set to git by default, and only loads the others if they actually exist on the system, which they never do.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! git-gutter :auto
     :hook ((prog-mode text-mode conf-mode) . git-gutter-mode)
     :custom
@@ -2890,7 +2898,7 @@ Provides a visual indicator of changes in the gutter. I use it to quickly see wh
 *** git-gutter-fringe
 Redefine the fringe bitmap definer to a no-op in GUI, if it's not already bound, otherwise git-gutter-fringe will error. I've never tracked down the real cause, but this makes things work smoothly.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (when (display-graphic-p)
     (unless (fboundp 'define-fringe-bitmap)
       (defun define-fringe-bitmap (bitmap &rest _)
@@ -2905,7 +2913,7 @@ The fringe bitmaps are a thin bar, expecting the theme to give them suitable col
 
 The functionality is disabled in Tramp because it hogs the connection bandwidth.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! git-gutter-fringe :auto :after (git-gutter)
     :custom
     (fringes-outside-margins t)
@@ -2930,7 +2938,7 @@ The functionality is disabled in Tramp because it hogs the connection bandwidth.
 ** Ediff
 A decent way to compare diffs. I've set it up to split horizontally and use a plain window setup.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! ediff :builtin
     :commands (ediff ediff3)
     :custom
@@ -2941,7 +2949,7 @@ A decent way to compare diffs. I've set it up to split horizontally and use a pl
 ** Git-link
 Super simple way to get a link to a file or line in a file on GitHub
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! git-link :auto
     :after (general)
     :commands (git-link git-link-commit git-link-homepage)
@@ -2950,7 +2958,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 
 * Org mode and org agenda
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! org :builtin
     :preface
     (defun archive-buffer-closed-tasks ()
@@ -3609,7 +3617,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Writing
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; Mark passive voice, duplicate words and weasel words
   (package! writegood-mode (:repo "bnbeckwith/writegood-mode")
     :hook ((text-mode) . writegood-mode))
@@ -3626,7 +3634,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Applications
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; My pomodoro package
   (package! pomp (:host gitlab :repo "thornjad/pomp")
     :after (general evil)
@@ -3639,7 +3647,7 @@ Super simple way to get a link to a file or line in a file on GitHub
     (aero-leader-def "ap" 'pomp))
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! pomp (:host gitlab :repo "thornjad/pomp")
     :after (general evil)
     :commands (pomp)
@@ -3651,7 +3659,7 @@ Super simple way to get a link to a file or line in a file on GitHub
     (aero-leader-def "ap" 'pomp))
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! restclient :auto
     :after (general)
     :commands (restclient-mode)
@@ -3669,7 +3677,7 @@ Super simple way to get a link to a file or line in a file on GitHub
       "y" 'restclient-copy-curl-command))
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! esup "jschaf/esup"
     :commands (esup)
     :config
@@ -3694,7 +3702,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 
 ;; Use the bindings below to insert a virtual comment which displays in the buffer but never saves
 ;; to disk.
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! virtual-comment "thanhvg/emacs-virtual-comment"
     :hook ((virtual-comment-make-mode . evil-insert-state))
     :after (general evil)
@@ -3721,12 +3729,12 @@ Super simple way to get a link to a file or line in a file on GitHub
       "vs" 'virtual-comment-show))
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'wttrin (expand-file-name "lib/localpackages/wttrin.el" user-emacs-directory))
 #+END_SRC
 
 * Prog modes
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; C language
   (package! cc-mode :builtin
     :mode (("\\.c\\'" . c-mode)
@@ -4132,7 +4140,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Parentheses
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! smartparens "Fuco1/smartparens"
     :after (general) :defer 5
     :functions (show-smartparens-global-mode
@@ -4242,7 +4250,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Flymake & Flyspell
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flymake :builtin
     :after (general)
     :custom
@@ -4318,7 +4326,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 
 * Formatting
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! apheleia
     (:repo "radian-software/apheleia"
      :files (:defaults ("scripts" "scripts/formatters")))
@@ -4336,7 +4344,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Debugging
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; Debug adapter, see https://github.com/svaante/dape for setup instructions, there's a lot of
   ;; manual setup required
   (package! dape "svaante/dape"
@@ -4389,7 +4397,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Whitespace and indentation
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! ws-butler :auto
     :functions (ws-butler-global-mode)
     :init (ws-butler-global-mode)
@@ -4400,7 +4408,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * EWW and Elfeed
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eww :builtin
     :after (general evil ace-link)
     :commands (eww eww-browse-url eww-search-words browse-url-at-point)
@@ -4608,7 +4616,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * AI
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! gptel "karthink/gptel"
     :after (general)
     :commands (gptel gptel-send gptel-menu)
@@ -4675,7 +4683,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Shell
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! xterm-color :auto
     :commands (xterm-color-filter)
     :init
@@ -4823,7 +4831,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 #+END_SRC
 
 * Lisp editing environment
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! common-lisp-mode :builtin
     :mode "\\(Lakefile|\\.\\(cl|lisp\\)\\)\\'")
   (package! slime :auto
@@ -5036,7 +5044,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 
 * Yarn-lock derived mode
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (defvar yarn-lock-mode-syntax-table
     (let ((syntable (make-syntax-table)))
       (modify-syntax-entry ?# "<" syntable)
@@ -5063,7 +5071,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 * General variable configuration
 This is loaded toward the end so that it overrides other packages. This solves some occasional issues where a mode overrides indenting, for example.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq-default
    ;; general
    ring-bell-function 'ignore ; supprime cette putain de cloche.
@@ -5334,26 +5342,26 @@ This is loaded toward the end so that it overrides other packages. This solves s
 
 Log warnings but don't pop them up.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq warning-minimum-level :error)
 #+END_SRC
 
 ** Disable custom system
 I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will add the customization line to =/dev/null= instead of =init.el=.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq-default custom-file "/dev/null")
 #+END_SRC
 
 * Idle garbage collection
 Do garbage collection when I'm not actively doing anything for seven seconds.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   (run-with-idle-timer 7 t 'garbage-collect)
 #+END_SRC
 
 * Load local file
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :lexical t
   ;; Load local init if it exists
   (load (expand-file-name "init.local" user-emacs-directory) t t)
 #+END_SRC
