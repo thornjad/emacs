@@ -4659,7 +4659,7 @@ Mark E′ violations
          (require 'em-prompt)
          (require 'em-term))))
 
-  (package! eshell-prompt-extras :auto
+  (package! eshell-prompt-extras "zwild/eshell-prompt-extras"
     :after (eshell)
     :config
     (with-eval-after-load "esh-opt"
@@ -4667,13 +4667,9 @@ Mark E′ violations
       (setq eshell-highlight-prompt nil
             eshell-prompt-function 'epe-theme-multiline-with-status)))
 
-  (package! eshell-syntax-highlighting :auto
+  (package! eshell-syntax-highlighting "akreisher/eshell-syntax-highlighting"
     :after eshell-mode
     :hook (eshell-mode . eshell-syntax-highlighting-mode))
-
-  (package! esh-help :auto
-    :after eshell
-    :config (setup-esh-help-eldoc))
 
   ;; Provides overlay suggestions in eshell. Use M-f to insert the next suggested word
   (package! capf-autosuggest "emacs-straight/capf-autosuggest"
