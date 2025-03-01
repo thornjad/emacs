@@ -30,7 +30,7 @@
   :prefix "wttrin-"
   :group 'comm)
 
-(defcustom wttrin-default-cities '("08876" "New York City")
+(defcustom wttrin-default-cities '("55123" "Chicago" "New York City")
   "Specify default cities list for quick completion."
   :group 'wttrin
   :type 'list)
