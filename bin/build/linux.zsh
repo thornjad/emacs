@@ -47,7 +47,7 @@ libs=(
   git
   gnutls-bin
   libgccjit0
-  libgccjit-12-dev
+  libgccjit-13-dev
   libgif-dev
   libglib2.0-dev
   libgnutls30
@@ -57,6 +57,7 @@ libs=(
   libjpeg-dev
   libncurses-dev
   libpng-dev
+  libsqlite3-dev
   libtiff5-dev
   libtree-sitter-dev
   libx11-dev
