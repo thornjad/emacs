@@ -900,11 +900,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
                  "ls -t $(find /tmp/ssh-* -user $USER -name 'agent.*' 2> /dev/null)"))))
       (message (format "SSH_AUTH_SOCK %s --> %s" ssh-auth-sock-old (getenv "SSH_AUTH_SOCK")))))
 
-  (defun aero/insert-pdb ()
-    "Inserts PDB set_trace."
-    (interactive)
-    (insert "import pdb; pdb.set_trace()"))
-
   (defmacro aero/with-buffer-excursion (buffer-name &rest body)
     (declare (indent 1))
     `(with-current-buffer (get-buffer ,buffer-name)
@@ -3495,18 +3490,8 @@ Mark E′ violations
 #+END_SRC
 
 * Applications
-#+BEGIN_SRC emacs-lisp :lexical t
-  ;; My pomodoro package
-  (package! pomp (:host gitlab :repo "thornjad/pomp")
-    :after (general evil)
-    :commands (pomp)
-    :custom
-    (pomp-pomodoro-length 55)
-    (pomp-short-break-length 10)
-    (pomp-long-break-length 15)
-    :init
-    (aero-leader-def "ap" 'pomp))
-#+END_SRC
+** Pomp (pomodoro)
+My pomodoro package
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! pomp (:host gitlab :repo "thornjad/pomp")
@@ -3519,6 +3504,9 @@ Mark E′ violations
     :init
     (aero-leader-def "ap" 'pomp))
 #+END_SRC
+
+** Restclient (HTTP requests)
+A simple way to make HTTP requests from within Emacs
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! restclient :auto
@@ -3537,12 +3525,15 @@ Mark E′ violations
       "." 'restclient-mark-current
       "y" 'restclient-copy-curl-command))
 #+END_SRC
+** ESUP
+Emacs startup profiler.
+
+The override of =esup-read-results= works around a bug where esup tries to profile cl-lib and fails by doing some nil checking.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! esup "jschaf/esup"
     :commands (esup)
     :config
-    ;; Work around a bug where esup tries to profile cl-lib and fails by doing some nil checking
     (defun esup-read-results ()
       "Read all `esup-result' objects from `esup-incoming-results-buffer'.
 
@@ -3560,9 +3551,9 @@ Mark E′ violations
         (nreverse results))))
 #+END_SRC
 
+** Virtual-comment
+An underrated package for temporary comments, really useful for debugging. The package doesn't define its own faces, using a variable instead, so we have to declare it.
 
-;; Use the bindings below to insert a virtual comment which displays in the buffer but never saves
-;; to disk.
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! virtual-comment "thanhvg/emacs-virtual-comment"
     :hook ((virtual-comment-make-mode . evil-insert-state))
@@ -3575,7 +3566,6 @@ Mark E′ violations
                virtual-comment-show)
     :custom (virtual-comment-face 'virtual-comment-face)
     :init
-    ;; Doesn't define its own faces, using a variable instead, so we need to declare it
     (defface virtual-comment-face
       '((t :inherit highlight))
       "Face for virtual comments"
@@ -3590,13 +3580,29 @@ Mark E′ violations
       "vs" 'virtual-comment-show))
 #+END_SRC
 
+** Wttrin
+Weather in Emacs
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (require 'wttrin (expand-file-name "lib/localpackages/wttrin.el" user-emacs-directory))
 #+END_SRC
 
 * Prog modes
+** Auto-mode settings
+Set up some auto-mode settings for various file types. Files without extensions are assumed to be text files.
+
+For some reason, makefile-mode doesn't always activate for Makefiles, so we add it here.
+
 #+BEGIN_SRC emacs-lisp :lexical t
-  ;; C language
+  (add-to-list 'auto-mode-alist '("/[^./]*\\'" . text-mode))
+  (add-to-list 'auto-mode-alist '("\\(README\\|readme\\)\\'" . text-mode))
+  (add-to-list 'auto-mode-alist '("/\\.dir-locals\\.el\\'" . emacs-lisp-mode))
+  (add-to-list 'auto-mode-alist '("/Cask\\'" . emacs-lisp-mode))
+  (add-to-list 'auto-mode-alist '("Makefile" . makefile-mode))
+#+END_SRC
+
+** C Language
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! cc-mode :builtin
     :mode (("\\.c\\'" . c-mode)
            ("\\.h\\'" . c-mode)
@@ -3607,7 +3613,24 @@ Mark E′ violations
       "Hook to run in all C modes"
       (set (make-local-variable 'parens-require-spaces) nil))
     :hook (c-mode-common . aero/c-mode-common-hook))
+#+END_SRC
 
+** Sh-script
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! sh-script :builtin :defer t
+    :mode ("\\.\\(sh\\|bash\\|zsh\\|zsh-theme\\)\\'" . sh-mode)
+    :config
+    (defun indent-paragraph ()
+      (interactive)
+      (save-excursion
+        (mark-paragraph) (indent-region (region-beginning) (region-end)))))
+#+END_SRC
+
+** Markdown
+We make an alteration to =markdown-mode-syntax-table= to teach it that quotes mean strings, regardless of what the mode's developer believes. We also ensure that checkboxes are not expanded by smartparens.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! markdown-mode "jrblevin/markdown-mode"
     :after (general smartparens)
     :mode (("\\.md\\'" . gfm-mode)
@@ -3616,7 +3639,6 @@ Mark E′ violations
     :hook (markdown-mode . flyspell-mode)
 
     :custom
-    ;; Fix table to teach it that quotes mean string, regardless of what the dev says
     (markdown-mode-syntax-table (make-syntax-table text-mode-syntax-table))
     (markdown-header-scaling t)
     (markdown-display-remote-images t)
@@ -3628,60 +3650,68 @@ Mark E′ violations
     (markdown-fontify-code-blocks-natively t)
 
     :config
-    ;; Don't expand checkboxes
     (sp-local-pair 'gfm-mode "- [ " "]"))
+#+END_SRC
 
+*** Markdown-toc
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! markdown-toc (:repo "ardumont/markdown-toc")
     :commands (markdown-toc-generate-toc markdown-toc-refresh-toc))
+#+END_SRC
 
+** Yaml
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! yaml-mode (:repo "yoshiki/yaml-mode")
     :mode "\\.ya?ml\\'")
+#+END_SRC
 
-  ;; TODO is this overridden by the yarn lock below?
-  ;; (package! aero-yarn-lock :localpackage
-  ;;   :mode "yarn\\.lock\\'")
-
-
-  (add-to-list 'auto-mode-alist '("\\(README\\|readme\\)\\'" . text-mode))
-  ;; Use text mode for file that doesn't have an extension.
-  (add-to-list 'auto-mode-alist '("/[^./]*\\'" . text-mode))
-  (add-to-list 'auto-mode-alist '("/\\.dir-locals\\.el\\'" . emacs-lisp-mode))
-  (add-to-list 'auto-mode-alist '("/Cask\\'" . emacs-lisp-mode))
-
-  ;; somehow makefile-mode stopped activating?
-  (add-to-list 'auto-mode-alist '("Makefile" . makefile-mode))
-
-  ;; Ocaml
+** Ocaml (Tuareg)
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! tuareg :auto :mode ("\\.mli?\\'" . tuareg-mode))
+#+END_SRC
 
-  
-  ;; Web languages
+** Web mode (HTML, CSS, JS)
+If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! web-mode "fxbois/web-mode"
     :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|jsx\\|s?css\\)\\'"
     :custom (web-mode-enable-engine-detection t)
     :config
-    ;; If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
     (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
+#+END_SRC
 
+*** Emmet
+Provides emmet expansion in web-mode
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! emmet-mode :auto
     :hook ((web-mode html-mode css-mode scss-mode js-mode) . emmet-mode)
     :init (setq emmet-self-closing-tag-style " /")
-
     :config
-    (add-hook
-     'js-mode-hook
-     (lambda () (setq emmet-expand-jsx-className? t))))
+    (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t))))
+#+END_SRC
 
+Ensure we expand className in JSX
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (eval-when-compile (defvar emmet-expand-jsx-className?))
+  (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t)))
+#+END_SRC
+
+** Jest
+My own package for running Jest tests from within Emacs. Based loosely on the functionality in VS Code
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! jest "thornjad/emacs-jest"
     :commands (jest jest-file jest-test)
     :after (general))
+#+END_SRC
 
-  ;; Expand className prop in JSX
-  (eval-when-compile (defvar emmet-expand-jsx-className?))
-  (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t)))
+** SQL
 
-  ;; SQL
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! sql :builtin
     :defer t
     :after (general)
@@ -3749,7 +3779,225 @@ Mark E′ violations
            (format "SQL history will not be saved because %s is nil"
                    (symbol-name rval))))))
     (add-hook 'sql-interactive-mode-hook 'my-sql-save-history-hook))
+#+END_SRC
 
+** Lisp editing environment
+*** Common Lisp
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! common-lisp-mode :builtin
+    :mode "\\(Lakefile|\\.\\(cl|lisp\\)\\)\\'")
+#+END_SRC
+
+**** Slime
+A powerful Common Lisp environment. We load SBCL faster by using a preset socket and POSIX shit. Note that this requires some setup in the SBCL REPL:
+
+#+BEGIN_SRC common-lisp :tangle no
+  (mapc 'require '(sb-bsd-sockets sb-posix sb-introspect sb-cltl2 asdf))
+  (save-lisp-and-die "sbcl.core-for-slime")
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! slime :auto
+    :commands slime
+    :init
+    (setq-default
+     inferior-lisp-program "ecl"
+     slime-contribs '(slime-fancy))
+    (defvar slime-lisp-implementations)
+    (setq slime-lisp-implementations
+          '((sbcl ("sbcl" "--core" "sbcl.core-for-slime"))
+            (ecl ("ecl")))))
+#+END_SRC
+
+*** Redefine the Lisp indent function
+#+BEGIN_SRC emacs-lisp :lexical t
+  ;; redefined to turn this:
+  ;; (:foo bar
+  ;;       :spam ham)
+  ;; into this:
+  ;; (:foo bar
+  ;;  :spam ham)
+  (eval-after-load "lisp-mode"
+    '(defun lisp-indent-function (indent-point state)
+       "This function is the normal value of the variable `lisp-indent-function'.
+    The function `calculate-lisp-indent' calls this to determine if the arguments of
+    a Lisp function call should be indented specially. INDENT-POINT is the position
+    at which the line being indented begins. Point is located at the point to indent
+    under (for default indentation); STATE is the `parse-partial-sexp' state for
+    that position. If the current line is in a call to a Lisp function that has a
+    non-nil property `lisp-indent-function' (or the deprecated `lisp-indent-hook'),
+    it specifies how to indent. The property value can be:
+
+    - `defun', meaning indent `defun'-style \(this is also the case if there is no
+      property and the function has a name that begins with \"def\", and three or
+      more arguments);
+
+    - an integer N, meaning indent the first N arguments specially (like ordinary
+      function arguments), and then indent any further arguments like a body;
+
+    - a function to call that returns the indentation (or nil).
+      `lisp-indent-function' calls this function with the same two arguments that it
+      itself received.
+
+    This function returns either the indentation to use, or nil if the Lisp function
+    does not specify a special indentation."
+       (let ((normal-indent (current-column))
+             (orig-point (point)))
+         (goto-char (1+ (elt state 1)))
+         (defvar calculate-lisp-indent-last-sexp)
+         (parse-partial-sexp (point) calculate-lisp-indent-last-sexp 0 t)
+         (cond
+          ;; car of form doesn't seem to be a symbol, or is a keyword
+          ((and (elt state 2)
+                (or (not (looking-at "\\sw\\|\\s_"))
+                    (looking-at ":")))
+           (if (not (> (save-excursion (forward-line 1) (point))
+                       calculate-lisp-indent-last-sexp))
+               (progn (goto-char calculate-lisp-indent-last-sexp)
+                      (beginning-of-line)
+                      (parse-partial-sexp (point)
+                                          calculate-lisp-indent-last-sexp 0 t)))
+           ;; Indent under the list or under the first sexp on the same line as
+           ;; calculate-lisp-indent-last-sexp. Note that first thing on that line
+           ;; has to be complete sexp since we are inside the innermost containing
+           ;; sexp.
+           (backward-prefix-chars)
+           (current-column))
+          ((and (save-excursion
+                  (goto-char indent-point)
+                  (skip-syntax-forward " ")
+                  (not (looking-at ":")))
+                (save-excursion
+                  (goto-char orig-point)
+                  (looking-at ":")))
+           (save-excursion
+             (goto-char (+ 2 (elt state 1)))
+             (current-column)))
+          (t
+           (let ((function (buffer-substring (point)
+                                             (progn (forward-sexp 1) (point))))
+                 method)
+             (setq method (or (function-get (intern-soft function)
+                                            'lisp-indent-function)
+                              (get (intern-soft function) 'lisp-indent-hook)))
+             (cond ((or (eq method 'defun)
+                        (and (null method)
+                             (> (length function) 3)
+                             (string-match "\\`def" function)))
+                    (lisp-indent-defform state indent-point))
+                   ((integerp method)
+                    (lisp-indent-specform method state
+                                          indent-point normal-indent))
+                   (method
+                    (funcall method indent-point state)))))))))
+
+  (add-hook 'emacs-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+  (add-hook 'common-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+  (add-hook 'lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+#+END_SRC
+
+** Clojure
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! clojure-mode :auto :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
+#+END_SRC
+
+*** Cider
+A Clojure development environment
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! cider :auto
+    :hook (clojure-mode . cider-mode)
+    :after (clojure-mode general)
+    :commands (cider
+               cider-jack-in)
+    :custom
+    (cider-show-error-buffer t)
+    (cider-repl-history-file (expand-file-name "cider-history" aero-cache-dir))
+    :config
+    (aero-mode-leader-def
+      :keymaps '(clojure-mode-map cider-mode-map)
+      "c" '(:ignore t :wk "cider")
+      "c RET" 'cider-run
+
+      "c'" 'cider-switch-to-repl-buffer
+      "c," 'cider-pop-back
+      "cQ" 'cider-quit
+      "cl" '(:ignore t :wk "load")
+      "clb" 'cider-load-buffer
+      "clf" 'cider-load-file
+      "cld" '(cider-load-all-files :wk "load directory")
+      "cR" 'cider-ns-refresh
+      "ch" '(:ignore t :wk "help")
+      "chd" 'cider-doc
+      "chj" 'cider-javadoc
+      "chc" 'cider-clojuredocs
+      "chC" 'cider-clojuredocs-web
+      "cha" 'cider-apropos
+      "chD" 'cider-apropos-documentation
+      "ct" '(:ignore t :wk "test")
+      "ctt" 'cider-test-run-test
+      "ctr" 'cider-test-rerun-test
+      "ctn" 'cider-test-run-ns-tests
+      "ctp" 'cider-test-run-project-tests
+      "ctf" 'cider-test-rerun-failed-tests
+      "ctp" 'cider-test-show-report
+      "cb" 'cider-load-buffer-and-switch-to-repl-buffer
+      "cd" 'cider-eval-defun-at-point
+      "cs" 'cider-eval-sexp-at-point
+      "cr" 'cider-eval-region
+      "cm" '(:ignore t :wk "macro expand")
+      "cmm" 'cider-macroexpand-1
+      "cma" 'cider-macroexpand-all
+      "cN" 'cider-eval-ns-form
+      "ce" '(:ignore t :wk "echo")
+      "cee" '(cider-eval-last-sexp :wk "echo last sexp")
+      "cer" '(cider-eval-last-sexp-to-repl :wk "eval last sexp to repl")
+      "cep" '(cider-pprint-eval-last-sexp :wk "pprint last sexp")))
+#+END_SRC
+
+** Emacs Lisp
+*** Package-lint
+Linting for Emacs packages
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! package-lint "purcell/package-lint"
+    :commands (package-lint-current-buffer))
+#+END_SRC
+
+*** Elisp-autofmt
+Automatically format elisp code
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! elisp-autofmt :auto
+    :commands (elisp-autofmt-buffer
+               elisp-autofmt-region)
+    :custom
+    (elisp-autofmt-cache-directory
+     (expand-file-name "elisp-autofmt-cache" aero-cache-dir)))
+#+END_SRC
+
+*** El2md
+Convert elisp files to markdown Readme files
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! el2md (:host gitlab :repo "thornjad/el2md")
+    :after (general)
+    :commands (el2md-write-readme
+               el2md-view-buffer
+               el2md-write-file)
+    :init
+    (aero-mode-leader-def
+      :keymaps 'emacs-lisp-mode-map
+      "m" '(:ignore t :wk "el2md")
+      "mr" 'el2md-write-readme
+      "mv" 'el2md-view-buffer
+      "mw" 'el2md-write-file))
+#+END_SRC
+
+
+** Python
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! python-mode :auto
     :after (general)
     :mode "\\.py\\'"
@@ -3761,110 +4009,12 @@ Mark E′ violations
     (setq-default python-indent-offset 4)
 
     :config
-    (defvar python-mode-initialized nil)
+    (defvar python-mode-initialized nil))
+#+END_SRC
 
-    (aero-mode-leader-def
-      :keymaps 'python-mode-map
-      "p" 'run-python
-      "s" '(:ignore t :wk "shell send")
-      "sd" 'elpy-shell-send-defun
-      "sD" 'elpy-shell-send-defun-and-go
-      "sb" 'elpy-shell-send-buffer
-      "sB" 'elpy-shell-send-buffer-and-go
-      "sr" 'elpy-shell-send-region-or-buffer
-      "sR" 'elpy-shell-send-region-or-buffer-and-go
-      "sc" 'elpy-shell-send-defclass
-      "sC" 'elpy-shell-send-defclass-and-go
-      "e" '(:ignore t :wk "change executable")
-      "ey" 'elpy-switch-to-pypy
-      "ec" 'elpy-switch-to-cpython
-      "ei" 'elpy-switch-to-ipithon
-      "ej" 'elpy-switch-to-jupyter
-      "k" '(:ignore t :wk "kill")
-      "kk" 'elpy-shell-kill
-      "kA" 'elpy-shell-kill-all
-      "g" '(:ignore t :wk "go")
-      "ge" 'elpy-shell-goto-last-error
-      "gi" 'elpy-shell-goto-import-header
-      "d" '(:ignore t :wk "pdb")
-      "di" '(aero/insert-pdb :wk "insert pdb"))
-    (general-define-key
-     :keymaps 'python-mode-map
-     "s-e" 'python-shell-send-defun
-     "C-<return>" 'python-shell-send-line)
+*** Elpy
 
-    (defvar pdb-completion-at-point-script
-      (concat
-       "import rlcompleter;"
-       "__ECAP_N=locals().copy();__ECAP_N.update(**globals());"
-       "__ECAP_T='''%s''';"
-       "print(';'.join("
-       "getattr(rlcompleter.Completer(__ECAP_N), 'attr_matches' if '.' in __ECAP_T else 'global_matches')"
-       "(__ECAP_T)))"))
-
-    (defun pdb-completion-at-point-function ()
-      "Complete at point if in pdb prompt."
-      (let* ((buffer (current-buffer))
-             (process (get-buffer-process buffer)))
-        (defvar python-shell-prompt-pdb-regexp)
-        ;; Get completion only if there are process and we are at pdb prompt
-        (when (and
-               process
-               (save-excursion
-                 (forward-line 0)
-                 (looking-at python-shell-prompt-pdb-regexp)))
-          (let* ((end (point))
-                 ;; Beginning of prefix to search completion for
-                 ;; Get whole input and search backwards for delimiters
-                 (start (save-excursion (comint-goto-process-mark) (point)))
-                 (start (or (save-excursion
-                              (when (re-search-backward
-                                     "[([{]\\|[])}]\\|[[:space:]]\\|\\(?:\\(?:\\*\\*\\|//\\|<<\\|>>\\|[%&*+/|^-]\\)?=\\)"
-                                     start t)
-                                (1+ (point))))
-                            start)))
-            (when (> end start)
-              (let ((prefix (buffer-substring-no-properties start end))
-                    ;; this regexp is used to determine that output redirect is done
-                    (comint-prompt-regexp (concat "^" python-shell-prompt-pdb-regexp)))
-                (with-temp-buffer
-                  (comint-redirect-send-command-to-process
-                   (format pdb-completion-at-point-script prefix)
-                   (current-buffer) process nil t)
-                  ;; wait for command output
-                  (with-current-buffer buffer
-                    (while (null comint-redirect-completed)
-                      (accept-process-output nil 0.1)))
-                  (goto-char (point-min))
-                  ;; Skip first line in case process echoes input
-                  (unless (= (count-lines (point-min) (point-max)) 1)
-                    (forward-line 1))
-                  (let ((completions (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
-                    ;; return nil instead of empty completions so other
-                    ;; completion functions can provide their completions
-                    (unless (string-empty-p completions)
-                      (list start end (split-string completions ";")))))))))))
-
-    (add-hook
-     'inferior-python-mode-hook
-     (lambda ()
-       (add-hook 'completion-at-point-functions
-                 'pdb-completion-at-point-function nil t))))
-
-  (defun pdb-poetry ()
-    "Like `py-pdb' but with poetry."
-    (interactive)
-    (require 'gud)
-    (let ((command-line
-           (read-from-minibuffer
-            "Run pdb like this: "
-            (concat
-             "poetry run python3 -m pdb "
-             (if (and (featurep 'tramp) (tramp-tramp-file-p (buffer-file-name)))
-                 (tramp-file-name-localname (tramp-dssect-file-name (buffer-file-name)))
-               (buffer-file-name))))))
-      (if command-line (pdb command-line) (error "command required"))))
-
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! elpy (:host github :repo "jorgenschaefer/elpy")
     :hook ((python-mode ein-mode) . elpy-mode)
     :custom
@@ -3874,78 +4024,52 @@ Mark E′ violations
 
     :config
     (elpy-enable)
-
-    (defun elpy-goto-import-header ()
-      "Jump to the import header."
-      (interactive)
-      (evil-set-jump)
-      (goto-char (point-min))
-      (re-search-forward "^import"))
-
-    (defun elpy-shell-goto-last-error ()
-      "Jump to the last error reported by the shell."
-      (interactive)
-      (let ((filename (buffer-file-name)))
-        (elpy-shell-switch-to-shell)
-        (goto-char (point-max))
-        (search-backward filename nil t)
-        (while (condition-case nil
-                   (progn (compile-goto-error) nil)
-                 (error t))
-          (forward-line -1))))
-
     (aero-mode-leader-def
       :keymaps 'elpy-mode-map
       "p" 'run-python
       "'" 'elpy-shell-switch-to-shell
       "s" '(:ignore t :wk "shell send")
-      "ss" '(elpy-shell-send-region-or-buffer :wk "send region or buffer")
-      "sS" '(elpy-shell-send-region-or-buffer-and-go :wk "send region or buffer and go")
-      "sd" '(elpy-shell-send-defun :wk "send defun")
-      "sD" '(elpy-shell-send-defun-and-go :wk "send defun and go")
-      "sb" '(elpy-shell-send-buffer :wk "send buffer")
-      "sB" '(elpy-shell-send-buffer-and-go :wk "send buffer and go")
-      "sc" '(elpy-shell-send-defclass :wk "send defclass")
-      "sC" '(elpy-shell-send-defclass-and-go :wk "send defclass and go")
-      "k" '(:ignore t :wk "kill")
-      "kk" '(elpy-shell-kill :wk "kill shell")
-      "kA" '(elpy-shell-kill-all :wk "kill all shells")
-      "g" '(:ignore t :wk "go")
-      "ge" '(elpy-shell-goto-last-error :wk "goto last error")
-      "gi" '(elpy-shell-goto-import-header :wk "goto import header")
-      "t" '(elpy-test :wk "run test")
-      "d" '(:ignore t :wk "debug")
-      "dd" '(elpy-pdb-debug-buffer :wk "debug buffer")
-      "db" '(elpy-pdb-toggle-breakpoint-at-point :wk "toggle breakpoint")
-      "r" '(:ignore t :wk "refactor")
-      "rb" '(elpy-black-fix-code :wk "black format")
-      "rr" '(elpy-refactor-rename :wk "rename")
-      "rv" '(elpy-refactor-extract-variable :wk "extract variable")
-      "rf" '(elpy-refactor-extract-function :wk "extract function")
-      "ri" '(elpy-refactor-inline :wk "inline variable")
-      "rF" '(elpy-format-code :wk "format buffer or region")))
+      "ss" '(elpy-shell-send-region-or-buffer)
+      "sS" '(elpy-shell-send-region-or-buffer-and-go)
+      "sd" '(elpy-shell-send-defun)
+      "sD" '(elpy-shell-send-defun-and-go)
+      "sb" '(elpy-shell-send-buffer)
+      "sB" '(elpy-shell-send-buffer-and-go)
+      "sc" '(elpy-shell-send-defclass)
+      "sC" '(elpy-shell-send-defclass-and-go)))
+#+END_SRC
 
+*** Flymake-mypy
+Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flymake-mypy "com4/flymake-mypy"
     :after (eglot flymake)
     :init
-    ;; Need to add after eglot so eglot doesn't clobber
     (add-hook 'eglot-managed-mode-hook
               (lambda ()
                 (when (derived-mode-p 'python-base-mode)
                   (flymake-mypy-enable)))))
+#+END_SRC
 
+*** Flymake-ruff
+Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flymake-ruff "erickgnavar/flymake-ruff"
     :after (eglot flymake)
     :functions (flymake-ruff-load)
     :init
-    ;; Need to add after eglot so eglot doesn't clobber
     (with-eval-after-load 'eglot
       (add-hook 'eglot-managed-mode-hook
                 (lambda ()
                   (when (derived-mode-p 'python-base-mode)
                     (setq python-flymake-command '("ruff" "--quiet" "--stdin-filename=stdin" "-"))
                     (flymake-ruff-load))))))
+#+END_SRC
 
+** Rust
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! rust-mode :auto
     :mode "\\.rs\\'"
     :config
@@ -3957,50 +4081,113 @@ Mark E′ violations
     (define-key rust-mode-map (kbd "TAB") #'company-indent-or-complete-common)
     (add-hook 'rust-mode-hook
               (lambda () (setq indent-tabs-mode t))))
+#+END_SRC
 
+*** Cargo
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! cargo :auto
     :commands cargo-minor-mode
     :hook (rust-mode . cargo-minor-mode))
+#+END_SRC
 
+** TOML
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! toml-mode :auto
     :mode "\\(\\.toml\\|Cargo\\.lock\\)\\'")
+#+END_SRC
 
-  ;; Docker
+** Docker
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! docker-compose-mode :auto :mode "docker-compose.*\.yml\\'")
   (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
+#+END_SRC
 
-  (package! nix-mode :auto :mode "\\.nix\\'")
+** Lua
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! lua-mode :auto :mode "\\.lua\\'")
-  (package! applescript-mode :auto :mode "\\.applescript\\'")
-  (package! nhexl-mode :auto :defer t) ; improved version of `hexl-mode'
-  (package! pdf-tools :auto :defer t)
-  (package! terraform-mode :auto :mode "\\.tf\\'")
-  (package! graphql-mode :auto :mode "\\.graphql\\'")
-  (package! groovy-mode :auto :mode "\\(\\.groovy\\'\\|Jenkinsfile\\)")
-  (package! csv-mode :auto :mode "\\.csv\\'")
-  (package! logstash-conf :auto :commands (logstash-conf-mode))
+#+END_SRC
 
+** AppleScript
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! applescript-mode :auto :mode "\\.applescript\\'")
+#+END_SRC
+
+** Nhexl
+Provides a hexl-mode with a better interface, for viewing and editing binary files.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! nhexl-mode :auto :defer t)
+#+END_SRC
+
+** Terraform
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! terraform-mode :auto :mode "\\.tf\\'")
+#+END_SRC
+
+** GraphQL
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! graphql-mode :auto :mode "\\.graphql\\'")
+#+END_SRC
+
+** Groovy
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! groovy-mode :auto :mode "\\(\\.groovy\\'\\|Jenkinsfile\\)")
+#+END_SRC
+
+** CSV
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! csv-mode :auto :mode "\\.csv\\'")
+#+END_SRC
+
+** Orson (WIP)
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook
    'orson-mode-hook
    (lambda ()
      (setq-local indent-tabs-mode nil)
      (prettify-symbols-mode nil)))
+#+END_SRC
 
-  ;; Elm-mode is supposed to enable elm-indent-mode by default, but for some reason it stopped doing
-  ;; this on Dec 21, 2022. Probably caused this myself, but this fixes it.
+** Elm
+This mode should eanble elm-indent-mode by default, but for some reason it stopped doing this on Dec 21, 2022. Probably caused this myself, but the =:hook= fixes it.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! elm-mode :auto :hook (elm-mode . elm-indent-mode))
+#+END_SRC
 
+** TCL
+The greatest tool command language
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! tcl :builtin
     :mode ("\\(\\.tcl\\|\\.test\\)\\'" . tcl-mode)
     :custom
     (tcl-application "tclsh")
     :config
     (add-to-list 'tcl-type-alist '("namespace" "eval" tcl-expr tcl-commands)))
+#+END_SRC
 
+** Rivet
+My own Rivet mode, which is a TCL extension for Apache
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! rivet-mode "thornjad/rivet-mode")
 #+END_SRC
 
 * Parentheses
+** Smartparens
+Provides a better way of handling parentheses.
+
+My =aero/smart-closing-parenthesis= is based on a similar function in Spacemacs.
+
+We also set up a bunch of paren pairs that aren't default for some reason.
+
+Toward the end we set up parens with post-handlers to add an extra newline and indent when hitting RET inside them.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! smartparens "Fuco1/smartparens"
     :after (general) :defer 5
@@ -4010,12 +4197,12 @@ Mark E′ violations
                 sp-up-sexp)
     :after (evil general)
     :hook ((after-init . smartparens-global-mode))
+
     :init
-    ;; fix highlighting in normal mode
     (setq sp-show-pair-from-inside t)
     (smartparens-global-mode +1)
+
     :config
-    ;; from spacemacs
     (defun aero/smart-closing-parenthesis ()
       "Insert a closing pair delimiter or move point past existing delimiter.
 
@@ -4095,28 +4282,31 @@ Mark E′ violations
     (sp-local-pair 'org-mode "/" "/" :trigger-wrap "/" )
     (sp-local-pair 'markdown-mode "```" "```" :post-handlers '(:add ("||\n[i]" "RET")))
 
-    ;; Breaks in org mode (this file even)
-    ;; (sp-pair "<" ">")
-
-    ;; For these pairs, when hitting RET inside them, we add an extra newline to the middle and indent
-    ;; accordingly.
     (sp-pair "{" "}" :post-handlers '(:add ("||\n[i]" "RET")))
     (sp-pair "[" "]" :post-handlers '(:add ("||\n[i]" "RET")))
     (sp-pair "(" ")" :post-handlers '(:add ("||\n[i]" "RET")))
 
     (define-key evil-insert-state-map ")" 'aero/smart-closing-parenthesis))
+#+END_SRC
 
+** Rainbow delimiters
+Colorize parens to make it easier to see where they start and end.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! rainbow-delimiters "Fanael/rainbow-delimiters"
     :hook ((prog-mode . rainbow-delimiters-mode)))
 #+END_SRC
 
 * Flymake & Flyspell
+** Flymake
+Diagnostics, errors, warnings, etc. This is a faster version of Flycheck.
+
+For fringe indicators, left is the default, but since git-gutter also uses left we need to make sure it still makes the same choice. If they conflict, one of them wins and it works out fine.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! flymake :builtin
     :after (general)
     :custom
-    ;; left-fringe is the default, but we're being explicit because git-gutter also uses left-fringe.
-    ;; Usually this works itself out.
     (flymake-fringe-indicator-position 'left-fringe)
     (flymake-wrap-around t)
     (flymake-no-changes-timeout 0.6)
@@ -4133,23 +4323,36 @@ Mark E′ violations
       "en" 'flymake-goto-next-error
       "ep" 'flymake-goto-prev-error
       "eb" 'flymake-show-buffer-diagnostics))
+#+END_SRC
 
-  ;; makes flymake appear in popup
+*** Flymake-diagnostic-at-point
+Makes flymake diagnostics appear in a popup
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flymake-diagnostic-at-point (:repo "meqif/flymake-diagnostic-at-point")
     :after flymake
     :hook (flymake-mode . flymake-diagnostic-at-point-mode))
+#+END_SRC
 
+*** Flymake-eslint
+Flymake for ESLint. Must be added after eglot so eglot doesn't clobber it.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flymake-eslint "orzechowskid/flymake-eslint"
     :after (eglot)
     :init
-    ;; Need to add after eglot so eglot doesn't clobber
     (add-hook 'eglot-managed-mode-hook
               (lambda ()
                 (when (and (derived-mode-p '(typescript-mode typescript-ts-mode js-mode web-mode))
                            (not (derived-mode-p 'json-mode))
                            (executable-find "eslint"))
                   (flymake-eslint-enable)))))
+#+END_SRC
 
+** Flyspell
+Spell checking, using a custom dictionary. Skips code blocks in org-mode.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flyspell :builtin
     :after (general)
     :hook ((prog-mode . flyspell-prog-mode)
@@ -4161,7 +4364,6 @@ Mark E′ violations
      ispell-personal-dictionary (expand-file-name "ispell/personal_dictionary.aws" aero/thornlog-path)
      flyspell-sort-corrections nil)
 
-    ;; Skip code inside org src blocks
     (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_SRC" . "#\\+END_SRC"))
     (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE"))
 
@@ -4171,10 +4373,20 @@ Mark E′ violations
       "psw" 'flyspell-word
       "psb" 'flyspell-buffer
       "psr" 'flyspell-region))
+#+END_SRC
 
+*** Flyspell-lazy
+Lazy flyspell mode, which only checks words when they're idle.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flyspell-lazy (:repo "rolandwalker/flyspell-lazy")
     :hook ((flyspell-mode . flyspell-lazy-mode)))
+#+END_SRC
 
+*** Flyspell-correct
+A better interface for correcting spelling
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! flyspell-correct "d12frosted/flyspell-correct"
     :after (general flyspell)
     :config
@@ -4185,7 +4397,8 @@ Mark E′ violations
       "psn" 'flyspell-correct-next))
 #+END_SRC
 
-* Formatting
+* Formatting (Apheleia)
+It's hard to remember what this package is called, which is a marker of a bad name. However, it's good code, handling auto-formatting on save.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! apheleia
@@ -4204,10 +4417,10 @@ Mark E′ violations
       "bI" 'apheleia-format-buffer))
 #+END_SRC
 
-* Debugging
+* Debugging with Dape
+Package for the debug adapter protocol. See https://github.com/svaante/dape for setup instructions, there's a fair bit of manual system setup required to actually use this.
+
 #+BEGIN_SRC emacs-lisp :lexical t
-  ;; Debug adapter, see https://github.com/svaante/dape for setup instructions, there's a lot of
-  ;; manual setup required
   (package! dape "svaante/dape"
     :after (general project eglot)
     :custom
@@ -4258,74 +4471,70 @@ Mark E′ violations
 #+END_SRC
 
 * Whitespace and indentation
+WS-Butler removes trailing whitespace, but only in modes where it's not important. This is a good default, but we need to exempt some modes where whitespace is important.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! ws-butler :auto
     :functions (ws-butler-global-mode)
     :init (ws-butler-global-mode)
     :custom
-    ;; default is just markdown-mode, which is a mode where I really want this in particular. Instead,
-    ;; only exempt modes where whitespace could be important.
     (ws-butler-global-exempt-modes '(special-mode comint-mode term-mode eshell-mode)))
 #+END_SRC
 
-* EWW and Elfeed
+* EWW: the Emacs Web Wowser
+A basic builtin browser. Very lightweight. Uses shr, which is a simple HTML renderer.
+
+First some helper functions for shr that make it render block-level elements as paragraphs, set the buffer title, and set up some interactive functions.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defmacro shr-display-block (tag)
+    "Register TAG a paragraph (in CSS parlance \"display:block;\").
+
+  See https://developer.mozilla.org/en-US/docs/Glossary/Block-level_content"
+    (let ((fname
+           (intern (format "shr-tag-%s" tag)))
+          (docstring
+           (format "Render \"%s\" tag as paragraph." tag)))
+      `(defun ,fname (dom)
+         ,docstring
+         (shr-ensure-paragraph)
+         (shr-generic dom)
+         (shr-ensure-paragraph))))
+
+  (defun aero/set-eww-buffer-title ()
+    "Rename eww mode buffer so the title of the page is displayed, making
+       fake-tabbed-browsing easier"
+    (let ((title (plist-get eww-data :title)))
+      (when (eq major-mode 'eww-mode)
+        (if title
+            (rename-buffer (concat "eww - " title) t)
+          (rename-buffer "eww" t)))))
+
+  (defun aero/wiki-news () (interactive)
+         (eww-browse-url "https://en.wikipedia.org/wiki/Portal:Current_events"))
+
+  (defun aero/xwidgets-search-ddg (&optional term)
+    (interactive "sSearch DuckDuckGo: ")
+    (xwidget-webkit-browse-url (format "https://duckduckgo.com/?q=%s" (or term "")) t))
+
+  (defun aero/ace-link-eww-new-buffer ()
+    "Call `ace-link-eww' but open in a new buffer.
+
+  This simply calls `ace-link-eww' with a fake double prefix, which is equivalent to the list containing 16."
+    (interactive)
+    (ace-link-eww '(16)))
+#+END_SRC
+
+Then the actual EWW config. We open almost everything from Emacs into EWW, except a few sites that are so JS-heavy that they don't work at all.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! eww :builtin
     :after (general evil ace-link)
     :commands (eww eww-browse-url eww-search-words browse-url-at-point)
-
-    :preface
-    (defmacro shr-display-block (tag)
-      "Register TAG a paragraph (in CSS parlance \"display:block;\").
-
-  See https://developer.mozilla.org/en-US/docs/Glossary/Block-level_content"
-      (let ((fname
-             (intern (format "shr-tag-%s" tag)))
-            (docstring
-             (format "Render \"%s\" tag as paragraph." tag)))
-        `(defun ,fname (dom)
-           ,docstring
-           (shr-ensure-paragraph)
-           (shr-generic dom)
-           (shr-ensure-paragraph))))
-
-    (defun aero/set-eww-buffer-title ()
-      "Rename eww mode buffer so the title of the page is displayed, making
-       fake-tabbed-browsing easier"
-      (let ((title (plist-get eww-data :title)))
-        (when (eq major-mode 'eww-mode)
-          (if title
-              (rename-buffer (concat "eww - " title) t)
-            (rename-buffer "eww" t)))))
-
-    (defun aero/wiki-news () (interactive)
-           (eww-browse-url "https://en.wikipedia.org/wiki/Portal:Current_events"))
-
-    (defun aero/xwidgets-search-ddg (&optional term)
-      (interactive "sSearch DuckDuckGo: ")
-      (xwidget-webkit-browse-url (format "https://duckduckgo.com/?q=%s" (or term "")) t))
-
-    (defun aero/ace-link-eww-new-buffer ()
-      "Call `ace-link-eww' but open in a new buffer.
-
-  This simply calls `ace-link-eww' with a fake double prefix, which is equivalent to the list containing 16."
-      (interactive)
-      (ace-link-eww '(16)))
-
-    (defun aero/pocket-add-current-url ()
-      "Add the URL currently visited to Pocket."
-      (interactive)
-      (when (require 'pocket-reader nil t)
-        (let ((url (eww-current-url)))
-          (if (pocket-lib-add-urls url)
-              (message "Added: %s" url)
-            (message "Failed to add to Pocket")))))
-
     :hook ((eww-mode . visual-line-mode)
            (eww-after-render . aero/set-eww-buffer-title))
 
     :custom
-    ;; Open everything in eww, except for these few sites which just don't work in eww
     (browse-url-browser-function
      '((".*google.*maps.*" . browse-url-generic)
        ("docs.google.com" . browse-url-generic)
@@ -4417,8 +4626,12 @@ Mark E′ violations
       "P" 'eww-bookmark-yank
       (kbd "RET") 'eww-bookmark-browse
       "q" 'quit-window))
+#+END_SRC
 
-  ;; Add some org-like features
+** Shrface
+Adds some org-like features to EWW
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! shrface (:host github :repo "chenyanming/shrface")
     :defer t
     :after (eww)
@@ -4428,14 +4641,23 @@ Mark E′ violations
     (shrface-basic)
     (shrface-trial)
     (shrface-default-keybindings))
+#+END_SRC
 
-  ;; Add syntax highlighting to HTML pre tags
+** Shr-tag-pre-highlight
+Syntax highlighting for HTML pre tags
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! shr-tag-pre-highlight "xuchunyang/shr-tag-pre-highlight.el"
     :after (shr)
     :config
     (add-to-list 'shr-external-rendering-functions '(pre . shr-tag-pre-highlight)))
+#+END_SRC
 
-  (package! devdocs (:host github :repo "astoff/devdocs.el")
+* Devdocs
+An interface for semi-offline documentation.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! devdocs "astoff/devdocs.el"
     :after (general)
     :commands (devdocs-lookup)
     :custom (devdocs-data-dir (expand-file-name "devdocs" aero-cache-dir))
@@ -4455,7 +4677,12 @@ Mark E′ violations
     (add-hook 'clojure-mode-hook (lambda ()
                                    (setq-local devdocs-current-docs
                                                '("clojure~1.11")))))
+#+END_SRC
 
+* Elfeed
+Simple RSS reader
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! elfeed "skeeto/elfeed"
     :commands (elfeed elfeed-db-compact)
     :after (general evil)
@@ -4467,8 +4694,12 @@ Mark E′ violations
     :config
     (evil-set-initial-state 'elfeed-search-mode 'normal)
     (evil-set-initial-state 'elfeed-show-mode 'normal))
+#+END_SRC
 
-  ;; lets us use an elfeed.org file to manage our feeds and their tags.
+** Elfeed-org
+Allows managing feeds in an org file
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! aero-elfeed-org :localpackage
     :config
     (when aero/thornlog-elfeed-org-file
@@ -4477,6 +4708,11 @@ Mark E′ violations
 #+END_SRC
 
 * AI
+** Gptel
+Generic interface to a variety of LLMs.
+
+We do register Claude as a valid backend, but it's not a default because I've found it to hallucinate a lot more than GPT (as of 2024).
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! gptel "karthink/gptel"
     :after (general)
@@ -4519,23 +4755,29 @@ Mark E′ violations
      (kbd "C-<return>") 'aero/gptel-send-buffer)
 
     :config
-    ;; Register Claude backend, but we don't set it as default because it hallucinates much more than
-    ;; GPT.
     (when (and (boundp 'anthropic-api-key) anthropic-api-key)
       (gptel-make-anthropic "Claude" :stream t :key anthropic-api-key)))
+#+END_SRC
 
-  ;; Quick llm lookup at point or region. Uses posframe if its installed (prelude)
+*** Gptel-quick
+Quickly look up LLM responses at point or in a region. Uses posframe if it's installed.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! gptel-quick "karthink/gptel-quick"
     :after (general)
     :commands (gptel-quick)
     :init
     (aero-leader-def "aiq" 'gptel-quick))
+#+END_SRC
 
-  ;; Works best with company-box, so we consider it a requirement
+** Copilot
+A connection with Microsoft GitHub Copilot. Works best with company-box, so we consider it a requirement. The idle delay is longer than default so it doesn't mess with typing.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
     :after (company-box general)
     :hook ((prog-mode org-mode) . copilot-mode)
-    :custom (copilot-idle-delay 0.2) ; longer than default so it doesn't mess with typing
+    :custom (copilot-idle-delay 0.2)
     :bind (:map copilot-mode-map
            ("C-<tab>" . copilot-accept-completion)
            ("C-c C-i" . copilot-accept-completion)
@@ -4544,6 +4786,9 @@ Mark E′ violations
 #+END_SRC
 
 * Shell
+** Xterm-color
+Colorize shell output
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! xterm-color :auto
     :commands (xterm-color-filter)
@@ -4552,7 +4797,12 @@ Mark E′ violations
     (defun aero/advice-compilation-filter (f proc string)
       (funcall f proc (xterm-color-filter string)))
     (advice-add 'compilation-filter :around #'aero/advice-compilation-filter))
+#+END_SRC
 
+** Eshell
+Realistically this is my main shell. It does try to override some important bindings by default, so we undo that.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eshell :builtin
     :after (general evil)
     :commands eshell
@@ -4567,7 +4817,6 @@ Mark E′ violations
     :functions (eshell-previous-input
                 eshell-next-input)
     :config
-    ;; Ensure eshell doesn't override these
     (define-key eshell-mode-map (kbd "M-h") #'windmove-left)
     (define-key eshell-mode-map (kbd "M-l") #'windmove-right)
     (define-key eshell-mode-map (kbd "M-p") #'eshell-previous-input)
@@ -4658,7 +4907,12 @@ Mark E′ violations
          (require 'em-cmpl)
          (require 'em-prompt)
          (require 'em-term))))
+#+END_SRC
 
+*** Eshell-prompt-extras
+Adds a more informative prompt to eshell
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eshell-prompt-extras "zwild/eshell-prompt-extras"
     :after (eshell)
     :config
@@ -4666,240 +4920,27 @@ Mark E′ violations
       (autoload 'epe-theme-multiline-with-status "eshell-prompt-extras")
       (setq eshell-highlight-prompt nil
             eshell-prompt-function 'epe-theme-multiline-with-status)))
+#+END_SRC
 
+*** Eshell-syntax-highlighting
+Syntax highlighting in eshell
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! eshell-syntax-highlighting "akreisher/eshell-syntax-highlighting"
     :after eshell-mode
     :hook (eshell-mode . eshell-syntax-highlighting-mode))
-
-  ;; Provides overlay suggestions in eshell. Use M-f to insert the next suggested word
-  (package! capf-autosuggest "emacs-straight/capf-autosuggest"
-    :hook (eshell-mode . capf-autosuggest-mode))
-
-  
-  ;; shell scripting
-
-  (package! sh-script :builtin :defer t
-    :mode ("\\.\\(sh\\|bash\\|zsh\\|zsh-theme\\)\\'" . sh-mode)
-    :config
-    (defun indent-paragraph ()
-      (interactive)
-      (save-excursion
-        (mark-paragraph) (indent-region (region-beginning) (region-end)))))
 #+END_SRC
 
-* Lisp editing environment
+*** Capf-autosuggest
+Provides overlay suggestions in eshell. Use M-f to insert the next suggested word
+
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! common-lisp-mode :builtin
-    :mode "\\(Lakefile|\\.\\(cl|lisp\\)\\)\\'")
-  (package! slime :auto
-    :commands slime
-    :init
-    (setq-default
-     inferior-lisp-program "ecl"
-     slime-contribs '(slime-fancy))
-    ;; Load SBCL faster by using preset socket and POSIX shit.
-    ;; NOTE: this requires some set-up beforehand in the SBCL REPL:
-    ;;   * (mapc 'require '(sb-bsd-sockets sb-posix sb-introspect sb-cltl2 asdf))
-    ;;   * (save-lisp-and-die "sbcl.core-for-slime")
-    (defvar slime-lisp-implementations)
-    (setq slime-lisp-implementations
-          '((sbcl ("sbcl" "--core" "sbcl.core-for-slime"))
-            (ecl ("ecl")))))
-
-  (defun indent-defun ()
-    "Indent current defun"
-    (interactive)
-    (save-excursion
-      (mark-defun)
-      (indent-region (region-beginning) (region-end))))
-
-
-  ;; redefined to turn this:
-  ;; (:foo bar
-  ;;       :spam ham)
-  ;; into this:
-  ;; (:foo bar
-  ;;  :spam ham)
-  (eval-after-load "lisp-mode"
-    '(defun lisp-indent-function (indent-point state)
-       "This function is the normal value of the variable `lisp-indent-function'.
-    The function `calculate-lisp-indent' calls this to determine if the arguments of
-    a Lisp function call should be indented specially. INDENT-POINT is the position
-    at which the line being indented begins. Point is located at the point to indent
-    under (for default indentation); STATE is the `parse-partial-sexp' state for
-    that position. If the current line is in a call to a Lisp function that has a
-    non-nil property `lisp-indent-function' (or the deprecated `lisp-indent-hook'),
-    it specifies how to indent. The property value can be:
-
-    - `defun', meaning indent `defun'-style \(this is also the case if there is no
-      property and the function has a name that begins with \"def\", and three or
-      more arguments);
-
-    - an integer N, meaning indent the first N arguments specially (like ordinary
-      function arguments), and then indent any further arguments like a body;
-
-    - a function to call that returns the indentation (or nil).
-      `lisp-indent-function' calls this function with the same two arguments that it
-      itself received.
-
-    This function returns either the indentation to use, or nil if the Lisp function
-    does not specify a special indentation."
-       (let ((normal-indent (current-column))
-             (orig-point (point)))
-         (goto-char (1+ (elt state 1)))
-         (defvar calculate-lisp-indent-last-sexp)
-         (parse-partial-sexp (point) calculate-lisp-indent-last-sexp 0 t)
-         (cond
-          ;; car of form doesn't seem to be a symbol, or is a keyword
-          ((and (elt state 2)
-                (or (not (looking-at "\\sw\\|\\s_"))
-                    (looking-at ":")))
-           (if (not (> (save-excursion (forward-line 1) (point))
-                       calculate-lisp-indent-last-sexp))
-               (progn (goto-char calculate-lisp-indent-last-sexp)
-                      (beginning-of-line)
-                      (parse-partial-sexp (point)
-                                          calculate-lisp-indent-last-sexp 0 t)))
-           ;; Indent under the list or under the first sexp on the same line as
-           ;; calculate-lisp-indent-last-sexp. Note that first thing on that line
-           ;; has to be complete sexp since we are inside the innermost containing
-           ;; sexp.
-           (backward-prefix-chars)
-           (current-column))
-          ((and (save-excursion
-                  (goto-char indent-point)
-                  (skip-syntax-forward " ")
-                  (not (looking-at ":")))
-                (save-excursion
-                  (goto-char orig-point)
-                  (looking-at ":")))
-           (save-excursion
-             (goto-char (+ 2 (elt state 1)))
-             (current-column)))
-          (t
-           (let ((function (buffer-substring (point)
-                                             (progn (forward-sexp 1) (point))))
-                 method)
-             (setq method (or (function-get (intern-soft function)
-                                            'lisp-indent-function)
-                              (get (intern-soft function) 'lisp-indent-hook)))
-             (cond ((or (eq method 'defun)
-                        (and (null method)
-                             (> (length function) 3)
-                             (string-match "\\`def" function)))
-                    (lisp-indent-defform state indent-point))
-                   ((integerp method)
-                    (lisp-indent-specform method state
-                                          indent-point normal-indent))
-                   (method
-                    (funcall method indent-point state)))))))))
-
-  (add-hook 'emacs-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
-  (add-hook 'common-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
-  (add-hook 'lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
-
-  
-  ;; Clojure
-
-  (package! clojure-mode :auto :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
-  (package! cider :auto
-    :hook (clojure-mode . cider-mode)
-    :after (clojure-mode general)
-    :commands (cider
-               cider-jack-in)
-    :custom
-    (cider-show-error-buffer t)
-    (cider-repl-history-file (expand-file-name "cider-history" aero-cache-dir))
-    :config
-    (aero-mode-leader-def
-      :keymaps '(clojure-mode-map cider-mode-map)
-      "c" '(:ignore t :wk "cider")
-      "c RET" 'cider-run
-
-      "c'" 'cider-switch-to-repl-buffer
-      "c," 'cider-pop-back
-      "cQ" 'cider-quit
-      "cl" '(:ignore t :wk "load")
-      "clb" 'cider-load-buffer
-      "clf" 'cider-load-file
-      "cld" '(cider-load-all-files :wk "load directory")
-      "cR" 'cider-ns-refresh
-      "ch" '(:ignore t :wk "help")
-      "chd" 'cider-doc
-      "chj" 'cider-javadoc
-      "chc" 'cider-clojuredocs
-      "chC" 'cider-clojuredocs-web
-      "cha" 'cider-apropos
-      "chD" 'cider-apropos-documentation
-      "ct" '(:ignore t :wk "test")
-      "ctt" 'cider-test-run-test
-      "ctr" 'cider-test-rerun-test
-      "ctn" 'cider-test-run-ns-tests
-      "ctp" 'cider-test-run-project-tests
-      "ctf" 'cider-test-rerun-failed-tests
-      "ctp" 'cider-test-show-report
-      "cb" 'cider-load-buffer-and-switch-to-repl-buffer
-      "cd" 'cider-eval-defun-at-point
-      "cs" 'cider-eval-sexp-at-point
-      "cr" 'cider-eval-region
-      "cm" '(:ignore t :wk "macro expand")
-      "cmm" 'cider-macroexpand-1
-      "cma" 'cider-macroexpand-all
-      "cN" 'cider-eval-ns-form
-      "ce" '(:ignore t :wk "echo")
-      "cee" '(cider-eval-last-sexp :wk "echo last sexp")
-      "cer" '(cider-eval-last-sexp-to-repl :wk "eval last sexp to repl")
-      "cep" '(cider-pprint-eval-last-sexp :wk "pprint last sexp"))
-
-    (with-eval-after-load 'lsp-mode
-      (aero-mode-leader-def
-        :keymaps 'clojure-mode-map
-        "r" '(:ignore t :wk "refactor")
-        "rt" '(:ignore t :wk "thread")
-        "rtt" 'lsp-clojure-thread-first
-        "rtT" 'lsp-clojure-thread-first-all
-        "rtl" 'lsp-clojure-thread-last
-        "rtL" 'lsp-clojure-thread-last-all
-        "rL" 'lsp-clojure-add-missing-libspec
-        "rC" 'lsp-clojure-cycle-coll
-        "rl" '(:ignore t :wk "let")
-        "rle" 'lsp-clojure-expand-let
-        "rli" 'lsp-clojure-introduce-let
-        "rlm" 'lsp-clojure-move-to-let
-        "rU" 'lsp-clojure-unwind-all
-        "rp" 'lsp-clojure-cycle-privacy
-        "re" 'lsp-clojure-extract-function
-        "rs" 'lsp-clojure-inline-symbol)))
-
-  
-  ;; Elisp-specific
-
-  ;; Linting for Emacs packages
-  (package! package-lint "purcell/package-lint"
-    :commands (package-lint-current-buffer))
-
-  (package! elisp-autofmt :auto
-    :commands (elisp-autofmt-buffer
-               elisp-autofmt-region)
-    :custom
-    (elisp-autofmt-cache-directory
-     (expand-file-name "elisp-autofmt-cache" aero-cache-dir)))
-
-  (package! el2md (:host gitlab :repo "thornjad/el2md")
-    :after (general)
-    :commands (el2md-write-readme
-               el2md-view-buffer
-               el2md-write-file)
-    :init
-    (aero-mode-leader-def
-      :keymaps 'emacs-lisp-mode-map
-      "m" '(:ignore t :wk "el2md")
-      "mr" 'el2md-write-readme
-      "mv" 'el2md-view-buffer
-      "mw" 'el2md-write-file))
+  (package! capf-autosuggest "emacs-straight/capf-autosuggest"
+    :hook (eshell-mode . capf-autosuggest-mode))
 #+END_SRC
 
 * Yarn-lock derived mode
+Rather than loading in a whole package, creating a derived mode for Yarn Locks is so simple that I just do it here.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defvar yarn-lock-mode-syntax-table
@@ -5101,42 +5142,67 @@ This is loaded toward the end so that it overrides other packages. This solves s
    web-mode-css-indent-offset 2
    web-mode-markup-indent-offset 2
    tab-stop-list (number-sequence 2 200 2))
+#+END_SRC
 
-  ;; ensure lang is set properly
+Ensure language is setup, it's kind of crazy that this is necessary after all these years.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (setenv "LANG" "en_US.UTF-8")
   (setenv "LC_ALL" "en_US.UTF-8")
+#+END_SRC
 
-  ;; underscores delineate words
+Underscores delineate words.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (modify-syntax-entry ?_ "w")
+#+END_SRC
 
-  ;; make case statements indent properly
+Ensure case statements indent properly.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (with-eval-after-load 'prog-mode
     (c-set-offset 'case-label '++))
+#+END_SRC
 
-  ;; Show trailing whitespace in prog modes
+Show trailing whitespace in prog modes
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'prog-mode-hook (lambda () (setq show-trailing-whitespace t)))
+#+END_SRC
 
-  ;; enable narrow to region without asking
+Enable narrow to region without asking
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (put 'narrow-to-region 'disabled nil)
+#+END_SRC
 
-  ;; prevent savehist cpu hogging
+Prevent savehist from hogging the CPU
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq history-length 100)
   (put 'minibuffer-history 'history-length 50)
   (put 'evil-ex-history 'history-length 50)
   (put 'kill-ring 'history-length 25)
+#+END_SRC
 
-  ;; Ensure emacsclient frames open with focus
+Try to get emacsclient to open frames with focus. Doesn't always work, especially in GNOME.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'server-switch-hook (lambda () (select-frame-set-input-focus (selected-frame))))
+#+END_SRC
 
-  ;; Enable mouse in TTY
+Enable the mouse in TTY, just for scrolling really.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (unless (display-graphic-p)
-    ;; activate mouse-based scrolling
     (xterm-mouse-mode 1)
     (global-set-key (kbd "<mouse-4>") 'scroll-down-line)
     (global-set-key (kbd "<mouse-5>") 'scroll-up-line))
+#+END_SRC
 
-  ;; Disable stupid super keybindings. These are defined in ns-win.el. In my view, super is the domain
-  ;; of the OS and nothing should be bound with it.
+Disable idiotic Super keybindings. These are defined in =ns-win.el=. In my view, Super should be the domain of the OS and nothing in Emacs should ever be bound to it.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-unset-key (kbd "s-:"))
   (global-unset-key (kbd "s-C"))
   (global-unset-key (kbd "s-D"))
@@ -5156,44 +5222,73 @@ This is loaded toward the end so that it overrides other packages. This solves s
   (global-unset-key (kbd "s-t"))
   (global-unset-key (kbd "s-u"))
   (global-unset-key (kbd "s-w"))
+#+END_SRC
 
-  ;; type to get rid of active selection
+Typing gets rid of the active region.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (delete-selection-mode t)
+#+END_SRC
 
-  ;; Try to save point position between sessions
+Try to save point position between sessions. Doesn't work consistently, but it's not a huge deal.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (setq save-place-file (expand-file-name "saveplace" aero-etc-dir))
   (save-place-mode 1)
+#+END_SRC
 
-  ;; ensure buffer names are unique when their filenames are the same. The forward option will expand
-  ;; each duplicate buffer name to include their parent directories as far up as needed to make them
-  ;; unique.
+Ensure buffer names are unique when filenames match. The forward option will expand each duplicate buffer name to include their parent directories as far as necessary to make them unique. Does not apply to renamed buffers.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (require 'uniquify)
   (setq uniquify-buffer-name-style 'forward)
+#+END_SRC
 
+Basic startup message override.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun display-startup-echo-area-message ()
     "Override ridiculous built-in crap."
     (message "Aero est prêt"))
+#+END_SRC
 
+Put Eshell in bottom side window
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-to-list 'display-buffer-alist
-               ;; Put eshell in bottom side window
                '("e?shell\\*\\(?:<[[:digit:]]+>\\)?\\'"
                  (display-buffer-reuse-window display-buffer-in-side-window)
                  (side . bottom)
                  (window-height . 23)))
+#+END_SRC
 
-  ;; If we leave a buffer, set its mark as inactive
+If we leave a buffer, set its mark as inactive. Helps prevent accidentally following a mark to another file.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (transient-mark-mode 1)
+#+END_SRC
 
-  ;; Word navigation stops inside camelCaseWords and the like
+Word navigation within camelCase
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-subword-mode 1)
+#+END_SRC
 
-  ;; Do not allow the cursor in the minibuffer prompt
+Don't allow the cursor in the minibuffer
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+#+END_SRC
 
-  ;; Make files executable if the first file has a shebang
+Make files executable if the first line has a shebang
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
+#+END_SRC
 
-  ;; always always always wrap lines
+Always always always wrap lines
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (global-visual-line-mode +1)
 #+END_SRC
 
@@ -5218,7 +5313,8 @@ Do garbage collection when I'm not actively doing anything for seven seconds.
 #+END_SRC
 
 * Load local file
+Load a local init file if it exists. This is a great place to put secrets and keys, or machine-specific functions such as helpers that rely on proprietary code structure or information.
+
 #+BEGIN_SRC emacs-lisp :lexical t
-  ;; Load local init if it exists
   (load (expand-file-name "init.local" user-emacs-directory) t t)
 #+END_SRC
