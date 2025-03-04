@@ -97,7 +97,6 @@ install-deps: lsp-booster graphviz
 	rustup component add rls rust-analysis rust-src || true
 	brew install clojure-lsp/brew/clojure-lsp-native || true
 	brew install aspell
-	gem install solargraph || true
 
 # Required for org-roam graphing
 graphviz:
