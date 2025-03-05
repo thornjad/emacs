@@ -138,7 +138,7 @@ Provides system clipboard integration
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (require 'aero-pbcopier
-           (expand-file-name "lib/localpackages/aero-pbcopier.el" user-emacs-directory))
+           (expand-file-name "lib/aero-pbcopier.el" user-emacs-directory))
 #+END_SRC
 
 * Define Library functions
