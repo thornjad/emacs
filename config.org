@@ -4036,13 +4036,6 @@ An underrated package for temporary comments, really useful for debugging. The p
       "vs" 'virtual-comment-show))
 #+END_SRC
 
-** Wttrin
-Weather in Emacs
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (require 'wttrin (expand-file-name "lib/localpackages/wttrin.el" user-emacs-directory))
-#+END_SRC
-
 * Prog modes
 ** Auto-mode settings
 Set up some auto-mode settings for various file types. Files without extensions are assumed to be text files.
