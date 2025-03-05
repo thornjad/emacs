@@ -111,7 +111,8 @@ html, body {
 }
 
 body {
-  max-width: 110ch;
+  /* Same width as default startup windows */
+  max-width: 106ch;
   margin: 2rem auto;
   padding: 1rem;
 }
