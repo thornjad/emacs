@@ -10,4 +10,4 @@ This is most definitely not a general distribution Emacs configuration system. I
 
 To get started with Emacs, I highly recommend the distribution responsible for hooking me in: [[https://spacemacs.org][Spacemacs]].
 
-My configuration is in a literate org format, and can be read in its [[./config.org][original org format]].
+My configuration is in a literate org format, and can be read in a [[https://emacs.jmthornton.net][web format]] or in its [[./config.org][original org format]].
