@@ -12,6 +12,8 @@
 * Introduction
 Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
 
+quick test of export
+
 #+begin_quote
 "Configuring Emacs is more of a lifestyle choice than a task that one completes." — Stephen Ramsey
 #+end_quote
