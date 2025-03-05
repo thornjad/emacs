@@ -2796,14 +2796,6 @@ Highlight todo and similar words
     :init (global-todo-light-mode +1))
 #+END_SRC
 
-** Aero-echo-area
-Display time and date in the echo area
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! aero-echo-area :localpackage :defer 4
-    :config (aero/echo-area-mode +1))
-#+END_SRC
-
 ** Evil-terminal-cursor-changer
 Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert mode
 
