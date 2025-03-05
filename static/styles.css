@@ -65,11 +65,17 @@
   --line-height: 1.618033em;
   --border-radius: 5px;
 
-  --mint: #2aa198;  /* fallback if dark/light detection is unsupported */
+  --brown: #83684c;
+  --mint: #2aa198;
   --fg: #525c5a;
   --bg: #fbfbfb;
   --bg-alt: #f6f3e7;
   --heading: #2aa198;
+
+  --button-primary-bg: var(--brown);
+  --button-primary-fg: white;
+  --button-primary-bg-hover: var(--mint);
+  --button-primary-fg-hover: white;
 }
 
 /* Light theme */
@@ -105,7 +111,7 @@ html, body {
 }
 
 body {
-  max-width: 70ch;  /* typical reading width */
+  max-width: 110ch;
   margin: 2rem auto;
   padding: 1rem;
 }
@@ -172,4 +178,30 @@ pre code {
   border: none;
   padding: 0;
   font-size: 1em;
+}
+
+button {
+  display: inline-block;
+  padding: 10px 12px;
+  min-width: 6rem;
+  min-height: max-content;
+  border-color: var(--button-primary-bg);
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 20px;
+  text-align: center;
+  outline: 0;
+
+  &:hover {
+    background-color: var(--button-primary-bg-hover);
+    color: var(--button-primary-fg-hover);
+  }
+}
+
+/* Hide table of contents by default */
+#table-of-contents {
+  display: none;
 }

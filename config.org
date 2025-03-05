@@ -8,6 +8,11 @@
 #+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
 #+html_head: <link rel="stylesheet" href="static/styles.css" type="text/css" />
 #+export_file_name: index.html
+#+html_head: <script src="/static/script.js"></script>
+
+#+begin_export html
+<button onclick="toggleTOC()">Toggle Table of Contents</button>
+#+end_export
 
 * Introduction
 :PROPERTIES:
