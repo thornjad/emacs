@@ -5164,11 +5164,34 @@ Simple RSS reader
 Allows managing feeds in an org file
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! aero-elfeed-org :localpackage
-    :config
-    (when aero/thornlog-elfeed-org-file
-      (setq aero-elfeed-org-file aero/thornlog-elfeed-org-file))
-    (aero-elfeed-org))
+  (defun aero-elfeed-org ()
+    "Set `elfeed-feeds' from the org file."
+    (interactive)
+    (require 'org-element)
+    (setq elfeed-feeds
+          (with-temp-buffer
+            (insert-file-contents aero/thornlog-elfeed-org-file)
+            (org-mode)
+            (let (links)
+              (org-element-map (org-element-parse-buffer) 'link
+                (lambda (element)
+                  (let ((raw-link (org-element-property :raw-link element))
+                        tags)
+
+                    ;; Traverse up the tree to collect tags from parent headlines
+                    (while (setq element (org-element-property :parent element))
+                      (when (eq (org-element-type element) 'headline)
+                        (let ((headline-tags (org-element-property :tags element)))
+                          (when headline-tags
+                            (setq tags (append tags (mapcar 'intern headline-tags)))))))
+                    (when-let ((feed-title (org-entry-get element "feed_title")))
+                      (setf (elfeed-meta (elfeed-db-get-feed raw-link) :title) feed-title))
+                    (push (if tags (cons raw-link tags) raw-link) links))))
+              links)))
+    (elfeed-log 'info "aero-elfeed-org loaded %i feeds" (length elfeed-feeds)))
+
+  ;; Run once now
+  (aero-elfeed-org)
 #+END_SRC
 
 * AI
