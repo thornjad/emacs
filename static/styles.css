@@ -1,0 +1,175 @@
+@font-face {
+  font-family: VictorMono;
+  src:
+    local("VictorMono-Regular"),
+    url("https://jmthornton.net/assets/fonts/VictorMono-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: VictorMono;
+  src:
+    local("VictorMono-Bold"),
+    url("https://jmthornton.net/assets/fonts/VictorMono-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: MetroNova;
+  src:
+    local("MetroNova-Regular"),
+    url("https://jmthornton.net/assets/fonts/MetroNova-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: MetroNova;
+  src:
+    local("MetroNova-Italic"),
+    url("https://jmthornton.net/assets/fonts/MetroNova-Italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: MetroNova;
+  src:
+    local("MetroNova-Bold"),
+    url("https://jmthornton.net/assets/fonts/MetroNova-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: MetroNova;
+  src:
+    local("MetroNova-BoldItalic"),
+    url("https://jmthornton.net/assets/fonts/MetroNova-BoldItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --font-main: MetroNova, sans-serif;
+  --font-mono: VictorMono, monospace;
+  --font-size: 16px;
+  --line-height: 1.618033em;
+  --border-radius: 5px;
+
+  --mint: #2aa198;  /* fallback if dark/light detection is unsupported */
+  --fg: #525c5a;
+  --bg: #fbfbfb;
+  --bg-alt: #f6f3e7;
+  --heading: #2aa198;
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+  :root {
+    --mint: #2aa198;
+    --fg: #525c5a;
+    --bg: #fbfbfb;
+    --bg-alt: #f6f3e7;
+    --heading: #2aa198;
+  }
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mint: #1a9188;
+    --fg: #d5dae3;
+    --bg: #26282b;
+    --bg-alt: #434546;
+    --heading: #1a9188;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-main);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  max-width: 70ch;  /* typical reading width */
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--heading);
+  font-weight: normal;
+  margin: 1em 0;
+  line-height: 1.2;
+}
+
+p {
+  margin: 1em 0;
+}
+
+ul, ol {
+  margin: 1em 0 1em 1.5em;
+  padding: 0;
+}
+
+li {
+  margin: 0.4em 0;
+}
+
+a {
+  color: var(--mint);
+  text-decoration: underline;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+blockquote {
+  margin: 1rem;
+  padding: 0.5rem 1rem;
+  border-left: 0.25rem solid var(--mint);
+  background: var(--bg-alt);
+  border-radius: var(--border-radius);
+  font-style: italic;
+}
+
+pre {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: var(--bg-alt);
+  border-left: 0.25rem solid var(--mint);
+  border-radius: var(--border-radius);
+  overflow: auto;
+  font-size: 14px;
+}
+
+code {
+  background: var(--bg-alt);
+  border-radius: var(--border-radius);
+  border: 1px solid #ccc;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 1em;
+}
