@@ -110,3 +110,21 @@ lsp-booster:
 	cd ~/.config/emacs/tmp/emacs-lsp-booster && cargo build --release
 	mkdir -p ~/.local/bin
 	ln -sf ~/.config/emacs/tmp/emacs-lsp-booster/target/release/emacs-lsp-booster ~/.local/bin/emacs-lsp-booster
+
+.PHONY: export
+export: index.html
+
+# Export config to HTML. Uses htmlize to fontify the code blocks
+index.html: config.org
+	emacs --batch \
+	  --eval "(require 'package)" \
+	  --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+	  --eval "(package-initialize)" \
+	  --eval "(package-refresh-contents)" \
+	  --eval "(unless (package-installed-p 'htmlize) (package-install 'htmlize))" \
+	  config.org \
+	  --eval "(add-to-list 'custom-theme-load-path (expand-file-name \"lib/aero-theme\" user-emacs-directory))" \
+	  --eval "(load-theme 'aero t)" \
+	  --eval "(require 'org)" \
+	  --eval "(require 'htmlize)" \
+	  --eval "(org-html-export-to-html nil nil nil nil '(:output-file \"index.html\"))"
