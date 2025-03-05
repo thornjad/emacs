@@ -134,13 +134,6 @@ These are mostly used by Org, not sure if they're still needed.
 #+END_SRC
 
 * Non-builtin requires
-Provides some easy hooking, we want to have it available early.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (require 'on
-           (expand-file-name "lib/localpackages/on.el" user-emacs-directory))
-#+END_SRC
-
 Provides system clipboard integration
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -1274,7 +1267,6 @@ Gives us a variety of menus for keybindings, and integrates nicely with General
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! which-key :builtin
-    :hook (on-first-input . which-key-mode)
     :defines which-key-mode
     :config
     (which-key-mode)
