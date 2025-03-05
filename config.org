@@ -123,6 +123,7 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
 #+BEGIN_SRC emacs-lisp :lexical t
   (require 'cl-lib)
   (require 'subr-x)
+  (require 'imenu)
 #+END_SRC
 
 These are mostly used by Org, not sure if they're still needed.
@@ -2435,17 +2436,6 @@ Pulse the current line when changing windows. There's whole packages that do thi
     (advice-add fn :after #'pulse-line))
 #+END_SRC
 
-** Breadcrumbs in the headerline
-Breadcrumbs are disabled for gptel since it uses its own system.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! aero-breadcrumb :localpackage
-    :hook ((prog-mode markdown-mode gfm-mode org-mode) . aero-breadcrumb-local-mode)
-    :config
-    (with-eval-after-load 'gptel
-      (add-hook 'gptel-mode-hook (lambda () (aero-breadcrumb-local-mode -1)))))
-#+END_SRC
-
 ** Good scroll
 Improved pixel-based smooth scrolling. Mostly used when screen sharing, doesn't really do much for normal navigation.
 
@@ -2523,6 +2513,179 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
       :after evil
       :functions (evil-terminal-cursor-changer-activate)
       :config (evil-terminal-cursor-changer-activate)))
+#+END_SRC
+
+* Breadcrumbs in the headerline
+Shows breadcrumbs in the headerline for many modes, showing the "trail" that the current point sits in, such as the hierarchy of headers in org-mode or the class and method in object-oriented languages.
+
+Breadcrumbs are disabled for gptel since it uses its own system.
+
+#+BEGIN_SRC emacs-lisp
+  (cl-defun aero-breadcrumb--bisect (a x &key (from 0) (to (length a)) key from-end)
+    "Compute index to insert X in sequence A, keeping it sorted.
+  If X already in A, the resulting index is the leftmost such
+  index, unless FROM-END is t.  KEY is as usual in other CL land."
+    (cl-macrolet ((search (from-end key)
+                          `(cl-loop while (< from to)
+                                    for mid = (/ (+ from to) 2)
+                                    for p1 = (elt a mid)
+                                    for p2 = ,(if key `(funcall key p1) `p1)
+                                    if (,(if from-end '< '<=) x p2)
+                                    do (setq to mid) else do (setq from (1+ mid))
+                                    finally return from)))
+      (if from-end (if key (search t key) (search t nil))
+        (if key (search nil key) (search nil nil)))))
+
+  (defun aero-breadcrumb--ipath-rich (index-alist pos)
+    "Compute ipath for rich `imenu--index-alist' structures.
+  These structures have a `aero-breadcrumb-region' property on every
+  node."
+    (cl-labels
+        ((search (nodes &optional ipath)
+                 (cl-loop
+                  for n in nodes
+                  for reg = (get-text-property 0 'aero-breadcrumb-region (car n))
+                  when (<= (car reg) pos (cdr reg))
+                  return (search (cdr n) (cons
+                                          (propertize (car n)
+                                                      'aero-breadcrumb-siblings nodes
+                                                      'aero-breadcrumb-parent (car ipath))
+                                          ipath))
+                  finally (cl-return ipath))))
+      (nreverse (search index-alist))))
+
+  (defvar-local aero-breadcrumb--ipath-plain-cache nil
+    "A cache for `aero-breadcrumb--ipath-plain'.")
+
+  (defun aero-breadcrumb--ipath-plain (index-alist pos)
+    "Compute ipath for plain `imenu--index-alist' structures.
+  These structures don't have a `aero-breadcrumb-region' property on."
+    (cl-labels ((dfs (n &optional ipath siblings)
+                     (setq ipath (cons (car n) ipath))
+                     (if (consp (cdr n))
+                         (mapc (lambda (n2) (dfs n2 ipath (cdr n))) (cdr n))
+                       (put-text-property 0 1 'aero-breadcrumb-siblings (cdr siblings) (car ipath))
+                       (setq aero-breadcrumb--ipath-plain-cache
+                             (vconcat aero-breadcrumb--ipath-plain-cache
+                                      `[,(cons
+                                          (cl-etypecase (cdr n)
+                                            (number (cdr n))
+                                            (marker (+ (cdr n) 0))
+                                            (overlay (overlay-start (cdr n))))
+                                          ipath)])))))
+      (unless aero-breadcrumb--ipath-plain-cache
+        (mapc (lambda (i) (dfs i nil index-alist)) index-alist)
+        (setq aero-breadcrumb--ipath-plain-cache (cl-sort aero-breadcrumb--ipath-plain-cache #'< :key #'car)))
+      (unless (< pos (car (aref aero-breadcrumb--ipath-plain-cache 0)))
+        (let ((res (aero-breadcrumb--bisect aero-breadcrumb--ipath-plain-cache pos :key #'car :from-end t)))
+          (unless (zerop res) (reverse (cdr (elt aero-breadcrumb--ipath-plain-cache (1- res)))))))))
+
+  (defun aero-breadcrumb-ipath (index-alist pos)
+    "Get aero-breadcrumb for position POS given INDEX-ALIST."
+    (if (get-text-property 0 'aero-breadcrumb-region (caar index-alist))
+        (aero-breadcrumb--ipath-rich index-alist pos)
+      (aero-breadcrumb--ipath-plain index-alist pos)))
+
+  (defvar aero-breadcrumb-idle-time 1
+    "Control idle time before requesting new aero-breadcrumbs.")
+
+  (defvar-local aero-breadcrumb--idle-timer nil
+    "Timer used by `aero-breadcrumb--ipath-alist'.")
+
+  (defvar-local aero-breadcrumb--last-update-tick 0
+    "Last time `aero-breadcrumb--ipath-alist' asked for an update.")
+
+  (defun aero-breadcrumb--ipath-alist ()
+    "Return `imenu--index-alist', maybe arrange for its update."
+    (let ((nochangep (= (buffer-chars-modified-tick) aero-breadcrumb--last-update-tick))
+          (buf (current-buffer)))
+      (unless nochangep
+        (setq aero-breadcrumb--last-update-tick (buffer-chars-modified-tick))
+        (when aero-breadcrumb--idle-timer (cancel-timer aero-breadcrumb--idle-timer))
+        (setq aero-breadcrumb--idle-timer
+              (run-with-idle-timer
+               aero-breadcrumb-idle-time nil
+               (lambda ()
+                 (when (buffer-live-p buf)
+                   (with-current-buffer buf
+                     (setq aero-breadcrumb--last-update-tick (buffer-chars-modified-tick))
+                     (let ((non-essential t)
+                           (imenu-auto-rescan t))
+                       (ignore-errors
+                         (imenu--make-index-alist t))
+                       (setq aero-breadcrumb--ipath-plain-cache nil)
+                       ;; no point is taxing the mode-line machinery now
+                       ;; if the buffer isn't showing anywhere.
+                       (when (get-buffer-window buf t)
+                         (force-mode-line-update t)))))))))
+      imenu--index-alist))
+
+  (defun aero-breadcrumb--length (len)
+    "Interpret LEN using `window-width' and return a number."
+    (cond ((floatp len) (* (window-width) len))
+          (t len)))
+
+  (defun aero-breadcrumb--format-ipath-node (p more)
+    (propertize p 'face (if more
+                            '(:inherit shadow)
+                          '(:inherit (font-lock-function-name-face shadow)))
+                'aero-breadcrumb-dont-shorten (null more)))
+
+  (defun aero-breadcrumb-crumbs ()
+    "Describe point inside the Imenu tree of current file."
+    (when-let ((alist (aero-breadcrumb--ipath-alist)))
+      (when (cl-some #'identity alist)
+        (aero-breadcrumb--summarize
+         (cl-loop
+          for (p . more) on (aero-breadcrumb-ipath alist (point))
+          collect (aero-breadcrumb--format-ipath-node p more))
+         (aero-breadcrumb--length 0.98)
+         (propertize " > " 'face '(:inherit shadow))))))
+
+  (defun aero-breadcrumb--summarize (crumbs cutoff separator)
+    "Return a string that summarizes CRUMBS, a list of strings.
+  \"Summarization\" consists of truncating some CRUMBS to 1
+  character.  Rightmost members of CRUMBS are summarized last.
+  Members with a `aero-breadcrumb-dont-shorten' are never truncated.
+  Aim for a return string that is at most CUTOFF characters long.
+  Join the crumbs with SEPARATOR."
+    (let ((rcrumbs
+           (cl-loop
+            for available = (- cutoff used)
+            for (c . more) on (reverse crumbs)
+            for seplen = (if more (length separator) 0)
+            for shorten-p = (unless (get-text-property 0 'aero-breadcrumb-dont-shorten c)
+                              (> (+ (length c) seplen) available))
+            for toadd = (if shorten-p (substring c 0 1) c)
+            sum (+ (length toadd) seplen) into used
+            collect toadd)))
+      (string-join (reverse rcrumbs) separator)))
+
+  (defun aero-breadcrumb--header-line ()
+    "Helper for `aero-breadcrumb-headerline-mode'."
+    (let ((x (cl-remove-if #'seq-empty-p (mapcar #'funcall '(aero-breadcrumb-crumbs)))))
+      (mapconcat #'identity x (propertize " : " 'face '(:inherit shadow)))))
+
+  (define-minor-mode aero-breadcrumb-local-mode
+    "Header lines with aero-breadcrumbs."
+    :init-value nil
+    (if aero-breadcrumb-local-mode
+
+      (setq header-line-format (delete
+                                '(:eval (aero-breadcrumb--header-line))
+                                header-line-format))))
+#+END_SRC
+
+Now we set up the hooks, but also disable for gptel (which uses markdown-mode in this config).
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (add-hook 'prog-mode-hook #'aero-breadcrumb-local-mode)
+  (add-hook 'markdown-mode-hook #'aero-breadcrumb-local-mode)
+  (add-hook 'gfm-mode-hook #'aero-breadcrumb-local-mode)
+  (add-hook 'org-mode-hook #'aero-breadcrumb-local-mode)
+
+  (with-eval-after-load 'gptel
+    (add-hook 'gptel-mode-hook (lambda () (aero-breadcrumb-local-mode -1))))
 #+END_SRC
 
 * Project management
