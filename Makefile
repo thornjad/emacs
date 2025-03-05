@@ -123,7 +123,7 @@ index.html: config.org
 	  --eval "(package-refresh-contents)" \
 	  --eval "(unless (package-installed-p 'htmlize) (package-install 'htmlize))" \
 	  config.org \
-	  --eval "(add-to-list 'custom-theme-load-path (expand-file-name \"lib/aero-theme\" user-emacs-directory))" \
+		--eval "(add-to-list 'custom-theme-load-path (concat default-directory \"lib/aero-theme\"))" \
 	  --eval "(load-theme 'aero t)" \
 	  --eval "(require 'org)" \
 	  --eval "(require 'htmlize)" \
