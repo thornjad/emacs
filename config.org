@@ -1,18 +1,24 @@
 # -*- lexical-binding: t; -*-
 #+title: Thornjad's Emacs Configuration
 #+author: Jade Michael Thornton <thornjad>
+#+link: https://github.com/thornjad/emacs
+#+filetags: :emacs:
+#+startup: overview
 #+options: num:nil toc:t
 #+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
-#+filetags: :emacs:
-#+link: emacsconfig https://github.com/thornjad/emacs
-#+startup: overview
 #+html_head: <link rel="stylesheet" href="static/styles.css" type="text/css" />
 #+export_file_name: index.html
 
 * Introduction
-Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
+:PROPERTIES:
+:header-args:emacs-lisp: :eval export :results value html :exports results
+:END:
 
-different test
+#+BEGIN_SRC emacs-lisp
+  (format "<p>This page was last exported on %s</p>" (format-time-string "%Y-%m-%d"))
+#+END_SRC
+
+Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
 
 #+begin_quote
 "Configuring Emacs is more of a lifestyle choice than a task that one completes." — Stephen Ramsey
