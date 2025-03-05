@@ -127,4 +127,4 @@ index.html: config.org
 	  --eval "(load-theme 'aero t)" \
 	  --eval "(require 'org)" \
 	  --eval "(require 'htmlize)" \
-	  --eval "(org-html-export-to-html nil nil nil nil '(:output-file \"index.html\"))"
+	  --eval "(org-html-export-to-html)"

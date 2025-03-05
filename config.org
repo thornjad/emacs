@@ -5,8 +5,9 @@
 #+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
 #+filetags: :emacs:
 #+link: emacsconfig https://github.com/thornjad/emacs
-#+STARTUP: overview
-#+HTML_HEAD: <link rel="stylesheet" href="static/styles.css" type="text/css" />
+#+startup: overview
+#+html_head: <link rel="stylesheet" href="static/styles.css" type="text/css" />
+#+export_file_name: index.html
 
 * Introduction
 Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
