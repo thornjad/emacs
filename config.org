@@ -2816,7 +2816,7 @@ Displays formfeed characters, which are often used by convention in Elisp
 #+END_SRC
 
 ** Highlight-thing
-Highlight the current thing at point, kind of like what lsp-ui does for some language, but in all buffers and modes.
+Highlight the current thing at point, kind of like what lsp-ui does for some languages, but in all buffers and modes.
 
 We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffers, only look at nearby lines
 
@@ -2961,8 +2961,6 @@ Breadcrumbs are disabled for gptel since it uses its own system.
                        (ignore-errors
                          (imenu--make-index-alist t))
                        (setq aero-breadcrumb--ipath-plain-cache nil)
-                       ;; no point is taxing the mode-line machinery now
-                       ;; if the buffer isn't showing anywhere.
                        (when (get-buffer-window buf t)
                          (force-mode-line-update t)))))))))
       imenu--index-alist))
