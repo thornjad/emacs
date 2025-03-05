@@ -15,14 +15,6 @@
 #+end_export
 
 * Introduction
-:PROPERTIES:
-:header-args:emacs-lisp: :eval export :results value html :exports results
-:END:
-
-#+BEGIN_SRC emacs-lisp
-  (format "<p>This page was last exported on %s</p>" (format-time-string "%Y-%m-%d"))
-#+END_SRC
-
 Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
 
 #+begin_quote
@@ -1167,7 +1159,7 @@ The rest of the config uses this custom =package!= macro to abstract away some i
 #+END_SRC
 
 ** Fetch arbitrary MELPA recipe
-And a helper that lets us check the MELPA recipe for a package, which is useful to setting up new packages sometimes, and slightly faster than searching on a browser.
+And a helper that lets us check the MELPA recipe for a package, which is useful when setting up new packages sometimes, and slightly faster than searching on a browser.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/fetch-melpa-recipe (package-name)
@@ -1188,7 +1180,7 @@ And a helper that lets us check the MELPA recipe for a package, which is useful 
             (display-buffer (current-buffer)))))))
 #+END_SRC
 * Core setup (prelude)
-I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution.
+I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution, the two usages are cognate.
 
 ** Treesitter initialization
 To ensure we can use this easily later, require treesitter as long as it's available and wanted. See [[*Treesitter][Treesitter]] section for the full config.
