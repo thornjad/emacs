@@ -5236,8 +5236,9 @@ Allows managing feeds in an org file
               links)))
     (elfeed-log 'info "aero-elfeed-org loaded %i feeds" (length elfeed-feeds)))
 
-  ;; Run once now
-  (aero-elfeed-org)
+  ;; Run once when elfeed loads up
+  (with-eval-after-load 'elfeed
+    (aero-elfeed-org))
 #+END_SRC
 
 * AI
