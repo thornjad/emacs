@@ -1,13 +1,17 @@
 # -*- lexical-binding: t; -*-
 #+title: Thornjad's Emacs Configuration
 #+author: Jade Michael Thornton <thornjad>
-#+link: https://github.com/thornjad/emacs
+#+link: https://emacs.jmthornton.net
+#+html_link_home: https://jmthornton.net
+#+html_link_up: https://github.com/thornjad/emacs
+#+description: Here lives Thornjad's Emacs configuration. There are many like it, but this one is mine.
 #+filetags: :emacs:
 #+startup: overview
-#+options: num:nil toc:t
+#+options: num:nil toc:t html-postamble:nil html-html5-fancy:t
 #+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
-#+html_head: <link rel="stylesheet" href="static/styles.css" type="text/css" />
 #+export_file_name: index.html
+#+html_doctype: html5
+#+html_head: <link rel="stylesheet" href="static/styles.css" type="text/css" />
 #+html_head: <script src="/static/script.js"></script>
 
 #+begin_export html
@@ -30,10 +34,6 @@ To get started with Emacs, I highly recommend the distribution responsible for h
 #+end_quote
 
 When I first started using Emacs, I took full advantage of Spacemacs, so the architecture of that project has shaped the way I think about editing. As such, the majority of the config revolves around a single leader key, =SPC=. For example, =SPC SPC= is the same as =M-x=, =SPC f w= (for file write) saves the buffer to disk.
-
-#+begin_quote
-"Emacs is a great operating system, lacking only a decent editor." — ancient Vi proverb
-#+end_quote
 
 For everything else, this config makes extensive use of [[https://github.com/emacs-evil/evil][Evil]], providing the user with modifier-key-free modal editing, though the majority of Emacs bindings remain available. Emacs keybindings belong in the dark ages where they originated. They might work for RMS, but I can only hold =CTRL= for so long.
 

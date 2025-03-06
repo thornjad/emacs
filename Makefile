@@ -127,4 +127,5 @@ index.html: config.org
 	  --eval "(load-theme 'aero t)" \
 	  --eval "(require 'org)" \
 	  --eval "(require 'htmlize)" \
+	  --eval "(setq org-html-wrap-src-lines t)" \
 	  --eval "(org-html-export-to-html)"
