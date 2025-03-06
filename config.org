@@ -937,7 +937,11 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
                (toggle-ext (cond ((string-equal file-ext "html") "ts")
                                  ((string-equal file-ext "ts") "html")
                                  (t nil)))
-               (prefered-filename (concat base-name (when (string-equal toggle-ext "ts") ".component") "." toggle-ext)))
+               (prefered-filename
+                (concat base-name
+                        (when (string-equal toggle-ext "ts")
+                          ".component")
+                        "." toggle-ext)))
           (if (and prefered-filename (file-exists-p prefered-filename))
               (find-file prefered-filename)
             (let ((alternative-filename (concat base-name "." toggle-ext)))
@@ -1118,8 +1122,6 @@ The rest of the config uses this custom =package!= macro to abstract away some i
 
   If the recipe is only a string, it is considered a github repo.
 
-  DEPRECATED: If the RECIPE is :auto, use the recipe provided by [M]ELPA. This is deprecated in favor of providing an explicit recipe. A recipe allows greater control over packages while also providing an easier path to cutting-edge updates.
-
   Usage of this macro allows simplified refactoring when changing packaging systems, as Aero is wont
   to do every few years."
     (declare (indent defun)) ; indent like use-package
@@ -1254,7 +1256,10 @@ We only really need this in MacOS, grabbing environment variables from the defau
   (package! exec-path-from-shell "purcell/exec-path-from-shell"
     :when (or (memq window-system '(mac ns x)) (daemonp))
     :config
-    (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH" "PATH" "MANPATH" "INFOPATH" "LSP_USE_PLISTS" "HOMEBREW_PREFIX" "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"))
+    (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO"
+                   "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH" "PATH"
+                   "MANPATH" "INFOPATH" "LSP_USE_PLISTS" "HOMEBREW_PREFIX"
+                   "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"))
       (add-to-list 'exec-path-from-shell-variables var))
     (exec-path-from-shell-initialize))
 #+END_SRC
@@ -1564,7 +1569,8 @@ In visual mode, use =<= and =>= to indent/unindent the line(s)
     (define-key evil-motion-state-map (kbd "RET") nil)
     (define-key evil-motion-state-map (kbd "C-o") nil)
 
-    ;; Set up default states. It's Normal for almost everything, but Evil doesn't handle Dired very well, so we fall back on Emacs mode for that.
+    ;; Set up default states. It's Normal for almost everything, but Evil doesn't handle Dired very
+    ;; well, so we fall back on Emacs mode for that.
     (setq evil-default-state 'normal)
     (evil-set-initial-state 'dired-mode 'emacs)
     (evil-set-initial-state 'message-mode 'motion)
@@ -1813,7 +1819,8 @@ Buffer previews are debounced, since I often don't want them.
         (apply args)))
     (advice-add #'consult-ripgrep :around #'consult--with-orderless)
 
-    ;; Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only supports the first search term when using orderless syntax.
+    ;; Allow =n= and =N= to continue the search after =consult-line= exits. Note that this only
+    ;; supports the first search term when using orderless syntax.
     (defun aero/consult-line-isearch-history (&rest _)
       "Add latest `consult-line' search pattern to the isearch history."
       (when (and (bound-and-true-p evil-mode)
@@ -3046,7 +3053,8 @@ Note that we can't use =:hook= for the =project-find-functions= because =project
     (defun aero/project-root-override (dir)
       "Find DIR's project root by searching for a '.project.el' file.
 
-  If this file exists, it marks the project root. For convenient compatibility with Projectile, '.projectile' is also considered a project root marker.
+  If this file exists, it marks the project root. For convenient compatibility with Projectile,
+  '.projectile' is also considered a project root marker.
 
   https://jmthornton.net/blog/p/emacs-project-override"
       (let ((root (or (locate-dominating-file dir ".project.el")
@@ -3870,7 +3878,8 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
       (insert "\n\n" task-string)))
 
   (defun aero/org-add-file-tag ()
-    "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing it after the #+title: line if it exists."
+    "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
+  it after the #+title: line if it exists."
     (interactive)
     (let* ((case-fold-search t)
            (all-tags-query "SELECT DISTINCT tag FROM tags")
@@ -5254,9 +5263,18 @@ We do register Claude as a valid backend, but it's not a default because I've fo
                                    (text-mode . "------\n")))
     (gptel-directives
      '((default
-         . "You are a large language model living in Emacs and a helpful, competent assistant. You do not have feelings and you do not apologize for anything. The user is a senior software engineer with limited time; you treat the user's time as precious, but you are not afraid to ask for clarification when needed. Respond concisely and cite sources for factual claims. NEVER explain code unless asked to do so, the explanation is a waste of time unless you are instructed to provide it. Do not add explanations or descriptions unless asked. Use Github-flavored Markdown for code snippets. When using Python, assume the user is using version 3.9 or newer. When using Typescript, assume the user is using version 4.8 or newer. When using SQL, use lowercase keywords. Do no use LaTeX.")
+         . "You are a large language model living in Emacs and a helpful, competent assistant. You do
+         not have feelings and you do not apologize for anything. The user is a senior software
+         engineer with limited time; you treat the user's time as precious, but you are not afraid to
+         ask for clarification when needed. Respond concisely and cite sources for factual claims.
+         NEVER explain code unless asked to do so, the explanation is a waste of time unless you are
+         instructed to provide it. Do not add explanations or descriptions unless asked. Use
+         Github-flavored Markdown for code snippets. When using Python, assume the user is using
+         version 3.9 or newer. When using Typescript, assume the user is using version 4.8 or newer.
+         When using SQL, use lowercase keywords. Do no use LaTeX.")
        (programming
-        . "You are a large language model and a careful, competent programmer. Provide code and only code as output without any additional text, prompt or note.")
+        . "You are a large language model and a careful, competent programmer. Provide code and only
+        code as output without any additional text, prompt or note.")
        (writing . "You are a large language model and a writing assistant. Respond concisely.")
        (chat . "You are a large language model and a conversation partner. Respond concisely.")))
 
