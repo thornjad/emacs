@@ -5322,6 +5322,8 @@ Quickly look up LLM responses at point or in a region. Uses posframe if it's ins
 ** Copilot
 A connection with Microsoft GitHub Copilot. Works best with company-box, so we consider it a requirement. The idle delay is longer than default so it doesn't mess with typing.
 
+Enabled in all programming modes, and org-mode, except we don't want it during org-capture.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
     :after (company-box general)
@@ -5331,7 +5333,9 @@ A connection with Microsoft GitHub Copilot. Works best with company-box, so we c
            ("C-<tab>" . copilot-accept-completion)
            ("C-c C-i" . copilot-accept-completion)
            ("C-c C-n" . copilot-next-completion)
-           ("C-c C-p" . copilot-previous-completion)))
+           ("C-c C-p" . copilot-previous-completion))
+    :config
+    (add-hook 'org-capture-mode-hook (lambda () (copilot-mode -1))))
 #+END_SRC
 
 * Shell
