@@ -2298,6 +2298,7 @@ Linux only needs some functionality enabled.
 #+END_SRC
 
 ** Editor setup
+*** Editorconfig 
 Provides a global minor mode that respects =.editorconfig= files.
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -2305,22 +2306,36 @@ Provides a global minor mode that respects =.editorconfig= files.
     :config (editorconfig-mode))
 #+END_SRC
 
-  ;; detects when the buffer matches what's on disk and marks it unmodified. If, for example, you
-  ;; visit a file, change something, then undo the change, this package ensures the buffer doesn't
-  ;; think its still modified.
+*** Unmodified-buffer
+Detects when the buffer matches what's on disk and marks it unmodified. If, for example, you visit a file, change something, then undo the change, this package ensures the buffer doesn't think its still modified.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! unmodified-buffer "arthurcgusmao/unmodified-buffer"
     :defer 1
     :hook ((prog-mode text-mode) . unmodified-buffer-mode))
+#+END_SRC
 
-  ;; Use `so-long-revert' in a buffer to get back to what it would otherwise have loaded as.
+*** So-long mode
+Performance enhancement for files with extremely long lines or exceptionally many lines. Use =so-long-revert= in a buffer to get back to what it would have otherwise loaded as.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! so-long :builtin
     :config (global-so-long-mode +1))
+#+END_SRC
 
+*** Savehist
+Saves the minibuffer history.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! savehist :builtin
     :init (savehist-mode)
     :custom (savehist-file (expand-file-name "history" aero-cache-dir)))
+#+END_SRC
 
-  ;; Improved version of help buffers
+*** Helpful
+A better version of the built-in help buffers. This ought to be included in Emacs.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (package! helpful "Wilfred/helpful"
     :commands (helpful-function
                helpful-variable
@@ -2329,17 +2344,6 @@ Provides a global minor mode that respects =.editorconfig= files.
                helpful-callable)
     :after (evil general)
     :init
-
-    ;; HACK `help-fns--autoloaded-p's signature changed on Emacs 29. This
-    ;; suppresses the error until it is addressed upstream. Basically we just
-    ;; override the function to ignore the second argument.
-    ;; TODO trying this out without the hack, Jan 27, 2025. If you're reading this and thinking wow
-    ;; that was a long time ago, rip it out
-    ;; (unless (version< emacs-version "29")
-    ;;   (advice-add #'help-fns--autoloaded-p :around
-    ;;               (lambda (fn sym &rest args)
-    ;;                 (apply fn (list sym)))))
-
     (general-define-key
      :states 'normal
      :prefix "SPC"
