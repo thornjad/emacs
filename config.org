@@ -2298,11 +2298,12 @@ Linux only needs some functionality enabled.
 #+END_SRC
 
 ** Editor setup
+Provides a global minor mode that respects =.editorconfig= files.
+
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! editorconfig "editorconfig/editorconfig-emacs"
-    :defer 1
-    :functions (editorconfig-mode)
-    :config (editorconfig-mode +1))
+  (package! editorconfig :builtin
+    :config (editorconfig-mode))
+#+END_SRC
 
   ;; detects when the buffer matches what's on disk and marks it unmodified. If, for example, you
   ;; visit a file, change something, then undo the change, this package ensures the buffer doesn't
