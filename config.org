@@ -1228,18 +1228,12 @@ The ELPA keyring sometimes gets screwed up, this fixes it
 
 ** Library requirements
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! dash "magnars/dash.el")
-  (package! memo (:host gitlab :repo "thornjad/emacs-memo" :branch "main"))
-  (package! async "jwiegley/emacs-async" :commands (async-save))
-  (package! popup "auto-complete/popup-el")
-  (package! spinner "Malabarba/spinner.el")
-  (package! ripgrep "nlamirault/ripgrep.el" :defer 3)
-#+END_SRC
-
-Posframe is used by gptel-quick and maybe some other stuff. I've tried using consult-posframe and others like it and can't really get used to it, so we only need the basic library in here.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! posframe "tumashu/posframe" :defer 1)
+  (package! dash :auto)
+  (package! memo "thornjad/emacs-memo")
+  (package! async :auto :commands (async-save))
+  (package! popup :auto)
+  (package! spinner :auto)
+  (package! ripgrep :auto :defer 3)
 #+END_SRC
 
 JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want to stop logging everything as a performance optimization.
@@ -1255,7 +1249,7 @@ JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want t
 We only really need this in MacOS, grabbing environment variables from the default shell
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! exec-path-from-shell "purcell/exec-path-from-shell"
+  (package! exec-path-from-shell :auto
     :when (or (memq window-system '(mac ns x)) (daemonp))
     :config
     (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO"
@@ -1287,7 +1281,7 @@ Most bindings will fall under the =SPC= leader key, so we generate a macro calle
 From there, we set up all the main keybindings.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! general "noctuid/general.el"
+  (package! general :auto
     :functions (general-define-key aero-leader-def aero-mode-leader-def)
     :init
     (setq-default general-override-states
@@ -1513,27 +1507,6 @@ From there, we set up all the main keybindings.
      "z" 'repeat))
 #+END_SRC
 
-*** Casual
-
-Casual provides a magit-like interface to some functionality.
-
-TODO 2025-02-25: I haven't actually used this at all yet, does it really matter?
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! casual "kickingvegas/casual"
-    :after (dired)
-    :defines (casual-editkit-main-tmenu
-              casual-dired-tmenu
-              casual-dired-sort-by-tmenu
-              casual-dired-search-replace-tmenu)
-    :bind (("C-o" . #'casual-editkit-main-tmenu)
-
-           :map dired-mode-map
-           ("C-o" . #'casual-dired-tmenu)
-           ("s" . #'casual-dired-sort-by-tmenu)
-           ("/" . #'casual-dired-search-replace-tmenu)))
-#+END_SRC
-
 ** Evil
 #+begin_quote
 "Emacs is a great operating system, lacking only a decent editor." — ancient Vi proverb
@@ -1550,13 +1523,7 @@ To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system
 In visual mode, use =<= and =>= to indent/unindent the line(s)
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! evil
-    (:host github
-     :repo "emacs-evil/evil"
-     :files (:defaults
-  	         "doc/build/texinfo/evil.texi"
-  	         (:exclude "evil-test-helpers.el")))
-
+  (package! evil :auto
     :init
     (setq evil-want-keybinding nil
           evil-undo-system 'undo-tree
@@ -1665,7 +1632,7 @@ In visual mode, use =<= and =>= to indent/unindent the line(s)
 Provides Evil defaults for many modes which Evil proper overlooks
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! evil-collection (:repo "emacs-evil/evil-collection" :files (:defaults "modes"))
+  (package! evil-collection :auto
     :after evil
     :config (evil-collection-init))
 #+END_SRC
@@ -1674,7 +1641,7 @@ Provides Evil defaults for many modes which Evil proper overlooks
 Allows % to jump matching tags
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! evil-matchit "redguardtoo/evil-matchit"
+  (package! evil-matchit :auto
     :defer 5
     :after evil
     :defines global-evil-matchit-mode
@@ -1688,7 +1655,7 @@ Automatically installs treesitter grammars when they're missing, because for som
 The call to =treesit-auto-add-to-auto-mode-alist= adds all treesitter modes to auto-mode-alist as long as they're =treesit-ready-p=. I previously had this set to ='all= but this started installing some grammars which are in-progress and thus error when you try to use them.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! treesit-auto "renzmann/treesit-auto"
+  (package! treesit-auto :auto
     :when (treesitterp)
     :custom
     (treesit-auto-install 'prompt)
@@ -2093,7 +2060,7 @@ Tramp provides a way to edit files on remote servers. This was a way of life in 
 #+END_SRC
 
 ** Dired
-This is a file manager in Emacs. I really struggle to use it, but I'm trying to reach for it more often with the help of Casual
+This is a file manager in Emacs, but I really struggle to use it
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! dired :builtin
@@ -5308,17 +5275,6 @@ We do register Claude as a valid backend, but it's not a default because I've fo
     :config
     (when (and (boundp 'anthropic-api-key) anthropic-api-key)
       (gptel-make-anthropic "Claude" :stream t :key anthropic-api-key)))
-#+END_SRC
-
-*** Gptel-quick
-Quickly look up LLM responses at point or in a region. Uses posframe if it's installed.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! gptel-quick "karthink/gptel-quick"
-    :after (general)
-    :commands (gptel-quick)
-    :init
-    (aero-leader-def "aiq" 'gptel-quick))
 #+END_SRC
 
 ** Copilot
