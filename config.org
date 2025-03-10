@@ -3657,9 +3657,13 @@ Allow drag-and-drop of images from browser, finder, etc.
 A fantastic note-taking system, used for building a second brain.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-roam (:repo "org-roam/org-roam" :files (:defaults "extensions/*"))
-    :defer 1
+  (package! org-roam :auto
     :after (general org)
+    :functions (org-roam-node-find
+                org-roam-capture
+                org-roam-node-insert
+                org-roam-alias-add
+                org-roam-refile)
 
     :custom
     (org-roam-directory (expand-file-name "roam" aero/thornlog-path))
@@ -3679,16 +3683,17 @@ A fantastic note-taking system, used for building a second brain.
     (org-roam-node-display-template
      (concat "${title} " (propertize "${tags}" 'face 'org-tag)))
 
-    :config
-    (org-roam-db-autosync-mode)
-
+    :init
     (aero-leader-def
       "vf" 'org-roam-node-find
       "vF" 'org-roam-capture
       "vi" 'org-roam-node-insert
       "vc" '(org-id-get-create :wk "create org ID for node")
       "va" 'org-roam-alias-add
-      "vr" 'org-roam-refile))
+      "vr" 'org-roam-refile)
+
+    :config
+    (org-roam-db-autosync-mode))
 #+END_SRC
 
 *** Thornlog
