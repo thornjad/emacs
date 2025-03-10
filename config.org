@@ -141,50 +141,8 @@ These are mostly used by Org, not sure if they're still needed.
 #+END_SRC
 
 * Define Library functions
-
-Some general helpers, not used much
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun rand-nth (coll)
-    "Return a random element of the list COLL."
-    (nth (random (length coll)) coll))
-
-  ;; Help debugging hidden errors
-  (defun aero/reraise-error (func &rest args)
-    "Call function FUNC with ARGS and re-raise any error which occurs.
-  Useful for debugging post-command hooks and filter functions, which
-  normally have their errors suppressed."
-    (condition-case err
-        (apply func args)
-      ((debug error) (signal (car err) (cdr err)))))
-
-  (defun aero/toggle-debug-on-hidden-errors (func)
-    "Toggle hidden error debugging for function FUNC."
-    (interactive "a")
-    (cond
-     ((advice-member-p #'aero/reraise-error func)
-      (advice-remove func #'aero/reraise-error)
-      (message "Debug on hidden errors disabled for %s" func))
-     (t
-      (advice-add func :around #'aero/reraise-error)
-      (message "Debug on hidden errors enabled for %s" func))))
-#+END_SRC
-
-** Advice helpers
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/advice-disable-subword (orig-fun &rest args)
-    "Disable `subword-mode' around the given function."
-    (let ((original-mode subword-mode))
-      (subword-mode -1)
-      (apply orig-fun args)
-      (subword-mode original-mode)))
-
-  (defun aero/advice-no-message (fn &rest args)
-    "Advise function FN with ARGS not to message at all."
-    (let ((message-log-max nil)
-          (inhibit-message t))
-      (apply fn args)))
-#+END_SRC
+** Advice
+Also kill excess whitespace when joining lines.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defadvice kill-line (before kill-line-autoreindent activate)
@@ -194,7 +152,11 @@ Some general helpers, not used much
       (save-excursion
         (forward-char 1)
         (just-one-space 1))))
+#+END_SRC
 
+When getting symbol documentation in Elisp, also append its docstring.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/advice-elisp-get-fnsym-args-string (fn sym &rest args)
     "If SYM is a function, append its docstring."
     (concat
@@ -205,7 +167,11 @@ Some general helpers, not used much
             (not (string= "" doc))
             (concat "\n\n" (propertize doc 'face 'italic))))))
   (advice-add 'elisp-get-fnsym-args-string :around #'aero/advice-elisp-get-fnsym-args-string)
+#+END_SRC
 
+When indenting a new line inside a comment, add at least one space at the start.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (define-advice comment-indent-new-line (:after (&optional soft) at-least-one-space)
     "Ensure that at least one space is added after the comment-start."
     (let ((start (regexp-quote comment-start)))
@@ -213,8 +179,11 @@ Some general helpers, not used much
                  (looking-back start (+ (point) (length start)))
                  (not (looking-back " "  (+ (point) 1))))
         (insert " "))))
+#+END_SRC
 
-  ;; Don't kill scratch buffer, just bury it if something tries to
+Don't kill the main scratch buffer, only bury it.
+
+#+BEGIN_SRC emacs-lisp :lexical t
   (defadvice kill-buffer (around kill-buffer-around-advice activate)
     "Don't kill my scratch!"
     (let ((buffer-to-kill (ad-get-arg 0)))
@@ -272,31 +241,11 @@ Some general helpers, not used much
           (call-interactively #'comment-or-uncomment-region)
         (call-interactively #'comment-line))))
 
-  (defun aero/applescript-escape (str)
-    "Escape STR to make it suitable for using is applescripts."
-    (replace-regexp-in-string "\"" "\\\\\"" str))
-
-  (defmacro aero/local! (&rest body)
-    "Execute BODY in local directory instead of TRAMP."
-    `(let ((default-directory user-emacs-directory))
-       ,@body))
-
   (defmacro aero/voidvar! (&rest body)
     "Appease the compiler by pretending to use variables in BODY.
 
   Similar to C++'s void var construct."
     `(and ,@body))
-
-  (defun aero/sort-words (reverse beg end)
-    "Sort words in region alphabetically, in REVERSE if negative.
-  Prefixed with negative \\[universal-argument], sorts in reverse.
-
-  The variable `sort-fold-case' determines whether alphabetic case affects the
-  sort order.
-
-  See `sort-regexp-fields'."
-    (interactive "*P\nr")
-    (sort-regexp-fields reverse "\\w+" "\\&" beg end))
 #+END_SRC
 
 ** System and logging
@@ -1880,6 +1829,17 @@ Gives us the =M-n= and =M-p= symbol-following ability
     :config
     (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
     (advice-add 'smartscan-symbol-go-backward :around #'aero/advice-disable-subword))
+#+END_SRC
+
+Advice to disabled subword-mode used during scanning
+
+#+BEGIN_SRC emacs-lisp :lexical t
+(defun aero/advice-disable-subword (orig-fun &rest args)
+    "Disable `subword-mode' around the given function."
+    (let ((original-mode subword-mode))
+      (subword-mode -1)
+      (apply orig-fun args)
+      (subword-mode original-mode)))
 #+END_SRC
 
 *** Undo-tree
