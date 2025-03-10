@@ -1834,7 +1834,7 @@ Gives us the =M-n= and =M-p= symbol-following ability
 Advice to disabled subword-mode used during scanning
 
 #+BEGIN_SRC emacs-lisp :lexical t
-(defun aero/advice-disable-subword (orig-fun &rest args)
+  (defun aero/advice-disable-subword (orig-fun &rest args)
     "Disable `subword-mode' around the given function."
     (let ((original-mode subword-mode))
       (subword-mode -1)
@@ -3026,7 +3026,6 @@ One of the truly great packages in Emacs. I use it for everything git-related.
 
     :custom
     (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
-    (magit-format-file-function #'magit-format-file-all-the-icons)
     (magit-process-finish-apply-ansi-colors t)
     (magit-buffer-name-format "%x%M%v: %t%x")
     (magit-list-refs-sortby "-creatordate")
