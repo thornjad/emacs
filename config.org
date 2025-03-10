@@ -1162,27 +1162,6 @@ The rest of the config uses this custom =package!= macro to abstract away some i
 
 #+END_SRC
 
-** Fetch arbitrary MELPA recipe
-And a helper that lets us check the MELPA recipe for a package, which is useful when setting up new packages sometimes, and slightly faster than searching on a browser.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/fetch-melpa-recipe (package-name)
-    "Fetch the MELPA recipe for the given PACKAGE-NAME and display it in a buffer."
-    (interactive "sPackage Name: ")
-    (let ((url (format "https://raw.githubusercontent.com/melpa/melpa/master/recipes/%s" package-name)))
-      (with-current-buffer (url-retrieve-synchronously url)
-        (goto-char (point-min))
-        (re-search-forward "\n\n")
-        (delete-region (point-min) (point))
-        (let ((content (buffer-string)))
-          (kill-buffer)
-          (with-current-buffer (get-buffer-create "*MELPA Recipe*")
-            (erase-buffer)
-            (insert content)
-            (goto-char (point-min))
-            (emacs-lisp-mode)
-            (display-buffer (current-buffer)))))))
-#+END_SRC
 * Core setup (prelude)
 I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution, the two usages are cognate.
 
