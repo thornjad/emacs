@@ -1683,15 +1683,14 @@ Provides a completion system similar to Ivy, but it's faster and more lightweigh
 This provides a more informative completion system, showing more information about the candidates.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! marginalia "minad/marginalia"
-    :init (marginalia-mode))
+  (package! marginalia :auto :init (marginalia-mode))
 #+END_SRC
 
 *** Orderless
 This provides a more flexible completion system where we can use spaces to separate search terms, inputting them in any order.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! orderless "oantolin/orderless"
+  (package! orderless :auto
     :custom
     (completion-styles '(substring orderless basic))
     (completion-category-defaults nil)
@@ -1707,7 +1706,7 @@ Super useful package, providing a variety of wrappers that provide a powerful an
 Buffer previews are debounced, since I often don't want them.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! consult "minad/consult"
+  (package! consult :auto
     :after (general evil orderless)
     :commands (consult-line
                consult-buffer
