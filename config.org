@@ -1032,7 +1032,7 @@ Evaluate =gnutls= and disallow TLS connections
 #+END_SRC
 
 ** Straight.el
-We want to use the =develop= branch of =straight.el=, I don't remember why but this fixed a problem once and I never went back.
+We want to use the =develop= branch of =straight.el=, since it tends to be better.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   ;; Use the more-cutting-edge develop branch of straight
@@ -1046,6 +1046,14 @@ Don't allow straight to check for modifications in every repo on Emacs init, sav
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (setq straight-check-for-modifications nil)
+#+END_SRC
+
+Set the order in which repositories are checked for =:auto= recipes. These are based on broad levels of trust, if something appears in both GNU ELPA and MELPA, for example, we'd prefer the GNU ELPA version. Also prefer using the mirror of GNU ELPA because it's stupidly more efficient than the normal GNU ELPA build process.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (setq straight-recipe-repositories
+        '(org-elpa gnu-elpa-mirror nongnu-elpa emacsmirror-mirror melpa))
+  (setq straight-recipes-gnu-elpa-use-mirror t)
 #+END_SRC
 
 Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we (or more likely any dependency) try to pull it in.
@@ -1128,12 +1136,6 @@ The rest of the config uses this custom =package!= macro to abstract away some i
 
     (when (stringp recipe)
       (setq recipe (list :repo recipe)))
-
-    (when (memq :auto body)
-      (display-warning
-       'aero
-       (format "Package %s uses :auto, which is deprecated. Specify recipe instead" package)
-       :warning))
 
     (cond
      ((memq :disabled body)
