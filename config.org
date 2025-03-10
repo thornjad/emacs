@@ -3334,37 +3334,6 @@ Now for the actual package configuration. This is a long one, so I've made a lot
          ,(expand-file-name "school_todo.org" aero/roam-path)
          "Tasks")
         "* TODO [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
-        :empty-lines 1)
-       ("n" "Note" entry
-        (file+headline
-         ,(expand-file-name "notes_inbox.org" aero/roam-path)
-         "Notes")
-        "* %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
-        :jump-to-captured t
-        :empty-lines 1)
-       ("e" "Experimentation idea" entry
-        (file+headline
-         ,(expand-file-name "todo.org" aero/roam-path)
-         "Experimentation")
-        "* TODO %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
-        :empty-lines 1)
-       ("R" "Reading" entry
-        (file+headline
-         ,(expand-file-name "todo.org" aero/roam-path)
-         "Reading")
-        "* TODO [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
-        :empty-lines 1)
-       ("s" "Time sink" entry
-        (file+headline
-         ,(expand-file-name "20250123102747-time_sinks_at_dd.org" aero/roam-path)
-         "Time sinks")
-        "* %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
-        :empty-lines 1)
-       ("m" "Mistake" entry
-        (file+headline
-         ,(expand-file-name "20250123103552-mistakes_to_learn_from_at_dd.org" aero/roam-path)
-         "Mistakes")
-        "* %?\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
         :empty-lines 1)))
 
     (org-todo-keywords
