@@ -5750,3 +5750,5 @@ Load a local init file if it exists. This is a great place to put secrets and ke
 #+BEGIN_SRC emacs-lisp :lexical t
   (load (expand-file-name "init.local" user-emacs-directory) t t)
 #+END_SRC
+
+#  LocalWords:  Editorconfig Savehist
