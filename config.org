@@ -3445,6 +3445,7 @@ The workhorse of my task management. This package allows me to group tasks in th
        (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))
        (:name "Past due" :and (:deadline past :not (:todo ("WAITING" "BLOCKED"))))
        (:name "Due today" :and (:deadline today :not (:todo ("WAITING" "BLOCKED"))))
+       (:name "Tickets" :todo ("TICKET"))
        (:name "Prioritized" :not (:todo ("WAITING" "BLOCKED" "BACKLOG")
                                   :tag "holiday"
                                   :category ("Holiday" "Anniversaries")))
