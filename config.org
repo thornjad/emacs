@@ -3162,6 +3162,9 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     (org-reverse-note-order nil) ; put notes at the end of the entry, instead of the top
     (org-archive-location (concat aero/thornlog-archive-file "::* From %s"))
 
+    ;; When editing a source block in its own mode, don't mess with windows at all
+    (org-src-window-setup 'current-window)
+
     ;; don't consider empty lines between entries to be part of the entry
     (org-cycle-separator-lines -2)
 
@@ -3258,6 +3261,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
       "p" 'org-priority
       "r" 'org-refile
       "s" 'org-set-property
+      "e" 'org-edit-src-code
       "i" '(:ignore t :wk "insert")
       "il" 'org-insert-link
       "it" 'org-time-stamp
@@ -3268,6 +3272,12 @@ Now for the actual package configuration. This is a long one, so I've made a lot
       "c" '(:ignore t :wk "clock / cell")
       "cc" '(org-babel-execute-src-block :wk "exec cell")
       "cs" 'org-babel-demarcate-block)
+
+    (aero-mode-leader-def
+      :keymaps 'org-src-mode-map
+      "q" 'org-edit-src-exit
+      "w" 'org-edit-src-save
+      "X" 'org-edit-src-abort)
 
     ;; keep org-save-all from messing up buffer list
     (advice-add 'org-save-all-org-buffers :around #'aero/keep-buffer-list-unaltered)
@@ -3284,6 +3294,13 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     (advice-add 'org-return :after #'aero/org-deindent-on-return)
     (with-eval-after-load 'evil
       (advice-add 'evil-org-open-below :after #'aero/org-deindent-on-return))
+
+    ;; When inside an org src-block (like right here), turn off fancy quotes and use normal pairing so that typing " inserts "" as expected.
+    (add-hook 'org-src-mode-hook
+              (lambda ()
+                (electric-quote-local-mode -1)
+                (electric-pair-local-mode +1)
+                (define-key org-src-mode-map (kbd "C-c C-c") #'org-edit-src-exit)))
 
     ;; Also save after state change
     (add-hook 'org-after-todo-state-change-hook #'org-save-all-org-buffers)
