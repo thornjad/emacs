@@ -3475,7 +3475,8 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     (define-key org-mode-map (kbd "M-h") #'windmove-left)
 
     ;; Collapse entries when they are marked as done, and expand when reopened
-    (add-hook 'org-after-todo-state-change-hook #'aero/org-collapse-entry-if-done)
+    (add-hook 'org-after-todo-state-change-hook
+              #'aero/org-collapse-entry-if-done)
     (add-hook 'org-after-todo-state-change-hook #'aero/org-expand-entry-if-todo)
 
     ;; Get rid of the idiotic indentation after pressing enter
@@ -3913,6 +3914,7 @@ A simple way to make HTTP requests from within Emacs
       "." 'restclient-mark-current
       "y" 'restclient-copy-curl-command))
 #+END_SRC
+
 ** ESUP
 Emacs startup profiler.
 
