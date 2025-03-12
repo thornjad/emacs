@@ -1658,6 +1658,10 @@ Super useful package, providing a variety of wrappers that provide a powerful an
 Buffer previews are debounced, since I often don't want them.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (defun consult-outline-top ()
+    (interactive)
+    (funcall #'consult-outline 1))
+
   (package! consult :auto
     :after (general evil orderless)
     :commands (consult-line
@@ -1677,6 +1681,7 @@ Buffer previews are debounced, since I often don't want them.
       "/" 'consult-line
       "bb" 'consult-buffer
       "jo" 'consult-outline
+      "jO" 'consult-outline-top
       "ji" 'consult-imenu
       "je" 'consult-flymake
       "ja" 'consult-org-agenda
