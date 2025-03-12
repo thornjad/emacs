@@ -1849,16 +1849,6 @@ Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booste
     :config (eglot-booster-mode))
 #+END_SRC
 
-****  Sideline Eglot
-Display Eglot info in the sideline
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! sideline-eglot "emacs-sideline/sideline-eglot"
-    :after eglot
-    :custom
-    (sideline-backends-right '(sideline-eglot)))
-#+END_SRC
-
 **** Eglot-signature-eldoc-talkative
 Make eglot send more info to eldoc, including parameter and function documentation
 
