@@ -2924,11 +2924,8 @@ Breadcrumbs are disabled for gptel since it uses its own system.
   (define-minor-mode aero-breadcrumb-local-mode
     "Header lines with aero-breadcrumbs."
     :init-value nil
-    (if aero-breadcrumb-local-mode
-
-        (setq header-line-format (delete
-                                  '(:eval (aero-breadcrumb--header-line))
-                                  header-line-format))))
+    (if aero-breadcrumb-local-mode (add-to-list 'header-line-format '(:eval (aero-breadcrumb--header-line)))
+      (setq header-line-format (delete '(:eval (aero-breadcrumb--header-line)) header-line-format))))
 #+END_SRC
 
 Now we set up the hooks, but also disable for gptel (which uses markdown-mode in this config).
