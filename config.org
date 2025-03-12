@@ -95,6 +95,9 @@ Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= c
 
 This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
 
+*** Tips
+When inside of an Org source block, you can use =org-babel-demarcate-block= to split the block you're currently in so that you can insert an annotation.
+
 * Lexical binding
 Before any other code, we have to make sure the tangled =config.el= has lexical binding, or else we're in for a world of pain. I cannot understand why this isn't the default. Emacs should at least have an option to make everything lexical by default, forcing old code to opt-out.
 
@@ -3450,21 +3453,15 @@ Now for the actual package configuration. This is a long one, so I've made a lot
       "r" 'org-refile
       "s" 'org-set-property
       "i" '(:ignore t :wk "insert")
-      "il" '(org-insert-link :wk "link")
+      "il" 'org-insert-link
       "it" 'org-time-stamp
       "ii" 'org-insert-structure-template
       "id" '(org-insert-drawer :wk "drawer")
       "im" 'insert-meeting-task
-      "is" 'insert-class-task
       "A" 'aero/org-archive-cleanup
       "c" '(:ignore t :wk "clock / cell")
       "cc" '(org-babel-execute-src-block :wk "exec cell")
-      "ci" 'org-clock-in
-      "co" 'org-clock-out
-      "ck" 'org-clock-cancel
-      "cs" 'org-clock-display
-      "ce" 'org-set-effort
-      "cE" 'org-clock-modify-effort-estimate)
+      "cs" 'org-babel-demarcate-block)
 
     ;; keep org-save-all from messing up buffer list
     (advice-add 'org-save-all-org-buffers :around #'aero/keep-buffer-list-unaltered)
