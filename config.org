@@ -5022,7 +5022,10 @@ We do register Claude as a valid backend, but it's not a default because I've fo
 
     :config
     (when (and (boundp 'anthropic-api-key) anthropic-api-key)
-      (gptel-make-anthropic "Claude" :stream t :key anthropic-api-key)))
+      (gptel-make-anthropic "Claude" :stream t :key anthropic-api-key))
+
+    (when (and (boundp 'kagi-api-key) kagi-api-key)
+      (gptel-make-kagi "Kagi" :key kagi-api-key)))
 #+END_SRC
 
 ** Copilot
