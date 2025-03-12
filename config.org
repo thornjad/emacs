@@ -3519,6 +3519,59 @@ Show formatting markers when point is near
     :hook (org-mode . org-appear-mode))
 #+END_SRC
 
+** Org present
+Presentation mode for Org
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-present-prepare-slide ()
+    (org-overview)
+    (org-show-entry)
+    (org-show-children))
+
+  (defun aero/org-present-hook ()
+    (setq-local face-remapping-alist '((default (:height 1.5) variable-pitch)
+                                       (header-line (:height 4.5) variable-pitch)
+                                       (org-document-title (:height 1.75) org-document-title)
+                                       (org-code (:height 1.55) org-code)
+                                       (org-verbatim (:height 1.55) org-verbatim)
+                                       (org-block (:height 1.25) org-block)
+                                       (org-block-begin-line (:height 0.7) org-block)))
+    (setq header-line-format " ")
+    (org-appear-mode -1)
+    (org-display-inline-images)
+    (org-present-hide-cursor)
+    (org-present-read-only)
+    (aero/modeline-hide-mode)
+    (aero/org-present-prepare-slide))
+
+  (defun aero/org-present-quit-hook ()
+    (setq-local face-remapping-alist '((default variable-pitch default)))
+    (setq header-line-format nil)
+    (org-present-small)
+    (org-remove-inline-images)
+    (org-present-show-cursor)
+    (org-present-read-write)
+    (aero/modeline-hide-mode -1)
+    (org-appear-mode 1))
+
+  (defun aero/org-present-prev ()
+    (interactive)
+    (org-present-prev)
+    (aero/org-present-prepare-slide))
+
+  (defun aero/org-present-next ()
+    (interactive)
+    (org-present-next)
+    (aero/org-present-prepare-slide))
+
+  (package! org-present :auto
+    :bind (:map org-present-mode-keymap
+           ("C-c C-n" . aero/org-present-next)
+           ("C-c C-p" . aero/org-present-prev))
+    :hook ((org-present-mode . aero/org-present-hook)
+           (org-present-mode-quit . aero/org-present-quit-hook)))
+#+END_SRC
+
 ** Org-modern
 Some trivial UI improvements for org files. Uses the "replace" set of stars for headings.
 
