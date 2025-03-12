@@ -266,12 +266,6 @@ Don't kill the main scratch buffer, only bury it.
   (defun treesitterp ()
     "Evaluate whether Emacs has treesitter support."
     (and (functionp 'treesit-available-p) (treesit-available-p)))
-
-  (defun node-repl ()
-    "Launch a Node.js comint REPL."
-    (interactive)
-    (setenv "NODE_NO_READLINE" "1")  ; avoid fancy terminal codes
-    (pop-to-buffer (make-comint "node-repl" "node" nil "--interactive")))
 #+END_SRC
 
 *** Change font size (zoom in and out)
@@ -297,6 +291,8 @@ Also allow =C-==, just to be less annoying since that's just + without shift
 #+END_SRC
 
 ** Buffers, windows, frames, tabs
+A collection of helpers for managing windows and buffers
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/switch-to-minibuffer-window ()
     "switch to minibuffer window (if active)"
@@ -344,20 +340,6 @@ Also allow =C-==, just to be less annoying since that's just + without shift
       (unless prev-window
         (user-error "Last window not found."))
       (select-window prev-window)))
-
-  (defun aero/layout-two-columns ()
-    "Switch to two column window layout."
-    (interactive)
-    (delete-other-windows)
-    (split-window-right))
-
-  (defun aero/layout-three-columns ()
-    "Switch to three column window layout."
-    (interactive)
-    (delete-other-windows)
-    (dotimes (_ 2)
-      (split-window-right))
-    (balance-windows))
 
   (defun aero/tail-compilation-buffer ()
     "Reset tailing the compilation buffer."
@@ -518,16 +500,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
           (set-visited-file-name new-name)
           (set-buffer-modified-p nil)))))
 
-  ;; adapted from http://emacs.stackexchange.com/questions/202/close-all-dired-buffers
-  (defun aero/kill-diff-buffers ()
-    (interactive)
-    (mapc
-     (lambda (buffer)
-       (when (member
-              (buffer-local-value 'major-mode buffer) '(diff-mode magit-diff-mode magit-process-mode))
-         (kill-buffer buffer)))
-     (buffer-list)))
-
   (defun aero/fill-to-80 ()
     "`fill-paragraph' to 80 columns, regardless of the default."
     (interactive)
@@ -538,73 +510,10 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
     "Converts the current buffer to UNIX file format."
     (interactive)
     (set-buffer-file-coding-system 'undecided-unix nil))
-
   (defun aero/unix2dos ()
     "Converts the current buffer to DOS file format."
     (interactive)
     (set-buffer-file-coding-system 'undecided-dos nil))
-
-  (defun aero/run-osascript (script-content)
-    "Run an SCRIPT-CONTENT as AppleScript/osascipt."
-    (interactive "sContent of AppleScript/osascript:")
-    (let ((file (make-temp-file "aero-temp-osa-" nil ".applescript")))
-      (with-temp-file file
-        (insert script-content)
-        (insert "\ndo shell script \"rm -rf \" & the quoted form of POSIX path of (path to me)"))
-      (aero/run-osascript-file file)))
-  (defalias 'aero/run-applescript #'aero/run-osascript)
-
-  (defun aero/run-osascript-file (file)
-    "Run an AppleScript/osascipt FILE."
-    (with-current-buffer (get-buffer-create "*OsaScript*")
-      (insert "Going to run file: " file))
-    (start-process "OsaScript" "*OsaScript*" "osascript" file))
-  (defalias 'aero/run-applescript-file #'aero/run-osascript-file)
-
-  (defun aero/reveal-in-finder-as (file)
-    "Reveal the supplied file FILE in Finder.
-
-  To call interactively, use [aero/open-in-finder]."
-    (let ((script
-           (concat
-            "set thePath to POSIX file \""
-            (shell-quote-argument file)
-            "\"\n"
-            "tell application \"Finder\"\n"
-            " set frontmost to true\n"
-            " reveal thePath \n"
-            "end tell\n")))
-      (aero/run-osascript script)))
-
-  (defun aero/open-in-finder ()
-    "Reveal the file associated with the current buffer in the OSX Finder.
-  In a dired buffer, it will open the current file."
-    (interactive)
-    (declare-function dired-file-name-at-point "dired.el")
-    (aero/reveal-in-finder-as
-     (or (buffer-file-name) (expand-file-name (or (dired-file-name-at-point) ".")))))
-
-  (defun aero/sudo-edit (&optional arg)
-    (interactive "P")
-    (let ((fname
-           (if (or arg (not buffer-file-name))
-               (read-file-name "File: ")
-             buffer-file-name)))
-      (find-file
-       (cond
-        ((string-match-p "^/ssh:" fname)
-         (with-temp-buffer
-           (insert fname)
-           (search-backward ":")
-           (let ((last-match-end nil)
-                 (last-ssh-hostname nil))
-             (while (string-match "@\\\([^:|]+\\\)" fname last-match-end)
-               (setq last-ssh-hostname (or (match-string 1 fname) last-ssh-hostname))
-               (setq last-match-end (match-end 0)))
-             (insert (format "|sudo:%s" (or last-ssh-hostname "localhost"))))
-           (buffer-string)))
-        (t
-         (concat "/sudo:root@localhost:" fname))))))
 
   (declare-function tramp-cleanup-all-connections "tramp.el")
   (defun aero/tramp-buffer-p (buffer)
@@ -628,11 +537,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
     (interactive)
     (when (get-buffer "TAGS")
       (kill-buffer "TAGS")))
-
-  (defun aero/open-local-init ()
-    "Open local init file for editing."
-    (interactive)
-    (find-file (concat user-emacs-directory "init-local.el")))
 
   (defun aero/open-emacs-problems ()
     "Open Emacs PROBLEMS file from GitHub mirror."
@@ -694,34 +598,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
                 (delete-char -1)))
           (delete-char -1)))))
 
-  (defun aero/go-to-tag (arg)
-    "Go to tag under point.
-  If called with prefix argument, or with nothing under point, prompt for tag."
-    (interactive "P")
-    (when (fboundp 'xref-find-definitions)
-      (let ((xref-prompt-for-identifier arg))
-        (aero/voidvar! xref-prompt-for-identifier)
-        (call-interactively #'xref-find-definitions))))
-
-  (defun aero/native-compile-file-at-buffer ()
-    "Native compile the file in the current buffer."
-    (interactive)
-    (let ((warning-minimum-level :warning))
-      (save-excursion (native-compile-async buffer-file-name nil t))))
-
-  (defun aero/byte-compile-file-at-buffer ()
-    "Byte compile the file open in the current buffer."
-    (interactive)
-    (save-excursion (byte-compile-file buffer-file-name)))
-  (defun aero/byte-recompile-file-at-buffer ()
-    "Byte recompile the file open in the current buffer."
-    (interactive)
-    (save-excursion (byte-recompile-file buffer-file-name)))
-
-  (defun shrug ()
-    (interactive)
-    (insert "¯\\_(ツ)_/¯"))
-
   (defun untabify-buffer ()
     (interactive)
     (untabify (point-min) (point-max)))
@@ -731,14 +607,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
   (defun indent-buffer ()
     (interactive)
     (indent-region (point-min) (point-max)))
-
-  (defmacro aero/insert-text-at-point (text)
-    `(progn
-       (save-excursion
-         (unless (eobp)
-           (right-char))
-         (insert ,text))
-       (forward-sexp 1)))
 
   (defun alter-number-at-point (offset)
     (save-excursion
@@ -794,45 +662,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
              (center (list (/ (- monitor-w frame-w) 2) (/ (- monitor-h frame-h) 2))))
         (apply 'set-frame-position (flatten-list (list frame center))))))
 
-  (defun aero/ctags-create-tags (rootdir &optional ctags-cmd)
-    "Generate tags database in ROOTDIR.
-  NOTE this requires Universal Ctags. It may work with Exuberant Ctags, but no guarantees. Definitely
-  does not work with GNU Ctags. If your installation of Ctags does not use the `ctags' command,
-  specify it with CTAGS-CMD."
-    (interactive (list (read-directory-name "Root Directory: " nil nil t)))
-    (let ((default-directory rootdir)
-          (cmd (or ctags-cmd "ctags"))
-          (buf (get-buffer-create " *aero/ctags-create-tags*")))
-      (async-shell-command (concat
-                            cmd
-                            " --kinds-all='*' --fields='*' --extras='*' --langmap=TCL:.tcl.rvt -R")
-                           buf)))
-
-  (defun aero/open-with (arg)
-    "Open visited file in default external program.
-  When in dired mode, open file under the cursor.
-  With a prefix ARG always prompt for command to use."
-    (interactive "P")
-    (let* ((current-file-name
-            (if (eq major-mode 'dired-mode)
-                (dired-get-file-for-visit)
-              buffer-file-name))
-           (open
-            (pcase system-type
-              (`darwin "open")
-              ((or `gnu `gnu/linux `gnu/kfreebsd) "xdg-open")))
-           (program
-            (if (or arg (not open))
-                (read-shell-command "Open current file with: ")
-              open)))
-      (call-process program nil 0 nil current-file-name)))
-
-  (defun pulse-line (&rest _)
-    "Briefly pulse a highlight of the line at point.
-  This function, when bound to certain commands like scrolling, acts as a native
-  alternative to the beacon package."
-    (pulse-momentary-highlight-one-line (point)))
-
   (defun aero/ssh-refresh ()
     "Reset the environment variable SSH_AUTH_SOCK"
     (interactive)
@@ -844,31 +673,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
                 (shell-command-to-string
                  "ls -t $(find /tmp/ssh-* -user $USER -name 'agent.*' 2> /dev/null)"))))
       (message (format "SSH_AUTH_SOCK %s --> %s" ssh-auth-sock-old (getenv "SSH_AUTH_SOCK")))))
-
-  (defmacro aero/with-buffer-excursion (buffer-name &rest body)
-    (declare (indent 1))
-    `(with-current-buffer (get-buffer ,buffer-name)
-       (save-excursion
-         ,@body)))
-
-  (defmacro aero/with-buffer-max-excursion (buffer-name &rest body)
-    (declare (indent 1))
-    `(aero/with-buffer-excursion ,buffer-name
-       (goto-char (point-max))
-       ,@body))
-
-  (defmacro aero/without-readonly (&rest body)
-    (declare (indent 0))
-    `(let ((inhibit-read-only t))
-       ,@body))
-
-  (defun aero/plist-merge (&rest plists)
-    "Merge PLISTS into a single plist."
-    (let ((result (copy-sequence (car plists))))
-      (dolist (plist plists)
-        (cl-loop for (key value) on plist by #'cddr
-                 do (plist-put result key value)))
-      result))
 
   (defun aero/unix-timestamp-to-human (timestamp)
     "Convert a UNIX TIMESTAMP to a human-readable string."
@@ -904,23 +708,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
   (defun aero/org-convert-region-from-markdown (beg end)
     (interactive "r")
     (shell-command-on-region beg end "pandoc -t org" nil t))
-
-  (defun find-latest-time (times)
-    "Find the latest time in TIMES, which is a list of time values."
-    (let ((latest (car times)))
-      (dolist (time times latest)
-        (when (> (float-time time) (float-time latest))
-          (setq latest time)))))
-
-  (defun find-latest-time-before-today (times)
-    "Find the latest time in TIMES that is before today."
-    (let ((latest (car times))
-          (today (org-today)))
-      (dolist (time times latest)
-        (let ((time-date (org-time-string-to-time (format-time-string "%Y-%m-%d" time))))
-          (when (and (> (float-time time) (float-time latest))
-                     (< (time-to-days time-date) today))
-            (setq latest time))))))
 
   (defun aero/open-agenda-file ()
     "Open an org-agenda file from a list of all agenda files."
@@ -1251,8 +1038,6 @@ From there, we set up all the main keybindings.
      "fW" 'evil-write-all
      "w/" '(evil-window-vsplit :wk "split vertical")
      "w-" '(evil-window-split :wk "split horizontal")
-     "w2" 'aero/layout-two-columns
-     "w3" 'aero/layout-three-columns
      "cm" 'evil-make)
 
     (general-define-key
@@ -2691,6 +2476,11 @@ Makes links in comments clickable
 Pulse the current line when changing windows. There's whole packages that do this functionality and more, but I only care about switching windows, so there's no need to pull in a whole package.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (defun pulse-line (&rest _)
+    "Briefly pulse a highlight of the line at point.
+  This function, when bound to certain commands like scrolling, acts as a native
+  alternative to the beacon package."
+    (pulse-momentary-highlight-one-line (point)))
   (dolist (fn '(other-window
                 windmove-up
                 windmove-down
