@@ -525,7 +525,7 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
       (string-match "^\\*tramp" name)))
   (defun aero/kill-tramp ()
     "Kill all Tramp connections. Useful for stale connections.
-  This function does NOT remove remote buffers, only their connections."
+    This function does NOT remove remote buffers, only their connections."
     (interactive)
     (when (require 'tramp nil t)
       (declare-function password-reset "password-cache.el")
@@ -550,8 +550,8 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
   (defun aero/xdg-open (arg)
     "Pass the specified ARG to \"xdg-open\".
 
-  This can be used to open Nautilus/Finder, the default browser, etc. See \"man
-  xdg-open\" for more."
+    This can be used to open Nautilus/Finder, the default browser, etc. See \"man
+    xdg-open\" for more."
     (interactive (list (read-string "Open: ")))
     (let ((proc
            (cond
@@ -566,7 +566,7 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
   (defun aero/browse-url-open (url &optional _ignored)
     "Pass the specified URL to `aero/xdg-open'.
 
-  Ignored arg is due to the way `funcall-interactively' calls stuff."
+    Ignored arg is due to the way `funcall-interactively' calls stuff."
     (interactive
      (let ((link (and (derived-mode-p 'org-mode)
                       (org-element-context))))
