@@ -2780,8 +2780,8 @@ Breadcrumbs are disabled for gptel since it uses its own system.
 #+BEGIN_SRC emacs-lisp
   (cl-defun aero-breadcrumb--bisect (a x &key (from 0) (to (length a)) key from-end)
     "Compute index to insert X in sequence A, keeping it sorted.
-  If X already in A, the resulting index is the leftmost such
-  index, unless FROM-END is t.  KEY is as usual in other CL land."
+    If X already in A, the resulting index is the leftmost such
+    index, unless FROM-END is t.  KEY is as usual in other CL land."
     (cl-macrolet ((search (from-end key)
                           `(cl-loop while (< from to)
                                     for mid = (/ (+ from to) 2)
@@ -2795,8 +2795,8 @@ Breadcrumbs are disabled for gptel since it uses its own system.
 
   (defun aero-breadcrumb--ipath-rich (index-alist pos)
     "Compute ipath for rich `imenu--index-alist' structures.
-  These structures have a `aero-breadcrumb-region' property on every
-  node."
+    These structures have a `aero-breadcrumb-region' property on every
+    node."
     (cl-labels
         ((search (nodes &optional ipath)
                  (cl-loop
@@ -2816,7 +2816,7 @@ Breadcrumbs are disabled for gptel since it uses its own system.
 
   (defun aero-breadcrumb--ipath-plain (index-alist pos)
     "Compute ipath for plain `imenu--index-alist' structures.
-  These structures don't have a `aero-breadcrumb-region' property on."
+    These structures don't have a `aero-breadcrumb-region' property on."
     (cl-labels ((dfs (n &optional ipath siblings)
                      (setq ipath (cons (car n) ipath))
                      (if (consp (cdr n))
@@ -2899,11 +2899,11 @@ Breadcrumbs are disabled for gptel since it uses its own system.
 
   (defun aero-breadcrumb--summarize (crumbs cutoff separator)
     "Return a string that summarizes CRUMBS, a list of strings.
-  \"Summarization\" consists of truncating some CRUMBS to 1
-  character.  Rightmost members of CRUMBS are summarized last.
-  Members with a `aero-breadcrumb-dont-shorten' are never truncated.
-  Aim for a return string that is at most CUTOFF characters long.
-  Join the crumbs with SEPARATOR."
+    \"Summarization\" consists of truncating some CRUMBS to 1
+    character.  Rightmost members of CRUMBS are summarized last.
+    Members with a `aero-breadcrumb-dont-shorten' are never truncated.
+    Aim for a return string that is at most CUTOFF characters long.
+    Join the crumbs with SEPARATOR."
     (let ((rcrumbs
            (cl-loop
             for available = (- cutoff used)
