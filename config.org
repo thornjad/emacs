@@ -451,14 +451,18 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 *** Other file helpers
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/insert-date ()
+  (defun aero/insert-org-date ()
     "Insert current date."
     (interactive)
-    (insert (format-time-string "%Y-%m-%d")))
+    (insert (format-time-string "[%Y-%m-%d]")))
   (defun aero/insert-timestamp ()
     "Insert current timestamp."
     (interactive)
     (insert (format-time-string "%Y-%m-%dT%H:%M:%S")))
+  (defun aero/insert-org-timestamp ()
+    (interactive)
+    (insert (format-time-string "[%Y-%m-%dT%H:%M:%S]")))
+
   (defun aero/insert-unix-time-seconds ()
     "Insert current Unix timestamp."
     (interactive)
