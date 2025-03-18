@@ -5043,20 +5043,18 @@ We do register Claude as a valid backend, but it's not a default because I've fo
 ** Copilot
 A connection with Microsoft GitHub Copilot. Works best with company-box, so we consider it a requirement. The idle delay is longer than default so it doesn't mess with typing.
 
-Enabled in all programming modes, and org-mode, except we don't want it during org-capture.
+Enabled in all programming modes. I've tried automatically enabling in org-mode as well, but copilot doesn't handle prose very well.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
     :after (company-box general)
-    :hook ((prog-mode org-mode) . copilot-mode)
+    :hook (prog-mode . copilot-mode)
     :custom (copilot-idle-delay 0.2)
     :bind (:map copilot-mode-map
            ("C-<tab>" . copilot-accept-completion)
            ("C-c C-i" . copilot-accept-completion)
            ("C-c C-n" . copilot-next-completion)
-           ("C-c C-p" . copilot-previous-completion))
-    :config
-    (add-hook 'org-capture-mode-hook (lambda () (copilot-mode -1))))
+           ("C-c C-p" . copilot-previous-completion)))
 #+END_SRC
 
 * Shell
