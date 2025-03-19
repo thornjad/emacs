@@ -1809,6 +1809,7 @@ Document highlighting is disabled because most language servers are pretty slow 
             clojure-mode
             typescript-mode
             typescript-ts-mode
+            astro-mode
             js-mode
             js-ts-mode)
            . eglot-ensure)
@@ -1824,9 +1825,15 @@ Document highlighting is disabled because most language servers are pretty slow 
     :config
     (setq-default eglot-workspace-configuration
                   '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-  				                            :pyls_mypy (:enabled t :live_mode :json-false)
-  				                            :pyls_black (:enabled t)
-  				                            :pyls_isort (:enabled t)))))
+    				                          :pyls_mypy (:enabled t :live_mode :json-false)
+    				                          :pyls_black (:enabled t)
+    				                          :pyls_isort (:enabled t)))))
+    ;; Create binding for Astro
+    (add-to-list 'eglot-server-programs
+                 '(astro-mode . ("astro-ls" "--stdio"
+                                 :initializationOptions
+                                 (:typescript (:tsdk "./node_modules/typescript/lib")))))
+
     (aero-leader-def
       "la" 'eglot-code-actions
       "lf" '(:ignore t :wk "find")
@@ -3921,10 +3928,17 @@ If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! web-mode "fxbois/web-mode"
-    :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|jsx\\|s?css\\)\\'"
+    :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|jsx\\|s?css\\|astro\\)\\'"
     :custom (web-mode-enable-engine-detection t)
     :config
     (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
+#+END_SRC
+
+*** Astro mode
+We define a custom mode for Astro files, which is really just web mode. This allows us to set up Eglot to run the Astro LS on these files
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (define-derived-mode astro-mode web-mode "astro")
 #+END_SRC
 
 *** Emmet

@@ -85,11 +85,8 @@ hard-init: clear-straight init
 
 # Continues even on failures. This lets us only install what the system can install, but can
 # swallow up errors
-install-deps: lsp-booster graphviz
+install-deps: lsp-booster graphviz install-npm
 	brew install node ripgrep
-	npm i -g bash-language-server @types/node || true
-	npm i -g @angular/language-service@next typescript @angular/language-server typescript-language-server eslint @elm-tooling/elm-language-server || true
-	npm i -g emmet-ls vscode-json-languageserver || true
 	gem install bundler prettier_print syntax_tree syntax_tree-haml syntax_tree-rbs && npm i -g prettier @prettier/plugin-ruby || true
 
 	pip install python-lsp-server pyls-mypy pyls-black pyls-isort mypy ruff black "ptvsd>=4.2" || true
@@ -97,6 +94,11 @@ install-deps: lsp-booster graphviz
 	rustup component add rls rust-analysis rust-src || true
 	brew install clojure-lsp/brew/clojure-lsp-native || true
 	brew install aspell
+
+install-npm:
+	npm i -g bash-language-server @types/node || true
+	npm i -g @angular/language-service@next typescript @angular/language-server typescript-language-server eslint @elm-tooling/elm-language-server @astrojs/language-server || true
+	npm i -g emmet-ls vscode-json-languageserver || true
 
 # Required for org-roam graphing
 graphviz:
