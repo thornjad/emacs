@@ -3318,11 +3318,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
                   :around #'aero/org-capture-place-template-dont-delete-windows))
 
     ;; set up stuff for clock persistence
-    (org-clock-persistence-insinuate)
-
-    ;; Show agenda when Emacs is idle for 10 minutes, from
-    ;; https://sachachua.com/dotemacs/index.html#idle-timer
-    (run-with-idle-timer 600 t 'jump-to-org-agenda))
+    (org-clock-persistence-insinuate))
 #+END_SRC
 
 ** Org-appear
