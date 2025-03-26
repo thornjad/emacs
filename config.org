@@ -3152,10 +3152,11 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     (org-priority-faces '((?A . error)
                           (?B . warning)
                           (?C . success)
-                          (?D . org-priority)
-                          (?E . org-priority)))
+                          (?D . success)
+                          (?E . org-priority)
+                          (?F . org-priority)))
     (org-priority-highest ?A)
-    (org-priority-lowest ?E) ; default is C
+    (org-priority-lowest ?F) ; default is C, tasks default to C
     (org-reverse-note-order nil) ; put notes at the end of the entry, instead of the top
     (org-archive-location (concat aero/thornlog-archive-file "::* From %s"))
 
@@ -3418,7 +3419,7 @@ Custom display of org priorities
     :after (org)
     :hook (org-mode . org-fancy-priorities-mode)
     :custom
-    (org-fancy-priorities-list '("!!" "↑" "·" "↓" "_")))
+    (org-fancy-priorities-list '("!!" "↑" "·" "↓" "○" "_")))
 #+END_SRC
 
 ** Org-super-agenda
