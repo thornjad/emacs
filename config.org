@@ -2963,6 +2963,7 @@ Super simple way to get a link to a file or line in a file on GitHub
 * Org mode and org agenda
 Org is an incredibly powerful tool in Emacs, and I make the most use of it for task management and note-taking.
 
+** Org helper functions
 Before the actual package config, let's define some useful functions.
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -3085,6 +3086,55 @@ Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-th
                  (move-beginning-of-line 1)
                  (looking-at-p "[ \t]*$")))
       (delete-horizontal-space)))
+#+END_SRC
+
+*** Org formatting helpers
+Call on region or line at point to apply formatting markers
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-apply-format (prefix suffix)
+    "Apply the specified PREFIX and SUFFIX to the active region or current line.
+  If there is an active region, wrap it directly. If there is no active region,
+  apply to the current line, ignoring leading whitespace."
+    (interactive "sPrefix: \nsSuffix: ")
+    (let* ((use-region (region-active-p))
+           (beg (if use-region
+                    (region-beginning)
+                  (save-excursion
+                    (beginning-of-line)
+                    (skip-chars-forward " \t") ; ignore leading whitespace
+                    (point))))
+           (end (if use-region
+                    (region-end)
+                  (line-end-position)))
+           (text (buffer-substring-no-properties beg end)))
+      (delete-region beg end)
+      (insert (concat prefix text suffix))))
+
+  (defun aero/org-apply-bold ()
+    "Wrap region or line in Org *bold* markers."
+    (interactive)
+    (aero/org-apply-format "*" "*"))
+
+  (defun aero/org-apply-italic ()
+    "Wrap region or line in Org /italic/ markers."
+    (interactive)
+    (aero/org-apply-format "/" "/"))
+
+  (defun aero/org-apply-strike-through ()
+    "Wrap region or line in Org +strike-through+ markers."
+    (interactive)
+    (aero/org-apply-format "+" "+"))
+
+  (defun aero/org-apply-verbatim ()
+    "Wrap region or line in Org =verbatim= markers."
+    (interactive)
+    (aero/org-apply-format "=" "="))
+
+  (defun aero/org-apply-code ()
+    "Wrap region or line in Org ~code~ markers."
+    (interactive)
+    (aero/org-apply-format "~" "~"))
 #+END_SRC
 
 ** Org package
