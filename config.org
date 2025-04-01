@@ -3232,6 +3232,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
 
     ;; all agenda files
     (org-agenda-files `(,(expand-file-name "todo.org" aero/roam-path)
+                        ,(expand-file-name "school_todo.org" aero/roam-path)
                         ,(expand-file-name "log.org" aero/roam-path)
                         ,(expand-file-name "ritual.org" aero/roam-path)
                         ,(expand-file-name "holidays.org" aero/roam-path)
