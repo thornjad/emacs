@@ -4,9 +4,7 @@
 EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
-all: upgrade-emacs-macos nongnu-elpa install-macos
-
-build-macos: build-emacs-macos install-macos
+macos: upgrade-emacs-macos nongnu-elpa install-macos
 
 # required, emacs-plus handles the actual Emacs dependencies
 macos-reqs:
@@ -21,7 +19,7 @@ build-emacs-cask: macos-reqs
 	brew install --cask emacs-nightly
 
 build-emacs-macos: macos-reqs
-	brew install emacs-plus@30 --with-savchenkovaleriy-big-sur-3d-icon --with-native-comp --with-xwidgets --with-dbus
+	brew install emacs-plus@30 --with-savchenkovaleriy-big-sur-3d-icon --with-xwidgets --with-dbus
 	ln -sf /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications
 
 # for when libgccjit breaks every few months
