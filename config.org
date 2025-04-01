@@ -713,12 +713,10 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
     (interactive "r")
     (shell-command-on-region beg end "pandoc -t org" nil t))
 
-  (defun aero/open-agenda-file ()
+  (defun aero/open-emacs-config ()
     "Open an org-agenda file from a list of all agenda files."
     (interactive)
-    (let ((file (completing-read "Select agenda file: " (org-agenda-files))))
-      (when file
-        (find-file file))))
+    (find-file (expand-file-name "config.org" user-emacs-directory)))
 
   (defun aero/eslint-fix-file ()
     "Run eslint --fix on the current buffer's file."
@@ -1131,9 +1129,9 @@ From there, we set up all the main keybindings.
      "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
      "fo" '(:ignore t :wk "open special files")
      "fot" '(:ignore t :wk "thornlog")
-     "fota" 'aero/open-agenda-file
      "fott" '(aero/thornlog-todo :wk "thornlog todo")
      "fotl" '(aero/thornlog-log :wk "thornlog log")
+     "fote" 'aero/open-emacs-config
      "fotd" '(aero/thornlog-dir :wk "thornlog all")
      "fw" '(save-buffer :wk "write buffer")
      "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
@@ -3975,7 +3973,7 @@ If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! web-mode "fxbois/web-mode"
-    :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|jsx\\|s?css\\|astro\\)\\'"
+    :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|mjs\\|jsx\\|s?css\\|astro\\)\\'"
     :custom (web-mode-enable-engine-detection t)
     :config
     (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
