@@ -3025,6 +3025,11 @@ Before the actual package config, let's define some useful functions.
               (with-selected-window (display-buffer buf)
                 (org-fit-window-to-buffer))))
         (call-interactively 'org-agenda-list))))
+
+  (defun aero/org-insert-modified-timestamp-now ()
+    "Insert a modified property with the current time."
+    (interactive)
+    (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))
 #+END_SRC
 
 Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
