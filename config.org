@@ -3654,6 +3654,13 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
               (user-error "Git push failed, manual inspection required")
             (message "Done with Thornlog commit and push"))))))
 
+  (defun aero/pull-thornlog ()
+    "Pulls the latest changes from Thornlog."
+    (interactive)
+    (let ((default-directory aero/thornlog-path))
+      (shell-command "git pull origin main")
+      (message "Pulled latest changes from Thornlog")))
+
   (defun insert-meeting-task ()
     (interactive)
     (let* ((meeting-name (read-string "Meeting Name: "))
