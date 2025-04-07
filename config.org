@@ -3493,7 +3493,8 @@ The workhorse of my task management. This package allows me to group tasks in th
 
     :custom
     (org-super-agenda-groups
-     '((:name "Daily Routine" :and (:tag "ritual" :not (:time-grid t)))
+     '((:name "Daily Routine - In Progress" :and (:todo "STARTED" :tag "ritual" :not (:time-grid t)))
+       (:name "Daily Routine" :and (:tag "ritual" :not (:time-grid t)))
        (:name "Holidays" :tag "holiday" :category ("Holiday" "Anniversaries"))
        (:name "Outstanding meetings" :and (:scheduled past :tag "meeting"))
        (:time-grid t)
