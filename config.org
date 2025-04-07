@@ -3314,6 +3314,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
       "r" 'org-refile
       "s" 'org-set-property
       "e" 'org-edit-src-code
+      "d" 'insert-new-day
       "i" '(:ignore t :wk "insert")
       "il" 'org-insert-link
       "it" 'org-time-stamp
@@ -3675,6 +3676,11 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
       (re-search-backward "^\\*+ Meetings" nil t)
       (org-end-of-subtree)
       (insert "\n\n" task-string)))
+
+  (defun insert-new-day ()
+    (interactive)
+    (goto-char (point-max))
+    (yas-expand-snippet (yas-lookup-snippet "new-day")))
 
   (defun aero/org-add-file-tag ()
     "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
