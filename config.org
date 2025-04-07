@@ -3679,6 +3679,8 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
 
   (defun insert-new-day ()
     (interactive)
+    (unless (string= (file-name-nondirectory (buffer-file-name)) "log.org")
+      (user-error "Not in log.org file"))
     (goto-char (point-max))
     (yas-expand-snippet (yas-lookup-snippet "new-day")))
 
