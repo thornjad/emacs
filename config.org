@@ -3174,13 +3174,13 @@ Now for the actual package configuration. This is a long one, so I've made a lot
         (file+headline
          ,(expand-file-name "todo.org" aero/roam-path)
          "Tasks")
-        "* TODO [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        "* TODO [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
         :empty-lines 1)
        ("p" "Ticket (PR)" entry
         (file+headline
          ,(expand-file-name "todo.org" aero/roam-path)
          "Tasks")
-        "* TICKET [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        "* TICKET [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
         :empty-lines 1)
        ("r" "Review (PR or tech design)" entry
         (file+headline
@@ -3192,7 +3192,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
         (file+headline
          ,(expand-file-name "school_todo.org" aero/roam-path)
          "Tasks")
-        "* TODO [#C] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        "* TODO [#B] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
         :empty-lines 1)))
 
     (org-todo-keywords
@@ -3202,14 +3202,16 @@ Now for the actual package configuration. This is a long one, so I've made a lot
 
     (org-use-fast-todo-selection 'expert) ; don't fuck up the window layout
     (org-default-notes-file (expand-file-name "notes_inbox.org" aero/roam-path))
-    (org-priority-faces '((?A . error)
-                          (?B . warning)
-                          (?C . success)
-                          (?D . success)
-                          (?E . org-priority)
-                          (?F . org-priority)))
+    (org-priority-faces '((?A . error) ; emergency
+                          (?B . warning) ; urgent, important
+                          (?C . warning) ; urgent, not important
+                          (?D . success) ; important, not urgent
+                          (?E . success) ; neutral default
+                          (?F . org-priority) ; not urgent, not important
+                          (?G . org-priority) ; backburner
+                          ))
     (org-priority-highest ?A)
-    (org-priority-lowest ?F) ; default is C, tasks default to C
+    (org-priority-lowest ?G) ; default is C, tasks default to E in org-capture
     (org-reverse-note-order nil) ; put notes at the end of the entry, instead of the top
     (org-archive-location (concat aero/thornlog-archive-file "::* From %s"))
 
@@ -3474,7 +3476,10 @@ Custom display of org priorities
     :after (org)
     :hook (org-mode . org-fancy-priorities-mode)
     :custom
-    (org-fancy-priorities-list '("!!" "↑" "·" "↓" "○" "_")))
+
+    ;; Based on the Eisenhower matrix. "!" means urgent, arrows represent importance. "_" is a
+    ;; "backburner" lowest priority. #A is an emergency priority, likely overriding other tasks.
+    (org-fancy-priorities-list '("!!↑↑" "!↑" "!↓" "↑" "·" "↓" "_")))
 #+END_SRC
 
 ** Org-super-agenda
