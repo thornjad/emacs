@@ -1204,11 +1204,6 @@ From there, we set up all the main keybindings.
      "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
      "ws" '(eww-search-words :which-key "web search")
      "ww" 'eww
-     "wb" '(:ignore t :wk "browse")
-     "wbb" 'eww-list-buffers
-     "wbh" 'eww-list-histories
-     "wbm" 'eww-list-bookmarks
-     "wbp" 'browse-url-at-point
      "wp" 'browse-url-at-point
      "wc" 'aero/toggle-compilation-buffer
      "wd" 'delete-window
@@ -2053,6 +2048,48 @@ A better version of the built-in help buffers. This ought to be included in Emac
 #+END_SRC
 
 * UI
+** Side-window management
+Emacs has great functionality built in for side-windows, but its inconsistent. Before using this package I had custom settings sprinkled all over this config, that mostly worked but yet not always. Thankfully this handles it all for me.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! auto-side-windows "MArpogaus/auto-side-windows"
+    :after (general)
+    :hook (after-init . auto-side-windows-mode)
+
+    :custom
+    ;; Top side window configurations
+    (auto-side-windows-top-buffer-names
+     '("^\\*Backtrace\\*$" "^\\*Compile-Log\\*$" "^\\*Quick Help\\*$"
+       "^\\*Multiple Choice Help\\*$"  "^\\*diff-hl\\*$" "^\\*Process List\\*$"))
+    (auto-side-windows-top-buffer-modes
+     '(locate-mode occur-mode grep-mode xref--xref-buffer-mode))
+
+    ;; Bottom side window configurations
+    (auto-side-windows-bottom-buffer-names
+     '("^\\*.*eshell.*\\*$" "^\\*.*shell.*\\*$" "^\\*.*term.*\\*$"
+       "^\\*Warnings\\*$" "^\\*.*vterm.*\\*$"))
+    (auto-side-windows-bottom-buffer-modes
+     '(flymake-diagnostics-buffer-mode eshell-mode shell-mode term-mode vterm-mode comint-mode debugger-mode))
+
+    ;; Right side window configurations
+    (auto-side-windows-right-buffer-names
+     '("^\\*eldoc.*\\*$" "^\\*info\\*$" "^\\*Metahelp\\*$"))
+    (auto-side-windows-right-buffer-modes
+     '(Info-mode TeX-output-mode pdf-view-mode eldoc-mode help-mode
+                 helpful-mode shortdoc-mode))
+
+    (auto-side-windows-left-buffer-names
+     '())
+
+    ;; Fit to buffer for specific sides
+    ;; (auto-side-windows-left-alist '((window-width . fit-window-to-buffer)))
+
+    ;; Force left and right side windows to occupy full frame height
+    (window-sides-vertical t)
+    (window-sides-slots '(1 1 1 1)) ; allow one window per side
+    )
+#+END_SRC
+
 ** Aero modeline
 My custom modeline. Exceptionally loosely based on Doom's modeline, but the code diverged many years ago.
 
@@ -4643,13 +4680,6 @@ For fringe indicators, left is the default, but since git-gutter also uses left 
     (flymake-no-changes-timeout 0.6)
 
     :config
-    ;; Buffer diagnostics in bottom window
-    (add-to-list 'display-buffer-alist
-                 '("\\*Flymake diagnostics for.*"
-                   (display-buffer-reuse-window display-buffer-in-side-window)
-                   (side . bottom)
-                   (window-height . 23)))
-
     (aero-leader-def
       "en" 'flymake-goto-next-error
       "ep" 'flymake-goto-prev-error
@@ -5643,16 +5673,6 @@ Basic startup message override.
   (defun display-startup-echo-area-message ()
     "Override ridiculous built-in crap."
     (message "Aero est prêt"))
-#+END_SRC
-
-Put Eshell in bottom side window
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (add-to-list 'display-buffer-alist
-               '("e?shell\\*\\(?:<[[:digit:]]+>\\)?\\'"
-                 (display-buffer-reuse-window display-buffer-in-side-window)
-                 (side . bottom)
-                 (window-height . 23)))
 #+END_SRC
 
 If we leave a buffer, set its mark as inactive. Helps prevent accidentally following a mark to another file.
