@@ -1203,15 +1203,15 @@ From there, we set up all the main keybindings.
      "w=" 'balance-windows
      "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
      "ws" '(eww-search-words :which-key "web search")
-     "ww" 'eww
+     "we" 'eww
      "wp" 'browse-url-at-point
      "wc" 'aero/toggle-compilation-buffer
      "wd" 'delete-window
-     "wh" 'windmove-left
      "wi" 'minimize-window
-     "wj" 'windmove-down
-     "wk" 'windmove-up
-     "wl" 'windmove-right
+     ;; "wh" 'windmove-left
+     ;; "wj" 'windmove-down
+     ;; "wk" 'windmove-up
+     ;; "wl" 'windmove-right
      "wm" 'maximize-window
      "wo" 'aero/browse-url-open
      "w{" 'shrink-window
@@ -2048,6 +2048,18 @@ A better version of the built-in help buffers. This ought to be included in Emac
 #+END_SRC
 
 * UI
+** Window navigation
+Better than windmove, generally speaking
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! ace-window :auto
+    :after (general)
+    :commands (ace-window)
+    :init
+    (aero-leader-def
+      "ww" 'ace-window))
+#+END_SRC
+
 ** Side-window management with auto side windows
 Emacs has great functionality built in for side-windows, but its inconsistent. Before using this package I had custom settings sprinkled all over this config, that mostly worked but yet not always. Thankfully this handles it all for me.
 
