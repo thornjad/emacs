@@ -3784,11 +3784,13 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
 #+END_SRC
 
 
-*** Update and created timestamps in Org-roam
+*** Updated (modified) and created timestamps in Org-roam
 This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
 
 
 It's useful to know when an org-roam node was created and when it's updated, so I automatically add a ~:created:~ property when visiting a node if it doesn't already exist, and a ~:modified:~ property when saving a node. This way, I can see when a note was created and when it was last modified. Note that the ~:created:~ property parses the timestamp from the filename and relies on Org-roam's default naming scheme. If you use a different naming scheme, you'll need to modify the ~org-roam-extract-timestamp-from-filepath~ function to match your scheme.
+
+For each of these, we ignore non-org files so that we don't try to add org properties to a markdown file.
 
 **** Automated creation date
 
@@ -3796,7 +3798,7 @@ It's useful to know when an org-roam node was created and when it's updated, so 
   (defun aero/org-roam-insert-created-property ()
     "Insert a :created: property for a new Org-roam node if it doesn't already have one."
     (interactive)
-    (when (org-roam-file-p)
+    (when (and (org-roam-file-p) (string-suffix-p ".org" (buffer-name buffer)))
       (unless (org-entry-get (point-min) "created" t)
         (let ((creation-time (aero/org-roam-extract-timestamp-from-filepath
                               (buffer-file-name))))
@@ -3827,7 +3829,7 @@ It's useful to know when an org-roam node was created and when it's updated, so 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/org-roam-insert-modified-property ()
     "Update the :modified: property for an Org-roam node upon saving."
-    (when (org-roam-file-p)
+    (when (and (org-roam-file-p) (string-suffix-p ".org" (buffer-name buffer)))
       (save-excursion
         (goto-char (point-min))  ; Ensure property is applied to the whole file
         (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))))
@@ -3854,6 +3856,18 @@ Provides a more powerful interface for searching org-roam nodes using ripgrep
       "vB" 'consult-org-roam-backlinks-recursive
       "vl" 'consult-org-roam-forward-links
       "v'" 'consult-org-roam-search))
+#+END_SRC
+
+*** Support Markdown in org-roam with md-roam
+Adds support for Markdown files within the roam database. I generally use org, but Markdown can be useful at times and I'd rather not convert.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! md-roam "nobiot/md-roam"
+    :after (org-roam)
+    :custom
+    (org-roam-file-extensions '("org" "md"))
+    :config
+    (md-roam-mode +1))
 #+END_SRC
 
 * Writing
