@@ -3490,7 +3490,29 @@ Some trivial UI improvements for org files. Uses the "replace" set of stars for 
 #+END_SRC
 
 ** Evil-org-mode
-Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See https://github.com/Somelauw/evil-org-mode for a list of available commands.
+Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See https://github.com/Somelauw/evil-org-mode for a list of available commands. Some of the most useful are listed here:
+
+| Key | Command                     |
+|-----+-----------------------------|
+| j   | next line                   |
+| k   | prev line                   |
+| TAB | go to entry in other window |
+| RET | go to entry in this window  |
+| J   | priority up                 |
+| K   | priority down               |
+| gr  | refresh                     |
+| H   | adjust deadline earlier     |
+| L   | adjust deadline later       |
+| p   | date prompt (gr) to apply   |
+| t   | set todo status             |
+| u   | undo                        |
+| ct  | set tags                    |
+| ce  | set effort                  |
+| C   | enter capture               |
+| gh  | show holidays               |
+| gm  | show moon calendar          |
+| gs  | show sunrise/sunset         |
+| gt  | show tags                   |
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-org-mode "Somelauw/evil-org-mode"
