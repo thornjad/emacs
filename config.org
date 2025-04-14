@@ -2085,6 +2085,7 @@ Emacs has great functionality built in for side-windows, but its inconsistent. B
        "^\\*Process List\\*$"))
     (auto-side-windows-bottom-buffer-modes
      '(flymake-diagnostics-buffer-mode eshell-mode shell-mode term-mode vterm-mode comint-mode debugger-mode))
+    (auto-side-windows-top-alist '((window-height . 12)))
 
     (auto-side-windows-right-buffer-names
      '("^\\*eldoc.*\\*$" "^\\*info\\*$" "^\\*Metahelp\\*$"))
@@ -2093,9 +2094,6 @@ Emacs has great functionality built in for side-windows, but its inconsistent. B
 
     (auto-side-windows-top-buffer-modes
      '(compilation-mode))
-
-    ;; Fit to buffer for specific sides
-    ;; (auto-side-windows-left-alist '((window-width . fit-window-to-buffer)))
 
     ;; Force left and right side windows to occupy full frame height
     (window-sides-vertical t)
