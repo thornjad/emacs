@@ -2069,6 +2069,8 @@ Emacs has great functionality built in for side-windows, but its inconsistent. B
     :hook (after-init . auto-side-windows-mode)
 
     :custom
+    (auto-side-windows-common-window-parameters '((no-other-window . t) (tab-line-format . none)))
+
     (auto-side-windows-bottom-buffer-names
      '("^\\*.*eshell.*\\*$"
        "^\\*.*shell.*\\*$"
