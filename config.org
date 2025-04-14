@@ -2048,7 +2048,7 @@ A better version of the built-in help buffers. This ought to be included in Emac
 #+END_SRC
 
 * UI
-** Side-window management
+** Side-window management with auto side windows
 Emacs has great functionality built in for side-windows, but its inconsistent. Before using this package I had custom settings sprinkled all over this config, that mostly worked but yet not always. Thankfully this handles it all for me.
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -2057,29 +2057,25 @@ Emacs has great functionality built in for side-windows, but its inconsistent. B
     :hook (after-init . auto-side-windows-mode)
 
     :custom
-    ;; Top side window configurations
-    (auto-side-windows-top-buffer-names
-     '("^\\*Backtrace\\*$" "^\\*Compile-Log\\*$" "^\\*Quick Help\\*$"
-       "^\\*Multiple Choice Help\\*$"  "^\\*diff-hl\\*$" "^\\*Process List\\*$"))
-    (auto-side-windows-top-buffer-modes
-     '(locate-mode occur-mode grep-mode xref--xref-buffer-mode))
-
-    ;; Bottom side window configurations
     (auto-side-windows-bottom-buffer-names
-     '("^\\*.*eshell.*\\*$" "^\\*.*shell.*\\*$" "^\\*.*term.*\\*$"
-       "^\\*Warnings\\*$" "^\\*.*vterm.*\\*$"))
+     '("^\\*.*eshell.*\\*$"
+       "^\\*.*shell.*\\*$"
+       "^\\*.*term.*\\*$"
+       "^\\*Warnings\\*$"
+       "^\\*.*vterm.*\\*$"
+       "^\\*Backtrace\\*$"
+       "^\\*Compile-Log\\*$"
+       "^\\*Quick Help\\*$"
+       "^\\*Multiple Choice Help\\*$"
+       "^\\*diff-hl\\*$"
+       "^\\*Process List\\*$"))
     (auto-side-windows-bottom-buffer-modes
      '(flymake-diagnostics-buffer-mode eshell-mode shell-mode term-mode vterm-mode comint-mode debugger-mode))
 
-    ;; Right side window configurations
     (auto-side-windows-right-buffer-names
      '("^\\*eldoc.*\\*$" "^\\*info\\*$" "^\\*Metahelp\\*$"))
     (auto-side-windows-right-buffer-modes
-     '(Info-mode TeX-output-mode pdf-view-mode eldoc-mode help-mode
-                 helpful-mode shortdoc-mode))
-
-    (auto-side-windows-left-buffer-names
-     '())
+     '(Info-mode eldoc-mode help-mode helpful-mode shortdoc-mode))
 
     ;; Fit to buffer for specific sides
     ;; (auto-side-windows-left-alist '((window-width . fit-window-to-buffer)))
