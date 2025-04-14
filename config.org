@@ -2077,6 +2077,9 @@ Emacs has great functionality built in for side-windows, but its inconsistent. B
     (auto-side-windows-right-buffer-modes
      '(Info-mode eldoc-mode help-mode helpful-mode shortdoc-mode))
 
+    (auto-side-windows-top-buffer-modes
+     '(compilation-mode))
+
     ;; Fit to buffer for specific sides
     ;; (auto-side-windows-left-alist '((window-width . fit-window-to-buffer)))
 
