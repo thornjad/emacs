@@ -4,7 +4,11 @@
 EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
-macos: upgrade-emacs-macos nongnu-elpa install-macos
+macos: upgrade-emacs-macos install-macos
+	@echo "Installed, run make init to install dependencies, and make clear-straight-build to rebuild all packages on next start"
+
+linux: build-emacs-linux install-linux
+	@echo "Installed, run make init to install dependencies, and make clear-straight-build to rebuild all packages on next start"
 
 # required, emacs-plus handles the actual Emacs dependencies
 macos-reqs:
@@ -53,14 +57,12 @@ install-macos:
 clean-aero-macos:
 	rm -rf /Applications/Emacs.app
 
-build-emacs-linux: nongnu-elpa
+build-emacs-linux: 
 	./bin/build/linux.zsh
 
 install-linux:
 	mkdir -p ~/.local/share/applications/
 	cp ./bin/aero-emacs.desktop ~/.local/share/applications/
-
-linux: build-emacs-linux install-linux
 
 .PHONY: nongnu-elpa
 nongnu-elpa:
@@ -77,6 +79,9 @@ init: nongnu-elpa install-deps submodule
 
 clear-straight:
 	rm -rf ./straight/
+
+clear-straight-build:
+	rm -rf ./straight/build
 
 # Clear out packages and re-init
 hard-init: clear-straight init
