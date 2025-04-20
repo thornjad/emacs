@@ -5207,7 +5207,7 @@ We also try defining a pair of simple tools, but this is experimental.
       (gptel-make-kagi "Kagi" :key kagi-api-key))
 
     (when (and (boundp 'deepseek-api-key) deepseek-api-key)
-      (gptel-make-deepseek "DeepSeek" :key deepseek-api-key))
+      (gptel-make-deepseek "DeepSeek" :key deepseek-api-key :stream t))
 
     (gptel-make-tool
      :name "read_buffer"
