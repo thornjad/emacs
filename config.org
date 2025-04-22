@@ -2060,48 +2060,38 @@ Useful when windmove thinks a window doesn't exist
       "ww" 'ace-window))
 #+END_SRC
 
-** Side-window management with auto side windows
-This is temporarily disabled while I figure out some other solution that works better with my flow. The side windows this creates are difficult to navigate between, configuration is cumbersome, and I don't use it for many things anyway.
-
-Emacs has great functionality built in for side-windows, but its inconsistent. Before using this package I had custom settings sprinkled all over this config, that mostly worked but yet not always. Thankfully this handles it all for me.
+** Side-window management
+This macro makes it easier to configure side windows
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! auto-side-windows "MArpogaus/auto-side-windows"
-    :disabled
-    :after (general)
-    :hook (after-init . auto-side-windows-mode)
+  (defmacro aero/configure-side-window (&rest args)
+    (let ((regex (plist-get args :regex))
+          (side (plist-get args :side))
+          (height (plist-get args :height)))
+      `(add-to-list 'display-buffer-alist
+                    '(,regex
+                      (display-buffer-reuse-window display-buffer-in-side-window)
+                      (side . ,side)
+                      (window-height . ,height)
+                      (window-parameters . ((no-other-window . nil)))))))
+#+END_SRC
 
-    :custom
-    (auto-side-windows-common-window-parameters '((no-other-window . t) (tab-line-format . none)))
+Put Eshell in bottom side window
 
-    (auto-side-windows-bottom-buffer-names
-     '("^\\*.*eshell.*\\*$"
-       "^\\*.*shell.*\\*$"
-       "^\\*.*term.*\\*$"
-       "^\\*Warnings\\*$"
-       "^\\*.*vterm.*\\*$"
-       "^\\*Backtrace\\*$"
-       "^\\*Compile-Log\\*$"
-       "^\\*Quick Help\\*$"
-       "^\\*Multiple Choice Help\\*$"
-       "^\\*diff-hl\\*$"
-       "^\\*Process List\\*$"))
-    (auto-side-windows-bottom-buffer-modes
-     '(flymake-diagnostics-buffer-mode eshell-mode shell-mode term-mode vterm-mode comint-mode debugger-mode))
-    (auto-side-windows-top-alist '((window-height . 12)))
+#+BEGIN_SRC emacs-lisp :lexical t
+  (aero/configure-side-window
+   :regex "e?shell\\*\\(?:<[[:digit:]]+>\\)?\\'"
+   :side bottom
+   :height 23)
+#+END_SRC
 
-    (auto-side-windows-right-buffer-names
-     '("^\\*eldoc.*\\*$" "^\\*info\\*$" "^\\*Metahelp\\*$"))
-    (auto-side-windows-right-buffer-modes
-     '(Info-mode eldoc-mode help-mode helpful-mode shortdoc-mode))
+Flymake goes in the bottom
 
-    (auto-side-windows-top-buffer-modes
-     '(compilation-mode))
-
-    ;; Force left and right side windows to occupy full frame height
-    (window-sides-vertical t)
-    (window-sides-slots '(1 1 1 1)) ; allow one window per side
-    )
+#+BEGIN_SRC emacs-lisp :lexical t
+  (aero/configure-side-window
+   :regex "\\*Flymake diagnostics for.*"
+   :side bottom
+   :height 20)
 #+END_SRC
 
 ** Aero modeline
