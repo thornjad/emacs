@@ -2049,7 +2049,7 @@ A better version of the built-in help buffers. This ought to be included in Emac
 
 * UI
 ** Window navigation
-Better than windmove, generally speaking
+Useful when windmove thinks a window doesn't exist
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! ace-window :auto
@@ -2061,10 +2061,13 @@ Better than windmove, generally speaking
 #+END_SRC
 
 ** Side-window management with auto side windows
+This is temporarily disabled while I figure out some other solution that works better with my flow. The side windows this creates are difficult to navigate between, configuration is cumbersome, and I don't use it for many things anyway.
+
 Emacs has great functionality built in for side-windows, but its inconsistent. Before using this package I had custom settings sprinkled all over this config, that mostly worked but yet not always. Thankfully this handles it all for me.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! auto-side-windows "MArpogaus/auto-side-windows"
+    :disabled
     :after (general)
     :hook (after-init . auto-side-windows-mode)
 
