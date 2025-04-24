@@ -1203,7 +1203,7 @@ From there, we set up all the main keybindings.
      "w=" 'balance-windows
      "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
      "ws" '(eww-search-words :which-key "web search")
-     "we" 'eww
+     "ww" 'eww
      "wp" 'browse-url-at-point
      "wc" 'aero/toggle-compilation-buffer
      "wd" 'delete-window
@@ -2057,7 +2057,7 @@ Useful when windmove thinks a window doesn't exist
     :commands (ace-window)
     :init
     (aero-leader-def
-      "ww" 'ace-window))
+      "wW" 'ace-window))
 #+END_SRC
 
 ** Side-window management
