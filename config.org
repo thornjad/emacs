@@ -2919,6 +2919,19 @@ One of the truly great packages in Emacs. I use it for everything git-related.
         (message "Checked out PR as %s" new-branch))))
 #+END_SRC
 
+** Git master
+This is an Emacs version of a git alias I use a lot, and running it here is a lot faster than starting up Magit on MacOS. Magit is just as fast as this command on Linux, but it's still convenient.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/project-git-sync-master ()
+    "In the current project's root, switch to master, pull, show status, and update submodules."
+    (interactive)
+    (let ((default-directory (project-root (project-current))))
+      (async-shell-command
+       "git switch master && git pull && git status -sb && git submodule update"
+       "*project-git-sync-master*")))
+#+END_SRC
+
 ** git-gutter
 Provides a visual indicator of changes in the gutter. I use it to quickly see what's changed in a file. The backends is set to git by default, and only loads the others if they actually exist on the system, which they never do.
 
