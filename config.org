@@ -2928,7 +2928,7 @@ This is an Emacs version of a git alias I use a lot, and running it here is a lo
     (interactive)
     (let ((default-directory (project-root (project-current))))
       (async-shell-command
-       "git switch master && git pull && git status -sb && git submodule update"
+       "git switch master && git pull && git submodule update && git status -sb"
        "*project-git-sync-master*")))
 #+END_SRC
 
