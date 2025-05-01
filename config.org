@@ -760,6 +760,14 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
             (revert-buffer t t t))
         (message "Prettier fix failed with error code %d" exit-code)
         (pop-to-buffer error-buffer))))
+
+  (defun aero/make-home ()
+    "Run make in home directory.
+
+  I use this to run a manual sync on a handful of git repositories, including this config."
+    (interactive)
+    (let ((default-directory (expand-file-name "~/")))
+      (compile "make")))
 #+END_SRC
 
 * Packaging setup
