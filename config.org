@@ -3581,8 +3581,28 @@ The workhorse of my task management. This package allows me to group tasks in th
       (org-super-agenda-mode)
       (setq org-super-agenda-header-map (make-sparse-keymap)))
 
+    (defvar aero/org-super-agenda-timer nil)
+
+    (defun aero/org-super-agenda-refresh ()
+      "If *Org Agenda* is visible, select its window and do a proper org-agenda-redo."
+      (when-let ((win (get-buffer-window "*Org Agenda*")))
+        (with-selected-window win
+          (org-agenda-redo))))
+
+    (defun aero/org-super-agenda-start-timer ()
+      (interactive)
+      (unless aero/org-super-agenda-timer
+        (setq aero/org-super-agenda-timer
+              (run-at-time t 60 #'aero/org-super-agenda-refresh))))
+
+    (defun aero/org-super-agenda-stop-timer ()
+      (interactive)
+      (when aero/org-super-agenda-timer
+        (cancel-timer aero/org-super-agenda-timer)
+        (setq aero/org-super-agenda-timer nil)))
+
     :hook ((org-agenda-after-show . recenter)
-           (org-agenda-mode . aero/org-super-agenda-without-keymap))
+           (org-agenda-mode . (aero/org-super-agenda-without-keymap aero/org-super-agenda-start-timer)))
 
     :custom
     (org-super-agenda-groups
@@ -3605,7 +3625,18 @@ The workhorse of my task management. This package allows me to group tasks in th
        (:name "Backlog" :todo "BACKLOG")))
 
     ;; add space between dates by adding space after the final group
-    (org-super-agenda-final-group-separator "\n"))
+    (org-super-agenda-final-group-separator "\n")
+
+    ;; Force the agenda to not override evil keys on the header
+    ;; https://github.com/alphapapa/org-super-agenda/issues/239
+    (org-super-agenda-header-map nil)
+
+    :config
+    ;; Stop the timer if the agenda buffer is killed
+    (add-hook 'kill-buffer-hook
+              (lambda ()
+                (when (string= (buffer-name) "*Org Agenda*")
+                  (aero/org-super-agenda-stop-timer)))))
 #+END_SRC
 
 ** Org-download
