@@ -3602,7 +3602,8 @@ The workhorse of my task management. This package allows me to group tasks in th
         (setq aero/org-super-agenda-timer nil)))
 
     :hook ((org-agenda-after-show . recenter)
-           (org-agenda-mode . (aero/org-super-agenda-without-keymap aero/org-super-agenda-start-timer)))
+           (org-agenda-mode . aero/org-super-agenda-start-timer)
+           (org-agenda-mode . aero/org-super-agenda-without-keymap))
 
     :custom
     (org-super-agenda-groups
