@@ -3593,7 +3593,10 @@ The workhorse of my task management. This package allows me to group tasks in th
       (interactive)
       (unless aero/org-super-agenda-timer
         (setq aero/org-super-agenda-timer
-              (run-at-time t 60 #'aero/org-super-agenda-refresh))))
+              (let* ((now   (float-time))
+                     (sec   (mod now 60))
+                     (delay (if (zerop sec) 0.0 (- 60 sec))))
+                (run-at-time delay 60 #'aero/org-super-agenda-refresh)))))
 
     (defun aero/org-super-agenda-stop-timer ()
       (interactive)
