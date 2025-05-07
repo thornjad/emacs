@@ -3545,7 +3545,7 @@ Use evil in org, particularly in org-agenda. Also unblocks using aero-leader cho
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-org-mode "Somelauw/evil-org-mode"
-    :after (evil org org-super-agenda)
+    :after (evil org)
     :preface
     (defun aero/evil-org-agenda-mode ()
       "Shim in org-agenda evil mode."
