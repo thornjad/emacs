@@ -3579,7 +3579,7 @@ The workhorse of my task management. This package allows me to group tasks in th
     (defun aero/org-super-agenda-without-keymap ()
       "Stops super-agenda from overriding evil-org bindings."
       (org-super-agenda-mode)
-      (setq org-super-agenda-header-map (make-sparse-keymap)))
+      (setq org-super-agenda-header-map nil))
 
     (defvar aero/org-super-agenda-timer nil)
 
