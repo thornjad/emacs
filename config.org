@@ -5220,7 +5220,7 @@ Allows managing feeds in an org file
 
 * AI
 ** Helper functions
-Estimates tokens in the current buffer or region. Not exact, but gives an idea
+Estimates tokens in the current buffer or region. Not exact, but gives an idea, useful if you're worried about running up against context limits. With Gptel this can be used within the context inspection buffer to really make you realize how big a million tokens is (around 750k words, or roughly 2 MB). This is based on OpenAI's guidance, and varies by text, model, etc. But this should be right by magnitude at the least.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun estimate-llm-tokens-dwim ()
