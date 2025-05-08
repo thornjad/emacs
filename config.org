@@ -5219,6 +5219,19 @@ Allows managing feeds in an org file
 #+END_SRC
 
 * AI
+** Helper functions
+Estimates tokens in the current buffer or region. Not exact, but gives an idea
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun estimate-llm-tokens-dwim ()
+    "Estimate the number of tokens in the current region or buffer. This is a simple estimate, not to
+  be relied on."
+    (interactive)
+    (let ((start (if (use-region-p) (region-beginning) (point-min)))
+          (end (if (use-region-p) (region-end) (point-max))))
+      (message "Estimated tokens: %d" (* 1.33 (count-words start end)))))
+#+END_SRC
+
 ** Gptel
 Generic interface to a variety of LLMs.
 
