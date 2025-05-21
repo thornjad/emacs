@@ -2439,14 +2439,15 @@ Set up the default frame in an agreeable fashion. The width is based on a buffer
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (setq default-frame-alist
-        (append (list '(width  . 212) '(height . 62)
-                      '(tool-bar-lines . 0)
-                      '(menu-bar-lines . 0)
-                      '(internal-border-width . 8)
-                      '(left-fringe . 8) '(right-fringe . 8)
-                      '(vertical-scroll-bars . nil)
-                      '(ns-transparent-titlebar . t))))
-  (split-window-horizontally)
+        (append (list
+                 ;; '(width  . 212) '(height . 62)
+                 '(tool-bar-lines . 0)
+                 '(menu-bar-lines . 0)
+                 '(internal-border-width . 8)
+                 '(left-fringe . 8) '(right-fringe . 8)
+                 '(vertical-scroll-bars . nil)
+                 '(ns-transparent-titlebar . t))))
+  ;; (split-window-horizontally)
   (if (fboundp 'fringe-mode) (fringe-mode '8))
   (set-frame-parameter (selected-frame) 'internal-border-width 8)
   (when (fboundp 'pixel-scroll-precision-mode)
