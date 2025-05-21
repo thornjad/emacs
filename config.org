@@ -3762,7 +3762,7 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
   (defun aero/thornlog-todo ()
     "Personal todo list."
     (interactive)
-    (org-roam-node-visit (org-roam-node-from-title-or-alias "Work Todo: Triaged Tasks and Inbox")))
+    (org-roam-node-visit (org-roam-node-from-title-or-alias "Main Todo: Triaged Tasks and Inbox")))
 
   (defun aero/thornlog-clean-save ()
     "Automates the git commit in thornlog."
