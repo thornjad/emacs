@@ -1220,6 +1220,7 @@ From there, we set up all the main keybindings.
      "wl" 'windmove-right
      "wj" 'windmove-down
      "wk" 'windmove-up
+     "wf" 'other-frame
      "wm" 'maximize-window
      "wo" 'aero/browse-url-open
      "w{" 'shrink-window
