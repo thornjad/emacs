@@ -2098,6 +2098,15 @@ Put Eshell in bottom side window
    :height 23)
 #+END_SRC
 
+Same for vterm
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (aero/configure-side-window
+   :regex "\\*vterminal.*"
+   :side bottom
+   :height 23)
+#+END_SRC
+
 Flymake goes in the bottom
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -5369,6 +5378,52 @@ Colorize shell output
       (funcall f proc (xterm-color-filter string)))
     (advice-add 'compilation-filter :around #'aero/advice-compilation-filter))
 #+END_SRC
+
+** vterm
+Note: vterm requires libvterm-dev, which may not be installed. See https://github.com/akermu/emacs-libvterm for full install instructions. Also requires shell-side configuration.
+
+#+begin_src emacs-lisp :lexical t
+  (when (bound-and-true-p module-file-suffix)  ; Requires Emacs modules
+    (package! vterm :auto :defer t
+      :after (general)
+      :custom
+      (vterm-max-scrollback 5000)
+      (vterm-kill-buffer-on-exit t)
+
+      :init
+      ;; HACK vterm clumsily forces vterm-module.so to compile when the package is loaded. This is
+      ;; necessary to prevent compilation when use-package is evaluated during byte- or
+      ;; native-compilation of _this_ file.
+      (when noninteractive
+        (advice-add #'vterm-module-compile :override #'ignore)
+        (provide 'vterm-module))
+
+      (aero-leader-def
+        "S'" 'vterm)))
+#+end_src
+
+*** multi-vterm
+Makes it easier to run multiple vterm instances at once, especially per-project
+
+#+begin_src emacs-lisp :lexical t
+  (package! multi-vterm :auto :defer t
+    :after (vterm general)
+    :init
+    (aero-leader-def
+      "`" 'multi-vterm-dedicated-toggle
+      "p`" 'multi-vterm-project)
+
+    :config
+  	(add-hook 'vterm-mode-hook
+  			      (lambda ()
+  			        (setq-local evil-insert-state-cursor 'bar)
+  			        (evil-insert-state)))
+
+    (aero-mode-leader-def 'vterm-mode-map
+      "c" 'multi-vterm
+      "n" 'mutli-vterm-next
+      "p" 'multi-vterm-prev))
+#+end_src
 
 ** Eshell
 Realistically this is my main shell. It does try to override some important bindings by default, so we undo that.
