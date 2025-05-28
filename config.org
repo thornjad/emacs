@@ -3578,14 +3578,30 @@ The workhorse of my task management. This package allows me to group tasks in th
       (setq org-super-agenda-header-map nil))
 
     (defvar aero/org-super-agenda-timer nil)
+    (defvar aero/org-super-agenda-idle-seconds 7
+      "Number of seconds of inactivity before the agenda is considered idle.")
+    (defvar aero/org-super-agenda-last-activity (float-time))
+
+    (defun aero/org-super-agenda-update-last-activity (&rest _)
+      "Update the last activity time."
+      (setq aero/org-super-agenda-last-activity (float-time)))
+
+    (defun aero/org-super-agenda-should-refresh ()
+      (let ((agenda-buffer (get-buffer "*Org Agenda*")))
+        (and agenda-buffer
+             (or (not (eq (current-buffer) agenda-buffer))
+                 (>= (- (float-time) aero/org-super-agenda-last-activity)
+                     aero/org-super-agenda-idle-seconds)))))
 
     (defun aero/org-super-agenda-refresh ()
       "If *Org Agenda* is visible, select its window and do a proper org-agenda-redo."
-      (when-let ((win (get-buffer-window "*Org Agenda*")))
-        (with-selected-window win
-          (org-agenda-redo))))
+      (when (aero/org-super-agenda-should-refresh)
+        (when-let ((win (get-buffer-window "*Org Agenda*")))
+          (with-selected-window win
+            (org-agenda-redo)))))
 
     (defun aero/org-super-agenda-start-timer ()
+      "Start a timer to refresh the super agenda every minute."
       (interactive)
       (unless aero/org-super-agenda-timer
         (setq aero/org-super-agenda-timer
@@ -3600,9 +3616,14 @@ The workhorse of my task management. This package allows me to group tasks in th
         (cancel-timer aero/org-super-agenda-timer)
         (setq aero/org-super-agenda-timer nil)))
 
+    (defun aero/org-super-agenda-setup-local-last-activity-hook ()
+      "Set up the post-command-hook to update the last activity time in the agenda buffer."
+      (add-hook 'post-command-hook #'aero/org-super-agenda-update-last-activity nil t))
+
     :hook ((org-agenda-after-show . recenter)
            (org-agenda-mode . aero/org-super-agenda-start-timer)
-           (org-agenda-mode . aero/org-super-agenda-without-keymap))
+           (org-agenda-mode . aero/org-super-agenda-without-keymap)
+           (org-agenda-mode . aero/org-super-agenda-setup-local-last-activity-hook))
 
     :custom
     (org-super-agenda-groups
