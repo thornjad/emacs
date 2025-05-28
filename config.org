@@ -3088,22 +3088,6 @@ Before the actual package config, let's define some useful functions.
     (when (member org-state '("TODO"))
       (show-subtree)))
 
-  (defun jump-to-org-agenda ()
-    "Go to the org agenda. Used on idle timer."
-    (interactive)
-    (let ((buf (get-buffer "*Org Agenda*"))
-          wind)
-      (if buf
-          (if (setq wind (get-buffer-window buf))
-              (select-window wind)
-            (if (called-interactively-p 'any)
-                (progn
-                  (select-window (display-buffer buf t t))
-                  (org-fit-window-to-buffer))
-              (with-selected-window (display-buffer buf)
-                (org-fit-window-to-buffer))))
-        (call-interactively 'org-agenda-list))))
-
   (defun aero/org-insert-modified-timestamp-now ()
     "Insert a modified property with the current time."
     (interactive)
