@@ -4883,16 +4883,25 @@ It's hard to remember what this package is called, which is a marker of a bad na
     (:repo "radian-software/apheleia"
      :files (:defaults ("scripts" "scripts/formatters")))
     :after general
-    :init (apheleia-global-mode +1)
-    :config
+
+    :init
+    ;; Ensure black skips changing strings
+    (with-eval-after-load 'apheleia
+      (setf (alist-get 'black apheleia-formatters)
+            '("black" "--skip-string-normalization"
+              (when (apheleia-formatters-extension-p "pyi") "--pyi")
+              (apheleia-formatters-fill-column "--line-length")
+              "-")))
+
     (dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
                    (cljfmt . ("lein" "cljfmt" "fix" filepath))))
       (add-to-list 'apheleia-formatters cmd))
-
     (add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
 
-    (aero-leader-def
-      "bI" 'apheleia-format-buffer))
+    (apheleia-global-mode +1)
+
+    :config
+    (aero-leader-def "bI" 'apheleia-format-buffer))
 #+END_SRC
 
 * Debugging with Dape
