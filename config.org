@@ -4010,6 +4010,19 @@ A simple way to make HTTP requests from within Emacs
       "y" 'restclient-copy-curl-command))
 #+END_SRC
 
+** Verb (HTTP requests from Org-mode)
+Like Restclient.el, but for org-mode so I can save my queries in roam
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! verb :auto
+    :commands (verb-send-request-on-point-other-window-stay)
+    :after (org general)
+    :init
+    (aero-mode-leader-def
+      :keymaps 'org-mode-map
+      "RET" 'verb-send-request-on-point-other-window-stay))
+#+END_SRC
+
 ** ESUP
 Emacs startup profiler.
 
