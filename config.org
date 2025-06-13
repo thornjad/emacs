@@ -5077,8 +5077,6 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
       "D" 'eww-download
       "o" 'eww
       "O" 'eww-open-in-new-buffer
-      "p" 'pocket-reader-eww-add-link
-      "P" 'aero/pocket-add-current-url
       "f" 'ace-link-eww
       "F" 'aero/ace-link-eww-new-buffer
       "m" 'eww-add-bookmark
