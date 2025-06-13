@@ -1035,7 +1035,6 @@ From there, we set up all the main keybindings.
     (general-def
       (kbd "C-h") 'delete-backward-char
       (kbd "C-w") 'aero/smarter-backward-kill-word
-      (kbd "C-TAB") 'insert-tab
       (kbd "M-TAB") 'aero/alternate-buffer
       (kbd "C-RET") 'aero/browse-url-open)
 
@@ -1143,6 +1142,11 @@ From there, we set up all the main keybindings.
      "fotd" '(aero/thornlog-dir :wk "thornlog all")
      "fw" '(save-buffer :wk "write buffer")
      "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
+
+     "F" '(:ignore t :wk "frame")
+     "Fc" 'make-frame
+     "Ff" 'find-file-other-frame
+     "Fx" 'delete-frame
 
      "g" '(:ignore t :wk "git")
      "gf" '(:ignore t :wk "files")
@@ -1289,6 +1293,11 @@ In visual mode, use =<= and =>= to indent/unindent the line(s)
       (evil-scroll-up (/ (window-body-height) 4)))
     (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
     (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
+
+    ;; Use C-f to switch frames, have to override a scrolling function
+    (evil-define-key nil global-map (kbd "C-f") #'other-frame)
+    (evil-define-key '(normal visual motion) global-map (kbd "C-f") #'other-frame)
+    (evil-define-key '(normal visual motion) magit-mode-map (kbd "C-f") #'other-frame)
 
     ;; Define =vig= and =vag= to look for all paren types
     (defun aero/evil-paren-range (count beg end type inclusive)
