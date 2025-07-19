@@ -5410,6 +5410,14 @@ Most interaction is done through =SPC a i a=, after starting the Aider process. 
   Reply only with the one-line commit message, without any additional text, explanations, or line breaks."))
 #+END_SRC
 
+** Claude Code
+Interface for working with Claude from Emacs, with context about what I'm looking at.
+
+Haven't actually gotten this working yet.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! claude-code-ide "manzaltu/claude-code-ide.el")
+#+END_SRC
 * Shell
 ** Xterm-color
 Colorize shell output
@@ -5469,6 +5477,16 @@ Makes it easier to run multiple vterm instances at once, especially per-project
       "n" 'mutli-vterm-next
       "p" 'multi-vterm-prev))
 #+end_src
+
+*** EAT
+Trying this out, it claims to work better with Claude
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! eat :auto
+    :hook (eshell-load . eat-eshell-mode)
+    :custom (eat-default-cursor-type '(nil nil nil)) ; no blinking
+    )
+#+END_SRC
 
 ** Eshell
 Realistically this is my main shell. It does try to override some important bindings by default, so we undo that.

@@ -97,6 +97,7 @@ install-deps: lsp-booster graphviz install-npm
 	rustup component add rls rust-analysis rust-src || true
 	brew install clojure-lsp/brew/clojure-lsp-native || true
 	brew install aspell
+	brew install cmake
 
 install-npm:
 	npm i -g bash-language-server @types/node || true
