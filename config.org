@@ -5254,8 +5254,6 @@ Generic interface to a variety of LLMs.
 
 We do register Claude as a valid backend, but it's not a default because I've found it to hallucinate a lot more than GPT (as of 2024).
 
-Also set up Deepseek connection if the API key is available. This is banned in my job because China is scary, but it's actually better than GPT for many things, so it's what I tend to use outside of work.
-
 We also try defining a pair of simple tools, but this is experimental.
 
 #+BEGIN_SRC emacs-lisp :lexical t
@@ -5315,9 +5313,6 @@ We also try defining a pair of simple tools, but this is experimental.
     (when (and (boundp 'kagi-api-key) kagi-api-key)
       (gptel-make-kagi "Kagi" :key kagi-api-key))
 
-    (when (and (boundp 'deepseek-api-key) deepseek-api-key)
-      (gptel-make-deepseek "DeepSeek" :key deepseek-api-key :stream t))
-
     (gptel-make-tool
      :name "read_buffer"
      :function (lambda (buffer)
@@ -5376,6 +5371,7 @@ Most interaction is done through =SPC a i a=, after starting the Aider process. 
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! aider "tninja/aider.el"
+:disabled t
     :after (general)
     :functions (aider-transient-menu
                 aider-run-aider
