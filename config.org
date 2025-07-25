@@ -4135,6 +4135,7 @@ We make an alteration to =markdown-mode-syntax-table= to teach it that quotes me
     :after (general smartparens)
     :mode (("\\.md\\'" . gfm-mode)
            ("\\.markdown\\'" . gfm-mode)
+           ("\\.mdc\\'" . gfm-mode)
            ("github\\.com.*\\.txt\\'" . gfm-mode))
     :hook (markdown-mode . flyspell-mode)
 
