@@ -467,6 +467,31 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
     "Insert current Unix timestamp."
     (interactive)
     (insert (format-time-string "%s")))
+
+  (defun aero/insert-org-date-at-heading ()
+    "Choose a date and add it to the end of the closest heading above point.
+Inserts date with day of the week. If the heading has tags, insert date before the tags.
+If no heading is found above, insert at point instead."
+    (interactive)
+    (let* ((date (org-read-date nil t nil "Choose date: "))
+           (date-string (format-time-string "<%Y-%m-%d %a>" date))
+           (current-pos (point)))
+      (save-excursion
+        (if (re-search-backward "^\\*+ " nil t)
+            (progn
+              ;; Found a heading, go to end of line
+              (end-of-line)
+              ;; Check if there are tags at the end
+              (if (looking-back "\\s-+:[[:alnum:]_@#%:]+:\\s-*" (line-beginning-position))
+                  ;; Insert before tags
+                  (progn
+                    (re-search-backward "\\s-+:" (line-beginning-position) t)
+                    (insert " " date-string))
+                ;; No tags, insert at end of line
+                (insert " " date-string)))
+          ;; No heading found, insert at original point
+          (goto-char current-pos)
+          (insert date-string)))))
   (defun aero/insert-unix-time-milliseconds ()
     "Insert current Unix timestamp."
     (interactive)
