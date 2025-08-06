@@ -5394,56 +5394,6 @@ Enabled in all programming modes. I've tried automatically enabling in org-mode 
            ("C-c C-p" . copilot-previous-completion)))
 #+END_SRC
 
-** Aider
-Unfortunately Cursor is not available for integration, at least as of May 2025, so we're trying out this alternative called Aider.
-
-Most interaction is done through =SPC a i a=, after starting the Aider process. The only major configuration needed is an overridden commit message so it doesn't use "conventional commit" format.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! aider "tninja/aider.el"
-:disabled t
-    :after (general)
-    :functions (aider-transient-menu
-                aider-run-aider
-                aider-switch-to-buffer
-                aider-function-or-region-refactor
-                aider-implement-todo
-                aider-write-unit-test)
-    :custom
-    (aider-args '("--model" "sonnet" "--no-auto-accept-architect" "--no-gitignore"))
-    :init
-    (aero-leader-def
-      "aia" 'aider-transient-menu
-      "aib" 'aider-switch-to-buffer
-      "aif" 'aider-function-or-region-refactor
-      "ait" 'aider-implement-todo
-      "aiu" 'aider-write-unit-test
-      "aiq" 'aider-ask-question
-      "aig" 'aider-go-ahead)
-    :config
-    (setenv "AIDER_COMMIT_PROMPT" "You are an expert software engineer that generates concise, one-line Git commit messages based on the provided diffs.
-  Review the provided context and diffs which are about to be committed to a git repo.
-  Review the diffs carefully.
-  Generate a one-line commit message for those changes.
-  You MUST NEVER prefix a commit message with a commit type. Conventional commit format is forbidden.
-
-  Ensure the commit message:
-  - Does not begin with a type
-  - Is in the imperative mood (e.g., \"add feature\" not \"added feature\" or \"adding feature\")
-  - Does not begin with a capital letter
-  - Does not exceed 72 characters
-
-  Reply only with the one-line commit message, without any additional text, explanations, or line breaks."))
-#+END_SRC
-
-** Claude Code
-Interface for working with Claude from Emacs, with context about what I'm looking at.
-
-Haven't actually gotten this working yet.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! claude-code-ide "manzaltu/claude-code-ide.el")
-#+END_SRC
 * Shell
 ** Xterm-color
 Colorize shell output
