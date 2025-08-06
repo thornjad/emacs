@@ -3126,6 +3126,10 @@ Before the actual package config, let's define some useful functions.
     "Insert a modified property with the current time."
     (interactive)
     (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))
+
+  (defun aero/org-capture-created-timestamp ()
+    "Return formatted timestamp for org-capture CREATED property."
+    (format-time-string "[%Y-%m-%d %a %H:%M]"))
 #+END_SRC
 
 Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
@@ -3270,25 +3274,25 @@ Now for the actual package configuration. This is a long one, so I've made a lot
         (file+headline
          ,(expand-file-name "todo.org" aero/roam-path)
          "Tasks")
-        "* TODO [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        "* TODO [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n\n"
         :empty-lines 1)
        ("p" "Ticket (PR)" entry
         (file+headline
          ,(expand-file-name "todo.org" aero/roam-path)
          "Tasks")
-        "* TICKET [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n"
+        "* TICKET [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n"
         :empty-lines 1)
        ("r" "Review (PR or tech design)" entry
         (file+headline
          ,(expand-file-name "todo.org" aero/roam-path)
          "Tasks")
-        "* REVIEW [#B] %? :review:\nSCHEDULED: %t DEADLINE: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\nLink: "
+        "* REVIEW [#B] %? :review:\nSCHEDULED: %t DEADLINE: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\nLink: "
         :empty-lines 1)
        ("s" "School inbox item" entry
         (file+headline
          ,(expand-file-name "school_todo.org" aero/roam-path)
          "Tasks")
-        "* TODO [#B] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n"
+        "* TODO [#B] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n\n"
         :empty-lines 1)))
 
     (org-todo-keywords
