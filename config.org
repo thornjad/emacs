@@ -5850,6 +5850,12 @@ Prevent savehist from hogging the CPU
   (put 'kill-ring 'history-length 25)
 #+END_SRC
 
+Start the Emacs server automatically so that emacsclient can always connect.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (server-start)
+#+END_SRC
+
 Try to get emacsclient to open frames with focus. Doesn't always work, especially in GNOME.
 
 #+BEGIN_SRC emacs-lisp :lexical t
