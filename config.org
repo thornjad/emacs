@@ -3846,6 +3846,12 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
       (shell-command "git pull origin main")
       (message "Pulled latest changes from Thornlog")))
 
+  (defun aero/thornlog-tickets ()
+    "Run an AI Agent with /tickets command in thornlog directory."
+    (interactive)
+    (let ((default-directory aero/thornlog-path))
+      (async-shell-command "claude --print /tickets" "*Claude Tickets*")))
+
   (defun insert-meeting-task ()
     (interactive)
     (let* ((meeting-name (read-string "Meeting Name: "))
