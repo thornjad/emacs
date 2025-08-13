@@ -116,3 +116,64 @@ The configuration is not designed as a distribution but as a personal system tha
 - **Company mode**: Auto-completion with company-box UI
 - **Apheleia**: Automatic code formatting on save
 - **Tree-sitter**: Syntax highlighting for supported languages
+
+## Code Organization and Development Patterns
+
+### Function Naming Convention
+All custom functions follow the `aero/` prefix convention. Common patterns:
+- **Interactive functions**: Use `(interactive)` for user-callable commands
+- **Shell commands**: Use `shell-command` for synchronous, `async-shell-command` for non-blocking
+- **Directory context**: Use `(let ((default-directory path)) ...)` to run commands in specific directories
+
+### Configuration Structure in `config.org`
+- **"Directory constants"** section: Path definitions and environment setup (lines ~108-131)
+- **"Keybindings" → "General"** section: Key bindings defined using general.el with Evil mode leader keys
+- **"Org mode and org agenda"** section: Personal workflow functions and org-mode customizations
+- **"Org-roam" → "Thornlog"** subsection: Personal logging and task management functions
+
+### Common Code Execution Patterns
+```elisp
+;; Synchronous shell command
+(shell-command "command")
+
+;; Async with output buffer
+(async-shell-command "command" "*Buffer Name*")
+
+;; Directory-specific execution
+(let ((default-directory target-directory))
+  (shell-command "command"))
+
+;; Interactive function template
+(defun aero/function-name ()
+  "Description of what this function does."
+  (interactive)
+  ;; function body
+  )
+```
+
+### Key Binding Organization
+- Uses `general.el` for key binding management
+- Leader key is `SPC` (space)
+- Organized hierarchically: `SPC f` (files), `SPC b` (buffers), `SPC p` (projects)
+- Custom functions typically bound under logical prefixes
+
+### Search Tips for Development
+When looking for similar functionality:
+1. Search for `defun aero/` to find custom function definitions
+2. Search for specific command patterns like `shell-command` or `async-shell-command`
+3. Key bindings are defined in the **"Keybindings" → "General"** section
+4. Constants and paths are defined in the **"Directory constants"** section
+5. Package configurations follow the `(package! name ...)` pattern throughout the file
+
+## Configuration Testing and Debugging
+
+### Common Issues and Solutions
+- **Startup errors**: Use `make clear-straight-build` to rebuild packages, or `make hard-init` for complete reset
+- **Package conflicts**: Check `*Messages*` buffer for conflicts; may need `make clear-straight` (nuclear option)
+- **LSP issues**: Verify language servers are installed via `make install-deps` or `make install-npm`
+- **Theme issues**: Custom themes are in `lib/aero-theme/` and loaded via directory constant
+
+### Validation Commands
+- NEVER restart Emacs without the user's consent
+- Use `make export` to validate org-mode syntax and generate HTML documentation
+- Check for byte-compilation warnings in `*Compile-Log*` buffer
