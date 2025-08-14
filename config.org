@@ -3905,9 +3905,98 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
     (if (org-before-first-heading-p)
         (aero/org-add-file-tag)
       (org-set-tags-command)))
-
 #+END_SRC
 
+**** Claude Code MCP Interface
+These functions provide a non-interactive API for Claude Code to manage Thornlog tasks via the Emacs MCP server. Unlike the interactive functions above, these don't require user input and can be called programmatically from Claude Code sessions.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun thornlog-mcp-create-task (title &optional priority scheduled deadline tags body)
+    "Create a new TODO task in the main todo file via MCP.
+  TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
+  TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
+    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
+          (priority-str (or priority "E"))
+          (scheduled-str (or scheduled (format-time-string "<%Y-%m-%d %a>")))
+          (deadline-str (if deadline (format " DEADLINE: %s" deadline) ""))
+          (tags-str (if tags (format " :%s:" tags) ""))
+          (body-str (if body (format "\n%s" body) "")))
+      (with-current-buffer (find-file-noselect todo-file)
+        (goto-char (point-max))
+        (re-search-backward "^\\*+ Tasks" nil t)
+        (org-end-of-subtree)
+        (insert (format "\n\n** TODO [#%s] %s%s\nSCHEDULED: %s%s\n:PROPERTIES:\n:CREATED: %s\n:END:%s\n\n"
+                        priority-str title tags-str scheduled-str deadline-str
+                        (aero/org-capture-created-timestamp) body-str))
+        (save-buffer)
+        (message "Created task: %s" title)
+        ;; Refresh org-agenda if it's open
+        (when (get-buffer "*Org Agenda*")
+          (with-current-buffer "*Org Agenda*"
+            (org-agenda-redo))))))
+
+  (defun thornlog-mcp-create-ticket (title &optional priority scheduled tags body)
+    "Create a new TICKET task in the main todo file via MCP.
+  TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
+  TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
+    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
+          (priority-str (or priority "E"))
+          (scheduled-str (or scheduled (format-time-string "<%Y-%m-%d %a>")))
+          (tags-str (if tags (format " :%s:" tags) ""))
+          (body-str (if body (format "\n%s" body) "")))
+      (with-current-buffer (find-file-noselect todo-file)
+        (goto-char (point-max))
+        (re-search-backward "^\\*+ Tasks" nil t)
+        (org-end-of-subtree)
+        (insert (format "\n\n** TICKET [#%s] %s%s\nSCHEDULED: %s\n:PROPERTIES:\n:CREATED: %s\n:END:%s\n\n"
+                        priority-str title tags-str scheduled-str
+                        (aero/org-capture-created-timestamp) body-str))
+        (save-buffer)
+        (message "Created ticket: %s" title)
+        ;; Refresh org-agenda if it's open
+        (when (get-buffer "*Org Agenda*")
+          (with-current-buffer "*Org Agenda*"
+            (org-agenda-redo))))))
+
+  (defun thornlog-mcp-update-task-state (task-title new-state)
+    "Update the state of a task by title in the todo file via MCP.
+  Searches for TASK-TITLE and changes its TODO state to NEW-STATE.
+  Valid states: TODO, WAITING, BLOCKED, BACKLOG, DONE, REMOVED, TICKET, PR, CLOSED, REVIEW"
+    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
+          (valid-states '("TODO" "WAITING" "BLOCKED" "BACKLOG" "DONE" "REMOVED"
+                          "TICKET" "PR" "CLOSED" "REVIEW")))
+      (if (not (member new-state valid-states))
+          (message "Invalid state '%s'. Valid states: %s" new-state (string-join valid-states ", "))
+        (with-current-buffer (find-file-noselect todo-file)
+          (goto-char (point-min))
+          (if (re-search-forward (format "^\\*+ \\w+ \\[#[A-G]\\] %s" (regexp-quote task-title)) nil t)
+              (progn
+                (org-todo new-state)
+                (save-buffer)
+                (message "Updated %s to %s" task-title new-state)
+                ;; Refresh org-agenda if it's open
+                (when (get-buffer "*Org Agenda*")
+                  (with-current-buffer "*Org Agenda*"
+                    (org-agenda-redo))))
+            (message "Task not found: %s" task-title))))))
+
+  (defun thornlog-mcp-set-task-priority (task-title new-priority)
+    "Set the priority of a task by title in the todo file via MCP.
+  NEW-PRIORITY should be a letter from A to G."
+    (let ((todo-file (expand-file-name "todo.org" aero/roam-path)))
+      (with-current-buffer (find-file-noselect todo-file)
+        (goto-char (point-min))
+        (if (re-search-forward (format "^\\*+ \\w+ \\[#[A-G]\\] %s" (regexp-quote task-title)) nil t)
+            (progn
+              (org-priority (string-to-char new-priority))
+              (save-buffer)
+              (message "Set priority of %s to %s" task-title new-priority)
+              ;; Refresh org-agenda if it's open
+              (when (get-buffer "*Org Agenda*")
+                (with-current-buffer "*Org Agenda*"
+                  (org-agenda-redo))))
+          (message "Task not found: %s" task-title)))))
+#+END_SRC
 
 *** Updated (modified) and created timestamps in Org-roam
 This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
