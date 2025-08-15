@@ -795,6 +795,22 @@ If no heading is found above, insert at point instead."
       (compile "make")))
 #+END_SRC
 
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/docker-restart ()
+    "Run 'make docker-restart' in the home directory.
+
+  Runs the 'docker-restart' target from the same Makefile as `aero/make-home`."
+    (interactive)
+    (let ((default-directory (expand-file-name "~/")))
+      (compile "make docker-restart")))
+
+  (defun aero/tickets ()
+    "Run 'make tickets' in the thornlog directory."
+    (interactive)
+    (let ((default-directory aero/thornlog-path))
+      (compile "make tickets")))
+#+END_SRC
+
 * Packaging setup
 ** GnuTLS
 Evaluate =gnutls= and disallow TLS connections
