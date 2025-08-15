@@ -3871,8 +3871,15 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
     (interactive)
     (unless (string= (file-name-nondirectory (buffer-file-name)) "log.org")
       (user-error "Not in log.org file"))
-    (goto-char (point-max))
-    (yas-expand-snippet (yas-lookup-snippet "new-day")))
+    (let ((today-heading (format "* %s" (format-time-string "%A, %B %d"))))
+      (save-excursion
+        (goto-char (point-min))
+        (if (search-forward today-heading nil t)
+            ;; Entry for today already exists, just go to end of file
+            (goto-char (point-max))
+          ;; No entry for today, create one
+          (goto-char (point-max))
+          (yas-expand-snippet (yas-lookup-snippet "new-day"))))))
 
   (defun aero/org-add-file-tag ()
     "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
