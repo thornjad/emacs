@@ -2083,6 +2083,19 @@ Saves the minibuffer history.
     :custom (savehist-file (expand-file-name "history" aero-cache-dir)))
 #+END_SRC
 
+*** Buffer terminator
+Automatically kills old unused buffers to prevent memory bloat and keep buffer list clean.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! buffer-terminator :auto
+    :custom
+    (buffer-terminator-verbose nil)
+    (buffer-terminator-inactivity-timeout (* 36 60 60)) ; 36 hours in seconds
+    (buffer-terminator-check-interval (* 3 60 60))      ; Check every 3 hours
+    :config
+    (buffer-terminator-mode 1))
+#+END_SRC
+
 *** Helpful
 A better version of the built-in help buffers. This ought to be included in Emacs.
 
