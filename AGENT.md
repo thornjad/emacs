@@ -175,6 +175,20 @@ When looking for similar functionality:
 - **LSP issues**: Verify language servers are installed via `make install-deps` or `make install-npm`
 - **Theme issues**: Custom themes are in `lib/aero-theme/` and loaded via directory constant
 
+### Configuration Reloading Guidelines
+- **NEVER reload the entire configuration** without explicit user instruction (using `org-babel-load-file` is slow and disruptive)
+- **For config.org changes**: Attempt to reload specific source blocks using org-babel:
+  ```elisp
+  (with-current-buffer (find-file-noselect (expand-file-name "config.org" user-emacs-directory))
+    (goto-char (point-min))
+    (when (re-search-forward "Section Name" nil t)
+      (org-babel-execute-src-block)))
+  ```
+- **If org-babel reload fails**: Stop and ask the user to evaluate the specific section, providing:
+  - Exact line number or section name to navigate to
+  - Clear instructions like "Go to line 3940 (Claude Code MCP Interface section) and execute the code block with C-c C-c"
+  - Which specific function or feature needs to be available
+
 ### Validation Commands
 - NEVER restart Emacs without the user's consent
 - Use `make export` to validate org-mode syntax and generate HTML documentation
