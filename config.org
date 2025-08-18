@@ -4013,6 +4013,27 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
                 (with-current-buffer "*Org Agenda*"
                   (org-agenda-redo))))
           (message "Task not found: %s" task-title)))))
+
+  (defun thornlog-mcp-get-tasks-by-tag (tag)
+    "Get all tasks with the specified TAG from the todo file via MCP.
+  Returns a list of task information including title, state, priority, and tags.
+  TAG should be a string like 'ticket' or 'personal'."
+    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
+          (tasks '()))
+      (with-current-buffer (find-file-noselect todo-file)
+        (goto-char (point-min))
+        (while (re-search-forward (format "^\\*+ \\(\\w+\\) \\[#\\([A-G]\\)\\] \\(.*?\\)\\([ \t]+:\\([^:]+\\):\\)?[ \t]*$") nil t)
+          (let ((state (match-string 1))
+                (priority (match-string 2))
+                (title (match-string 3))
+                (tags-string (match-string 5)))
+            (when (and tags-string (string-match-p (regexp-quote tag) tags-string))
+              (push `((title . ,title)
+                      (state . ,state)
+                      (priority . ,priority)
+                      (tags . ,tags-string))
+                    tasks)))))
+      (reverse tasks)))
 #+END_SRC
 
 *** Updated (modified) and created timestamps in Org-roam
