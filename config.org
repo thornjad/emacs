@@ -3956,7 +3956,7 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
             (org-agenda-redo))))))
 
   (defun thornlog-mcp-create-ticket (title &optional priority scheduled tags body)
-    "Create a new TICKET task in the main todo file via MCP.
+    "Create a new ticket TODO task in the main todo file via MCP.
   TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
   TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
@@ -3966,9 +3966,9 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
           (body-str (if body (format "\n%s" body) "")))
       (with-current-buffer (find-file-noselect todo-file)
         (goto-char (point-max))
-        (re-search-backward "^\\*+ Tasks" nil t)
+        (re-search-backward "^\\*+ Tickets" nil t)
         (org-end-of-subtree)
-        (insert (format "\n\n** TICKET [#%s] %s%s\nSCHEDULED: %s\n:PROPERTIES:\n:CREATED: %s\n:END:%s\n\n"
+        (insert (format "\n\n** TODO [#%s] %s%s\nSCHEDULED: %s\n:PROPERTIES:\n:CREATED: %s\n:END:%s\n\n"
                         priority-str title tags-str scheduled-str
                         (aero/org-capture-created-timestamp) body-str))
         (save-buffer)
@@ -3981,10 +3981,10 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
   (defun thornlog-mcp-update-task-state (task-title new-state)
     "Update the state of a task by title in the todo file via MCP.
   Searches for TASK-TITLE and changes its TODO state to NEW-STATE.
-  Valid states: TODO, WAITING, BLOCKED, BACKLOG, DONE, REMOVED, TICKET, PR, CLOSED, REVIEW"
+  Valid states: TODO, WAITING, BLOCKED, BACKLOG, DONE, REMOVED, PR, CLOSED, REVIEW"
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
           (valid-states '("TODO" "WAITING" "BLOCKED" "BACKLOG" "DONE" "REMOVED"
-                          "TICKET" "PR" "CLOSED" "REVIEW")))
+                          "PR" "CLOSED" "REVIEW")))
       (if (not (member new-state valid-states))
           (message "Invalid state '%s'. Valid states: %s" new-state (string-join valid-states ", "))
         (with-current-buffer (find-file-noselect todo-file)
