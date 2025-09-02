@@ -4024,19 +4024,194 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
           (tasks '()))
       (with-current-buffer (find-file-noselect todo-file)
-        (goto-char (point-min))
-        (while (re-search-forward (format "^\\*+ \\(\\w+\\) \\[#\\([A-G]\\)\\] \\(.*?\\)\\([ \t]+:\\([^:]+\\):\\)?[ \t]*$") nil t)
-          (let ((state (match-string 1))
-                (priority (match-string 2))
-                (title (match-string 3))
-                (tags-string (match-string 5)))
-            (when (and tags-string (string-match-p (regexp-quote tag) tags-string))
-              (push `((title . ,title)
-                      (state . ,state)
-                      (priority . ,priority)
-                      (tags . ,tags-string))
-                    tasks)))))
+        (org-map-entries
+         (lambda ()
+           (let ((title (org-get-heading t t t t))  ; Get heading without tags/TODO/priority
+                 (state (org-get-todo-state))
+                 (priority (org-entry-get (point) "PRIORITY"))
+                 (tags (org-get-tags)))
+             (push `((title . ,title)
+                     (state . ,state) 
+                     (priority . ,(or priority ""))
+                     (tags . ,(mapconcat 'identity tags ":")))
+                   tasks)))
+         (concat "+" tag)))  ; Search for entries with the specified tag
       (reverse tasks)))
+#+END_SRC
+
+**** Ticket synchronization
+
+This system provides comprehensive synchronization between Jira tickets and org-mode tasks in the thornlog system. It handles the complex business logic of mapping Jira ticket types (ESC, SEC, GROW, etc.) to appropriate org priorities and tags, creating new tasks for active tickets, updating existing task states, and cleaning up completed work. The functions are designed to be called by Claude Code's =/tickets= command, significantly reducing token usage by centralizing all mapping and processing logic within Emacs rather than in the AI prompt.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun thornlog-tickets--extract-ticket-id (title)
+    "Extract ticket ID from task title like '[GROW-1234] title'."
+    (when (string-match "\\[\\([A-Z]+-[0-9]+\\)\\]" title)
+      (match-string 1 title)))
+
+  (defun thornlog-tickets--get-ticket-type (key)
+    "Get ticket type (ESC, SEC, other) from ticket key."
+    (cond ((string-match "^ESC-" key) 'esc)
+          ((string-match "^SEC-" key) 'sec)
+          (t 'other)))
+
+  (defun thornlog-tickets--map-jira-priority (jira-priority ticket-type)
+    "Map Jira priority to org priority based on ticket type."
+    (let ((priority-name (alist-get 'name jira-priority)))
+      (cond
+       ((eq ticket-type 'esc)
+        (cond ((equal priority-name "P0") "A")
+              ((equal priority-name "P1") "A") 
+              ((equal priority-name "P2") "A")
+              ((equal priority-name "P3") "B")
+              ((equal priority-name "P4") "B")
+              (t "B")))
+       ((eq ticket-type 'sec)
+        (cond ((equal priority-name "P0") "A")
+              ((equal priority-name "P1") "B")
+              ((equal priority-name "P2") "D")
+              ((equal priority-name "P3") "D") 
+              ((equal priority-name "P4") "D")
+              (t "D")))
+       (t ;; other tickets (GROW, WAL, etc)
+        (cond ((equal priority-name "P0") "A")
+              ((equal priority-name "P1") "A")
+              ((equal priority-name "P2") "B")
+              ((equal priority-name "P3") "B")
+              ((equal priority-name "P4") "B")
+              (t "B"))))))
+
+  (defun thornlog-tickets--get-tags-for-ticket (ticket-type)
+    "Get tags string based on ticket type."
+    (cond ((eq ticket-type 'esc) "ticket:support")
+          ((eq ticket-type 'sec) "ticket:security")
+          (t "ticket")))
+
+  (defun thornlog-tickets--format-deadline (date-string)
+    "Format deadline from YYYY-MM-DD to <YYYY-MM-DD Day>."
+    (when date-string
+      (let ((parsed-date (date-to-time date-string)))
+        (format-time-string "<%Y-%m-%d %a>" parsed-date))))
+
+  (defun thornlog-tickets--jira-status-to-org-state (status-name)
+    "Map Jira status to org todo state."
+    (cond ((equal status-name "QA") "DONE")
+          ((equal status-name "In Review") "PR")
+          (t "TODO")))
+
+  (defun thornlog-tickets--should-create-task (status-name)
+    "Determine if we should create a new task for this status."
+    (not (equal status-name "QA")))
+
+  (defun thornlog-tickets--build-task-maps (existing-tasks jira-tickets)
+    "Build hash tables mapping tickets by ID for efficient lookup.
+  Returns (existing-by-ticket . jira-by-ticket) hash tables."
+    (let ((existing-by-ticket (make-hash-table :test 'equal))
+          (jira-by-ticket (make-hash-table :test 'equal))
+          (discrepancies '()))
+      
+      ;; Map existing tasks by ticket ID
+      (dolist (task existing-tasks)
+        (let ((title (alist-get 'title task)))
+          (when title
+            (let ((extracted-id (thornlog-tickets--extract-ticket-id (substring-no-properties title))))
+              (when extracted-id
+                (if (gethash extracted-id existing-by-ticket)
+                    ;; Found duplicate
+                    (push (format "[%s]: DUPLICATE TASKS - found multiple tasks with same ticket ID" extracted-id) discrepancies)
+                  (puthash extracted-id task existing-by-ticket)))))))
+      
+      ;; Map Jira tickets by key
+      (dolist (ticket jira-tickets)
+        (let ((key (alist-get 'key ticket)))
+          (puthash key ticket jira-by-ticket)))
+      
+      (list existing-by-ticket jira-by-ticket discrepancies)))
+
+  (defun thornlog-tickets--process-jira-ticket (ticket existing-by-ticket today-date)
+    "Process a single Jira ticket, updating or creating tasks as needed.
+  Returns (created-count . updated-count)."
+    (let* ((fields (alist-get 'fields ticket))
+           (key (alist-get 'key ticket))
+           (summary (alist-get 'summary fields))
+           (status (alist-get 'status fields))
+           (status-name (alist-get 'name status))
+           (priority (alist-get 'priority fields))
+           (duedate (alist-get 'duedate fields))
+           (ticket-type (thornlog-tickets--get-ticket-type key))
+           (org-priority (thornlog-tickets--map-jira-priority priority ticket-type))
+           (org-state (thornlog-tickets--jira-status-to-org-state status-name))
+           (tags (thornlog-tickets--get-tags-for-ticket ticket-type))
+           (created-count 0)
+           (updated-count 0))
+      
+      (let ((existing-task (gethash key existing-by-ticket)))
+        (if existing-task
+            ;; Update existing task
+            (let ((current-state (alist-get 'state existing-task)))
+              (when (not (equal (substring-no-properties current-state) org-state))
+                (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title existing-task)) org-state)
+                (setq updated-count 1)))
+          
+          ;; Create new task if appropriate
+          (when (thornlog-tickets--should-create-task status-name)
+            (let* ((title (format "[%s] %s" key summary))
+                   (deadline (cond 
+                             ;; ESC P0 always gets today deadline
+                             ((and (eq ticket-type 'esc) 
+                                   (equal (alist-get 'name priority) "P0"))
+                              today-date)
+                             ;; Other tickets use Jira deadline if exists
+                             (duedate (thornlog-tickets--format-deadline duedate))
+                             (t nil)))
+                   (body (format "https://dronedeploy.atlassian.net/browse/%s\n\n%s" key summary)))
+              
+              (if deadline
+                  (thornlog-mcp-create-task title org-priority today-date deadline tags body)
+                (thornlog-mcp-create-ticket title org-priority today-date tags body))
+              (setq created-count 1)))))
+      
+      (cons created-count updated-count)))
+
+  (defun thornlog-tickets--cleanup-inactive-tickets (existing-by-ticket jira-by-ticket)
+    "Mark tasks for inactive Jira tickets as DONE. Returns update count."
+    (let ((updated-count 0))
+      (maphash (lambda (ticket-id task)
+                 (unless (gethash ticket-id jira-by-ticket)
+                   (let ((current-state (alist-get 'state task)))
+                     (unless (equal (substring-no-properties current-state) "DONE")
+                       (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title task)) "DONE")
+                       (setq updated-count (1+ updated-count))))))
+               existing-by-ticket)
+      updated-count))
+
+  (defun thornlog-tickets-sync (jira-tickets)
+    "Synchronize ticket tasks between Jira and todo.org.
+  JIRA-TICKETS should be a list of Jira issue objects with limited fields."
+    (let ((created-count 0)
+          (updated-count 0)
+          (today-date (format-time-string "<%Y-%m-%d %a>"))
+          (existing-tasks (thornlog-mcp-get-tasks-by-tag "ticket")))
+      
+      ;; Build lookup maps and get any initial discrepancies
+      (let* ((maps-result (thornlog-tickets--build-task-maps existing-tasks jira-tickets))
+             (existing-by-ticket (nth 0 maps-result))
+             (jira-by-ticket (nth 1 maps-result))
+             (discrepancies (nth 2 maps-result)))
+        
+        ;; Process each Jira ticket
+        (dolist (ticket jira-tickets)
+          (let ((result (thornlog-tickets--process-jira-ticket ticket existing-by-ticket today-date)))
+            (setq created-count (+ created-count (car result)))
+            (setq updated-count (+ updated-count (cdr result)))))
+        
+        ;; Clean up inactive tickets
+        (setq updated-count (+ updated-count (thornlog-tickets--cleanup-inactive-tickets existing-by-ticket jira-by-ticket)))
+        
+        ;; Return summary
+        (list :created created-count 
+              :updated updated-count 
+              :discrepancies discrepancies))))
 #+END_SRC
 
 *** Updated (modified) and created timestamps in Org-roam
