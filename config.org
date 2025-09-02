@@ -2944,7 +2944,8 @@ One of the truly great packages in Emacs. I use it for everything git-related.
       "gmE" 'smerge-ediff)
 
     :custom
-    (magit-display-buffer-function #'magit-display-buffer-traditional)
+    ;; I keep waffling on this setting, so leave it here even if its set to the default
+    (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
     (magit-process-finish-apply-ansi-colors t)
     (magit-buffer-name-format "%x%M%v: %t%x")
     (magit-list-refs-sortby "-creatordate")
