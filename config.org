@@ -3885,67 +3885,67 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
       (shell-command "git pull origin main")
       (message "Pulled latest changes from Thornlog")))
 
-  (defun insert-meeting-task ()
-    (interactive)
-    (let* ((meeting-name (read-string "Meeting Name: "))
-           (meeting-time (read-string "Meeting Time (optional): "))
-           (today (format-time-string "%Y-%m-%d"))
-           (scheduled-string (if (not (string= meeting-time ""))
-                                 (format "<%s %s>" today meeting-time)
-                               (format "<%s>" today)))
-           (task-string (format "*** MEETING %s  :meeting:\nSCHEDULED: %s"
-                                meeting-name scheduled-string)))
-      (goto-char (point-max))
-      (re-search-backward "^\\*+ Meetings" nil t)
-      (org-end-of-subtree)
-      (insert "\n\n" task-string)))
-
-  (defun insert-new-day ()
-    (interactive)
-    (unless (string= (file-name-nondirectory (buffer-file-name)) "log.org")
-      (user-error "Not in log.org file"))
-    (let ((today-heading (format "* %s" (format-time-string "%A, %B %d"))))
-      (goto-char (point-min))
-      (if (search-forward today-heading nil t)
-          ;; Entry for today already exists, jump to its "Since last update" section
-          (progn
-            (re-search-forward "^\\*\\*\\* Since last update" nil t)
-            (forward-line 1))
-        ;; No entry for today, create one
+    (defun insert-meeting-task ()
+      (interactive)
+      (let* ((meeting-name (read-string "Meeting Name: "))
+             (meeting-time (read-string "Meeting Time (optional): "))
+             (today (format-time-string "%Y-%m-%d"))
+             (scheduled-string (if (not (string= meeting-time ""))
+                                   (format "<%s %s>" today meeting-time)
+                                 (format "<%s>" today)))
+             (task-string (format "*** MEETING %s  :meeting:\nSCHEDULED: %s"
+                                  meeting-name scheduled-string)))
         (goto-char (point-max))
-        (yas-expand-snippet (yas-lookup-snippet "new-day")))))
+        (re-search-backward "^\\*+ Meetings" nil t)
+        (org-end-of-subtree)
+        (insert "\n\n" task-string)))
 
-  (defun aero/org-add-file-tag ()
-    "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
-  it after the #+title: line if it exists."
-    (interactive)
-    (let* ((case-fold-search t)
-           (all-tags-query "SELECT DISTINCT tag FROM tags")
-           (all-tags-result (org-roam-db-query all-tags-query))
-           (all-tags (mapcar #'car all-tags-result))
-           (tag (completing-read "Tag: " all-tags)))
-      (save-excursion
+    (defun insert-new-day ()
+      (interactive)
+      (unless (string= (file-name-nondirectory (buffer-file-name)) "log.org")
+        (user-error "Not in log.org file"))
+      (let ((today-heading (format "* %s" (format-time-string "%A, %B %d"))))
         (goto-char (point-min))
-        (if (re-search-forward "^#\\+filetags: \\(.*\\)$" nil t)
-            (let ((existing-tags (match-string-no-properties 1)))
-              (beginning-of-line)
-              (delete-region (point) (line-end-position))
-              (insert (format "#+filetags: %s%s:" existing-tags tag)))
-          ;; No existing tags, search for title line to place new tags after
-          (goto-char (point-min))
-          (if (re-search-forward "^#\\+title:.*$" nil t)
-              (progn
-                (end-of-line)
-                (insert (format "\n#+filetags: :%s:" tag)))
-            (goto-char (point-min))
-            (insert (format "#+filetags: :%s:\n" tag)))))))
+        (if (search-forward today-heading nil t)
+            ;; Entry for today already exists, jump to its "Since last update" section
+            (progn
+              (re-search-forward "^\\*\\*\\* Since last update" nil t)
+              (forward-line 1))
+          ;; No entry for today, create one
+          (goto-char (point-max))
+          (yas-expand-snippet (yas-lookup-snippet "new-day")))))
 
-  (defun aero/org-set-tags ()
-    "Set tag on current entry or file."
-    (interactive)
-    (if (org-before-first-heading-p)
-        (aero/org-add-file-tag)
-      (org-set-tags-command)))
+    (defun aero/org-add-file-tag ()
+      "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
+    it after the #+title: line if it exists."
+      (interactive)
+      (let* ((case-fold-search t)
+             (all-tags-query "SELECT DISTINCT tag FROM tags")
+             (all-tags-result (org-roam-db-query all-tags-query))
+             (all-tags (mapcar #'car all-tags-result))
+             (tag (completing-read "Tag: " all-tags)))
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward "^#\\+filetags: \\(.*\\)$" nil t)
+              (let ((existing-tags (match-string-no-properties 1)))
+                (beginning-of-line)
+                (delete-region (point) (line-end-position))
+                (insert (format "#+filetags: %s%s:" existing-tags tag)))
+            ;; No existing tags, search for title line to place new tags after
+            (goto-char (point-min))
+            (if (re-search-forward "^#\\+title:.*$" nil t)
+                (progn
+                  (end-of-line)
+                  (insert (format "\n#+filetags: :%s:" tag)))
+              (goto-char (point-min))
+              (insert (format "#+filetags: :%s:\n" tag)))))))
+
+    (defun aero/org-set-tags ()
+      "Set tag on current entry or file."
+      (interactive)
+      (if (org-before-first-heading-p)
+          (aero/org-add-file-tag)
+        (org-set-tags-command)))
 #+END_SRC
 
 **** Claude Code MCP Interface
