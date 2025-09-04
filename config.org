@@ -4321,6 +4321,137 @@ Adds support for Markdown files within the roam database. I generally use org, b
     (md-roam-mode +1))
 #+END_SRC
 
+*** Google Drive Sync
+Sync thornlog files to Google Drive as PDFs for Glean enterprise search indexing. Files are added to a sync list, then batch converted using pandoc. Only converts files when source is newer than target PDF.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/thornlog-add-to-sync-list ()
+    "Add current file to Google Drive sync list.
+    Only works within thornlog directory and on files, not directories."
+    (interactive)
+    (unless buffer-file-name
+      (user-error "Buffer is not visiting a file"))
+    (unless (string-prefix-p aero/thornlog-path buffer-file-name)
+      (user-error "File must be within thornlog directory"))
+    (when (file-directory-p buffer-file-name)
+      (user-error "Cannot sync directories, only files"))
+
+    (let* ((relative-path (file-relative-name buffer-file-name aero/thornlog-path))
+           (sync-list-file (expand-file-name "roam/20250903140953-thornlog_google_drive_sync_list.org" aero/thornlog-path))
+           (list-item (format "- %s" relative-path)))
+
+      ;; Create sync list file if it doesn't exist
+      (unless (file-exists-p sync-list-file)
+        (with-temp-file sync-list-file
+          (insert "#+title: Thornlog Google Drive Sync List\n\n")))
+
+      ;; Check if file is already in the list
+      (if (with-temp-buffer
+            (insert-file-contents sync-list-file)
+            (goto-char (point-min))
+            (search-forward list-item nil t))
+          (message "File already in sync list: %s" relative-path)
+
+        ;; Add file to sync list
+        (with-temp-file sync-list-file
+          (insert-file-contents sync-list-file)
+          (goto-char (point-max))
+          (unless (bolp) (insert "\n"))
+          (insert list-item "\n"))
+
+        (message "Added to sync list: %s" relative-path))))
+
+  (defun aero/thornlog-export-sync-files-to-google-drive ()
+    "Export files listed in thornlog sync list to PDF in Google Drive.
+  Removes deleted files from sync list and warns about orphaned PDFs in Google Drive."
+    (interactive)
+    (let ((sync-list-file (expand-file-name "roam/20250903140953-thornlog_google_drive_sync_list.org" aero/thornlog-path))
+          (gdrive-base aero/gdrive-thornlog-base)
+          (processed-count 0)
+          (skipped-count 0)
+          (removed-count 0)
+          (files-to-keep '()))
+
+      (unless (boundp 'aero/gdrive-thornlog-base)
+        (user-error "Google Drive base path not configured in init.local.el"))
+
+      (unless (file-exists-p sync-list-file)
+        (user-error "Sync list file not found: %s" sync-list-file))
+
+      ;; First pass: collect existing files and process conversions
+      (with-temp-buffer
+        (insert-file-contents sync-list-file)
+        (goto-char (point-min))
+
+        ;; Find all lines starting with "- " (org list items)
+        (while (re-search-forward "^- \\(.+\\)$" nil t)
+          (let* ((file-name (match-string 1))
+                 (source-file (expand-file-name file-name aero/thornlog-path))
+                 (relative-path (file-relative-name source-file aero/thornlog-path))
+                 (pdf-name (concat (file-name-sans-extension relative-path) ".pdf"))
+                 (target-pdf (expand-file-name pdf-name gdrive-base))
+                 (target-dir (file-name-directory target-pdf)))
+
+            (cond
+             ;; File doesn't exist - remove from list and warn about orphaned PDF
+             ((not (file-exists-p source-file))
+              (message "Removing deleted file from sync list: %s" relative-path)
+              (when (file-exists-p target-pdf)
+                (message "WARNING: PDF exists in Google Drive but source deleted: %s" pdf-name))
+              (setq removed-count (1+ removed-count)))
+
+             ;; File exists - keep in list and check for conversion
+             (t
+              (push (format "- %s" file-name) files-to-keep)
+
+              ;; Check if conversion needed (source newer than target or target doesn't exist)
+              (cond
+               ((or (not (file-exists-p target-pdf))
+                    (file-newer-than-file-p source-file target-pdf))
+
+                ;; Create target directory if needed
+                (unless (file-exists-p target-dir)
+                  (make-directory target-dir t))
+
+                ;; Run pandoc conversion with appropriate input format
+                (let* ((file-ext (file-name-extension source-file))
+                       (input-format (cond
+                                     ((string= file-ext "org") "org")
+                                     ((string= file-ext "md") "markdown")
+                                     ((string= file-ext "mdc") "markdown")
+                                     (t "org"))) ; default to org for unknown extensions
+                       (pandoc-command (format "pandoc -f %s -t pdf --pdf-engine=xelatex -V mainfont='Noto Serif' --wrap=none '%s' -o '%s'"
+                                             input-format source-file target-pdf)))
+                  (message "Converting: %s -> %s (format: %s)" relative-path pdf-name input-format)
+                  (if (= 0 (shell-command pandoc-command))
+                      (setq processed-count (1+ processed-count))
+                    (message "Error converting: %s" relative-path)
+                    (setq skipped-count (1+ skipped-count)))))
+
+               ;; Skip - target is up to date
+               (t
+                (setq skipped-count (1+ skipped-count)))))))))
+
+      ;; Update sync list file if files were removed
+      (when (> removed-count 0)
+        (with-temp-file sync-list-file
+          (insert-file-contents sync-list-file)
+          (goto-char (point-min))
+          ;; Keep header (everything before first "- ")
+          (when (re-search-forward "^- " nil t)
+            (beginning-of-line)
+            (delete-region (point) (point-max)))
+          ;; Add remaining files
+          (dolist (file-line (reverse files-to-keep))
+            (insert file-line "\n"))))
+
+      (if (> removed-count 0)
+          (message "Export complete. Processed: %d, Skipped: %d, Removed from list: %d files. WARNING: %d PDF(s) may still exist in Google Drive and should be manually deleted!"
+                   processed-count skipped-count removed-count removed-count)
+        (message "Export complete. Processed: %d, Skipped: %d files"
+                 processed-count skipped-count))))
+#+END_SRC
+
 * Writing
 ** Writegood
 Mark passive voice, duplicate words and weasel words
