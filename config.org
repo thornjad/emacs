@@ -3869,6 +3869,7 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
             (aero/org-archive-cleanup)
             (save-some-buffers t))))
       (shell-command "git fetch origin")
+      (aero/thornlog-export-sync-files-to-google-drive)
       (if (not (zerop (shell-command "git rev-list --count @{u}..")))
           (user-error "Remote has changes, manual commit required")
         (progn
@@ -3885,67 +3886,67 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
       (shell-command "git pull origin main")
       (message "Pulled latest changes from Thornlog")))
 
-    (defun insert-meeting-task ()
-      (interactive)
-      (let* ((meeting-name (read-string "Meeting Name: "))
-             (meeting-time (read-string "Meeting Time (optional): "))
-             (today (format-time-string "%Y-%m-%d"))
-             (scheduled-string (if (not (string= meeting-time ""))
-                                   (format "<%s %s>" today meeting-time)
-                                 (format "<%s>" today)))
-             (task-string (format "*** MEETING %s  :meeting:\nSCHEDULED: %s"
-                                  meeting-name scheduled-string)))
+  (defun insert-meeting-task ()
+    (interactive)
+    (let* ((meeting-name (read-string "Meeting Name: "))
+           (meeting-time (read-string "Meeting Time (optional): "))
+           (today (format-time-string "%Y-%m-%d"))
+           (scheduled-string (if (not (string= meeting-time ""))
+                                 (format "<%s %s>" today meeting-time)
+                               (format "<%s>" today)))
+           (task-string (format "*** MEETING %s  :meeting:\nSCHEDULED: %s"
+                                meeting-name scheduled-string)))
+      (goto-char (point-max))
+      (re-search-backward "^\\*+ Meetings" nil t)
+      (org-end-of-subtree)
+      (insert "\n\n" task-string)))
+
+  (defun insert-new-day ()
+    (interactive)
+    (unless (string= (file-name-nondirectory (buffer-file-name)) "log.org")
+      (user-error "Not in log.org file"))
+    (let ((today-heading (format "* %s" (format-time-string "%A, %B %d"))))
+      (goto-char (point-min))
+      (if (search-forward today-heading nil t)
+          ;; Entry for today already exists, jump to its "Since last update" section
+          (progn
+            (re-search-forward "^\\*\\*\\* Since last update" nil t)
+            (forward-line 1))
+        ;; No entry for today, create one
         (goto-char (point-max))
-        (re-search-backward "^\\*+ Meetings" nil t)
-        (org-end-of-subtree)
-        (insert "\n\n" task-string)))
+        (yas-expand-snippet (yas-lookup-snippet "new-day")))))
 
-    (defun insert-new-day ()
-      (interactive)
-      (unless (string= (file-name-nondirectory (buffer-file-name)) "log.org")
-        (user-error "Not in log.org file"))
-      (let ((today-heading (format "* %s" (format-time-string "%A, %B %d"))))
-        (goto-char (point-min))
-        (if (search-forward today-heading nil t)
-            ;; Entry for today already exists, jump to its "Since last update" section
-            (progn
-              (re-search-forward "^\\*\\*\\* Since last update" nil t)
-              (forward-line 1))
-          ;; No entry for today, create one
-          (goto-char (point-max))
-          (yas-expand-snippet (yas-lookup-snippet "new-day")))))
-
-    (defun aero/org-add-file-tag ()
-      "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
+  (defun aero/org-add-file-tag ()
+    "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
     it after the #+title: line if it exists."
-      (interactive)
-      (let* ((case-fold-search t)
-             (all-tags-query "SELECT DISTINCT tag FROM tags")
-             (all-tags-result (org-roam-db-query all-tags-query))
-             (all-tags (mapcar #'car all-tags-result))
-             (tag (completing-read "Tag: " all-tags)))
-        (save-excursion
+    (interactive)
+    (let* ((case-fold-search t)
+           (all-tags-query "SELECT DISTINCT tag FROM tags")
+           (all-tags-result (org-roam-db-query all-tags-query))
+           (all-tags (mapcar #'car all-tags-result))
+           (tag (completing-read "Tag: " all-tags)))
+      (save-excursion
+        (goto-char (point-min))
+        (if (re-search-forward "^#\\+filetags: \\(.*\\)$" nil t)
+            (let ((existing-tags (match-string-no-properties 1)))
+              (beginning-of-line)
+              (delete-region (point) (line-end-position))
+              (insert (format "#+filetags: %s%s:" existing-tags tag)))
+          ;; No existing tags, search for title line to place new tags after
           (goto-char (point-min))
-          (if (re-search-forward "^#\\+filetags: \\(.*\\)$" nil t)
-              (let ((existing-tags (match-string-no-properties 1)))
-                (beginning-of-line)
-                (delete-region (point) (line-end-position))
-                (insert (format "#+filetags: %s%s:" existing-tags tag)))
-            ;; No existing tags, search for title line to place new tags after
+          (if (re-search-forward "^#\\+title:.*$" nil t)
+              (progn
+                (end-of-line)
+                (insert (format "\n#+filetags: :%s:" tag)))
             (goto-char (point-min))
-            (if (re-search-forward "^#\\+title:.*$" nil t)
-                (progn
-                  (end-of-line)
-                  (insert (format "\n#+filetags: :%s:" tag)))
-              (goto-char (point-min))
-              (insert (format "#+filetags: :%s:\n" tag)))))))
+            (insert (format "#+filetags: :%s:\n" tag)))))))
 
-    (defun aero/org-set-tags ()
-      "Set tag on current entry or file."
-      (interactive)
-      (if (org-before-first-heading-p)
-          (aero/org-add-file-tag)
-        (org-set-tags-command)))
+  (defun aero/org-set-tags ()
+    "Set tag on current entry or file."
+    (interactive)
+    (if (org-before-first-heading-p)
+        (aero/org-add-file-tag)
+      (org-set-tags-command)))
 #+END_SRC
 
 **** Claude Code MCP Interface
@@ -3954,8 +3955,8 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun thornlog-mcp-create-task (title &optional priority scheduled deadline tags body)
     "Create a new TODO task in the main todo file via MCP.
-  TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
-  TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
+    TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
+    TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
           (priority-str (or priority "E"))
           (scheduled-str (or scheduled (format-time-string "<%Y-%m-%d %a>")))
@@ -3978,8 +3979,8 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
 
   (defun thornlog-mcp-create-ticket (title &optional priority scheduled tags body)
     "Create a new ticket TODO task in the main todo file via MCP.
-  TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
-  TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
+    TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
+    TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
           (priority-str (or priority "E"))
           (scheduled-str (or scheduled (format-time-string "<%Y-%m-%d %a>")))
@@ -4001,8 +4002,8 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
 
   (defun thornlog-mcp-update-task-state (task-title new-state)
     "Update the state of a task by title in the todo file via MCP.
-  Searches for TASK-TITLE and changes its TODO state to NEW-STATE.
-  Valid states: TODO, WAITING, BLOCKED, BACKLOG, DONE, REMOVED, PR, CLOSED, REVIEW"
+    Searches for TASK-TITLE and changes its TODO state to NEW-STATE.
+    Valid states: TODO, WAITING, BLOCKED, BACKLOG, DONE, REMOVED, PR, CLOSED, REVIEW"
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
           (valid-states '("TODO" "WAITING" "BLOCKED" "BACKLOG" "DONE" "REMOVED"
                           "PR" "CLOSED" "REVIEW")))
@@ -4023,7 +4024,7 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
 
   (defun thornlog-mcp-set-task-priority (task-title new-priority)
     "Set the priority of a task by title in the todo file via MCP.
-  NEW-PRIORITY should be a letter from A to G."
+    NEW-PRIORITY should be a letter from A to G."
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path)))
       (with-current-buffer (find-file-noselect todo-file)
         (goto-char (point-min))
@@ -4040,8 +4041,8 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
 
   (defun thornlog-mcp-get-tasks-by-tag (tag)
     "Get all tasks with the specified TAG from the todo file via MCP.
-  Returns a list of task information including title, state, priority, and tags.
-  TAG should be a string like 'ticket' or 'personal'."
+    Returns a list of task information including title, state, priority, and tags.
+    TAG should be a string like 'ticket' or 'personal'."
     (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
           (tasks '()))
       (with-current-buffer (find-file-noselect todo-file)
@@ -4082,7 +4083,7 @@ This system provides comprehensive synchronization between Jira tickets and org-
       (cond
        ((eq ticket-type 'esc)
         (cond ((equal priority-name "P0") "A")
-              ((equal priority-name "P1") "A") 
+              ((equal priority-name "P1") "A")
               ((equal priority-name "P2") "A")
               ((equal priority-name "P3") "B")
               ((equal priority-name "P4") "B")
@@ -4091,7 +4092,7 @@ This system provides comprehensive synchronization between Jira tickets and org-
         (cond ((equal priority-name "P0") "A")
               ((equal priority-name "P1") "B")
               ((equal priority-name "P2") "D")
-              ((equal priority-name "P3") "D") 
+              ((equal priority-name "P3") "D")
               ((equal priority-name "P4") "D")
               (t "D")))
        (t ;; other tickets (GROW, WAL, etc)
@@ -4130,7 +4131,7 @@ This system provides comprehensive synchronization between Jira tickets and org-
     (let ((existing-by-ticket (make-hash-table :test 'equal))
           (jira-by-ticket (make-hash-table :test 'equal))
           (discrepancies '()))
-      
+
       ;; Map existing tasks by ticket ID
       (dolist (task existing-tasks)
         (let ((title (alist-get 'title task)))
@@ -4141,12 +4142,12 @@ This system provides comprehensive synchronization between Jira tickets and org-
                     ;; Found duplicate
                     (push (format "[%s]: DUPLICATE TASKS - found multiple tasks with same ticket ID" extracted-id) discrepancies)
                   (puthash extracted-id task existing-by-ticket)))))))
-      
+
       ;; Map Jira tickets by key
       (dolist (ticket jira-tickets)
         (let ((key (alist-get 'key ticket)))
           (puthash key ticket jira-by-ticket)))
-      
+
       (list existing-by-ticket jira-by-ticket discrepancies)))
 
   (defun thornlog-tickets--process-jira-ticket (ticket existing-by-ticket today-date)
@@ -4165,7 +4166,7 @@ This system provides comprehensive synchronization between Jira tickets and org-
            (tags (thornlog-tickets--get-tags-for-ticket ticket-type))
            (created-count 0)
            (updated-count 0))
-      
+
       (let ((existing-task (gethash key existing-by-ticket)))
         (if existing-task
             ;; Update existing task
@@ -4173,25 +4174,25 @@ This system provides comprehensive synchronization between Jira tickets and org-
               (when (not (equal (substring-no-properties current-state) org-state))
                 (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title existing-task)) org-state)
                 (setq updated-count 1)))
-          
+
           ;; Create new task if appropriate
           (when (thornlog-tickets--should-create-task status-name)
             (let* ((title (format "[%s] %s" key summary))
-                   (deadline (cond 
-                             ;; ESC P0 always gets today deadline
-                             ((and (eq ticket-type 'esc) 
-                                   (equal (alist-get 'name priority) "P0"))
-                              today-date)
-                             ;; Other tickets use Jira deadline if exists
-                             (duedate (thornlog-tickets--format-deadline duedate))
-                             (t nil)))
+                   (deadline (cond
+                              ;; ESC P0 always gets today deadline
+                              ((and (eq ticket-type 'esc)
+                                    (equal (alist-get 'name priority) "P0"))
+                               today-date)
+                              ;; Other tickets use Jira deadline if exists
+                              (duedate (thornlog-tickets--format-deadline duedate))
+                              (t nil)))
                    (body (format "https://dronedeploy.atlassian.net/browse/%s\n\n%s" key summary)))
-              
+
               (if deadline
                   (thornlog-mcp-create-task title org-priority today-date deadline tags body)
                 (thornlog-mcp-create-ticket title org-priority today-date tags body))
               (setq created-count 1)))))
-      
+
       (cons created-count updated-count)))
 
   (defun thornlog-tickets--cleanup-inactive-tickets (existing-by-ticket jira-by-ticket)
@@ -4213,25 +4214,25 @@ This system provides comprehensive synchronization between Jira tickets and org-
           (updated-count 0)
           (today-date (format-time-string "<%Y-%m-%d %a>"))
           (existing-tasks (thornlog-mcp-get-tasks-by-tag "ticket")))
-      
+
       ;; Build lookup maps and get any initial discrepancies
       (let* ((maps-result (thornlog-tickets--build-task-maps existing-tasks jira-tickets))
              (existing-by-ticket (nth 0 maps-result))
              (jira-by-ticket (nth 1 maps-result))
              (discrepancies (nth 2 maps-result)))
-        
+
         ;; Process each Jira ticket
         (dolist (ticket jira-tickets)
           (let ((result (thornlog-tickets--process-jira-ticket ticket existing-by-ticket today-date)))
             (setq created-count (+ created-count (car result)))
             (setq updated-count (+ updated-count (cdr result)))))
-        
+
         ;; Clean up inactive tickets
         (setq updated-count (+ updated-count (thornlog-tickets--cleanup-inactive-tickets existing-by-ticket jira-by-ticket)))
-        
+
         ;; Return summary
-        (list :created created-count 
-              :updated updated-count 
+        (list :created created-count
+              :updated updated-count
               :discrepancies discrepancies))))
 #+END_SRC
 
@@ -4416,12 +4417,12 @@ Sync thornlog files to Google Drive as PDFs for Glean enterprise search indexing
                 ;; Run pandoc conversion with appropriate input format
                 (let* ((file-ext (file-name-extension source-file))
                        (input-format (cond
-                                     ((string= file-ext "org") "org")
-                                     ((string= file-ext "md") "markdown")
-                                     ((string= file-ext "mdc") "markdown")
-                                     (t "org"))) ; default to org for unknown extensions
+                                      ((string= file-ext "org") "org")
+                                      ((string= file-ext "md") "markdown")
+                                      ((string= file-ext "mdc") "markdown")
+                                      (t "org"))) ; default to org for unknown extensions
                        (pandoc-command (format "pandoc -f %s -t pdf --pdf-engine=xelatex -V mainfont='Noto Serif' --wrap=none '%s' -o '%s'"
-                                             input-format source-file target-pdf)))
+                                               input-format source-file target-pdf)))
                   (message "Converting: %s -> %s (format: %s)" relative-path pdf-name input-format)
                   (if (= 0 (shell-command pandoc-command))
                       (setq processed-count (1+ processed-count))
@@ -5401,10 +5402,10 @@ It's hard to remember what this package is called, which is a marker of a bad na
 
     :config
     ;; Ensure black skips changing strings
-      (setf (alist-get 'black apheleia-formatters)
-            '("black" "--skip-string-normalization" "--line-length" "120"
-              (when (apheleia-formatters-extension-p "pyi") "--pyi")
-              "-"))
+    (setf (alist-get 'black apheleia-formatters)
+          '("black" "--skip-string-normalization" "--line-length" "120"
+            (when (apheleia-formatters-extension-p "pyi") "--pyi")
+            "-"))
 
     (dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
                    (cljfmt . ("lein" "cljfmt" "fix" filepath))))
