@@ -4053,16 +4053,64 @@ These functions provide a non-interactive API for Claude Code to manage Thornlog
                  (priority (org-entry-get (point) "PRIORITY"))
                  (tags (org-get-tags)))
              (push `((title . ,title)
-                     (state . ,state) 
+                     (state . ,state)
                      (priority . ,(or priority ""))
                      (tags . ,(mapconcat 'identity tags ":")))
                    tasks)))
          (concat "+" tag)))  ; Search for entries with the specified tag
       (reverse tasks)))
+
+  (defun thornlog-mcp-get-tasks-by-title-fuzzy (title-pattern)
+    "Get all tasks with titles matching TITLE-PATTERN using fuzzy matching via MCP.
+  Returns a list of task information including title, state, priority, and tags.
+  TITLE-PATTERN should be a string to search for in task titles (case-insensitive fuzzy match)."
+    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
+          (tasks '()))
+      (with-current-buffer (find-file-noselect todo-file)
+        (org-map-entries
+         (lambda ()
+           (let ((title (org-get-heading t t t t))  ; Get heading without tags/TODO/priority
+                 (state (org-get-todo-state))
+                 (priority (org-entry-get (point) "PRIORITY"))
+                 (tags (org-get-tags)))
+             (when (and title (string-match-p (downcase title-pattern) (downcase title)))
+               (push `((title . ,title)
+                       (state . ,state)
+                       (priority . ,(or priority ""))
+                       (tags . ,(mapconcat 'identity tags ":")))
+                     tasks))))
+         nil))
+      (reverse tasks)))
+
+  (defun thornlog-mcp-get-recent-journals (&optional count)
+    "Get the most recent journal entries from log.org via MCP.
+  Returns an alist of ((date-heading . journal-content) . date-heading) for the most recent entries.
+  Each entry includes both the journal content and the date it was written.
+  COUNT defaults to 4 if not specified."
+    (let ((log-file (expand-file-name "log.org" aero/roam-path))
+          (count (or count 1))
+          (journals '()))
+      (with-current-buffer (find-file-noselect log-file)
+        (save-excursion
+          (goto-char (point-max))
+          ;; Get the last COUNT journal entries
+          (dotimes (i count)
+            (when (org-back-to-heading)
+              (let* ((journal-start (point))
+                     (journal-end (save-excursion (org-end-of-subtree t t)))
+                     (journal-content (buffer-substring-no-properties journal-start journal-end))
+                     (date-heading (save-excursion (org-up-heading-safe) (org-get-heading t t t t))))
+                (when (and date-heading journal-content)
+                  (push `((date . ,date-heading)
+                          (content . ,journal-content))
+                        journals)))
+              ;; Move to previous journal entry
+              (org-up-heading-safe)
+              (org-backward-heading-same-level 1 t))))
+        (reverse journals))))
 #+END_SRC
 
 **** Ticket synchronization
-
 This system provides comprehensive synchronization between Jira tickets and org-mode tasks in the thornlog system. It handles the complex business logic of mapping Jira ticket types (ESC, SEC, GROW, etc.) to appropriate org priorities and tags, creating new tasks for active tickets, updating existing task states, and cleaning up completed work. The functions are designed to be called by Claude Code's =/tickets= command, significantly reducing token usage by centralizing all mapping and processing logic within Emacs rather than in the AI prompt.
 
 #+BEGIN_SRC emacs-lisp :lexical t
