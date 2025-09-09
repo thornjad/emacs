@@ -4260,7 +4260,7 @@ For each of these, we ignore non-org files so that we don't try to add org prope
               (org-set-property "created" creation-time)))))))
 #+END_SRC
 
-**** Extract timestamp from filename
+**** Keeping modification dates current
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
@@ -4274,11 +4274,7 @@ For each of these, we ignore non-org files so that we don't try to add org prope
               (minute (substring filename (+ (match-beginning 2) 2) (+ (match-beginning 2) 4))))
           (let ((time-struct (date-to-time (format "%s-%s-%sT%s:%s" year month day hour minute))))
             (format-time-string "[%Y-%m-%d %a %H:%M]" time-struct))))))
-#+END_SRC
 
-**** Keeping modification dates current
-
-#+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/org-roam-insert-modified-property ()
     "Update the :modified: property for an Org-roam node upon saving."
     (when (and (org-roam-file-p) (string-suffix-p ".org" (buffer-name)))
