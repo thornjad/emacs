@@ -4295,10 +4295,19 @@ For each of these, we ignore non-org files so that we don't try to add org prope
 **** Automated creation date
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-roam-timestamp-excluded-file-p ()
+    "Return t if current file should be excluded from automatic timestamp updates."
+    (when (buffer-file-name)
+      (let ((filename (file-name-nondirectory (buffer-file-name))))
+        (or (string= filename "ritual.org")
+            (string= filename "todo.org")))))
+
   (defun aero/org-roam-insert-created-property ()
     "Insert a :created: property for a new Org-roam node if it doesn't already have one."
     (interactive)
-    (when (and (org-roam-file-p) (string-suffix-p ".org" (buffer-name)))
+    (when (and (org-roam-file-p)
+               (string-suffix-p ".org" (buffer-name))
+               (not (aero/org-roam-timestamp-excluded-file-p)))
       (unless (org-entry-get (point-min) "created" t)
         (let ((creation-time (aero/org-roam-extract-timestamp-from-filepath
                               (buffer-file-name))))
@@ -4325,7 +4334,9 @@ For each of these, we ignore non-org files so that we don't try to add org prope
 
   (defun aero/org-roam-insert-modified-property ()
     "Update the :modified: property for an Org-roam node upon saving."
-    (when (and (org-roam-file-p) (string-suffix-p ".org" (buffer-name)))
+    (when (and (org-roam-file-p)
+               (string-suffix-p ".org" (buffer-name))
+               (not (aero/org-roam-timestamp-excluded-file-p)))
       (save-excursion
         (goto-char (point-min))  ; Ensure property is applied to the whole file
         (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))))
