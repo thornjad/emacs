@@ -2049,7 +2049,7 @@ Linux only needs some functionality enabled.
 #+END_SRC
 
 ** Editor setup
-*** Editorconfig 
+*** Editorconfig
 Provides a global minor mode that respects =.editorconfig= files.
 
 #+BEGIN_SRC emacs-lisp :lexical t
