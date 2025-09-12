@@ -92,7 +92,7 @@ install-deps: lsp-booster graphviz install-npm
 	brew install node ripgrep
 	gem install bundler prettier_print syntax_tree syntax_tree-haml syntax_tree-rbs && npm i -g prettier @prettier/plugin-ruby || true
 
-	pip install python-lsp-server pyls-mypy pyls-black pyls-isort mypy ruff black "ptvsd>=4.2" || true
+	pip install python-lsp-server pyls-mypy pyls-black pyls-isort mypy ruff black "ptvsd>=4.2" jedhy || true
 
 	rustup component add rls rust-analysis rust-src || true
 	brew install clojure-lsp/brew/clojure-lsp-native || true
