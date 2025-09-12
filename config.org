@@ -5113,6 +5113,12 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
                     (flymake-ruff-load))))))
 #+END_SRC
 
+** Hy
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! hy-mode :auto
+    :mode "\\.hy\\'")
+#+END_SRC
+
 ** Rust
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! rust-mode :auto
