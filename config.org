@@ -3869,7 +3869,8 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
             (aero/org-archive-cleanup)
             (save-some-buffers t))))
       (shell-command "git fetch origin")
-      (aero/thornlog-export-sync-files-to-google-drive)
+      (when (boundp 'aero/gdrive-thornlog-base)
+        (aero/thornlog-export-sync-files-to-google-drive))
       (if (not (zerop (shell-command "git rev-list --count @{u}..")))
           (user-error "Remote has changes, manual commit required")
         (progn
@@ -4421,16 +4422,15 @@ Sync thornlog files to Google Drive as PDFs for Glean enterprise search indexing
     "Export files listed in thornlog sync list to PDF in Google Drive.
   Removes deleted files from sync list and warns about orphaned PDFs in Google Drive."
     (interactive)
+    (unless (boundp 'aero/gdrive-thornlog-base)
+      (user-error "Google Drive base path not configured in init.local.el"))
+
     (let ((sync-list-file (expand-file-name "roam/20250903140953-thornlog_google_drive_sync_list.org" aero/thornlog-path))
           (gdrive-base aero/gdrive-thornlog-base)
           (processed-count 0)
           (skipped-count 0)
           (removed-count 0)
           (files-to-keep '()))
-
-      (unless (boundp 'aero/gdrive-thornlog-base)
-        (user-error "Google Drive base path not configured in init.local.el"))
-
       (unless (file-exists-p sync-list-file)
         (user-error "Sync list file not found: %s" sync-list-file))
 
