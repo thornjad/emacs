@@ -5817,7 +5817,7 @@ We also try defining a pair of simple tools, but this is experimental.
     :commands (gptel gptel-send gptel-menu)
     :custom
     (gptel-api-key openai-api-key)
-    (gptel-model 'o4-mini) ; default model when starting a buffer
+    (gptel-model 'gpt-4.1-mini) ; default model when starting a buffer
     (gptel-use-header-line t)
     (gptel-display-buffer-action '(pop-to-buffer-same-window)) ; chat in same window
     (gptel-prompt-prefix-alist '((markdown-mode . "\n### ")
