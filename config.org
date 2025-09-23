@@ -4220,9 +4220,15 @@ This system provides comprehensive synchronization between Jira tickets and org-
         (if existing-task
             ;; Update existing task
             (let ((current-state (alist-get 'state existing-task)))
-              (when (not (equal (substring-no-properties current-state) org-state))
-                (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title existing-task)) org-state)
-                (setq updated-count 1)))
+              (let ((current-state-clean (substring-no-properties current-state)))
+                ;; Only update state if the new state is more restrictive or if current state is TODO
+                ;; This preserves manually set BLOCKED states unless Jira indicates the ticket is done
+                (when (and (not (equal current-state-clean org-state))
+                           (or (equal current-state-clean "TODO")
+                               (and (member current-state-clean '("BLOCKED" "WAITING"))
+                                    (member org-state '("DONE" "PR")))))
+                  (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title existing-task)) org-state)
+                  (setq updated-count 1)))))
 
           ;; Create new task if appropriate
           (when (thornlog-tickets--should-create-task status-name)
