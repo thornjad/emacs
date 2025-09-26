@@ -1179,6 +1179,7 @@ From there, we set up all the main keybindings.
      "fot" '(:ignore t :wk "thornlog")
      "fott" '(aero/thornlog-todo :wk "thornlog todo")
      "fotl" '(aero/thornlog-log :wk "thornlog log")
+     "fotj" '(aero/thornlog-journal :wk "thornlog journal")
      "fote" 'aero/open-emacs-config
      "fotd" '(aero/thornlog-dir :wk "thornlog all")
      "fw" '(save-buffer :wk "write buffer")
@@ -3847,6 +3848,9 @@ A fantastic note-taking system, used for building a second brain.
 This is a personal logging and note taking system, based on org-roam. It's evolved drastically over the years, from a bespoke system to a more generic org-roam setup. The functions here are for managing the thornlog system.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (when (file-exists-p (expand-file-name "lisp/thornlog.el" aero/thornlog-path))
+    (load (expand-file-name "lisp/thornlog.el" aero/thornlog-path)))
+
   (defun aero/thornlog-log ()
     "Personal persistent log."
     (interactive)
@@ -3857,28 +3861,13 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
     (interactive)
     (org-roam-node-visit (org-roam-node-from-title-or-alias "Main Todo: Triaged Tasks and Inbox")))
 
-  (defun aero/thornlog-clean-save ()
-    "Automates the git commit in thornlog."
+  (defun aero/thornlog-journal ()
+    "Open current year's personal journal file via org-roam node lookup."
     (interactive)
-    (let* ((default-directory aero/thornlog-path)
-           (timestamp (format-time-string "%Y-%m-%d %H:%M")))
-      (save-some-buffers t)
-      (let ((todo-file (expand-file-name "todo.org" aero/roam-path)))
-        (when (file-exists-p todo-file)
-          (with-current-buffer (find-file-noselect todo-file)
-            (aero/org-archive-cleanup)
-            (save-some-buffers t))))
-      (shell-command "git fetch origin")
-      (when (boundp 'aero/gdrive-thornlog-base)
-        (aero/thornlog-export-sync-files-to-google-drive))
-      (if (not (zerop (shell-command "git rev-list --count @{u}..")))
-          (user-error "Remote has changes, manual commit required")
-        (progn
-          (shell-command "git add -A")
-          (shell-command (format "git commit -m '%s'" timestamp))
-          (if (not (zerop (shell-command "git push origin")))
-              (user-error "Git push failed, manual inspection required")
-            (message "Done with Thornlog commit and push"))))))
+    (let ((current-year (format-time-string "%Y"))
+          (journal-title (format "Personal Log %s" current-year)))
+      (org-roam-node-visit (org-roam-node-from-title-or-alias journal-title))))
+
 
   (defun aero/pull-thornlog ()
     "Pulls the latest changes from Thornlog."
@@ -3950,346 +3939,6 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
       (org-set-tags-command)))
 #+END_SRC
 
-**** Claude Code MCP Interface
-These functions provide a non-interactive API for Claude Code to manage Thornlog tasks via the Emacs MCP server. Unlike the interactive functions above, these don't require user input and can be called programmatically from Claude Code sessions.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun thornlog-mcp-create-task (title &optional priority scheduled deadline tags body)
-    "Create a new TODO task in the main todo file via MCP.
-    TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
-    TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
-    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
-          (priority-str (or priority "E"))
-          (scheduled-str (or scheduled (format-time-string "<%Y-%m-%d %a>")))
-          (deadline-str (if deadline (format " DEADLINE: %s" deadline) ""))
-          (tags-str (if tags (format " :%s:" tags) ""))
-          (body-str (if body (format "\n%s" body) "")))
-      (with-current-buffer (find-file-noselect todo-file)
-        (goto-char (point-max))
-        (re-search-backward "^\\*+ Tasks" nil t)
-        (org-end-of-subtree)
-        (insert (format "\n\n** TODO [#%s] %s%s\nSCHEDULED: %s%s\n:PROPERTIES:\n:CREATED: %s\n:END:%s\n\n"
-                        priority-str title tags-str scheduled-str deadline-str
-                        (aero/org-capture-created-timestamp) body-str))
-        (save-buffer)
-        (message "Created task: %s" title)
-        ;; Refresh org-agenda if it's open
-        (when (get-buffer "*Org Agenda*")
-          (with-current-buffer "*Org Agenda*"
-            (org-agenda-redo))))))
-
-  (defun thornlog-mcp-create-ticket (title &optional priority scheduled tags body)
-    "Create a new ticket TODO task in the main todo file via MCP.
-    TITLE is required. PRIORITY defaults to E. SCHEDULED defaults to today.
-    TAGS should be a string like 'tag1:tag2' or nil. BODY is optional content to add after the properties."
-    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
-          (priority-str (or priority "E"))
-          (scheduled-str (or scheduled (format-time-string "<%Y-%m-%d %a>")))
-          (tags-str (if tags (format " :%s:" tags) ""))
-          (body-str (if body (format "\n%s" body) "")))
-      (with-current-buffer (find-file-noselect todo-file)
-        (goto-char (point-max))
-        (re-search-backward "^\\*+ Tickets" nil t)
-        (org-end-of-subtree)
-        (insert (format "\n\n** TODO [#%s] %s%s\nSCHEDULED: %s\n:PROPERTIES:\n:CREATED: %s\n:END:%s\n\n"
-                        priority-str title tags-str scheduled-str
-                        (aero/org-capture-created-timestamp) body-str))
-        (save-buffer)
-        (message "Created ticket: %s" title)
-        ;; Refresh org-agenda if it's open
-        (when (get-buffer "*Org Agenda*")
-          (with-current-buffer "*Org Agenda*"
-            (org-agenda-redo))))))
-
-  (defun thornlog-mcp-update-task-state (task-title new-state)
-    "Update the state of a task by title in the todo file via MCP.
-    Searches for TASK-TITLE and changes its TODO state to NEW-STATE.
-    Valid states: TODO, WAITING, BLOCKED, BACKLOG, DONE, REMOVED, PR, CLOSED, REVIEW"
-    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
-          (valid-states '("TODO" "WAITING" "BLOCKED" "BACKLOG" "DONE" "REMOVED"
-                          "PR" "CLOSED" "REVIEW")))
-      (if (not (member new-state valid-states))
-          (message "Invalid state '%s'. Valid states: %s" new-state (string-join valid-states ", "))
-        (with-current-buffer (find-file-noselect todo-file)
-          (goto-char (point-min))
-          (if (re-search-forward (format "^\\*+ \\w+ \\[#[A-G]\\] %s" (regexp-quote task-title)) nil t)
-              (progn
-                (org-todo new-state)
-                (save-buffer)
-                (message "Updated %s to %s" task-title new-state)
-                ;; Refresh org-agenda if it's open
-                (when (get-buffer "*Org Agenda*")
-                  (with-current-buffer "*Org Agenda*"
-                    (org-agenda-redo))))
-            (message "Task not found: %s" task-title))))))
-
-  (defun thornlog-mcp-set-task-priority (task-title new-priority)
-    "Set the priority of a task by title in the todo file via MCP.
-    NEW-PRIORITY should be a letter from A to G."
-    (let ((todo-file (expand-file-name "todo.org" aero/roam-path)))
-      (with-current-buffer (find-file-noselect todo-file)
-        (goto-char (point-min))
-        (if (re-search-forward (format "^\\*+ \\w+ \\[#[A-G]\\] %s" (regexp-quote task-title)) nil t)
-            (progn
-              (org-priority (string-to-char new-priority))
-              (save-buffer)
-              (message "Set priority of %s to %s" task-title new-priority)
-              ;; Refresh org-agenda if it's open
-              (when (get-buffer "*Org Agenda*")
-                (with-current-buffer "*Org Agenda*"
-                  (org-agenda-redo))))
-          (message "Task not found: %s" task-title)))))
-
-  (defun thornlog-mcp-get-tasks-by-tag (tag)
-    "Get all tasks with the specified TAG from the todo file via MCP.
-    Returns a list of task information including title, state, priority, and tags.
-    TAG should be a string like 'ticket' or 'personal'."
-    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
-          (tasks '()))
-      (with-current-buffer (find-file-noselect todo-file)
-        (org-map-entries
-         (lambda ()
-           (let ((title (org-get-heading t t t t))  ; Get heading without tags/TODO/priority
-                 (state (org-get-todo-state))
-                 (priority (org-entry-get (point) "PRIORITY"))
-                 (tags (org-get-tags)))
-             (push `((title . ,title)
-                     (state . ,state)
-                     (priority . ,(or priority ""))
-                     (tags . ,(mapconcat 'identity tags ":")))
-                   tasks)))
-         (concat "+" tag)))  ; Search for entries with the specified tag
-      (reverse tasks)))
-
-  (defun thornlog-mcp-get-tasks-by-title-fuzzy (title-pattern)
-    "Get all tasks with titles matching TITLE-PATTERN using fuzzy matching via MCP.
-  Returns a list of task information including title, state, priority, and tags.
-  TITLE-PATTERN should be a string to search for in task titles (case-insensitive fuzzy match)."
-    (let ((todo-file (expand-file-name "todo.org" aero/roam-path))
-          (tasks '()))
-      (with-current-buffer (find-file-noselect todo-file)
-        (org-map-entries
-         (lambda ()
-           (let ((title (org-get-heading t t t t))  ; Get heading without tags/TODO/priority
-                 (state (org-get-todo-state))
-                 (priority (org-entry-get (point) "PRIORITY"))
-                 (tags (org-get-tags)))
-             (when (and title (string-match-p (downcase title-pattern) (downcase title)))
-               (push `((title . ,title)
-                       (state . ,state)
-                       (priority . ,(or priority ""))
-                       (tags . ,(mapconcat 'identity tags ":")))
-                     tasks))))
-         nil))
-      (reverse tasks)))
-
-  (defun thornlog-mcp-get-recent-journals (&optional count)
-    "Get the most recent journal entries from log.org via MCP.
-  Returns an alist of ((date-heading . journal-content) . date-heading) for the most recent entries.
-  Each entry includes both the journal content and the date it was written.
-  COUNT defaults to 4 if not specified."
-    (let ((log-file (expand-file-name "log.org" aero/roam-path))
-          (count (or count 1))
-          (journals '()))
-      (with-current-buffer (find-file-noselect log-file)
-        (save-excursion
-          (goto-char (point-max))
-          ;; Get the last COUNT journal entries
-          (dotimes (i count)
-            (when (org-back-to-heading)
-              (let* ((journal-start (point))
-                     (journal-end (save-excursion (org-end-of-subtree t t)))
-                     (journal-content (buffer-substring-no-properties journal-start journal-end))
-                     (date-heading (save-excursion (org-up-heading-safe) (org-get-heading t t t t))))
-                (when (and date-heading journal-content)
-                  (push `((date . ,date-heading)
-                          (content . ,journal-content))
-                        journals)))
-              ;; Move to previous journal entry
-              (org-up-heading-safe)
-              (org-backward-heading-same-level 1 t))))
-        (reverse journals))))
-#+END_SRC
-
-**** Ticket synchronization
-This system provides comprehensive synchronization between Jira tickets and org-mode tasks in the thornlog system. It handles the complex business logic of mapping Jira ticket types (ESC, SEC, GROW, etc.) to appropriate org priorities and tags, creating new tasks for active tickets, updating existing task states, and cleaning up completed work. The functions are designed to be called by Claude Code's =/tickets= command, significantly reducing token usage by centralizing all mapping and processing logic within Emacs rather than in the AI prompt.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun thornlog-tickets--extract-ticket-id (title)
-    "Extract ticket ID from task title like '[GROW-1234] title'."
-    (when (string-match "\\[\\([A-Z]+-[0-9]+\\)\\]" title)
-      (match-string 1 title)))
-
-  (defun thornlog-tickets--get-ticket-type (key)
-    "Get ticket type (ESC, SEC, other) from ticket key."
-    (cond ((string-match "^ESC-" key) 'esc)
-          ((string-match "^SEC-" key) 'sec)
-          (t 'other)))
-
-  (defun thornlog-tickets--map-jira-priority (jira-priority ticket-type)
-    "Map Jira priority to org priority based on ticket type."
-    (let ((priority-name (alist-get 'name jira-priority)))
-      (cond
-       ((eq ticket-type 'esc)
-        (cond ((equal priority-name "P0") "A")
-              ((equal priority-name "P1") "A")
-              ((equal priority-name "P2") "A")
-              ((equal priority-name "P3") "B")
-              ((equal priority-name "P4") "B")
-              (t "B")))
-       ((eq ticket-type 'sec)
-        (cond ((equal priority-name "P0") "A")
-              ((equal priority-name "P1") "B")
-              ((equal priority-name "P2") "D")
-              ((equal priority-name "P3") "D")
-              ((equal priority-name "P4") "D")
-              (t "D")))
-       (t ;; other tickets (GROW, WAL, etc)
-        (cond ((equal priority-name "P0") "A")
-              ((equal priority-name "P1") "A")
-              ((equal priority-name "P2") "B")
-              ((equal priority-name "P3") "B")
-              ((equal priority-name "P4") "B")
-              (t "B"))))))
-
-  (defun thornlog-tickets--get-tags-for-ticket (ticket-type)
-    "Get tags string based on ticket type."
-    (cond ((eq ticket-type 'esc) "ticket:support")
-          ((eq ticket-type 'sec) "ticket:security")
-          (t "ticket")))
-
-  (defun thornlog-tickets--format-deadline (date-string)
-    "Format deadline from YYYY-MM-DD to <YYYY-MM-DD Day>."
-    (when date-string
-      (let ((parsed-date (date-to-time date-string)))
-        (format-time-string "<%Y-%m-%d %a>" parsed-date))))
-
-  (defun thornlog-tickets--jira-status-to-org-state (status-name)
-    "Map Jira status to org todo state."
-    (cond ((equal status-name "QA") "DONE")
-          ((equal status-name "In Review") "PR")
-          (t "TODO")))
-
-  (defun thornlog-tickets--should-create-task (status-name)
-    "Determine if we should create a new task for this status."
-    (not (equal status-name "QA")))
-
-  (defun thornlog-tickets--build-task-maps (existing-tasks jira-tickets)
-    "Build hash tables mapping tickets by ID for efficient lookup.
-  Returns (existing-by-ticket . jira-by-ticket) hash tables."
-    (let ((existing-by-ticket (make-hash-table :test 'equal))
-          (jira-by-ticket (make-hash-table :test 'equal))
-          (discrepancies '()))
-
-      ;; Map existing tasks by ticket ID
-      (dolist (task existing-tasks)
-        (let ((title (alist-get 'title task)))
-          (when title
-            (let ((extracted-id (thornlog-tickets--extract-ticket-id (substring-no-properties title))))
-              (when extracted-id
-                (if (gethash extracted-id existing-by-ticket)
-                    ;; Found duplicate
-                    (push (format "[%s]: DUPLICATE TASKS - found multiple tasks with same ticket ID" extracted-id) discrepancies)
-                  (puthash extracted-id task existing-by-ticket)))))))
-
-      ;; Map Jira tickets by key
-      (dolist (ticket jira-tickets)
-        (let ((key (alist-get 'key ticket)))
-          (puthash key ticket jira-by-ticket)))
-
-      (list existing-by-ticket jira-by-ticket discrepancies)))
-
-  (defun thornlog-tickets--process-jira-ticket (ticket existing-by-ticket today-date)
-    "Process a single Jira ticket, updating or creating tasks as needed.
-  Returns (created-count . updated-count)."
-    (let* ((fields (alist-get 'fields ticket))
-           (key (alist-get 'key ticket))
-           (summary (alist-get 'summary fields))
-           (status (alist-get 'status fields))
-           (status-name (alist-get 'name status))
-           (priority (alist-get 'priority fields))
-           (duedate (alist-get 'duedate fields))
-           (ticket-type (thornlog-tickets--get-ticket-type key))
-           (org-priority (thornlog-tickets--map-jira-priority priority ticket-type))
-           (org-state (thornlog-tickets--jira-status-to-org-state status-name))
-           (tags (thornlog-tickets--get-tags-for-ticket ticket-type))
-           (created-count 0)
-           (updated-count 0))
-
-      (let ((existing-task (gethash key existing-by-ticket)))
-        (if existing-task
-            ;; Update existing task
-            (let ((current-state (alist-get 'state existing-task)))
-              (let ((current-state-clean (substring-no-properties current-state)))
-                ;; Only update state if the new state is more restrictive or if current state is TODO
-                ;; This preserves manually set BLOCKED states unless Jira indicates the ticket is done
-                (when (and (not (equal current-state-clean org-state))
-                           (or (equal current-state-clean "TODO")
-                               (and (member current-state-clean '("BLOCKED" "WAITING"))
-                                    (member org-state '("DONE" "PR")))))
-                  (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title existing-task)) org-state)
-                  (setq updated-count 1)))))
-
-          ;; Create new task if appropriate
-          (when (thornlog-tickets--should-create-task status-name)
-            (let* ((title (format "[%s] %s" key summary))
-                   (deadline (cond
-                              ;; ESC P0 always gets today deadline
-                              ((and (eq ticket-type 'esc)
-                                    (equal (alist-get 'name priority) "P0"))
-                               today-date)
-                              ;; Other tickets use Jira deadline if exists
-                              (duedate (thornlog-tickets--format-deadline duedate))
-                              (t nil)))
-                   (body (format "https://dronedeploy.atlassian.net/browse/%s\n\n%s" key summary)))
-
-              (if deadline
-                  (thornlog-mcp-create-task title org-priority today-date deadline tags body)
-                (thornlog-mcp-create-ticket title org-priority today-date tags body))
-              (setq created-count 1)))))
-
-      (cons created-count updated-count)))
-
-  (defun thornlog-tickets--cleanup-inactive-tickets (existing-by-ticket jira-by-ticket)
-    "Mark tasks for inactive Jira tickets as DONE. Returns update count."
-    (let ((updated-count 0))
-      (maphash (lambda (ticket-id task)
-                 (unless (gethash ticket-id jira-by-ticket)
-                   (let ((current-state (alist-get 'state task)))
-                     (unless (equal (substring-no-properties current-state) "DONE")
-                       (thornlog-mcp-update-task-state (substring-no-properties (alist-get 'title task)) "DONE")
-                       (setq updated-count (1+ updated-count))))))
-               existing-by-ticket)
-      updated-count))
-
-  (defun thornlog-tickets-sync (jira-tickets)
-    "Synchronize ticket tasks between Jira and todo.org.
-  JIRA-TICKETS should be a list of Jira issue objects with limited fields."
-    (let ((created-count 0)
-          (updated-count 0)
-          (today-date (format-time-string "<%Y-%m-%d %a>"))
-          (existing-tasks (thornlog-mcp-get-tasks-by-tag "ticket")))
-
-      ;; Build lookup maps and get any initial discrepancies
-      (let* ((maps-result (thornlog-tickets--build-task-maps existing-tasks jira-tickets))
-             (existing-by-ticket (nth 0 maps-result))
-             (jira-by-ticket (nth 1 maps-result))
-             (discrepancies (nth 2 maps-result)))
-
-        ;; Process each Jira ticket
-        (dolist (ticket jira-tickets)
-          (let ((result (thornlog-tickets--process-jira-ticket ticket existing-by-ticket today-date)))
-            (setq created-count (+ created-count (car result)))
-            (setq updated-count (+ updated-count (cdr result)))))
-
-        ;; Clean up inactive tickets
-        (setq updated-count (+ updated-count (thornlog-tickets--cleanup-inactive-tickets existing-by-ticket jira-by-ticket)))
-
-        ;; Return summary
-        (list :created created-count
-              :updated updated-count
-              :discrepancies discrepancies))))
-#+END_SRC
 
 *** Updated (modified) and created timestamps in Org-roam
 This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
@@ -4382,136 +4031,6 @@ Adds support for Markdown files within the roam database. I generally use org, b
     (org-roam-file-extensions '("org" "md"))
     :config
     (md-roam-mode +1))
-#+END_SRC
-
-*** Google Drive Sync
-Sync thornlog files to Google Drive as PDFs for Glean enterprise search indexing. Files are added to a sync list, then batch converted using pandoc. Only converts files when source is newer than target PDF.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/thornlog-add-to-sync-list ()
-    "Add current file to Google Drive sync list.
-    Only works within thornlog directory and on files, not directories."
-    (interactive)
-    (unless buffer-file-name
-      (user-error "Buffer is not visiting a file"))
-    (unless (string-prefix-p aero/thornlog-path buffer-file-name)
-      (user-error "File must be within thornlog directory"))
-    (when (file-directory-p buffer-file-name)
-      (user-error "Cannot sync directories, only files"))
-
-    (let* ((relative-path (file-relative-name buffer-file-name aero/thornlog-path))
-           (sync-list-file (expand-file-name "roam/20250903140953-thornlog_google_drive_sync_list.org" aero/thornlog-path))
-           (list-item (format "- %s" relative-path)))
-
-      ;; Create sync list file if it doesn't exist
-      (unless (file-exists-p sync-list-file)
-        (with-temp-file sync-list-file
-          (insert "#+title: Thornlog Google Drive Sync List\n\n")))
-
-      ;; Check if file is already in the list
-      (if (with-temp-buffer
-            (insert-file-contents sync-list-file)
-            (goto-char (point-min))
-            (search-forward list-item nil t))
-          (message "File already in sync list: %s" relative-path)
-
-        ;; Add file to sync list
-        (with-temp-file sync-list-file
-          (insert-file-contents sync-list-file)
-          (goto-char (point-max))
-          (unless (bolp) (insert "\n"))
-          (insert list-item "\n"))
-
-        (message "Added to sync list: %s" relative-path))))
-
-  (defun aero/thornlog-export-sync-files-to-google-drive ()
-    "Export files listed in thornlog sync list to PDF in Google Drive.
-  Removes deleted files from sync list and warns about orphaned PDFs in Google Drive."
-    (interactive)
-    (unless (boundp 'aero/gdrive-thornlog-base)
-      (user-error "Google Drive base path not configured in init.local.el"))
-
-    (let ((sync-list-file (expand-file-name "roam/20250903140953-thornlog_google_drive_sync_list.org" aero/thornlog-path))
-          (gdrive-base aero/gdrive-thornlog-base)
-          (processed-count 0)
-          (skipped-count 0)
-          (removed-count 0)
-          (files-to-keep '()))
-      (unless (file-exists-p sync-list-file)
-        (user-error "Sync list file not found: %s" sync-list-file))
-
-      ;; First pass: collect existing files and process conversions
-      (with-temp-buffer
-        (insert-file-contents sync-list-file)
-        (goto-char (point-min))
-
-        ;; Find all lines starting with "- " (org list items)
-        (while (re-search-forward "^- \\(.+\\)$" nil t)
-          (let* ((file-name (match-string 1))
-                 (source-file (expand-file-name file-name aero/thornlog-path))
-                 (relative-path (file-relative-name source-file aero/thornlog-path))
-                 (pdf-name (concat (file-name-sans-extension relative-path) ".pdf"))
-                 (target-pdf (expand-file-name pdf-name gdrive-base))
-                 (target-dir (file-name-directory target-pdf)))
-
-            (cond
-             ;; File doesn't exist - remove from list and warn about orphaned PDF
-             ((not (file-exists-p source-file))
-              (message "Removing deleted file from sync list: %s" relative-path)
-              (when (file-exists-p target-pdf)
-                (message "WARNING: PDF exists in Google Drive but source deleted: %s" pdf-name))
-              (setq removed-count (1+ removed-count)))
-
-             ;; File exists - keep in list and check for conversion
-             (t
-              (push (format "- %s" file-name) files-to-keep)
-
-              ;; Check if conversion needed (source newer than target or target doesn't exist)
-              (cond
-               ((or (not (file-exists-p target-pdf))
-                    (file-newer-than-file-p source-file target-pdf))
-
-                ;; Create target directory if needed
-                (unless (file-exists-p target-dir)
-                  (make-directory target-dir t))
-
-                ;; Run pandoc conversion with appropriate input format
-                (let* ((file-ext (file-name-extension source-file))
-                       (input-format (cond
-                                      ((string= file-ext "org") "org")
-                                      ((string= file-ext "md") "markdown")
-                                      ((string= file-ext "mdc") "markdown")
-                                      (t "org"))) ; default to org for unknown extensions
-                       (pandoc-command (format "pandoc -f %s -t pdf --pdf-engine=xelatex -V mainfont='Noto Serif' --wrap=none '%s' -o '%s'"
-                                               input-format source-file target-pdf)))
-                  (message "Converting: %s -> %s (format: %s)" relative-path pdf-name input-format)
-                  (if (= 0 (shell-command pandoc-command))
-                      (setq processed-count (1+ processed-count))
-                    (message "Error converting: %s" relative-path)
-                    (setq skipped-count (1+ skipped-count)))))
-
-               ;; Skip - target is up to date
-               (t
-                (setq skipped-count (1+ skipped-count)))))))))
-
-      ;; Update sync list file if files were removed
-      (when (> removed-count 0)
-        (with-temp-file sync-list-file
-          (insert-file-contents sync-list-file)
-          (goto-char (point-min))
-          ;; Keep header (everything before first "- ")
-          (when (re-search-forward "^- " nil t)
-            (beginning-of-line)
-            (delete-region (point) (point-max)))
-          ;; Add remaining files
-          (dolist (file-line (reverse files-to-keep))
-            (insert file-line "\n"))))
-
-      (if (> removed-count 0)
-          (message "Export complete. Processed: %d, Skipped: %d, Removed from list: %d files. WARNING: %d PDF(s) may still exist in Google Drive and should be manually deleted!"
-                   processed-count skipped-count removed-count removed-count)
-        (message "Export complete. Processed: %d, Skipped: %d files"
-                 processed-count skipped-count))))
 #+END_SRC
 
 * Writing
@@ -5974,10 +5493,10 @@ Makes it easier to run multiple vterm instances at once, especially per-project
       "p`" 'multi-vterm-project)
 
     :config
-  	(add-hook 'vterm-mode-hook
-  			      (lambda ()
-  			        (setq-local evil-insert-state-cursor 'bar)
-  			        (evil-insert-state)))
+    (add-hook 'vterm-mode-hook
+              (lambda ()
+                (setq-local evil-insert-state-cursor 'bar)
+                (evil-insert-state)))
 
     (aero-mode-leader-def 'vterm-mode-map
       "c" 'multi-vterm
