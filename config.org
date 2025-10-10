@@ -470,8 +470,8 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 
   (defun aero/insert-org-date-at-heading ()
     "Choose a date and add it to the end of the closest heading above point.
-Inserts date with day of the week. If the heading has tags, insert date before the tags.
-If no heading is found above, insert at point instead."
+  Inserts date with day of the week. If the heading has tags, insert date before the tags.
+  If no heading is found above, insert at point instead."
     (interactive)
     (let* ((date (org-read-date nil t nil "Choose date: "))
            (date-string (format-time-string "<%Y-%m-%d %a>" date))
@@ -550,7 +550,7 @@ If no heading is found above, insert at point instead."
       (string-match "^\\*tramp" name)))
   (defun aero/kill-tramp ()
     "Kill all Tramp connections. Useful for stale connections.
-    This function does NOT remove remote buffers, only their connections."
+      This function does NOT remove remote buffers, only their connections."
     (interactive)
     (when (require 'tramp nil t)
       (declare-function password-reset "password-cache.el")
@@ -575,8 +575,8 @@ If no heading is found above, insert at point instead."
   (defun aero/xdg-open (arg)
     "Pass the specified ARG to \"xdg-open\".
 
-    This can be used to open Nautilus/Finder, the default browser, etc. See \"man
-    xdg-open\" for more."
+      This can be used to open Nautilus/Finder, the default browser, etc. See \"man
+      xdg-open\" for more."
     (interactive (list (read-string "Open: ")))
     (let ((proc
            (cond
@@ -591,7 +591,7 @@ If no heading is found above, insert at point instead."
   (defun aero/browse-url-open (url &optional _ignored)
     "Pass the specified URL to `aero/xdg-open'.
 
-    Ignored arg is due to the way `funcall-interactively' calls stuff."
+      Ignored arg is due to the way `funcall-interactively' calls stuff."
     (interactive
      (let ((link (and (derived-mode-p 'org-mode)
                       (org-element-context))))
@@ -1883,9 +1883,9 @@ Document highlighting is disabled because most language servers are pretty slow 
     :config
     (setq-default eglot-workspace-configuration
                   '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-    				                          :pyls_mypy (:enabled t :live_mode :json-false)
-    				                          :pyls_black (:enabled t)
-    				                          :pyls_isort (:enabled t)))))
+                                      :pyls_mypy (:enabled t :live_mode :json-false)
+                                      :pyls_black (:enabled t)
+                                      :pyls_isort (:enabled t)))))
     ;; Create binding for Astro
     (add-to-list 'eglot-server-programs
                  '(astro-mode . ("astro-ls" "--stdio"
@@ -3019,8 +3019,9 @@ Provides a visual indicator of changes in the gutter. I use it to quickly see wh
     (git-gutter:disabled-modes '(so-long-mode
                                  image-mode asm-mode
                                  doc-view-mode
-                                 fundamental-mode image-mode pdf-view-mode))
-    (git-gutter:update-interval 0.02)
+                                 fundamental-mode image-mode pdf-view-mode
+                                 org-agenda-mode))
+    (git-gutter:update-interval 2)
     (git-gutter:handled-backends
      (cons 'git (cl-remove-if-not #'executable-find (list 'hg 'svn 'bzr)
                                   :key #'symbol-name)))
@@ -3181,22 +3182,22 @@ Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-th
   This function makes sure that dates are aligned for easy reading."
     (require 'cal-iso)
     (let* ((dayname (calendar-day-name date))
-  	       (day (cadr date))
-  	       (month (car date))
-  	       (monthname (calendar-month-name month))
+           (day (cadr date))
+           (month (car date))
+           (monthname (calendar-month-name month))
 
            ;; divisor must be float so (/) doesn't do integer division
            (quarter (round (/ (1+ month) 3.0)))
 
-  	       (year (nth 2 date))
-  	       (iso-week (org-days-to-iso-week
-  		                (calendar-absolute-from-gregorian date)))
-  	       (day-of-week (calendar-day-of-week date))
-  	       (weekstring (if (= day-of-week 1)
-  			                   (format " W%02d" iso-week)
-  		                   "")))
+           (year (nth 2 date))
+           (iso-week (org-days-to-iso-week
+                      (calendar-absolute-from-gregorian date)))
+           (day-of-week (calendar-day-of-week date))
+           (weekstring (if (= day-of-week 1)
+                           (format " W%02d" iso-week)
+                         "")))
       (format "%-10s %2d %s %4d%s   (Q%s)"
-  	          dayname day monthname year weekstring quarter)))
+              dayname day monthname year weekstring quarter)))
 
   (defun aero/org-deindent-on-return (&rest _)
     "De-indent the current line if there is only whitespace before the point when pressing ENTER.
@@ -3864,10 +3865,9 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
   (defun aero/thornlog-journal ()
     "Open current year's personal journal file via org-roam node lookup."
     (interactive)
-    (let ((current-year (format-time-string "%Y"))
-          (journal-title (format "Personal Log %s" current-year)))
+    (let* ((current-year (format-time-string "%Y"))
+           (journal-title (format "Personal Log %s" current-year)))
       (org-roam-node-visit (org-roam-node-from-title-or-alias journal-title))))
-
 
   (defun aero/pull-thornlog ()
     "Pulls the latest changes from Thornlog."
@@ -5416,14 +5416,14 @@ We also try defining a pair of simple tools, but this is experimental.
                    (format "Created file %s in %s" filename path)))
      :description "Create a new file with the specified content"
      :args (list '(:name "path"
-  	               :type string
-  	               :description "The directory where to create the file")
+                   :type string
+                   :description "The directory where to create the file")
                  '(:name "filename"
-  	               :type string
-  	               :description "The name of the file to create")
+                   :type string
+                   :description "The name of the file to create")
                  '(:name "content"
-  	               :type string
-  	               :description "The content to write to the file"))
+                   :type string
+                   :description "The content to write to the file"))
      :category "filesystem"))
 #+END_SRC
 
