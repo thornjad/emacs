@@ -3429,6 +3429,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     (org-agenda-skip-scheduled-if-deadline-is-shown t) ; don't duplicate deadline & scheduled
     (org-agenda-skip-timestamp-if-done t)
     (org-agenda-skip-timestamp-if-deadline-is-shown t)
+    (org-agenda-show-outline-path nil) ; waste of cpu time
     (org-agenda-window-setup 'current-window) ; stop agenda opening a new window
     (org-agenda-skip-unavailable-files t)
     (org-agenda-show-future-repeats nil) ; don't show repeating tasks on future agenda dates
@@ -3662,37 +3663,19 @@ The workhorse of my task management. This package allows me to group tasks in th
       (setq org-super-agenda-header-map nil))
 
     (defvar aero/org-super-agenda-timer nil)
-    (defvar aero/org-super-agenda-idle-seconds 7
-      "Number of seconds of inactivity before the agenda is considered idle.")
-    (defvar aero/org-super-agenda-last-activity (float-time))
-
-    (defun aero/org-super-agenda-update-last-activity (&rest _)
-      "Update the last activity time."
-      (setq aero/org-super-agenda-last-activity (float-time)))
-
-    (defun aero/org-super-agenda-should-refresh ()
-      (let ((agenda-buffer (get-buffer "*Org Agenda*")))
-        (and agenda-buffer
-             (or (not (eq (current-buffer) agenda-buffer))
-                 (>= (- (float-time) aero/org-super-agenda-last-activity)
-                     aero/org-super-agenda-idle-seconds)))))
 
     (defun aero/org-super-agenda-refresh ()
       "If *Org Agenda* is visible, select its window and do a proper org-agenda-redo."
-      (when (aero/org-super-agenda-should-refresh)
-        (when-let ((win (get-buffer-window "*Org Agenda*")))
-          (with-selected-window win
-            (org-agenda-redo)))))
+      (when-let ((win (get-buffer-window "*Org Agenda*")))
+        (with-selected-window win
+          (org-agenda-redo))))
 
     (defun aero/org-super-agenda-start-timer ()
-      "Start a timer to refresh the super agenda every minute."
+      "Start an idle timer to refresh the super agenda after 60 seconds of inactivity."
       (interactive)
       (unless aero/org-super-agenda-timer
         (setq aero/org-super-agenda-timer
-              (let* ((now   (float-time))
-                     (sec   (mod now 60))
-                     (delay (if (zerop sec) 0.0 (- 60 sec))))
-                (run-at-time delay 60 #'aero/org-super-agenda-refresh)))))
+              (run-with-idle-timer 60 t #'aero/org-super-agenda-refresh))))
 
     (defun aero/org-super-agenda-stop-timer ()
       (interactive)
@@ -3700,14 +3683,9 @@ The workhorse of my task management. This package allows me to group tasks in th
         (cancel-timer aero/org-super-agenda-timer)
         (setq aero/org-super-agenda-timer nil)))
 
-    (defun aero/org-super-agenda-setup-local-last-activity-hook ()
-      "Set up the post-command-hook to update the last activity time in the agenda buffer."
-      (add-hook 'post-command-hook #'aero/org-super-agenda-update-last-activity nil t))
-
     :hook ((org-agenda-after-show . recenter)
            (org-agenda-mode . aero/org-super-agenda-start-timer)
-           (org-agenda-mode . aero/org-super-agenda-without-keymap)
-           (org-agenda-mode . aero/org-super-agenda-setup-local-last-activity-hook))
+           (org-agenda-mode . aero/org-super-agenda-without-keymap))
 
     :custom
     (org-super-agenda-groups
