@@ -2976,10 +2976,17 @@ One of the truly great packages in Emacs. I use it for everything git-related.
     (git-commit-style-convention-checks '(non-empty-second-line overlong-summary-line))
     (git-commit-summary-max-length 50)
     (git-commit-fill-column 72)
+    (magit-commit-show-diff nil)
 
     :config
     (add-hook 'with-editor-mode-hook #'evil-insert-state)
     (magit-auto-revert-mode nil)
+
+    ;; Force Magit to ALWAYS use the current window - no new windows or frames ever
+    (add-to-list 'display-buffer-alist
+                 '("\\`\\*magit.*\\*\\'"
+                   (display-buffer-same-window)
+                   (inhibit-switch-frame . t)))
 
     (defun aero/truncate-lines-off () (toggle-truncate-lines -1))
     (add-hook 'magit-status-mode-hook #'aero/truncate-lines-off)
