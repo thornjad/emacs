@@ -1745,6 +1745,26 @@ Provides a way to undo/redo window configurations.
       "wU" 'winner-redo))
 #+END_SRC
 
+** Tab Bar
+Tab bar mode provides workspace-like tabs in Emacs. Use Command-1 through Command-9 to quickly switch between tabs.
+
+Tab Bar mode is not enabled by default since we don't always want it. Call =tab-bar-mode= when you want to start using tabs.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+    (setq tab-bar-tab-hints t)
+    (setq tab-bar-separator "  ")
+
+    (global-set-key (kbd "s-1") (lambda () (interactive) (tab-bar-select-tab 1)))
+    (global-set-key (kbd "s-2") (lambda () (interactive) (tab-bar-select-tab 2)))
+    (global-set-key (kbd "s-3") (lambda () (interactive) (tab-bar-select-tab 3)))
+    (global-set-key (kbd "s-4") (lambda () (interactive) (tab-bar-select-tab 4)))
+    (global-set-key (kbd "s-5") (lambda () (interactive) (tab-bar-select-tab 5)))
+    (global-set-key (kbd "s-6") (lambda () (interactive) (tab-bar-select-tab 6)))
+    (global-set-key (kbd "s-7") (lambda () (interactive) (tab-bar-select-tab 7)))
+    (global-set-key (kbd "s-8") (lambda () (interactive) (tab-bar-select-tab 8)))
+    (global-set-key (kbd "s-9") (lambda () (interactive) (tab-bar-select-tab 9)))
+#+END_SRC
+
 ** Winum
 Jump to windows by number. 1 is the upper-left-most
 
