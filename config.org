@@ -5552,6 +5552,7 @@ Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions
   Otherwise, create a new one and start cursor-agent.
   Cursor Agent needs a window size signal after startup to render properly."
     (interactive)
+    (require 'vterm)  ; Load vterm before using vterm-buffer-name
     (let* ((project-root (or (when (project-current)
                                (project-root (project-current)))
                              default-directory))
