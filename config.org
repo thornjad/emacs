@@ -5502,6 +5502,7 @@ Makes it easier to run multiple vterm instances at once, especially per-project
     (add-hook 'vterm-mode-hook
               (lambda ()
                 (setq-local evil-insert-state-cursor 'bar)
+                (smartparens-mode -1)
                 (evil-insert-state)))
 
     ;; Add keybinding for Shift-Enter to insert literal newline (Ctrl-J)
