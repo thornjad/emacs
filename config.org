@@ -2610,6 +2610,9 @@ Simple rainbow mode to highlight hex colors in code.
   (add-hook 'prog-mode-hook #'aero/rainbow-mode)
   (add-hook 'org-mode-hook #'aero/rainbow-mode)
   (add-hook 'conf-space-mode-hook #'aero/rainbow-mode)
+
+  ;; disable show-paren-mode in org-mode to avoid false "unmatched expression" errors
+  (add-hook 'org-mode-hook (lambda () (show-paren-mode -1)))
 #+END_SRC
 
 Makes links in comments clickable
@@ -4804,30 +4807,34 @@ Toward the end we set up parens with post-handlers to add an extra newline and i
   the current line, insert a literal ')' character. If the expression is not
   balanced, insert a closing delimiter for the current expression. This command
   uses Smartparens navigation commands and therefore recognizes pair delimiters
-  that have been defined using `sp-pair' or `sp-local-pair'."
+  that have been defined using `sp-pair' or `sp-local-pair'.
+
+  If smartparens-mode is not active, simply insert a literal ')' character."
       (interactive)
-      (let* ((sp-navigate-close-if-unbalanced t)
-             (current-pos (point))
-             (current-line (line-number-at-pos current-pos))
-             next-pos next-line)
-        (aero/voidvar! sp-navigate-close-if-unbalanced)
-        (save-excursion
-          (let ((buffer-undo-list)
-                (modified (buffer-modified-p)))
-            (unwind-protect
-                (progn
-                  (sp-up-sexp)
-                  (setq next-pos (point)
-                        next-line (line-number-at-pos)))
-              (primitive-undo (length buffer-undo-list)
-                              buffer-undo-list)
-              (set-buffer-modified-p modified))))
-        (cond
-         ((and (= current-line next-line)
-               (not (= current-pos next-pos)))
-          (sp-up-sexp))
-         (t
-          (insert-char ?\))))))
+      (if (bound-and-true-p smartparens-mode)
+          (let* ((sp-navigate-close-if-unbalanced t)
+                 (current-pos (point))
+                 (current-line (line-number-at-pos current-pos))
+                 next-pos next-line)
+            (aero/voidvar! sp-navigate-close-if-unbalanced)
+            (save-excursion
+              (let ((buffer-undo-list)
+                    (modified (buffer-modified-p)))
+                (unwind-protect
+                    (progn
+                      (sp-up-sexp)
+                      (setq next-pos (point)
+                            next-line (line-number-at-pos)))
+                  (primitive-undo (length buffer-undo-list)
+                                  buffer-undo-list)
+                  (set-buffer-modified-p modified))))
+            (cond
+             ((and (= current-line next-line)
+                   (not (= current-pos next-pos)))
+              (sp-up-sexp))
+             (t
+              (insert-char ?\)))))
+        (insert-char ?\))))
 
     (require 'smartparens-config)
     (show-smartparens-global-mode t)
@@ -5484,7 +5491,21 @@ Note: vterm requires libvterm-dev, which may not be installed. See https://githu
         (provide 'vterm-module))
 
       (aero-leader-def
-        "S'" 'vterm)))
+        "S'" 'vterm)
+
+      :config
+      ;; disable smartparens in vterm
+      (add-hook 'vterm-mode-hook
+                (lambda ()
+                  (setq-local evil-insert-state-cursor 'bar)
+                  (smartparens-mode -1)
+                  (evil-insert-state)))
+
+      ;; bind Shift-Enter to insert literal newline (Ctrl-J)
+      (define-key vterm-mode-map (kbd "<S-return>")
+                  (lambda ()
+                    (interactive)
+                    (vterm-send-key "j" nil nil t)))))
 #+end_src
 
 *** multi-vterm
@@ -5499,18 +5520,6 @@ Makes it easier to run multiple vterm instances at once, especially per-project
       "p`" 'multi-vterm-project)
 
     :config
-    (add-hook 'vterm-mode-hook
-              (lambda ()
-                (setq-local evil-insert-state-cursor 'bar)
-                (smartparens-mode -1)
-                (evil-insert-state)))
-
-    ;; Add keybinding for Shift-Enter to insert literal newline (Ctrl-J)
-    (define-key vterm-mode-map (kbd "<S-return>")
-                (lambda ()
-                  (interactive)
-                  (vterm-send-key "j" nil nil t)))
-
     (aero-mode-leader-def 'vterm-mode-map
       "c" 'multi-vterm
       "n" 'mutli-vterm-next
