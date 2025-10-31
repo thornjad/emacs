@@ -3811,6 +3811,23 @@ Allow drag-and-drop of images from browser, finder, etc.
     (define-key org-agenda-mode-map "q" #'aero/local-quit-agenda))
 #+END_SRC
 
+*** Auto-save after org-agenda changes
+Automatically save files after making changes through org-agenda to prevent data loss.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/org-agenda-save-modified-buffers (&rest _)
+    "Save all modified org buffers after agenda operations."
+    (org-save-all-org-buffers))
+
+  (with-eval-after-load 'org-agenda
+    (advice-add 'org-agenda-todo :after #'aero/org-agenda-save-modified-buffers)
+    (advice-add 'org-agenda-schedule :after #'aero/org-agenda-save-modified-buffers)
+    (advice-add 'org-agenda-deadline :after #'aero/org-agenda-save-modified-buffers)
+    (advice-add 'org-agenda-priority :after #'aero/org-agenda-save-modified-buffers)
+    (advice-add 'org-agenda-set-tags :after #'aero/org-agenda-save-modified-buffers)
+    (advice-add 'org-agenda-refile :after #'aero/org-agenda-save-modified-buffers))
+#+END_SRC
+
 ** Org-roam
 A fantastic note-taking system, used for building a second brain.
 
