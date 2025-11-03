@@ -2645,18 +2645,6 @@ Pulse the current line when changing windows. There's whole packages that do thi
     (advice-add fn :after #'pulse-line))
 #+END_SRC
 
-** Good scroll
-Improved pixel-based smooth scrolling. Mostly used when screen sharing, doesn't really do much for normal navigation.
-
-Setting =good-scroll-avoid-vscroll-reset= to nil avoids a bug with evil-mode. https://github.com/io12/good-scroll.el/issues/16
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! good-scroll "io12/good-scroll.el"
-    :functions (good-scroll-mode)
-    :init (setq good-scroll-avoid-vscroll-reset nil)
-    :config (good-scroll-mode +1))
-#+END_SRC
-
 ** Formfeeder
 Displays formfeed characters, which are often used by convention in Elisp
 
