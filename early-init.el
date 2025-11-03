@@ -27,6 +27,9 @@
 ;; Native-compile async
 (setq native-comp-jit-compilation t)
 
+;; exclude test files from native compilation to prevent stuck compilation processes
+(setq native-comp-jit-compilation-deny-list '(".*-tests?\\.el$"))
+
 ;; Ensure that quitting only occurs once Emacs finishes native compiling,
 ;; preventing incomplete or leftover compilation files in `/tmp`.
 (setq native-comp-async-query-on-exit t)
