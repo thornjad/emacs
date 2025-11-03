@@ -840,9 +840,15 @@ Don't allow straight to check for modifications in every repo on Emacs init, sav
 
 Set the order in which repositories are checked for =:auto= recipes. These are based on broad levels of trust, if something appears in both GNU ELPA and MELPA, for example, we'd prefer the GNU ELPA version. Also prefer using the mirror of GNU ELPA because it's stupidly more efficient than the normal GNU ELPA build process.
 
+We also use the GitHub mirror of Non-GNU ELPA because the source Savannah server gets overloaded fairly often.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (setq straight-recipe-repositories
-        '(org-elpa gnu-elpa-mirror nongnu-elpa emacsmirror-mirror melpa))
+        '(org-elpa gnu-elpa-mirror
+          (nongnu-elpa :type git :host github
+                       :repo "emacsmirror/nongnu_elpa"
+                       :branch "main")
+          emacsmirror-mirror melpa))
   (setq straight-recipes-gnu-elpa-use-mirror t)
 #+END_SRC
 
@@ -5090,7 +5096,7 @@ Package for the debug adapter protocol. See https://github.com/svaante/dape for 
 WS-Butler removes trailing whitespace, but only in modes where it's not important. This is a good default, but we need to exempt some modes where whitespace is important.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! ws-butler :auto
+  (package! ws-butler (:repo "lewang/ws-butler" :branch "master")
     :functions (ws-butler-global-mode)
     :init (ws-butler-global-mode)
     :custom
