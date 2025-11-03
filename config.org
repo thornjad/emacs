@@ -5760,6 +5760,74 @@ Provides overlay suggestions in eshell. Use M-f to insert the next suggested wor
     :hook (eshell-mode . capf-autosuggest-mode))
 #+END_SRC
 
+* Thanks
+A little packages that uses =gh.el= to star all installed packages as a small thanks to the developers of those packages. I don't want this to run automatically, so instead run =M-x thanks= from time to time.
+
+Based on thanks.el by Jakub Kadlčík (https://github.com/FrostyX/thanks), but altered to work with the =package!= macro.
+
+#+begin_src emacs-lisp :lexical t
+  (defun aero/thanks--installed-packages ()
+    "get names and urls of all installed straight.el packages."
+    (let ((packages '()))
+      (when (boundp 'straight--recipe-cache)
+        (maphash
+         (lambda (package recipe)
+           (let* ((plist recipe)
+                  (host (plist-get plist :host))
+                  (repo (plist-get plist :repo))
+                  (url nil))
+             ;; construct github url from recipe
+             (when (and repo (or (eq host 'github) (eq host 'GitHub)))
+               (setq url (concat "https://github.com/" repo)))
+             ;; some packages might have explicit :url
+             (when (and (not url) (plist-get plist :url))
+               (setq url (plist-get plist :url)))
+             (when url
+               (push (cons package url) packages))))
+         straight--recipe-cache))
+      packages))
+
+  (defun aero/thanks--github-project-url? (url)
+    "is this url a github project?"
+    (and (stringp url)
+         (string-prefix-p "https://github.com/" url)
+         (> (length (split-string (string-remove-prefix "https://github.com/" url) "/")) 1)))
+
+  (defun aero/thanks ()
+    "say thanks to the authors of all your installed packages by starring their github repos."
+    (interactive)
+    (let* ((packages (aero/thanks--installed-packages))
+           (urls (seq-filter #'aero/thanks--github-project-url?
+                             (mapcar #'cdr packages)))
+           (urls (delete-dups urls)))
+      (if (null urls)
+          (message "no github packages found to thank")
+        (when (y-or-n-p
+               (format "do you want to say thanks to %d projects? " (length urls)))
+          (seq-do-indexed
+           (lambda (url i)
+             (let* ((i (1+ i))
+                    (path (string-remove-prefix "https://github.com/" url))
+                    (path (string-remove-suffix "/" path))
+                    (parts (split-string path "/"))
+                    (owner (car parts))
+                    (project (cadr parts)))
+               (when (= (mod i 50) 0)
+                 (message "[%d/%d] pausing briefly to respect rate limits..."
+                          i (length urls))
+                 (sit-for 30))
+               (message "[%d/%d] saying thanks to %s/%s" i (length urls) owner project)
+               (condition-case err
+                   (unless (= 0 (call-process "gh" nil nil nil "api" "-X" "PUT"
+                                              (format "/user/starred/%s/%s" owner project)
+                                              "--silent"))
+                     (message "failed to star %s/%s" owner project))
+                 (error (message "error starring %s/%s: %s" owner project err)))))
+           urls)
+          (message "said thanks to %d projects! you just made somebody's day better."
+                   (length urls))))))
+#+end_src
+
 * Yarn-lock derived mode
 Rather than loading in a whole package, creating a derived mode for Yarn Locks is so simple that I just do it here.
 
