@@ -2929,6 +2929,13 @@ Note that we can't use =:hook= for the =project-find-functions= because =project
 #+END_SRC
 
 * Magit
+
+Required by transient (used by magit). Not yet in MELPA, so we pull from GitHub.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! cond-let "tarsius/cond-let")
+#+END_SRC
+
 One of the truly great packages in Emacs. I use it for everything git-related.
 
 #+BEGIN_SRC emacs-lisp :lexical t
