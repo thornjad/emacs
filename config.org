@@ -1179,6 +1179,7 @@ From there, we set up all the main keybindings.
      "f" '(:ignore t :wk "files")
      "ff" 'find-file
      "fc" 'aero/copy-file-relative-to-project
+     "fi" '(aero/thornlog-copy-roam-id :wk "copy roam id")
      "fD" '(aero/delete-this-file :wk "delete this file")
      "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
      "fo" '(:ignore t :wk "open special files")
