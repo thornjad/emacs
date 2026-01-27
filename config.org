@@ -2937,7 +2937,8 @@ Required by transient (used by magit). Not yet in MELPA, so we pull from GitHub.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   ;; cond-let is required by magit (magit-section.el, magit-base.el)
-  (package! cond-let "tarsius/cond-let")
+  (package! cond-let "tarsius/cond-let"
+    :defer t)
 #+END_SRC
 
 One of the truly great packages in Emacs. I use it for everything git-related.
