@@ -1000,8 +1000,8 @@ The ELPA keyring sometimes gets screwed up, this fixes it
 ** Library requirements
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! dash :auto)
-  (package! async :auto :commands (async-save))
-  (package! spinner :auto)
+  (package! async :auto :commands (async-save)) ; required by org-download
+  (package! spinner :auto) ; required by cider
 #+END_SRC
 
 JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want to stop logging everything as a performance optimization.
@@ -1407,6 +1407,7 @@ Provides Evil defaults for many modes which Evil proper overlooks
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! evil-collection :auto
+    :defer 1
     :after evil
     :config (evil-collection-init))
 #+END_SRC
@@ -1587,8 +1588,8 @@ Enhances =execute-extended-command= by showing recently used commands and keyboa
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! amx "DarwinAwardWinner/amx"
-    :defer 1
-    :init (amx-mode 1))
+    :defer 3
+    :config (amx-mode 1))
 #+END_SRC
 
 *** Yasnippet
@@ -1596,6 +1597,7 @@ Yasnippet provides a powerful templating system for inserting boilerplate code.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! yasnippet "joaotavora/yasnippet"
+    :defer 1
     :custom
     (yas-installed-snippets-dir aero-snippets-dir)
     :config
@@ -1644,7 +1646,7 @@ Support for icon insertion, and used as a lib in other packages
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! all-the-icons (:repo "domtronn/all-the-icons.el" :files (:defaults "data"))
     :after (general)
-    :defer 1
+    :defer 3
     :when (display-graphic-p)
     :config (aero-leader-def "qi" 'all-the-icons-insert))
 #+END_SRC
@@ -1706,6 +1708,7 @@ By default, auto-saves to the local directory, but that's annoying, so we move i
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! undo-tree "apchamberlain/undo-tree.el"
+    :defer 2
     :custom
     (undo-tree-auto-save-history nil)
     (undo-tree-history-directory-alist
@@ -1724,6 +1727,7 @@ Provides a way to undo/redo window configurations.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! winner :builtin
+    :defer 2
     :after (general)
     :defines winner-boring-buffers
     :config
@@ -1954,6 +1958,7 @@ The configuration leaves single-line docs in the minibuffer, and shows multi-lin
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! eldoc-box "casouri/eldoc-box"
+    :commands (eldoc-box-help-at-point eldoc-box-hover-mode)
     :after general
 
     :preface
@@ -2076,6 +2081,7 @@ Provides a global minor mode that respects =.editorconfig= files.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! editorconfig :builtin
+    :defer 1
     :config (editorconfig-mode))
 #+END_SRC
 
@@ -2093,6 +2099,7 @@ Performance enhancement for files with extremely long lines or exceptionally man
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! so-long :builtin
+    :defer 1
     :config (global-so-long-mode +1))
 #+END_SRC
 
@@ -2644,6 +2651,7 @@ Displays formfeed characters, which are often used by convention in Elisp
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! formfeeder "thornjad/formfeeder"
+    :defer 2
     :defines (formfeeder-line-width)
     :config
     (setq formfeeder-line-width (- fill-column 1))
@@ -2683,7 +2691,8 @@ Highlight todo and similar words
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! todo-light "thornjad/todo-light"
-    :init (global-todo-light-mode +1))
+    :defer 2
+    :config (global-todo-light-mode +1))
 #+END_SRC
 
 ** Evil-terminal-cursor-changer
@@ -2927,6 +2936,7 @@ Note that we can't use =:hook= for the =project-find-functions= because =project
 Required by transient (used by magit). Not yet in MELPA, so we pull from GitHub.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  ;; cond-let is required by magit (magit-section.el, magit-base.el)
   (package! cond-let "tarsius/cond-let")
 #+END_SRC
 
@@ -3733,6 +3743,7 @@ Allow drag-and-drop of images from browser, finder, etc.
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! org-download "abo-abo/org-download"
     :after (org general)
+    :commands (org-download-clipboard org-download-yank org-download-screenshot)
     :custom (org-download-method 'directory)
     :init
     (aero-mode-leader-def
@@ -4995,6 +5006,7 @@ It's hard to remember what this package is called, which is a marker of a bad na
   (package! apheleia
     (:repo "radian-software/apheleia"
      :files (:defaults ("scripts" "scripts/formatters")))
+    :defer 2
     :after general
 
     :config
@@ -5019,6 +5031,7 @@ Package for the debug adapter protocol. See https://github.com/svaante/dape for 
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! dape "svaante/dape"
+    :commands (dape dape-breakpoint-toggle dape-breakpoint-log)
     :after (general project eglot)
     :custom
     (dape-buffer-window-arrangement 'right)
@@ -5072,8 +5085,9 @@ WS-Butler removes trailing whitespace, but only in modes where it's not importan
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! ws-butler (:repo "lewang/ws-butler" :branch "master")
+    :defer 1
     :functions (ws-butler-global-mode)
-    :init (ws-butler-global-mode)
+    :config (ws-butler-global-mode)
     :custom
     (ws-butler-global-exempt-modes '(special-mode comint-mode term-mode eshell-mode)))
 #+END_SRC
