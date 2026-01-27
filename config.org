@@ -1001,7 +1001,6 @@ The ELPA keyring sometimes gets screwed up, this fixes it
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! dash :auto)
   (package! async :auto :commands (async-save))
-  (package! popup :auto)
   (package! spinner :auto)
   (package! ripgrep :auto :defer 3)
 #+END_SRC
