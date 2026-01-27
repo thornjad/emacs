@@ -1002,7 +1002,6 @@ The ELPA keyring sometimes gets screwed up, this fixes it
   (package! dash :auto)
   (package! async :auto :commands (async-save))
   (package! spinner :auto)
-  (package! ripgrep :auto :defer 3)
 #+END_SRC
 
 JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want to stop logging everything as a performance optimization.
