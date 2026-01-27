@@ -1000,7 +1000,6 @@ The ELPA keyring sometimes gets screwed up, this fixes it
 ** Library requirements
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! dash :auto)
-  (package! memo "thornjad/emacs-memo")
   (package! async :auto :commands (async-save))
   (package! popup :auto)
   (package! spinner :auto)
