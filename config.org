@@ -148,13 +148,15 @@ These are mostly used by Org, not sure if they're still needed.
 Also kill excess whitespace when joining lines.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (defadvice kill-line (before kill-line-autoreindent activate)
+  (defun aero/kill-line-autoreindent ()
     "Kill excess whitespace when joining lines.
-  If the next line is joined to the current line, kill the extra indent whitespace in front of the next line."
+If the next line is joined to the current line, kill the extra indent
+whitespace in front of the next line."
     (when (and (eolp) (not (bolp)))
       (save-excursion
         (forward-char 1)
         (just-one-space 1))))
+  (advice-add 'kill-line :before #'aero/kill-line-autoreindent)
 #+END_SRC
 
 When getting symbol documentation in Elisp, also append its docstring.
@@ -175,7 +177,7 @@ When getting symbol documentation in Elisp, also append its docstring.
 When indenting a new line inside a comment, add at least one space at the start.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (define-advice comment-indent-new-line (:after (&optional soft) at-least-one-space)
+  (define-advice comment-indent-new-line (:after (&optional _soft) at-least-one-space)
     "Ensure that at least one space is added after the comment-start."
     (let ((start (regexp-quote comment-start)))
       (when (and (nth 4 (syntax-ppss))
@@ -187,12 +189,13 @@ When indenting a new line inside a comment, add at least one space at the start.
 Don't kill the main scratch buffer, only bury it.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (defadvice kill-buffer (around kill-buffer-around-advice activate)
+  (defun aero/kill-buffer-around-advice (orig-fun &rest args)
     "Don't kill my scratch!"
-    (let ((buffer-to-kill (ad-get-arg 0)))
+    (let ((buffer-to-kill (car args)))
       (if (equal buffer-to-kill "*scratch*")
           (bury-buffer)
-        ad-do-it)))
+        (apply orig-fun args))))
+  (advice-add 'kill-buffer :around #'aero/kill-buffer-around-advice)
 #+END_SRC
 
 ** Utilities
@@ -220,7 +223,7 @@ Don't kill the main scratch buffer, only bury it.
      (defining-kbd-macro
        (message
         (substitute-command-keys
-         "Quit is ignored during macro defintion, use \\[kmacro-end-macro] if you want to stop macro definition"))
+         "Quit is ignored during macro definition, use \\[kmacro-end-macro] if you want to stop macro definition"))
        (cancel-kbd-macro-events))
 
      ((active-minibuffer-window)
@@ -236,8 +239,8 @@ Don't kill the main scratch buffer, only bury it.
   (defun aero/comment-dwim ()
     "Comment region if active, else comment line.
 
-  This avoids the excess region commenting of `comment-line' while also avoiding the weird single-line
-  behavior of `comment-dwim'."
+This avoids the excess region commenting of `comment-line' while also
+avoiding the weird single-line behavior of `comment-dwim'."
     (interactive)
     (save-excursion
       (if (use-region-p)
@@ -352,10 +355,9 @@ A collection of helpers for managing windows and buffers
   (defun aero/project-compile-popup ()
     "Run `project-compile' and pop up the compilation buffer."
     (interactive)
-    (let ((buf (get-buffer-create (aero/get-compilation-buffer-name))))
-      (aero/toggle-compilation-buffer)
-      (project-compile)
-      (aero/tail-compilation-buffer)))
+    (aero/toggle-compilation-buffer)
+    (call-interactively #'project-compile)
+    (aero/tail-compilation-buffer))
 
   (defun aero/get-compilation-buffer-name ()
     "Return the compilation buffer name for the current project."
@@ -470,8 +472,9 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 
   (defun aero/insert-org-date-at-heading ()
     "Choose a date and add it to the end of the closest heading above point.
-  Inserts date with day of the week. If the heading has tags, insert date before the tags.
-  If no heading is found above, insert at point instead."
+Inserts date with day of the week.  If the heading has tags, insert
+date before the tags.  If no heading is found above, insert at point
+instead."
     (interactive)
     (let* ((date (org-read-date nil t nil "Choose date: "))
            (date-string (format-time-string "<%Y-%m-%d %a>" date))
@@ -667,7 +670,7 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
     (format-time-string "%A"))
 
   (defun day-after (day-name)
-    "Return the name of the day following the day given by 'day-name'."
+    "Return the name of the day following the day given by \\='day-name\\='."
     (format-time-string "%A" (time-add (date-to-time (concat day-name " 00:00")) (* 24 60 60))))
 
   (defun aero/frame-recenter (&optional frame)
@@ -690,18 +693,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
                 monitor-h))
              (center (list (/ (- monitor-w frame-w) 2) (/ (- monitor-h frame-h) 2))))
         (apply 'set-frame-position (flatten-list (list frame center))))))
-
-  (defun aero/ssh-refresh ()
-    "Reset the environment variable SSH_AUTH_SOCK"
-    (interactive)
-    (let (ssh-auth-sock-old
-          (getenv "SSH_AUTH_SOCK"))
-      (setenv "SSH_AUTH_SOCK"
-              (car
-               (split-string
-                (shell-command-to-string
-                 "ls -t $(find /tmp/ssh-* -user $USER -name 'agent.*' 2> /dev/null)"))))
-      (message (format "SSH_AUTH_SOCK %s --> %s" ssh-auth-sock-old (getenv "SSH_AUTH_SOCK")))))
 
   (defun aero/unix-timestamp-to-human (timestamp)
     "Convert a UNIX TIMESTAMP to a human-readable string."
@@ -755,7 +746,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
     (message "Running ESLint fix...")
 
     (let* ((default-directory (project-root (project-current)))
-           (filename (aero/filename-relative-to-project))
            (error-buffer (get-buffer-create "*ESLint Fix Errors*"))
            (exit-code (call-process "npx" nil error-buffer nil
                                     "eslint" "--fix" buffer-file-name)))
@@ -775,7 +765,6 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
         (user-error "Prettier refusing to run on a modified buffer")))
     (message "Running Prettier fix...")
     (let* ((default-directory (project-root (project-current)))
-           (filename (aero/filename-relative-to-project))
            (error-buffer (get-buffer-create "*Prettier Fix Errors*"))
            (exit-code (call-process "npx" nil error-buffer nil
                                     "prettier" "--write" buffer-file-name)))
@@ -789,7 +778,8 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
   (defun aero/make-home ()
     "Run make in home directory.
 
-  I use this to run a manual sync on a handful of git repositories, including this config."
+I use this to run a manual sync on a handful of git repositories,
+including this config."
     (interactive)
     (let ((default-directory (expand-file-name "~/")))
       (compile "make")))
@@ -797,15 +787,16 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/docker-restart ()
-    "Run 'make docker-restart' in the home directory.
+    "Run \\='make docker-restart\\=' in the home directory.
 
-  Runs the 'docker-restart' target from the same Makefile as `aero/make-home`."
+Runs the \\='docker-restart\\=' target from the same Makefile as
+`aero/make-home'."
     (interactive)
     (let ((default-directory (expand-file-name "~/")))
       (compile "make docker-restart")))
 
   (defun aero/tickets ()
-    "Run 'make tickets' in the thornlog directory."
+    "Run \\='make tickets\\=' in the thornlog directory."
     (interactive)
     (let ((default-directory aero/thornlog-path))
       (compile "make tickets")))
@@ -843,6 +834,10 @@ Set the order in which repositories are checked for =:auto= recipes. These are b
 We also use the GitHub mirror of Non-GNU ELPA because the source Savannah server gets overloaded fairly often.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (defvar straight-recipe-repositories)
+  (defvar straight-recipes-gnu-elpa-use-mirror)
+  (defvar straight-built-in-pseudo-packages)
+
   (setq straight-recipe-repositories
         '(org-elpa gnu-elpa-mirror
           (nongnu-elpa :type git :host github
@@ -889,7 +884,8 @@ If we're byte-compiling something, only expand minimally
     (defvar use-package-expand-minimally)
     (defvar use-package-compute-statistics)
     (defvar use-package-minimum-reported-time)
-    (defvar use-package-verbose))
+    (defvar use-package-verbose)
+    (defvar package-native-compile))
   (setq use-package-expand-minimally byte-compile-current-file
         use-package-compute-statistics nil ; t then `use-package-report' to find packages not used
         package-native-compile t ; compile when installing (not sure if this works)
@@ -907,11 +903,11 @@ The rest of the config uses this custom =package!= macro to abstract away some i
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defmacro package! (package recipe &rest body)
-    "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package'.
+    "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package\\='.
 
-  Example:
+Example:
 
-      (package! foo (:host gitlab :repo \"thornjad/foo\" :branch \"main\")
+    (package! foo (:host gitlab :repo \"thornjad/foo\" :branch \"main\")
        :commands (foo-bar foo-spam))
 
   If the RECIPE is :builtin or :local, do not search [M]ELPA, only pass BODY to `use-package'. While
@@ -1028,7 +1024,7 @@ We only really need this in MacOS, grabbing environment variables from the defau
     :when (or (memq window-system '(mac ns x)) (daemonp))
     :config
     (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO"
-                   "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH" "PATH"
+                   "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH"
                    "MANPATH" "INFOPATH" "LSP_USE_PLISTS" "HOMEBREW_PREFIX"
                    "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"))
       (add-to-list 'exec-path-from-shell-variables var))
@@ -2068,6 +2064,7 @@ Mac needs some extra hand-holding to connect the kill-ring to the system clipboa
 Linux only needs some functionality enabled.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (defvar x-gtk-use-system-tooltips)
 
   (when (system-is-linux)
     (setq select-enable-clipboard t
@@ -2244,19 +2241,19 @@ My custom modeline. Exceptionally loosely based on Doom's modeline, but the code
     :group 'aero/modeline)
 
   (defface aero/modeline-modified '((t (:inherit (error))))
-    "Face used for the 'modified' indicator symbol in the mode-line."
+    "Face used for the \\='modified\\=' indicator symbol in the mode-line."
     :group 'aero/modeline)
 
   (defface aero/modeline-not-modified '((t (:inherit (success))))
-    "Face used for the 'not modified' indicator symbol in the mode-line."
+    "Face used for the \\='not modified\\=' indicator symbol in the mode-line."
     :group 'aero/modeline)
 
   (defface aero/modeline-read-only '((t (:inherit (warning))))
-    "Face used for the 'buffer read-only' indicator symbol in the mode-line."
+    "Face used for the \\='buffer read-only\\=' indicator symbol in the mode-line."
     :group 'aero/modeline)
 
   (defface aero/modeline-remote '((t (:inherit (font-lock-keyword-face :weight bold))))
-    "Face used for the 'not modified' indicator symbol in the mode-line."
+    "Face used for the \\='remote\\=' indicator symbol in the mode-line."
     :group 'aero/modeline)
 
   (defface aero/modeline-evil-normal '((t (:inherit (font-lock-keyword-face))))
@@ -2360,10 +2357,9 @@ My custom modeline. Exceptionally loosely based on Doom's modeline, but the code
   (defun aero/modeline-segment-git-state ()
     "Displays the current branch and status from Git.
 
-  Only Git is supported because I'm not an animal."
+Only Git is supported because I'm not an animal."
     (when (and vc-mode buffer-file-name)
-      (let ((state (vc-state (file-local-name buffer-file-name)))
-            (str (if vc-display-status
+      (let ((str (if vc-display-status
                      (substring vc-mode 5)
                    "")))
         (concat
@@ -2972,7 +2968,6 @@ One of the truly great packages in Emacs. I use it for everything git-related.
     :custom
     ;; I keep waffling on this setting, so leave it here even if its set to the default
     (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
-    (magit-process-finish-apply-ansi-colors t)
     (magit-buffer-name-format "%x%M%v: %t%x")
     (magit-list-refs-sortby "-creatordate")
     (magit-diff-paint-whitespace-lines 'both)
@@ -3032,7 +3027,8 @@ This is an Emacs version of a git alias I use a lot, and running it here is a lo
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/project-git-sync-master ()
-    "In the current project's root, switch to master, pull, show status, and update submodules."
+    "In the current project root, switch to master, pull, and update.
+Show status and update submodules."
     (interactive)
     (let ((default-directory (project-root (project-current))))
       (async-shell-command
@@ -3166,12 +3162,12 @@ Before the actual package config, let's define some useful functions.
   (defun aero/org-collapse-entry-if-done ()
     "Collapse the current entry if it is marked as DONE."
     (when (member org-state '("DONE"))
-      (hide-subtree)))
+      (outline-hide-subtree)))
 
   (defun aero/org-expand-entry-if-todo ()
     "Expand the current entry if it is marked as TODO."
     (when (member org-state '("TODO"))
-      (show-subtree)))
+      (outline-show-subtree)))
 
   (defun aero/org-insert-modified-timestamp-now ()
     "Insert a modified property with the current time."
@@ -3232,9 +3228,10 @@ Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-th
               dayname day monthname year weekstring quarter)))
 
   (defun aero/org-deindent-on-return (&rest _)
-    "De-indent the current line if there is only whitespace before the point when pressing ENTER.
+    "De-indent current line if only whitespace before point when pressing ENTER.
 
-  This behavior is IDIOTIC and I cannot suffer to live with this automatic indentation any longer."
+This behavior is IDIOTIC and I cannot suffer to live with this
+automatic indentation any longer."
     (when (and (derived-mode-p 'org-mode)
                (save-excursion
                  (move-beginning-of-line 1)
@@ -3766,22 +3763,6 @@ Allow drag-and-drop of images from browser, finder, etc.
     (org-agenda-switch-to)
     (org-capture 0))
 
-  (defun org-agenda-list-closed-on-last-workday ()
-    (interactive)
-    (let* ((org-agenda-files (list (buffer-file-name)
-                                   (expand-file-name "archive/archive.org" aero/thornlog-path)
-                                   (expand-file-name "log.org" aero/roam-path)))
-           (today (current-time))
-           (weekday (format-time-string "%u" today))
-           (days-back (if (string= weekday "1") 3 1)) ; If today is Monday (1), go back 3 days to Friday
-           (specific-day (format-time-string "%Y-%m-%d" (time-subtract today (days-to-time days-back))))
-           (org-agenda-log-mode-items '(closed))
-           (org-agenda-skip-deadline-if-done nil)
-           (org-agenda-skip-scheduled-if-done nil)
-           (org-agenda-skipp-timestamp-if-done nil)
-           (org-super-agenda-groups '((:time-grid t))))
-      (org-agenda-list nil specific-day 'day)))
-
   (defun insert-todays-timestamp-at-entry-end ()
     "Insert today's timestamp at the end of the current org entry."
     (interactive)
@@ -3894,8 +3875,11 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
     "Open current year's personal journal file via org-roam node lookup."
     (interactive)
     (let* ((current-year (format-time-string "%Y"))
-           (journal-title (format "Personal Log %s" current-year)))
-      (org-roam-node-visit (org-roam-node-from-title-or-alias journal-title))))
+           (journal-title (format "Personal Log %s" current-year))
+           (journal-node (org-roam-node-from-title-or-alias journal-title)))
+      (if journal-node
+          (org-roam-node-visit journal-node)
+        (message "No journal found for year %s. Please create a journal page titled '%s'." current-year journal-title))))
 
   (defun aero/pull-thornlog ()
     "Pulls the latest changes from Thornlog."
@@ -3935,8 +3919,8 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
         (yas-expand-snippet (yas-lookup-snippet "new-day")))))
 
   (defun aero/org-add-file-tag ()
-    "Prompts for a tag with completion from all org-roam tags and adds it to the file's tags, placing
-    it after the #+title: line if it exists."
+    "Prompt for a tag with completion from all org-roam tags.
+Add it to the file tags, placing it after the #+title: line if it exists."
     (interactive)
     (let* ((case-fold-search t)
            (all-tags-query "SELECT DISTINCT tag FROM tags")
@@ -3987,7 +3971,7 @@ For each of these, we ignore non-org files so that we don't try to add org prope
             (string= filename "todo.org")))))
 
   (defun aero/org-roam-insert-created-property ()
-    "Insert a :created: property for a new Org-roam node if it doesn't already have one."
+    "Insert a :created: property for new Org-roam node if not present."
     (interactive)
     (when (and (org-roam-file-p)
                (string-suffix-p ".org" (buffer-name))
@@ -4005,7 +3989,8 @@ For each of these, we ignore non-org files so that we don't try to add org prope
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
-    "Extract timestamp from the Org-roam FILEPATH assuming it follows the default naming scheme."
+    "Extract timestamp from the Org-roam FILEPATH.
+Assumes it follows the default naming scheme."
     (let ((filename (file-name-nondirectory filepath)))
       (when (string-match "\\([0-9]\\{8\\}\\)\\([0-9]\\{4\\}\\)" filename)
         (let ((year (substring filename (match-beginning 1) (+ (match-beginning 1) 4)))
@@ -4108,7 +4093,6 @@ A simple way to make HTTP requests from within Emacs
     :commands (restclient-mode)
     :mode ("\\.http\\'" . restclient-mode)
     :config
-    (require 'general)
     (aero-mode-leader-def
       :keymaps 'restclient-mode-map
       "RET" '(restclient-http-send-current-stay-in-window :wk "Run query at point")
@@ -4299,14 +4283,8 @@ Provides emmet expansion in web-mode
     :hook ((web-mode html-mode css-mode scss-mode js-mode) . emmet-mode)
     :init (setq emmet-self-closing-tag-style " /")
     :config
+    (eval-when-compile (defvar emmet-expand-jsx-className?))
     (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t))))
-#+END_SRC
-
-Ensure we expand className in JSX
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (eval-when-compile (defvar emmet-expand-jsx-className?))
-  (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t)))
 #+END_SRC
 
 ** Jest
@@ -4426,8 +4404,8 @@ A powerful Common Lisp environment. We load SBCL faster by using a preset socket
   ;; into this:
   ;; (:foo bar
   ;;  :spam ham)
-  (eval-after-load "lisp-mode"
-    '(defun lisp-indent-function (indent-point state)
+  (with-eval-after-load "lisp-mode"
+    (defun lisp-indent-function (indent-point state)
        "This function is the normal value of the variable `lisp-indent-function'.
     The function `calculate-lisp-indent' calls this to determine if the arguments of
     a Lisp function call should be indented specially. INDENT-POINT is the position
@@ -5138,7 +5116,8 @@ First some helper functions for shr that make it render block-level elements as 
   (defun aero/ace-link-eww-new-buffer ()
     "Call `ace-link-eww' but open in a new buffer.
 
-  This simply calls `ace-link-eww' with a fake double prefix, which is equivalent to the list containing 16."
+This simply calls `ace-link-eww' with a fake double prefix, which is
+equivalent to the list containing 16."
     (interactive)
     (ace-link-eww '(16)))
 #+END_SRC
@@ -5353,8 +5332,8 @@ Estimates tokens in the current buffer or region. Not exact, but gives an idea, 
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun estimate-llm-tokens-dwim ()
-    "Estimate the number of tokens in the current region or buffer. This is a simple estimate, not to
-  be relied on."
+    "Estimate the number of tokens in the current region or buffer.
+This is a simple estimate, not to be relied on."
     (interactive)
     (let ((start (if (use-region-p) (region-beginning) (point-min)))
           (end (if (use-region-p) (region-end) (point-max))))
@@ -5551,8 +5530,8 @@ Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions
 
 #+begin_src emacs-lisp :lexical t
   (defun aero/cursor-agent--poll-for-startup (buffer-name retry-count)
-    "Poll BUFFER-NAME for 'Cursor Agent' text and redraw when found.
-  RETRY-COUNT is the number of attempts remaining (default 10 = ~5 seconds)."
+    "Poll BUFFER-NAME for \\='Cursor Agent\\=' text and redraw when found.
+RETRY-COUNT is the number of attempts remaining (default 10 = ~5 seconds)."
     (when (buffer-live-p (get-buffer buffer-name))
       (with-current-buffer buffer-name
         (let ((content (buffer-substring-no-properties (point-min) (point-max))))
@@ -5731,11 +5710,10 @@ Realistically this is my main shell. It does try to override some important bind
       ;; Don't ask, just save
       (setq eshell-save-history-on-exit t))
 
-    (eval-after-load 'esh-opt
-      '(progn
-         (require 'em-cmpl)
-         (require 'em-prompt)
-         (require 'em-term))))
+    (with-eval-after-load 'esh-opt
+      (require 'em-cmpl)
+      (require 'em-prompt)
+      (require 'em-term)))
 #+END_SRC
 
 *** Eshell-prompt-extras
@@ -5802,7 +5780,7 @@ Based on thanks.el by Jakub Kadlčík (https://github.com/FrostyX/thanks), but a
          (> (length (split-string (string-remove-prefix "https://github.com/" url) "/")) 1)))
 
   (defun aero/thanks ()
-    "say thanks to the authors of all your installed packages by starring their github repos."
+    "Say thanks to authors of installed packages by starring their repos."
     (interactive)
     (let* ((packages (aero/thanks--installed-packages))
            (urls (seq-filter #'aero/thanks--github-project-url?
@@ -6199,10 +6177,10 @@ I strongly prefer setting up customization with this very config file, so make s
 #+END_SRC
 
 * Idle garbage collection
-Do garbage collection when I'm not actively doing anything for seven seconds.
+Do garbage collection when I'm not actively doing anything for twenty seconds.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (run-with-idle-timer 7 t 'garbage-collect)
+  (run-with-idle-timer 20 t 'garbage-collect)
 #+END_SRC
 
 * Load local file
