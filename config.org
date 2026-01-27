@@ -4385,27 +4385,6 @@ My own package for running Jest tests from within Emacs. Based loosely on the fu
     :mode "\\(Lakefile|\\.\\(cl|lisp\\)\\)\\'")
 #+END_SRC
 
-**** Slime
-A powerful Common Lisp environment. We load SBCL faster by using a preset socket and POSIX shit. Note that this requires some setup in the SBCL REPL:
-
-#+BEGIN_SRC common-lisp :tangle no
-  (mapc 'require '(sb-bsd-sockets sb-posix sb-introspect sb-cltl2 asdf))
-  (save-lisp-and-die "sbcl.core-for-slime")
-#+END_SRC
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! slime :auto
-    :commands slime
-    :init
-    (setq-default
-     inferior-lisp-program "ecl"
-     slime-contribs '(slime-fancy))
-    (defvar slime-lisp-implementations)
-    (setq slime-lisp-implementations
-          '((sbcl ("sbcl" "--core" "sbcl.core-for-slime"))
-            (ecl ("ecl")))))
-#+END_SRC
-
 *** Redefine the Lisp indent function
 #+BEGIN_SRC emacs-lisp :lexical t
   ;; redefined to turn this:
