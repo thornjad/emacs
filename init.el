@@ -70,14 +70,19 @@ so we use more cycles but less space, but not too little space.")
   ;; Had a problem once with user-emacs-directory, so set it for sure here
   (setq user-emacs-directory (file-name-directory user-init-file))
 
-  ;; Use org-babel to load the rest of the config (built-in to org)
-  (require 'org)
-  (require 'ob-tangle)
-
-  ;; Ensure org-babel always uses lexical binding. I can't believe this isn't the default.
-  (setq org-babel-default-header-args:emacs-lisp '((:lexical . "yes")))
-
-  ;; burn baby burn
-  (org-babel-load-file (expand-file-name "config.org" user-emacs-directory)))
+  ;; Load the configuration
+  ;; If config.el exists and is newer than config.org, load it directly to skip org-babel overhead.
+  ;; Otherwise, use org-babel to tangle and load config.org.
+  (let ((config-el (expand-file-name "config.el" user-emacs-directory))
+        (config-org (expand-file-name "config.org" user-emacs-directory)))
+    (if (and (file-exists-p config-el)
+             (file-newer-than-file-p config-el config-org))
+        ;; config.el is current, load it directly
+        (load config-el nil 'nomessage)
+      ;; config.el is stale or missing, use org-babel
+      (require 'org)
+      (require 'ob-tangle)
+      (setq org-babel-default-header-args:emacs-lisp '((:lexical . "yes")))
+      (org-babel-load-file config-org))))
 
 ;;; init.el ends here
