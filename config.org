@@ -2976,6 +2976,10 @@ One of the truly great packages in Emacs. I use it for everything git-related.
     (magit-commit-show-diff nil)
 
     :config
+    ;; Use Homebrew git instead of Apple's /usr/bin/git for better performance on macOS
+    (when (system-is-mac)
+      (setq magit-git-executable "/opt/homebrew/bin/git"))
+
     (add-hook 'with-editor-mode-hook #'evil-insert-state)
     (magit-auto-revert-mode nil)
 
