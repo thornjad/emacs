@@ -6206,3 +6206,7 @@ Load a local init file if it exists. This is a great place to put secrets and ke
 #+END_SRC
 
 #  LocalWords:  Editorconfig Savehist
+
+# Local Variables:
+# eval: (add-hook 'after-save-hook #'org-babel-tangle nil t)
+# End:
