@@ -133,14 +133,7 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
 #+BEGIN_SRC emacs-lisp :lexical t
   (require 'cl-lib)
   (require 'subr-x)
-  (require 'imenu)
-#+END_SRC
-
-These are mostly used by Org, not sure if they're still needed.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (require 'outline)
-  (require 'notifications)
+  ;; imenu, outline, and notifications are autoloaded; no need to require at startup
 #+END_SRC
 
 * Define Library functions
