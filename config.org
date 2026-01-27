@@ -4609,33 +4609,6 @@ Convert elisp files to markdown Readme files
     (defvar python-mode-initialized nil))
 #+END_SRC
 
-*** Elpy
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! elpy (:host github :repo "jorgenschaefer/elpy")
-    :hook ((python-mode ein-mode) . elpy-mode)
-    :custom
-    (elpy-rpc-virtualenv-path 'default)
-    (elpy-rpc-python-command "python3")
-    (py-return-key #'py-newline-and-indent)
-
-    :config
-    (elpy-enable)
-    (aero-mode-leader-def
-      :keymaps 'elpy-mode-map
-      "p" 'run-python
-      "'" 'elpy-shell-switch-to-shell
-      "s" '(:ignore t :wk "shell send")
-      "ss" '(elpy-shell-send-region-or-buffer)
-      "sS" '(elpy-shell-send-region-or-buffer-and-go)
-      "sd" '(elpy-shell-send-defun)
-      "sD" '(elpy-shell-send-defun-and-go)
-      "sb" '(elpy-shell-send-buffer)
-      "sB" '(elpy-shell-send-buffer-and-go)
-      "sc" '(elpy-shell-send-defclass)
-      "sC" '(elpy-shell-send-defclass-and-go)))
-#+END_SRC
-
 *** Flymake-mypy
 Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
 
