@@ -3867,8 +3867,10 @@ A fantastic note-taking system, used for building a second brain.
       "vr" 'org-roam-refile)
 
     :config
-    ;; sync db on interval (every 3 minutes) instead of every save
-    (run-with-timer 60 180 #'org-roam-db-sync))
+    ;; NOTE: periodic org-roam-db-sync is disabled because it blocks Emacs
+    ;; for ~1 minute when processing 500+ org files. Use M-x org-roam-db-sync
+    ;; manually when needed (e.g., after adding many new nodes).
+    )
 #+END_SRC
 
 *** Thornlog
