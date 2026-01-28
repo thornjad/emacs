@@ -61,6 +61,10 @@
 (global-unset-key (kbd "C-x m"))
 (defun goto-address-find-address-at-point () "Disabled by Aero." nil)
 
+;; Mark the auto-tangle eval form as safe so we don't get prompted on every startup
+(setq safe-local-eval-forms
+      '((add-hook 'after-save-hook #'org-babel-tangle nil t)))
+
 (setq site-run-file nil ; One less file to load at startup, and we'll never use it
       frame-inhibit-implied-resize t ; only explicit resize
       window-resize-pixelwise t
