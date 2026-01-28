@@ -147,7 +147,7 @@ Since we disable the custom system, we need to manually mark safe local variable
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (add-to-list 'safe-local-variable-values
-               '(eval add-hook 'after-save-hook #'org-babel-tangle nil t))
+               '(eval . (add-hook 'after-save-hook #'org-babel-tangle nil t)))
 #+END_SRC
 
 * Define Library functions
