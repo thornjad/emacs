@@ -143,6 +143,13 @@ I strongly prefer setting up customization with this very config file, so make s
   (setq-default custom-file "/dev/null")
 #+END_SRC
 
+Since we disable the custom system, we need to manually mark safe local variables. This prevents Emacs from prompting about the auto-tangle eval form in this file's local variables.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (add-to-list 'safe-local-variable-values
+               '(eval add-hook 'after-save-hook #'org-babel-tangle nil t))
+#+END_SRC
+
 * Define Library functions
 ** Advice
 Also kill excess whitespace when joining lines.
