@@ -136,6 +136,13 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
   ;; imenu, outline, and notifications are autoloaded; no need to require at startup
 #+END_SRC
 
+* Disable custom system
+I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will add the customization line to =/dev/null= instead of =init.el=.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (setq-default custom-file "/dev/null")
+#+END_SRC
+
 * Define Library functions
 ** Advice
 Also kill excess whitespace when joining lines.
@@ -6078,13 +6085,6 @@ Log warnings but don't pop them up.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (setq warning-minimum-level :error)
-#+END_SRC
-
-** Disable custom system
-I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will add the customization line to =/dev/null= instead of =init.el=.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (setq-default custom-file "/dev/null")
 #+END_SRC
 
 * Idle garbage collection
