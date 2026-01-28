@@ -137,10 +137,10 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
 #+END_SRC
 
 * Disable custom system
-I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will add the customization line to =/dev/null= instead of =init.el=.
+I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will write customizations to a file that is never loaded, effectively disabling them.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (setq-default custom-file "/dev/null")
+  (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 #+END_SRC
 
 Since we disable the custom system, we need to manually mark safe local variables. This prevents Emacs from prompting about the auto-tangle eval form in this file's local variables.
