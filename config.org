@@ -133,7 +133,6 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
 #+BEGIN_SRC emacs-lisp :lexical t
   (require 'cl-lib)
   (require 'subr-x)
-  ;; imenu, outline, and notifications are autoloaded; no need to require at startup
 #+END_SRC
 
 * Disable custom system
@@ -2197,7 +2196,7 @@ Flymake goes in the bottom
 #+END_SRC
 
 ** Aero modeline
-My custom modeline. Exceptionally loosely based on Doom's modeline, but the code diverged many years ago.
+My custom modeline. Originally based on Doom's modeline, but the code diverged many years ago.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defgroup aero/modeline nil
