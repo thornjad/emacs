@@ -4390,20 +4390,13 @@ Provides a hexl-mode with a better interface, for viewing and editing binary fil
 #+END_SRC
 
 ** Terraform
-
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! terraform-mode :auto :mode "\\.tf\\'")
 #+END_SRC
 
 ** GraphQL
-
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! graphql-mode :auto :mode "\\.graphql\\'")
-#+END_SRC
-
-** Groovy
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! groovy-mode :auto :mode "\\(\\.groovy\\'\\|Jenkinsfile\\)")
 #+END_SRC
 
 ** CSV
@@ -4412,7 +4405,6 @@ Provides a hexl-mode with a better interface, for viewing and editing binary fil
 #+END_SRC
 
 ** Orson (WIP)
-
 #+BEGIN_SRC emacs-lisp :lexical t
   (add-hook
    'orson-mode-hook
