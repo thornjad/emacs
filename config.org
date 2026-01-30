@@ -4554,14 +4554,6 @@ Toward the end we set up parens with post-handlers to add an extra newline and i
     (define-key evil-insert-state-map ")" 'aero/smart-closing-parenthesis))
 #+END_SRC
 
-** Rainbow delimiters
-Colorize parens to make it easier to see where they start and end.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! rainbow-delimiters "Fanael/rainbow-delimiters"
-    :hook ((prog-mode . rainbow-delimiters-mode)))
-#+END_SRC
-
 * Flymake & Flyspell
 ** Flymake
 Diagnostics, errors, warnings, etc. This is a faster version of Flycheck.
