@@ -5223,7 +5223,7 @@ Provides overlay suggestions in eshell. Use M-f to insert the next suggested wor
 * Thanks
 A little packages that uses =gh.el= to star all installed packages as a small thanks to the developers of those packages. I don't want this to run automatically, so instead run =M-x thanks= from time to time.
 
-Based on thanks.el by Jakub Kadlčík (https://github.com/FrostyX/thanks), but altered to work with the =package!= macro.
+Based on thanks.el by Jakub Kadlčík (https://github.com/FrostyX/thanks), but simplified and made to work with the CLI interface better.
 
 #+begin_src emacs-lisp :lexical t
   (defun aero/thanks--installed-packages ()
