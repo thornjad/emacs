@@ -4377,12 +4377,6 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
   (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
 #+END_SRC
 
-** Lua
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! lua-mode :auto :mode "\\.lua\\'")
-#+END_SRC
-
 ** AppleScript
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! applescript-mode :auto :mode "\\.applescript\\'")
