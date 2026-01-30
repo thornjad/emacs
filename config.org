@@ -4090,28 +4090,8 @@ My pomodoro package
     (aero-leader-def "ap" 'pomp))
 #+END_SRC
 
-** Restclient (HTTP requests)
-A simple way to make HTTP requests from within Emacs
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! restclient :auto
-    :after (general)
-    :commands (restclient-mode)
-    :mode ("\\.http\\'" . restclient-mode)
-    :config
-    (aero-mode-leader-def
-      :keymaps 'restclient-mode-map
-      "RET" '(restclient-http-send-current-stay-in-window :wk "Run query at point")
-      "c" '(restclient-http-send-current :wk "Run query at point and focus")
-      "r" '(restclient-http-send-current-raw :wk "Run query, no pretty print")
-      "n" 'restclient-jump-next
-      "p" 'restclient-jump-prev
-      "." 'restclient-mark-current
-      "y" 'restclient-copy-curl-command))
-#+END_SRC
-
 ** Verb (HTTP requests from Org-mode)
-Like Restclient.el, but for org-mode so I can save my queries in roam
+Make HTTP requests using org-mode, so I can save my queries in roam
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! verb :auto
