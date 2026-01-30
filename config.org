@@ -4857,32 +4857,6 @@ Syntax highlighting for HTML pre tags
     (add-to-list 'shr-external-rendering-functions '(pre . shr-tag-pre-highlight)))
 #+END_SRC
 
-* Devdocs
-An interface for semi-offline documentation.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! devdocs "astoff/devdocs.el"
-    :after (general)
-    :commands (devdocs-lookup)
-    :custom (devdocs-data-dir (expand-file-name "devdocs" aero-cache-dir))
-    :init
-    (aero-leader-def "hD" 'devdocs-lookup)
-    (add-hook 'python-mode-hook (lambda () (setq-local devdocs-current-docs '("python~3.12"))))
-    (add-hook 'python-ts-mode-hook (lambda () (setq-local devdocs-current-docs '("python~3.12"))))
-    (add-hook 'typescript-mode-hook (lambda ()
-                                      (setq-local devdocs-current-docs
-                                                  '("typescript" "rxjs" "angular" "javascript"))))
-    (add-hook 'ng2-ts-mode-hook (lambda ()
-                                  (setq-local devdocs-current-docs
-                                              '("typescript" "angular" "rxjs" "javascript" "html"))))
-    (add-hook 'web-mode-hook (lambda ()
-                               (setq-local devdocs-current-docs
-                                           '("angular" "rxjs" "javascript" "html"))))
-    (add-hook 'clojure-mode-hook (lambda ()
-                                   (setq-local devdocs-current-docs
-                                               '("clojure~1.11")))))
-#+END_SRC
-
 * Elfeed
 Simple RSS reader
 
