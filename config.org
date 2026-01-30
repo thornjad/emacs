@@ -4238,11 +4238,6 @@ We make an alteration to =markdown-mode-syntax-table= to teach it that quotes me
     :mode "\\.ya?ml\\'")
 #+END_SRC
 
-** Ocaml (Tuareg)
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! tuareg :auto :mode ("\\.mli?\\'" . tuareg-mode))
-#+END_SRC
-
 ** Web mode (HTML, CSS, JS)
 If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
