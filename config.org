@@ -4074,28 +4074,6 @@ Adds support for Markdown files within the roam database. I generally use org, b
     (md-roam-mode +1))
 #+END_SRC
 
-* Writing
-** Writegood
-Mark passive voice, duplicate words and weasel words
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! writegood-mode (:repo "bnbeckwith/writegood-mode")
-    :hook ((text-mode) . writegood-mode))
-#+END_SRC
-
-** Eprime
-Mark E′ violations
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! eprime-mode (:host gitlab :repo "thornjad/eprime-mode" :branch "main")
-    :after (general)
-    :commands (eprime-check-buffer eprime-mode)
-    :init
-    (aero-leader-def
-      "tp" 'eprime-check-buffer
-      "tP" 'eprime-mode))
-#+END_SRC
-
 * Applications
 ** Pomp (pomodoro)
 My pomodoro package
