@@ -4365,28 +4365,6 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
                     (flymake-ruff-load))))))
 #+END_SRC
 
-** Rust
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! rust-mode :auto
-    :mode "\\.rs\\'"
-    :config
-    (setenv "PATH" (concat "~/.cargo/bin:" (getenv "PATH")))
-    (require 'company)
-    (defvar company-tooltip-align-annotations)
-    (declare-function company-indent-or-complete-common "company")
-    (setq company-tooltip-align-annotations t)
-    (define-key rust-mode-map (kbd "TAB") #'company-indent-or-complete-common)
-    (add-hook 'rust-mode-hook
-              (lambda () (setq indent-tabs-mode t))))
-#+END_SRC
-
-*** Cargo
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! cargo :auto
-    :commands cargo-minor-mode
-    :hook (rust-mode . cargo-minor-mode))
-#+END_SRC
-
 ** TOML
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! toml-mode :auto
