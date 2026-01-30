@@ -3869,6 +3869,19 @@ A fantastic note-taking system, used for building a second brain.
     (org-roam-db-autosync-mode))
 #+END_SRC
 
+*** Org-roam-latte
+Highlights unlinked references to existing org-roam nodes in buffers. Click or press RET on highlighted text to visit the node, or M-RET to convert it into a link.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! org-roam-latte "yad-tahir/org-roam-latte"
+    :after org-roam
+    :hook (org-roam-find-file . org-roam-latte-mode)
+    :config
+    (aero-mode-leader-def
+      :keymaps 'org-mode-map
+      "v" '(org-roam-latte-complete-at-point :wk "complete roam node")))
+#+END_SRC
+
 *** Thornlog
 This is a personal logging and note taking system, based on org-roam. It's evolved drastically over the years, from a bespoke system to a more generic org-roam setup. The functions here are for managing the thornlog system.
 
