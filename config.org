@@ -1758,20 +1758,25 @@ Tab Bar mode is not enabled by default since we don't always want it. Call =tab-
     (setq tab-bar-separator "  ")
 
     (defun aero/tab-bar-tab-name-function ()
-      "Tab name function that shows org-roam node titles instead of buffer names."
-      (let ((buf (window-buffer (minibuffer-selected-window))))
-        (with-current-buffer buf
-          (if (and (derived-mode-p 'org-mode)
-                   (buffer-file-name)
-                   (org-roam-file-p))
-              (or (ignore-errors
-                    (caar (org-roam-db-query
-                           [:select [title]
-                            :from nodes
-                            :where (= file $s1)]
-                           (buffer-file-name))))
-                  (buffer-name))
-            (buffer-name)))))
+      "Tab name function that shows org-roam node titles instead of buffer names.
+Truncates long names to keep tab bar manageable."
+      (let* ((buf (window-buffer (minibuffer-selected-window)))
+             (name (with-current-buffer buf
+                     (if (and (derived-mode-p 'org-mode)
+                              (buffer-file-name)
+                              (org-roam-file-p))
+                         (or (ignore-errors
+                               (caar (org-roam-db-query
+                                      [:select [title]
+                                       :from nodes
+                                       :where (= file $s1)]
+                                      (buffer-file-name))))
+                             (buffer-name))
+                       (buffer-name))))
+             (max-length 60))
+        (if (> (length name) max-length)
+            (concat (substring name 0 (- max-length 3)) "...")
+          name)))
 
     (setq tab-bar-tab-name-function #'aero/tab-bar-tab-name-function)
 
@@ -2401,22 +2406,29 @@ Only Git is supported because I'm not an animal."
 
   (defun aero/modeline-segment-buffer-name ()
     "Displays the name and size of the current buffer in the mode-line.
-For org-roam nodes, displays the node title instead of the filename."
-    (concat
-     (propertize
-      (if (and (derived-mode-p 'org-mode)
-               (buffer-file-name)
-               (org-roam-file-p))
-          (or (ignore-errors
-                (caar (org-roam-db-query
-                       [:select [title]
-                        :from nodes
-                        :where (= file $s1)]
-                       (buffer-file-name))))
-              (buffer-name))
-        (buffer-name))
-      'face 'mode-line-buffer-id)
-     " "))
+For org-roam nodes, displays the node title instead of the filename.
+Truncates long names to ensure other modeline segments remain visible."
+    (let* ((name (if (and (derived-mode-p 'org-mode)
+                          (buffer-file-name)
+                          (org-roam-file-p))
+                     (or (ignore-errors
+                           (caar (org-roam-db-query
+                                  [:select [title]
+                                   :from nodes
+                                   :where (= file $s1)]
+                                  (buffer-file-name))))
+                         (buffer-name))
+                   (buffer-name)))
+           ;; reserve space for other segments
+           (reserved-space 70)
+           (available-width (- (window-width) reserved-space))
+           (max-name-length (max 50 available-width))
+           (truncated-name (if (> (length name) max-name-length)
+                               (concat (substring name 0 (- max-name-length 3)) "...")
+                             name)))
+      (concat
+       (propertize truncated-name 'face 'mode-line-buffer-id)
+       " ")))
 
   (defun aero/modeline-segment-size-and-position ()
     "Displays the current cursor position in the mode-line."
