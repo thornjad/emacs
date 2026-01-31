@@ -5060,7 +5060,7 @@ RETRY-COUNT is the number of attempts remaining (default 10 = ~5 seconds)."
                             (when (buffer-live-p (get-buffer buffer-name))
                               (with-current-buffer buffer-name
                                 ;; Send cursor-agent command
-                                (vterm-send-string "cursor-agent\n")
+                                (vterm-send-string "agent\n")
                                 ;; Start polling for "Cursor Agent" startup text
                                 (run-with-timer 0.5 nil
                                                 #'aero/cursor-agent--poll-for-startup
