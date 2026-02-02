@@ -1021,7 +1021,7 @@ We only really need this in MacOS, grabbing environment variables from the defau
     :config
     (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO"
                    "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH"
-                   "MANPATH" "INFOPATH" "LSP_USE_PLISTS" "HOMEBREW_PREFIX"
+                   "MANPATH" "INFOPATH" "HOMEBREW_PREFIX"
                    "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"))
       (add-to-list 'exec-path-from-shell-variables var))
     (exec-path-from-shell-initialize))
@@ -2867,7 +2867,7 @@ Breadcrumbs are disabled for gptel since it uses its own system.
 
   (defun aero-breadcrumb-crumbs ()
     "Describe point inside the Imenu tree of current file."
-    (when-let ((alist (aero-breadcrumb--ipath-alist)))
+    (when-let* ((alist (aero-breadcrumb--ipath-alist)))
       (when (cl-some #'identity alist)
         (aero-breadcrumb--summarize
          (cl-loop
@@ -3724,7 +3724,7 @@ The workhorse of my task management. This package allows me to group tasks in th
 
     (defun aero/org-super-agenda-refresh ()
       "If *Org Agenda* is visible, select its window and do a proper org-agenda-redo."
-      (when-let ((win (get-buffer-window "*Org Agenda*")))
+      (when-let* ((win (get-buffer-window "*Org Agenda*")))
         (with-selected-window win
           (org-agenda-redo))))
 
@@ -4167,7 +4167,7 @@ The override of =esup-read-results= works around a bug where esup tries to profi
           (message "at %s" esup-last-result-start-point)
           (unless (eobp)
             (while (setq sep-end-point (esup-next-separator-end-point))
-              (when-let ((result (car (esup-read-result (point)))))
+              (when-let* ((result (car (esup-read-result (point)))))
                 (push result results))
               (setq esup-last-result-start-point sep-end-point)
               (goto-char esup-last-result-start-point))))
@@ -4943,7 +4943,7 @@ Allows managing feeds in an org file
                         (let ((headline-tags (org-element-property :tags element)))
                           (when headline-tags
                             (setq tags (append tags (mapcar 'intern headline-tags)))))))
-                    (when-let ((feed-title (org-entry-get element "feed_title")))
+                    (when-let* ((feed-title (org-entry-get element "feed_title")))
                       (setf (elfeed-meta (elfeed-db-get-feed raw-link) :title) feed-title))
                     (push (if tags (cons raw-link tags) raw-link) links))))
               links)))
@@ -4965,7 +4965,7 @@ Enabled in all programming modes. I've tried automatically enabling in org-mode 
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
     :after (company-box general)
-    :hook (prog-mode . copilot-mode)
+    :commands (copilot-mode copilot-next-completion copilot-previous-completion copilot-accept-completion)
     :custom (copilot-idle-delay 0.2)
     :bind (:map copilot-mode-map
            ("C-<tab>" . copilot-accept-completion)
