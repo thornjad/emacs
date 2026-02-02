@@ -4,7 +4,7 @@
 EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
-macos: upgrade-emacs-macos install-macos
+macos: upgrade-emacs-macos precompile
 	@echo "Installed, run make init to install dependencies, and make clear-straight-build to rebuild all packages on next start"
 
 linux: build-emacs-linux install-linux
@@ -22,39 +22,41 @@ build-emacs-cask-stable: macos-reqs
 build-emacs-cask: macos-reqs
 	brew install --cask emacs-nightly
 
+# Install Emacs.app to /Applications (use cp instead of ln because /Applications has sunlnk flag set by SIP/MDM)
+install-emacs-macos:
+	rm -rf /Applications/Emacs.app || true
+	cp -r /opt/homebrew/opt/emacs-plus@31/Emacs.app /Applications/
+
+install-emacs-macos-stable:
+	rm -rf /Applications/Emacs.app || true
+	cp -r /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications/
+
 build-emacs-macos: macos-reqs
-	brew install emacs-plus@30 --with-savchenkovaleriy-big-sur-3d-icon --with-xwidgets --with-dbus
-	ln -sf /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications
+	brew install emacs-plus@31 --with-xwidgets --with-dbus
+	$(MAKE) install-emacs-macos
 
 # for when libgccjit breaks every few months
-# NOTE: dbus isn't working on M1 yet.
 build-emacs-macos-minimal: macos-reqs
-	brew install emacs-plus@30 --with-savchenkovaleriy-big-sur-3d-icon --with-xwidgets
-	ln -sf /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications
+	brew install emacs-plus@31
+	$(MAKE) install-emacs-macos
 
 build-emacs-macos-stable: macos-reqs
-	brew install emacs-plus@29 --with-savchenkovaleriy-big-sur-3d-icon --with-native-comp --with-xwidgets
-	ln -sf /opt/homebrew/opt/emacs-plus@29/Emacs.app /Applications
+	brew install emacs-plus@30 --with-native-comp --with-xwidgets
+	$(MAKE) install-emacs-macos-stable
 
 build-emacs-macos-stable-minimal: macos-reqs
-	brew install emacs-plus@29 --with-savchenkovaleriy-big-sur-3d-icon --with-xwidgets
-	ln -sf /opt/homebrew/opt/emacs-plus@29/Emacs.app /Applications
+	brew install emacs-plus@30
+	$(MAKE) install-emacs-macos-stable
 
 remove-emacs-macos:
-	brew uninstall emacs-plus@30 || true
+	brew uninstall emacs-plus@31 || true
 
 remove-emacs-macos-stable:
-	brew uninstall emacs-plus@29 || true
+	brew uninstall emacs-plus@30 || true
 
 upgrade-emacs-macos: remove-emacs-macos build-emacs-macos
 
-install-macos:
-	osacompile -o bin/Emacs.app bin/aero-emacs.osx.applescript
-	cp etc/logo/Emacs.icns bin/Emacs.app/Contents/Resources/applet.icns
-	[ -s /Applications/Emacs.app ] && rm -rf /Applications/Emacs.app || true
-	mv bin/Emacs.app /Applications/
-
-clean-aero-macos:
+clean-emacs-macos:
 	rm -rf /Applications/Emacs.app
 
 build-emacs-linux: 
@@ -116,6 +118,62 @@ lsp-booster:
 	cd ~/.config/emacs/tmp/emacs-lsp-booster && cargo build --release
 	mkdir -p ~/.local/bin
 	ln -sf ~/.config/emacs/tmp/emacs-lsp-booster/target/release/emacs-lsp-booster ~/.local/bin/emacs-lsp-booster
+
+# Pre-compile all packages for native compilation to avoid slow first launch
+# Works on fresh installs: sets up recipe repos, tangles config, bootstraps straight.el, installs packages, then compiles
+.PHONY: precompile
+precompile: precompile-setup-repos precompile-tangle
+	@echo "Loading configuration and installing packages (this may take several minutes)..."
+	@/Applications/Emacs.app/Contents/MacOS/Emacs --batch \
+		--eval "(setq native-comp-async-report-warnings-errors 'silent)" \
+		--eval "(setq native-comp-async-jobs-number 4)" \
+		-l ~/.config/emacs/init.el \
+		--eval "(message \"Configuration loaded, starting native compilation...\")" \
+		--eval "(native-compile-async \"~/.config/emacs/straight/build/\" 'recursively)" \
+		--eval "(let ((start-time (current-time)) (last-count 0)) \
+		         (while (> (length comp-files-queue) 0) \
+		           (let ((current-count (length comp-files-queue))) \
+		             (when (/= current-count last-count) \
+		               (message \"Compiling... %d files remaining\" current-count) \
+		               (setq last-count current-count))) \
+		           (sleep-for 2)) \
+		         (message \"Native compilation complete in %.1f seconds\" \
+		                  (float-time (time-subtract (current-time) start-time))))"
+	@echo "Pre-compilation finished."
+
+# Tangle config.org to config.el so it doesn't need to be tangled on first interactive startup
+.PHONY: precompile-tangle
+precompile-tangle:
+	@echo "Tangling config.org to config.el..."
+	@/Applications/Emacs.app/Contents/MacOS/Emacs --batch \
+		-l org \
+		--eval "(org-babel-tangle-file \"~/.config/emacs/config.org\")"
+
+# Clone essential recipe repositories for straight.el if they don't exist (needed for batch bootstrap)
+.PHONY: precompile-setup-repos
+precompile-setup-repos:
+	@mkdir -p ~/.config/emacs/straight/repos
+	@if [ ! -d ~/.config/emacs/straight/repos/melpa ]; then \
+		echo "Cloning melpa recipes..."; \
+		git clone --depth 1 https://github.com/melpa/melpa.git ~/.config/emacs/straight/repos/melpa; \
+	fi
+	@if [ ! -d ~/.config/emacs/straight/repos/gnu-elpa-mirror ]; then \
+		echo "Cloning gnu-elpa-mirror recipes..."; \
+		git clone --depth 1 https://github.com/emacs-straight/gnu-elpa-mirror.git ~/.config/emacs/straight/repos/gnu-elpa-mirror; \
+	fi
+	@if [ ! -d ~/.config/emacs/straight/repos/nongnu-elpa ]; then \
+		echo "Cloning nongnu-elpa recipes..."; \
+		git clone https://git.savannah.gnu.org/git/emacs/nongnu.git ~/.config/emacs/straight/repos/nongnu-elpa \
+			--config transfer.fsckobjects=false --config receive.fsckobjects=false --config fetch.fsckobjects=false; \
+	fi
+	@if [ ! -d ~/.config/emacs/straight/repos/emacsmirror-mirror ]; then \
+		echo "Cloning emacsmirror-mirror recipes..."; \
+		git clone --depth 1 https://github.com/emacs-straight/emacsmirror-mirror.git ~/.config/emacs/straight/repos/emacsmirror-mirror; \
+	fi
+	@if [ ! -d ~/.config/emacs/straight/repos/straight.el ]; then \
+		echo "Cloning straight.el..."; \
+		git clone --depth 1 https://github.com/radian-software/straight.el.git ~/.config/emacs/straight/repos/straight.el; \
+	fi
 
 .PHONY: export
 export: index.html

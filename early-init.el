@@ -21,6 +21,9 @@
 ;;
 ;;; Code:
 
+;; LSP_USE_PLISTS must be set before Emacs loads packages (affects JSON parsing optimization)
+(setenv "LSP_USE_PLISTS" "true")
+
 ;; Use most recent byte-compiled files
 (setq load-prefer-newer t)
 
