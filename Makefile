@@ -22,7 +22,7 @@ build-emacs-cask-stable: macos-reqs
 build-emacs-cask: macos-reqs
 	brew install --cask emacs-nightly
 
-# Install Emacs.app to /Applications (use cp instead of ln because /Applications has sunlnk flag set by SIP/MDM)
+# Install Emacs.app to /Applications (use cp instead of ln because /Applications has sunlnk flag set by SIP/MDM on my work machine)
 install-emacs-macos:
 	rm -rf /Applications/Emacs.app || true
 	cp -r /opt/homebrew/opt/emacs-plus@31/Emacs.app /Applications/
@@ -50,8 +50,6 @@ build-emacs-macos-stable-minimal: macos-reqs
 
 remove-emacs-macos:
 	brew uninstall emacs-plus@31 || true
-
-remove-emacs-macos-stable:
 	brew uninstall emacs-plus@30 || true
 
 upgrade-emacs-macos: remove-emacs-macos build-emacs-macos
