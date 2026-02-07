@@ -4957,6 +4957,22 @@ Allows managing feeds in an org file
 * AI
 I've moved most AI functions out of Emacs proper, as I can't keep up with the incredible advances of products like Cursor and Claude Code. I keep copilot around for occasional use, since GitHub gives it to me for free. 
 
+** Claude Code IDE
+This makes Claude Code work better in Emacs, seems to behave better than my custom vterm handling attempts.
+
+Start by running =claude-code-ide= or with =SPC a c= in the directory you want it. I'll likely change bindings over time as I use this package more.
+
+#+begin_src emacs-lisp :lexical t
+  (package! claude-code-ide "manzaltu/claude-code-ide.el"
+    :commands (claude-code-ide claude-code-ide-menu)
+    :custom
+    (claude-code-ide-use-side-window nil) ; use normal window
+    (claude-code-ide-diagnostics-backend 'flymake)
+    :init (aero-leader-def "ac" 'claude-code-ide-menu)
+    :config
+    (claude-code-ide-emacs-tools-setup))
+#+end_src
+
 ** Copilot
 A connection with Microsoft GitHub Copilot. Works best with company-box, so we consider it a requirement. The idle delay is longer than default so it doesn't mess with typing.
 
@@ -5048,72 +5064,69 @@ Makes it easier to run multiple vterm instances at once, especially per-project
 Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions on startup in vterm. This wrapper launches Cursor Agent and triggers a redraw to ensure proper display.
 
 #+begin_src emacs-lisp :lexical t
-  (defun aero/cursor-agent--poll-for-startup (buffer-name retry-count)
-    "Poll BUFFER-NAME for \\='Cursor Agent\\=' text and redraw when found.
-RETRY-COUNT is the number of attempts remaining (default 10 = ~5 seconds)."
-    (when (buffer-live-p (get-buffer buffer-name))
-      (with-current-buffer buffer-name
-        (let ((content (buffer-substring-no-properties (point-min) (point-max))))
-          (if (string-match-p "Cursor Agent" content)
-              (progn
-                ;; Force actual window resize by creating a temporary split below
-                (when (get-buffer-window buffer-name)
-                  (let ((original-window (get-buffer-window buffer-name)))
-                    (with-selected-window original-window
-                      (let ((temp-window (split-window-below -5)))
-                        ;; Wait briefly then close the split to restore size
-                        (run-with-timer 0.15 nil
-                                        (lambda ()
-                                          (when (window-live-p temp-window)
-                                            (delete-window temp-window))))))))
-                (message "Cursor Agent started, display refreshed"))
-            ;; Not found yet, retry
-            (when (> retry-count 0)
-              (run-with-timer 0.3 nil
-                              #'aero/cursor-agent--poll-for-startup
-                              buffer-name
-                              (1- retry-count))))))))
+    (defun aero/cursor-agent--poll-for-startup (buffer-name retry-count)
+      "Poll BUFFER-NAME for \\='Cursor Agent\\=' text and redraw when found.
+  RETRY-COUNT is the number of attempts remaining (default 10 = ~5 seconds)."
+      (when (buffer-live-p (get-buffer buffer-name))
+        (with-current-buffer buffer-name
+          (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+            (if (string-match-p "Cursor Agent" content)
+                (progn
+                  ;; Force actual window resize by creating a temporary split below
+                  (when (get-buffer-window buffer-name)
+                    (let ((original-window (get-buffer-window buffer-name)))
+                      (with-selected-window original-window
+                        (let ((temp-window (split-window-below -5)))
+                          ;; Wait briefly then close the split to restore size
+                          (run-with-timer 0.15 nil
+                                          (lambda ()
+                                            (when (window-live-p temp-window)
+                                              (delete-window temp-window))))))))
+                  (message "Cursor Agent started, display refreshed"))
+              ;; Not found yet, retry
+              (when (> retry-count 0)
+                (run-with-timer 0.3 nil
+                                #'aero/cursor-agent--poll-for-startup
+                                buffer-name
+                                (1- retry-count))))))))
 
-  (defun aero/cursor-agent ()
-    "Launch Cursor Agent in a project-specific vterm buffer.
-  If a cursor-agent vterm for this project already exists, switch to it.
-  Otherwise, create a new one and start cursor-agent.
-  Cursor Agent needs a window size signal after startup to render properly."
-    (interactive)
-    (require 'vterm)  ; Load vterm before using vterm-buffer-name
-    (let* ((project-root (or (when (project-current)
-                               (project-root (project-current)))
-                             default-directory))
-           (project-name (file-name-nondirectory (directory-file-name project-root)))
-           (buffer-name (format "*vterm-cursor-agent-%s*" project-name))
-           (existing-buffer (get-buffer buffer-name))
-           (default-directory project-root))
+    (defun aero/cursor-agent ()
+      "Launch Cursor Agent in a project-specific vterm buffer.
+    If a cursor-agent vterm for this project already exists, switch to it.
+    Otherwise, create a new one and start cursor-agent.
+    Cursor Agent needs a window size signal after startup to render properly."
+      (interactive)
+      (require 'vterm)  ; Load vterm before using vterm-buffer-name
+      (let* ((project-root (or (when (project-current)
+                                 (project-root (project-current)))
+                               default-directory))
+             (project-name (file-name-nondirectory (directory-file-name project-root)))
+             (buffer-name (format "*vterm-cursor-agent-%s*" project-name))
+             (existing-buffer (get-buffer buffer-name))
+             (default-directory project-root))
 
-      (if existing-buffer
-          ;; Buffer exists, just switch to it
-          (progn
-            (switch-to-buffer existing-buffer)
-            (message "Switched to existing cursor-agent for %s" project-name))
+        (if existing-buffer
+            ;; Buffer exists, just switch to it
+            (progn
+              (switch-to-buffer existing-buffer)
+              (message "Switched to existing cursor-agent for %s" project-name))
 
-        ;; Buffer doesn't exist, create new vterm and start cursor-agent
-        (let ((vterm-buffer-name buffer-name))
-          (vterm)
-          (message "Starting new cursor-agent for %s" project-name)
-          ;; Wait a moment for vterm to initialize
-          (run-with-timer 0.3 nil
-                          (lambda ()
-                            (when (buffer-live-p (get-buffer buffer-name))
-                              (with-current-buffer buffer-name
-                                ;; Send cursor-agent command
-                                (vterm-send-string "agent\n")
-                                ;; Start polling for "Cursor Agent" startup text
-                                (run-with-timer 0.5 nil
-                                                #'aero/cursor-agent--poll-for-startup
-                                                buffer-name
-                                                10)))))))))
-
-  (aero-leader-def
-    "ac" '(aero/cursor-agent :wk "cursor-agent"))
+          ;; Buffer doesn't exist, create new vterm and start cursor-agent
+          (let ((vterm-buffer-name buffer-name))
+            (vterm)
+            (message "Starting new cursor-agent for %s" project-name)
+            ;; Wait a moment for vterm to initialize
+            (run-with-timer 0.3 nil
+                            (lambda ()
+                              (when (buffer-live-p (get-buffer buffer-name))
+                                (with-current-buffer buffer-name
+                                  ;; Send cursor-agent command
+                                  (vterm-send-string "agent\n")
+                                  ;; Start polling for "Cursor Agent" startup text
+                                  (run-with-timer 0.5 nil
+                                                  #'aero/cursor-agent--poll-for-startup
+                                                  buffer-name
+                                                  10)))))))))
 #+end_src
 
 *** EAT
