@@ -4966,6 +4966,7 @@ Start by running =claude-code-ide= or with =SPC a c= in the directory you want i
   (package! claude-code-ide "manzaltu/claude-code-ide.el"
     :commands (claude-code-ide claude-code-ide-menu)
     :custom
+    (claude-code-ide-terminal-backend 'eat)
     (claude-code-ide-use-side-window nil) ; use normal window
     (claude-code-ide-diagnostics-backend 'flymake)
     :init (aero-leader-def "ac" 'claude-code-ide-menu)
