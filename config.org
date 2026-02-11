@@ -4966,7 +4966,7 @@ Start by running =claude-code-ide= or with =SPC a c= in the directory you want i
   (package! claude-code-ide "manzaltu/claude-code-ide.el"
     :commands (claude-code-ide claude-code-ide-menu)
     :custom
-    (claude-code-ide-terminal-backend 'eat)
+    (claude-code-ide-terminal-backend 'vterm) ; eat has the same problems with less usability, so use vterm
     (claude-code-ide-use-side-window nil) ; use normal window
     (claude-code-ide-diagnostics-backend 'flymake)
     :init (aero-leader-def "ac" 'claude-code-ide-menu)
@@ -5129,16 +5129,6 @@ Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions
                                                   buffer-name
                                                   10)))))))))
 #+end_src
-
-*** EAT
-Trying this out, it claims to work better with Claude
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! eat :auto
-    :hook (eshell-load . eat-eshell-mode)
-    :custom (eat-default-cursor-type '(nil nil nil)) ; no blinking
-    )
-#+END_SRC
 
 ** Eshell
 Realistically this is my main shell. It does try to override some important bindings by default, so we undo that.
