@@ -3431,6 +3431,21 @@ Now for the actual package configuration. This is a long one, so I've made a lot
                             (file . find-file)
                             (wl . wl-other-frame)))
 
+    ;; Add in some custom structure templates. The default has a few good ones.
+    ;; You can insert these either through the menu with =SPC , i i= in Org files,
+    ;; or you can type <KEY then TAB.
+    (org-structure-template-alist
+     '(("a" . "export ascii")
+       ("c" . "citation")
+       ("C" . "comment")
+       ("e" . "example")
+       ("E" . "export")
+       ("h" . "export html")
+       ("q" . "quote")
+       ("s" . "src")
+       ("v" . "verse")
+       ("l" . "src emacs-lisp :lexical t")))
+
     ;; Agenda
     (org-agenda-span 1) ; days to show at a time
     (org-agenda-start-day nil) ; day to start at
