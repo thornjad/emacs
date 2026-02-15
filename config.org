@@ -3616,7 +3616,12 @@ Some trivial UI improvements for org files. Uses the "replace" set of stars for 
     :hook ((org-mode . org-modern-mode)
            (org-agenda-finalize-hook . org-modern-agenda))
     :custom
-    (org-modern-star 'replace))
+    (org-modern-star 'replace)
+
+    ;; disable table styling in TUI mode where Unicode box chars render poorly
+    (org-modern-table (when (display-graphic-p) t))
+    (org-modern-table-vertical (when (display-graphic-p) 1))
+    (org-modern-table-horizontal (when (display-graphic-p) 0.1)))
 #+END_SRC
 
 ** Evil-org-mode
