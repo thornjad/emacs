@@ -3352,6 +3352,10 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     :preface
 
     :custom
+    ;; don't persist the element cache to disk; stale cache + kqueue events on
+    ;; wake from sleep causes incorrect buffer modifications in org files
+    (org-element-cache-persistent nil)
+
     (org-hide-leading-stars t)
     (org-pretty-entities t)
     (org-indent-mode-turns-on-hiding-stars nil) ; why would this even exist??
