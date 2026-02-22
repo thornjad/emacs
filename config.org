@@ -2163,6 +2163,14 @@ A better version of the built-in help buffers. This ought to be included in Emac
 #+END_SRC
 
 * UI
+** Frame containment
+Never let =display-buffer= pop up new frames automatically. Explicit frame
+commands (=other-frame=, =find-file-other-frame=, etc.) are unaffected.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (setq pop-up-frames nil)
+#+END_SRC
+
 ** Window navigation
 Useful when windmove thinks a window doesn't exist
 
