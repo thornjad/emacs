@@ -93,6 +93,8 @@ install-hunspell:
 	mkdir -p ~/Library/Spelling
 	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/en/en_US.dic" -o ~/Library/Spelling/en_US.dic
 	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/en/en_US.aff" -o ~/Library/Spelling/en_US.aff
+	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/fr_FR/fr.dic" -o ~/Library/Spelling/fr_FR.dic
+	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/fr_FR/fr.aff" -o ~/Library/Spelling/fr_FR.aff
 	@if head -1 $(HOME)/Documents/thornlog/ispell/personal_dictionary.aws | grep -q "^personal_ws"; then \
 		tail -n +2 $(HOME)/Documents/thornlog/ispell/personal_dictionary.aws > /tmp/dict_tmp && \
 		mv /tmp/dict_tmp $(HOME)/Documents/thornlog/ispell/personal_dictionary.aws; \

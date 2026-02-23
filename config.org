@@ -4644,6 +4644,7 @@ Spell checking, using a custom dictionary. Skips code blocks in org-mode.
        flyspell-issue-message-flag nil
        ispell-program-name "hunspell"
        ispell-dictionary "en_US"
+       ispell-extra-args '("-d" "en_US,fr_FR")
        ispell-personal-dictionary (expand-file-name "ispell/personal_dictionary.aws" aero/thornlog-path)
        flyspell-sort-corrections nil)
 
