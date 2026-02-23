@@ -2575,6 +2575,13 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
     (load-theme 'aero t))
 #+END_SRC
 
+Other themes I like to enable to draw tweaks from
+
+#+begin_src emacs-lisp :lexical t
+  (package! tao-theme "11111000000/tao-theme-emacs")
+  (package! lambda-themes "Lambda-Emacs/lambda-themes")
+#+end_src
+
 ** Default frame setup
 Set up the default frame in an agreeable fashion. The width is based on a buffer that's 106 columns wide, in two columns. The rest has been tweaked over the years to look extra nice on startup.
 
