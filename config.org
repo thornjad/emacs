@@ -4634,26 +4634,96 @@ Flymake for ESLint. Must be added after eglot so eglot doesn't clobber it.
 Spell checking, using a custom dictionary. Skips code blocks in org-mode.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! flyspell :builtin
-    :after (general)
-    :hook ((prog-mode . flyspell-prog-mode)
-           (text-mode . flyspell-mode))
-    :config
-    (defvar aero-etc-dir)
-    (setq
-     flyspell-issue-message-flag nil
-     ispell-personal-dictionary (expand-file-name "ispell/personal_dictionary.aws" aero/thornlog-path)
-     flyspell-sort-corrections nil)
+    (package! flyspell :builtin
+      :after (general)
+      :hook ((prog-mode . flyspell-prog-mode)
+             (text-mode . flyspell-mode))
+      :config
+      (defvar aero-etc-dir)
+      (setq
+       flyspell-issue-message-flag nil
+       ispell-program-name "hunspell"
+       ispell-dictionary "en_US"
+       ispell-personal-dictionary (expand-file-name "ispell/personal_dictionary.aws" aero/thornlog-path)
+       flyspell-sort-corrections nil)
 
-    (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_SRC" . "#\\+END_SRC"))
-    (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE"))
+      (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_SRC" . "#\\+END_SRC"))
+      (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE"))
 
-    (aero-leader-def
-      "psP" 'flyspell-prog-mode
-      "psN" 'flyspell-goto-next-error
-      "psw" 'flyspell-word
-      "psb" 'flyspell-buffer
-      "psr" 'flyspell-region))
+      ;; Support #+localwords: in org file headers as an alternative to
+      ;; LocalWords: at end of file. Case-insensitive match; writes lowercase.
+
+      (defun aero/org-header-end ()
+        "Return position just after the #+keyword block in the preamble.
+  Uses org-roam-end-of-meta-data which handles all edge cases:
+  properties drawers, missing keywords, files without headings."
+        (save-excursion
+          (goto-char (point-min))
+          (org-roam-end-of-meta-data t)
+          (point)))
+
+      (defun aero/org-collect-localwords (&optional limit)
+        "Return words from #+localwords: lines in the org file header."
+        (let (words)
+          (save-excursion
+            (save-match-data
+              (goto-char (point-min))
+              (let ((limit (or limit (aero/org-header-end)))
+                    (case-fold-search t))
+                (while (re-search-forward "^#[+]localwords:\\s-*\\(.+\\)$" limit t)
+                  (setq words (append words (split-string (match-string-no-properties 1))))))
+              words))))
+
+      (defun aero/org-ispell-inject-localwords (&rest _)
+        "Send #+localwords: header entries to the running ispell process."
+        (when (derived-mode-p 'org-mode)
+          (dolist (word (aero/org-collect-localwords))
+            (ispell-send-string (concat "@" word "\n")))))
+
+      (advice-add 'ispell-buffer-local-words :after #'aero/org-ispell-inject-localwords)
+
+      (defun aero/org-ispell-add-to-header (word)
+        "Add WORD (lowercased) to #+localwords: in the org header."
+        (let* ((word (downcase word))
+               (header-end (aero/org-header-end)))
+          (unless (member word (aero/org-collect-localwords header-end))
+            (save-excursion
+              (save-match-data
+                (let ((case-fold-search t)
+                      last-eol)
+                  (goto-char (point-min))
+                  (while (re-search-forward "^#[+]localwords:[^\n]*" header-end t)
+                    (setq last-eol (point)))
+                  (if last-eol
+                      (progn (goto-char last-eol) (insert " " word))
+                    (goto-char header-end)
+                    (forward-line -1)
+                    (while (and (not (bobp)) (looking-at-p "^[[:blank:]]*$"))
+                      (forward-line -1))
+                    (end-of-line)
+                    (insert "\n#+localwords: " word))))))))
+
+      (defun aero/org-ispell-add-word-advice (orig-fn word)
+        "In org buffers, redirect local word saves to the file header."
+        (let* ((target (and ispell-buffer-local-name
+                            (get-buffer ispell-buffer-local-name)))
+               (org-p (if target
+                          (with-current-buffer target
+                            (derived-mode-p 'org-mode))
+                        (derived-mode-p 'org-mode))))
+          (if org-p
+              (with-current-buffer (or target (current-buffer))
+                (aero/org-ispell-add-to-header word))
+            (funcall orig-fn word))))
+
+      (advice-add 'ispell-add-per-file-word-list :around #'aero/org-ispell-add-word-advice)
+
+      (aero-leader-def
+        "psP" 'flyspell-prog-mode
+        "psN" 'flyspell-goto-next-error
+        "psw" 'flyspell-word
+        "psb" 'flyspell-buffer
+        "psr" 'flyspell-region))
 #+END_SRC
 
 *** Flyspell-lazy
