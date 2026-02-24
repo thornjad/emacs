@@ -3910,11 +3910,23 @@ A fantastic note-taking system, used for building a second brain.
 *** Org-roam-latte
 Highlights unlinked references to existing org-roam nodes in buffers. Click or press RET on highlighted text to visit the node, or M-RET to convert it into a link.
 
+When org-roam-latte's =after-change-function= runs during an =org-todo= state change, the inflections library's =replace-match= (called with =FIXEDCASE=nil=) interacts with =evil-org-mode= to upcase heading text. We prevent this by inhibiting latte's after-change hook while =org-todo= is executing.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! org-roam-latte "yad-tahir/org-roam-latte"
     :after org-roam
     :hook (org-roam-find-file . org-roam-latte-mode)
     :config
+    (defvar aero/org-todo-in-progress nil)
+    (advice-add 'org-todo :around
+                (lambda (orig-fn &rest args)
+                  (let ((aero/org-todo-in-progress t))
+                    (apply orig-fn args))))
+    (advice-add 'org-roam-latte--after-change-function :around
+                (lambda (orig-fn &rest args)
+                  (unless aero/org-todo-in-progress
+                    (apply orig-fn args))))
+
     (aero-mode-leader-def
       :keymaps 'org-mode-map
       "v" '(org-roam-latte-complete-at-point :wk "complete roam node")))
