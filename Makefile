@@ -5,7 +5,7 @@ EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
 macos: upgrade-emacs-macos init precompile
-	@echo "Installed, run make init to install dependencies, and make clear-straight-build to rebuild all packages on next start"
+	@echo "Installed"
 
 linux: build-emacs-linux install-linux
 	@echo "Installed, run make init to install dependencies, and make clear-straight-build to rebuild all packages on next start"
