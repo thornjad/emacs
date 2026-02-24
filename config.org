@@ -4902,8 +4902,8 @@ Spell checking, using a custom dictionary. Skips code blocks in org-mode.
 
       (defun aero/org-header-end ()
         "Return position just after the #+keyword block in the preamble.
-  Uses org-roam-end-of-meta-data which handles all edge cases:
-  properties drawers, missing keywords, files without headings."
+  Uses org-roam-end-of-meta-data which handles all edge cases."
+        (require 'org-roam-utils)
         (save-excursion
           (goto-char (point-min))
           (org-roam-end-of-meta-data t)
