@@ -5667,6 +5667,15 @@ Rather than loading in a whole package, creating a derived mode for Yarn Locks i
           buffer-read-only t))
 #+END_SRC
 
+* Fun stuff
+** Lichess
+#+begin_src emacs-lisp :lexical t
+  (package! lichess :auto
+    :commands (lichess lichess-tv lichess-game-watch)
+    :custom
+    (lichess-ai-default-level 3))
+#+end_src
+
 * General variable configuration
 This is loaded toward the end so that it overrides other packages. This solves some occasional issues where a mode overrides indenting, for example.
 
