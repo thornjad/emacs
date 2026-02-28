@@ -1498,7 +1498,7 @@ This provides a more flexible completion system where we can use spaces to separ
 *** Consult
 Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface. I also hook it into Xref for more seamless integration.
 
-Buffer previews are debounced, since I often don't want them.
+Buffer previews are disabled since they slow down navigation.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun consult-outline-top ()
@@ -1517,7 +1517,7 @@ Buffer previews are debounced, since I often don't want them.
     :custom
     (xref-show-xrefs-function #'consult-xref)
     (xref-show-definitions-function #'consult-xref)
-    (consult-preview-key '(:debounce 0.4 any))
+    (consult-preview-key nil)
     (consult-ripgrep-args (append consult-ripgrep-args (list "--glob" "!.xlf")))
 
     ;; Always ignore xlf files
