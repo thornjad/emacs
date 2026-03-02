@@ -3599,6 +3599,15 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     ;; Also save after state change
     (add-hook 'org-after-todo-state-change-hook #'org-save-all-org-buffers)
 
+    ;; don't auto-pair dollar signs; org treats $ as LaTeX math delimiters but
+    ;; we don't use LaTeX and just want to type dollar signs normally
+    (add-hook 'org-mode-hook
+              (lambda ()
+                (setq-local electric-pair-inhibit-predicate
+                            (lambda (c)
+                              (if (char-equal c ?$) t
+                                (electric-pair-default-inhibit c))))))
+
     ;; start with all levels collapsed
     (add-hook 'org-mode-hook #'org-hide-block-all)
 
