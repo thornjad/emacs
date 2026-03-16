@@ -88,22 +88,10 @@ hard-init: clear-straight init
 
 # Continues even on failures. This lets us only install what the system can install, but can
 # swallow up errors
-install-hunspell:
-	brew install hunspell
-	mkdir -p ~/Library/Spelling
-	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/en/en_US.dic" -o ~/Library/Spelling/en_US.dic
-	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/en/en_US.aff" -o ~/Library/Spelling/en_US.aff
-	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/fr_FR/fr.dic" -o ~/Library/Spelling/fr_FR.dic
-	curl -fsSL "https://cgit.freedesktop.org/libreoffice/dictionaries/plain/fr_FR/fr.aff" -o ~/Library/Spelling/fr_FR.aff
-	@if head -1 $(HOME)/Documents/thornlog/ispell/personal_dictionary.aws | grep -q "^personal_ws"; then \
-		tail -n +2 $(HOME)/Documents/thornlog/ispell/personal_dictionary.aws > /tmp/dict_tmp && \
-		mv /tmp/dict_tmp $(HOME)/Documents/thornlog/ispell/personal_dictionary.aws; \
-		echo "Converted personal dictionary from aspell to hunspell format"; \
-	else \
-		echo "Personal dictionary already in hunspell format"; \
-	fi
+install-aspell:
+	brew install aspell
 
-install-deps: lsp-booster graphviz install-npm install-hunspell
+install-deps: lsp-booster graphviz install-npm install-aspell
 	brew install node ripgrep
 	gem install bundler prettier_print syntax_tree syntax_tree-haml syntax_tree-rbs && npm i -g prettier @prettier/plugin-ruby || true
 
