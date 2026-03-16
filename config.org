@@ -4897,111 +4897,11 @@ Spell checking, using a custom dictionary. Skips code blocks in org-mode.
       (defvar aero-etc-dir)
       (setq
        flyspell-issue-message-flag nil
-       ispell-program-name "hunspell"
-       ispell-dictionary "en_US"
-       ispell-extra-args '("-d" "en_US,fr_FR")
        ispell-personal-dictionary (expand-file-name "ispell/personal_dictionary.aws" aero/thornlog-path)
        flyspell-sort-corrections nil)
 
-      (add-to-list 'ispell-local-dictionary-alist
-                   '("en_US" "[[:alpha:]]" "[^[:alpha:]]" "['']" t ("-d" "en_US") nil utf-8))
-
       (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_SRC" . "#\\+END_SRC"))
       (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE"))
-
-      ;; Support #+localwords: in org file headers as an alternative to
-      ;; LocalWords: at end of file. Case-insensitive match; writes lowercase.
-
-      (defun aero/org-header-end ()
-        "Return position just after the #+keyword block in the preamble.
-  Uses org-roam-end-of-meta-data which handles all edge cases."
-        (require 'org-roam-utils)
-        (save-excursion
-          (goto-char (point-min))
-          (org-roam-end-of-meta-data t)
-          (point)))
-
-      (defun aero/org-collect-localwords (&optional limit)
-        "Return words from #+localwords: lines in the org file header."
-        (let (words)
-          (save-excursion
-            (save-match-data
-              (goto-char (point-min))
-              (let ((limit (or limit (aero/org-header-end)))
-                    (case-fold-search t))
-                (while (re-search-forward "^#[+]localwords:\\s-*\\(.+\\)$" limit t)
-                  (setq words (append words (split-string (match-string-no-properties 1))))))
-              words))))
-
-      (defun aero/org-ispell-inject-localwords (&rest _)
-        "Send #+localwords: header entries to the running ispell process.
-  Handles the persistent-process path used by `ispell-word' and the
-  small-region flyspell path."
-        (when (derived-mode-p 'org-mode)
-          (dolist (word (aero/org-collect-localwords))
-            (ispell-send-string (concat "@" word "\n")))))
-
-      (advice-add 'ispell-buffer-local-words :after #'aero/org-ispell-inject-localwords)
-
-      (defun aero/org-ispell-add-to-header (word)
-        "Add WORD to #+localwords: in the org header, preserving case."
-        (let* ((header-end (aero/org-header-end)))
-          (unless (member-ignore-case word (aero/org-collect-localwords header-end))
-            (save-excursion
-              (save-match-data
-                (let ((case-fold-search t)
-                      last-eol)
-                  (goto-char (point-min))
-                  (while (re-search-forward "^#[+]localwords:[^\n]*" header-end t)
-                    (setq last-eol (point)))
-                  (if last-eol
-                      (progn (goto-char last-eol) (insert " " word))
-                    (goto-char header-end)
-                    (forward-line -1)
-                    (while (and (not (bobp)) (looking-at-p "^[[:blank:]]*$"))
-                      (forward-line -1))
-                    (end-of-line)
-                    (insert "\n#+localwords: " word))))))))
-
-      (defun aero/org-ispell-add-word-advice (orig-fn word)
-        "In org buffers, redirect local word saves to the file header."
-        (let* ((target (and ispell-buffer-local-name
-                            (get-buffer ispell-buffer-local-name)))
-               (org-p (if target
-                          (with-current-buffer target
-                            (derived-mode-p 'org-mode))
-                        (derived-mode-p 'org-mode))))
-          (if org-p
-              (with-current-buffer (or target (current-buffer))
-                (aero/org-ispell-add-to-header word))
-            (funcall orig-fn word))))
-
-      (advice-add 'ispell-add-per-file-word-list :around #'aero/org-ispell-add-word-advice)
-
-      ;; the batch path in flyspell-large-region spawns a fresh hunspell
-      ;; via call-process-region, so it never sees the @word injections
-      ;; sent to the persistent pipe above. we merge localwords into a
-      ;; temporary personal dictionary so the batch process picks them up.
-      (defun aero/flyspell-batch-with-localwords (orig-fn beg end)
-        "Merge #+localwords: into a temp personal dictionary for batch checks."
-        (let ((words (and (derived-mode-p 'org-mode)
-                          (aero/org-collect-localwords))))
-          (if (null words)
-              (funcall orig-fn beg end)
-            (let* ((src ispell-personal-dictionary)
-                   (tmp (make-temp-file "ispell-localwords")))
-              (with-temp-file tmp
-                (when (and src (file-exists-p src))
-                  (insert-file-contents src)
-                  (goto-char (point-max))
-                  (unless (bolp) (insert "\n")))
-                (dolist (w words) (insert w "\n")))
-              (let ((ispell-personal-dictionary tmp))
-                (unwind-protect
-                    (funcall orig-fn beg end)
-                  (delete-file tmp)))))))
-
-      (advice-add 'flyspell-large-region :around #'aero/flyspell-batch-with-localwords)
 
       (aero-leader-def
         "psP" 'flyspell-prog-mode
