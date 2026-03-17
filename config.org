@@ -2628,10 +2628,10 @@ Set up the default frame in an agreeable fashion. The width is based on a buffer
         window-divider-mode t)
 #+END_SRC
 
-Set up window margins
+Set up 1-column window margins on each side for visual breathing room. Uses =window-state-change-hook= rather than =window-configuration-change-hook= because the latter fires on every individual window operation during layout changes, while the state-change hook coalesces into a single callback per redisplay cycle.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (add-hook 'window-configuration-change-hook
+  (add-hook 'window-state-change-hook
             (lambda ()
               (set-window-margins
                (car (get-buffer-window-list (current-buffer) nil t)) 1 1)))
