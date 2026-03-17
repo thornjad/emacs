@@ -2213,7 +2213,11 @@ Flymake goes in the bottom
 ** Aero modeline
 My custom modeline. Originally based on Doom's modeline, but the code diverged many years ago.
 
+The built-in VC system is disabled entirely because it runs a git subprocess on every file open to populate =vc-mode=, which is expensive on macOS. Instead, the git branch segment below queries git directly and caches the result per buffer, refreshing only on save and window focus.
+
 #+BEGIN_SRC emacs-lisp :lexical t
+  (setq vc-handled-backends nil)
+
   (defgroup aero/modeline nil
     "A minimal mode-line with useful information."
     :group 'mode-line)
@@ -2372,23 +2376,39 @@ My custom modeline. Originally based on Doom's modeline, but the code diverged m
      (t  ;; not modified
       (propertize "✔" 'face `(:inherit aero/modeline-not-modified :height 0.6)))))
 
-  (defun aero/modeline-segment-git-state ()
-    "Displays the current branch and status from Git.
+  (defvar-local aero/modeline--git-branch nil
+    "Cached git branch name for the current buffer.")
 
-Only Git is supported because I'm not an animal."
-    (when (and vc-mode buffer-file-name)
-      (let ((str (if vc-display-status
-                     (substring vc-mode 5)
-                   "")))
-        (concat
-         (propertize
-          (let ((max 12))
-            (if (> (length str) max)
-                (concat (substring str 0 (- max 3)) "…") ; substring 3 less than length limit
-              str))
-          'mouse-face 'mode-line-highlight
-          'face 'aero/modeline-git-branch)
-         " "))))
+  (defun aero/modeline--update-git-branch ()
+    "Update the cached git branch for the current buffer."
+    (setq aero/modeline--git-branch
+          (when buffer-file-name
+            (let ((default-directory (file-name-directory buffer-file-name)))
+              (ignore-errors
+                (string-trim
+                 (shell-command-to-string
+                  "git rev-parse --abbrev-ref HEAD 2>/dev/null")))))))
+
+  (add-hook 'find-file-hook #'aero/modeline--update-git-branch)
+  (add-hook 'after-save-hook #'aero/modeline--update-git-branch)
+  (add-hook 'focus-in-hook
+            (lambda ()
+              (when buffer-file-name
+                (aero/modeline--update-git-branch))))
+
+  (defun aero/modeline-segment-git-state ()
+    "Displays the current branch from Git using a cached lookup."
+    (when (and aero/modeline--git-branch
+               (not (string-empty-p aero/modeline--git-branch)))
+      (concat
+       (propertize
+        (let ((max 12))
+          (if (> (length aero/modeline--git-branch) max)
+              (concat (substring aero/modeline--git-branch 0 (- max 3)) "…")
+            aero/modeline--git-branch))
+        'mouse-face 'mode-line-highlight
+        'face 'aero/modeline-git-branch)
+       " ")))
 
   (defun aero/modeline-segment-remote ()
     "Displays a symbol if buffer is remote"
