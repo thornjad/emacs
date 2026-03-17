@@ -2416,21 +2416,38 @@ The built-in VC system is disabled entirely because it runs a git subprocess on 
                 (host (file-remote-p filename 'host)))
       (concat " @" (propertize host 'face 'aero/modeline-remote) " ")))
 
+#+END_SRC
+
+For org-roam buffers, the modeline displays the node title rather than the filename. Since the modeline redraws on every keystroke and cursor movement, querying the org-roam SQLite database on each redisplay is prohibitively expensive. Instead, the display name is computed once when the buffer is opened and refreshed on save, which is the only time a title would realistically change.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defvar-local aero/modeline--buffer-display-name nil
+    "Cached display name for the current buffer's modeline segment.")
+
+  (defun aero/modeline--update-buffer-display-name ()
+    "Update the cached display name, querying org-roam for node titles."
+    (setq aero/modeline--buffer-display-name
+          (if (and (derived-mode-p 'org-mode)
+                   (buffer-file-name)
+                   (fboundp 'org-roam-file-p)
+                   (org-roam-file-p))
+              (or (ignore-errors
+                    (caar (org-roam-db-query
+                           [:select [title]
+                            :from nodes
+                            :where (= file $s1)]
+                           (buffer-file-name))))
+                  (buffer-name))
+            (buffer-name))))
+
+  (add-hook 'find-file-hook #'aero/modeline--update-buffer-display-name)
+  (add-hook 'after-save-hook #'aero/modeline--update-buffer-display-name)
+
   (defun aero/modeline-segment-buffer-name ()
     "Displays the name and size of the current buffer in the mode-line.
 For org-roam nodes, displays the node title instead of the filename.
 Truncates long names to ensure other modeline segments remain visible."
-    (let* ((name (if (and (derived-mode-p 'org-mode)
-                          (buffer-file-name)
-                          (org-roam-file-p))
-                     (or (ignore-errors
-                           (caar (org-roam-db-query
-                                  [:select [title]
-                                   :from nodes
-                                   :where (= file $s1)]
-                                  (buffer-file-name))))
-                         (buffer-name))
-                   (buffer-name)))
+    (let* ((name (or aero/modeline--buffer-display-name (buffer-name)))
            ;; reserve space for other segments
            (reserved-space 70)
            (available-width (- (window-width) reserved-space))
