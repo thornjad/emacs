@@ -3162,6 +3162,8 @@ Show status and update submodules."
 ** git-gutter
 Provides a visual indicator of changes in the gutter. I use it to quickly see what's changed in a file. The backends is set to git by default, and only loads the others if they actually exist on the system, which they never do.
 
+On focus return, only the current buffer is updated rather than all visible windows. This avoids spawning multiple git subprocesses on every Cmd-Tab. Other buffers update via git-gutter's own internal hooks when they become active.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! git-gutter :auto
     :hook ((prog-mode text-mode conf-mode) . git-gutter-mode)
@@ -3178,7 +3180,7 @@ Provides a visual indicator of changes in the gutter. I use it to quickly see wh
                                   :key #'symbol-name)))
 
     :config
-    (add-hook 'focus-in-hook #'git-gutter:update-all-windows))
+    (add-hook 'focus-in-hook #'git-gutter))
 #+END_SRC
 
 *** git-gutter-fringe
