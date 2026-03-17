@@ -2674,7 +2674,7 @@ Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight
   (advice-add #'face-at-point :around #'aero/suggest-other-faces)
 #+END_SRC
 
-Simple rainbow mode to highlight hex colors in code.
+Simple rainbow mode to highlight hex colors in code. Runs on all prog-mode and conf-mode buffers. For org-mode, it only runs in =config.org= (the literate Emacs configuration) since that's the only org file likely to contain hex color values. Scanning the entire buffer for hex color regex on every file open is wasteful for general org files.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun aero/rainbow-mode ()
@@ -2695,7 +2695,11 @@ Simple rainbow mode to highlight hex colors in code.
     (interactive)
     (remove-overlays (point-min) (point-max)))
   (add-hook 'prog-mode-hook #'aero/rainbow-mode)
-  (add-hook 'org-mode-hook #'aero/rainbow-mode)
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (when (and buffer-file-name
+                         (string-match-p "config\\.org\\'" buffer-file-name))
+                (aero/rainbow-mode))))
   (add-hook 'conf-space-mode-hook #'aero/rainbow-mode)
 
   ;; disable show-paren-mode in org-mode to avoid false "unmatched expression" errors
