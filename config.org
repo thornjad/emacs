@@ -1423,33 +1423,17 @@ Allows % to jump matching tags
 #+END_SRC
 
 ** Treesitter
-*** Treesit-auto
-Automatically installs treesitter grammars when they're missing, because for some reason Emacs doesn't do this already.
 
-The call to =treesit-auto-add-to-auto-mode-alist= adds all treesitter modes to auto-mode-alist as long as they're =treesit-ready-p=. I previously had this set to ='all= but this started installing some grammars which are in-progress and thus error when you try to use them.
+Tree-sitter provides faster and more accurate syntax highlighting and structural navigation in code files. As a manager who primarily works in org-mode, tree-sitter's benefits are marginal, but opening code files happens just often enough to keep it around.
+
+We do not use =treesit-auto= because =global-treesit-auto-mode= hooks into every file open to check grammar readiness across all modes in =auto-mode-alist=, which is a known performance problem on macOS. Instead, we use a simple =major-mode-remap-alist= to redirect only the languages we actually use to their tree-sitter variants. This is a zero-cost alist lookup with no per-file overhead.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! treesit-auto :auto
-    :when (treesitterp)
-    :custom
-    (treesit-auto-install 'prompt)
-
-    :config
-    (treesit-auto-add-to-auto-mode-alist)
-
-    ;; Python does not play nice with treesitter, as of 2024, so we pin to a working version.
-    (defvar aero/python-treesit-auto-recipe
-      (make-treesit-auto-recipe
-       :lang 'python
-       :ts-mode 'python-ts-mode
-       :remap 'python-mode
-       :url "https://github.com/tree-sitter/tree-sitter-python"
-       :ext "\\.py[iw]?\\'"
-       :revision "v0.21.0")
-      "Recipe for libtree-sitter-python.dylib")
-    (add-to-list 'treesit-auto-recipe-list aero/python-treesit-auto-recipe)
-
-    (global-treesit-auto-mode +1))
+  (when (treesitterp)
+    (setq major-mode-remap-alist
+          '((python-mode . python-ts-mode)
+            (typescript-mode . typescript-ts-mode)
+            (js-mode . js-ts-mode))))
 #+END_SRC
 
 ** Completion and navigation
