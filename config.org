@@ -2794,6 +2794,10 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
 * Breadcrumbs in the headerline
 Shows breadcrumbs in the headerline for many modes, showing the "trail" that the current point sits in, such as the hierarchy of headers in org-mode or the class and method in object-oriented languages.
 
+For prog-mode and other non-org modes, breadcrumbs use imenu to build a full buffer index. Because this index is expensive to rebuild (it scans every heading/definition in the file), it refreshes on a 1-second idle timer. This is fine for code where structural changes are infrequent.
+
+For org-mode, breadcrumbs bypass imenu entirely and walk the outline tree upward from point using =org-up-heading-safe=. This is O(heading-depth) rather than O(total-headings), typically visiting only 3-6 nodes, and leverages org-element's internal cache. This makes it cheap enough to run on every redisplay via =:eval= with no idle timer, so the header line updates instantly as you move between headings.
+
 Breadcrumbs are disabled for gptel since it uses its own system.
 
 #+BEGIN_SRC emacs-lisp
@@ -2905,16 +2909,39 @@ Breadcrumbs are disabled for gptel since it uses its own system.
                           '(:inherit (font-lock-function-name-face shadow)))
                 'aero-breadcrumb-dont-shorten (null more)))
 
+  (defun aero-breadcrumb--org-outline-path ()
+    "Return the heading hierarchy at point using org's outline tree.
+Walks up from point via `org-up-heading-safe', which is O(depth) and
+leverages the org-element cache, making it fast enough for every redisplay."
+    (when (ignore-errors (org-back-to-heading t))
+      (let ((path (list (org-get-heading t t t t))))
+        (save-excursion
+          (while (org-up-heading-safe)
+            (push (org-get-heading t t t t) path)))
+        path)))
+
   (defun aero-breadcrumb-crumbs ()
-    "Describe point inside the Imenu tree of current file."
-    (when-let* ((alist (aero-breadcrumb--ipath-alist)))
-      (when (cl-some #'identity alist)
-        (aero-breadcrumb--summarize
-         (cl-loop
-          for (p . more) on (aero-breadcrumb-ipath alist (point))
-          collect (aero-breadcrumb--format-ipath-node p more))
-         (aero-breadcrumb--length 0.98)
-         (propertize " > " 'face '(:inherit shadow))))))
+    "Describe point inside the Imenu tree of current file.
+In org-mode, bypasses imenu entirely and walks the outline tree directly
+for instant updates with no idle timer dependency."
+    (let ((sep (propertize " > " 'face '(:inherit shadow))))
+      (if (derived-mode-p 'org-mode)
+          (save-excursion
+            (when-let* ((path (aero-breadcrumb--org-outline-path)))
+              (aero-breadcrumb--summarize
+               (cl-loop
+                for (p . more) on path
+                collect (aero-breadcrumb--format-ipath-node p more))
+               (aero-breadcrumb--length 0.98)
+               sep)))
+        (when-let* ((alist (aero-breadcrumb--ipath-alist)))
+          (when (cl-some #'identity alist)
+            (aero-breadcrumb--summarize
+             (cl-loop
+              for (p . more) on (aero-breadcrumb-ipath alist (point))
+              collect (aero-breadcrumb--format-ipath-node p more))
+             (aero-breadcrumb--length 0.98)
+             sep))))))
 
   (defun aero-breadcrumb--summarize (crumbs cutoff separator)
     "Return a string that summarizes CRUMBS, a list of strings.
