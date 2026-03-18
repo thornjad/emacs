@@ -1325,16 +1325,6 @@ In visual mode, use =<= and =>= to indent/unindent the line(s)
     (setq-default evil-cross-lines nil)
     (define-key evil-visual-state-map (kbd "u") 'undo)
 
-    ;; By default, these two operate on half pages, but I prefer the smaller jump
-    (defun aero/scroll-quarter-page-down ()
-      (interactive)
-      (evil-scroll-down (/ (window-body-height) 4)))
-    (defun aero/scroll-quarter-page ()
-      (interactive)
-      (evil-scroll-up (/ (window-body-height) 4)))
-    (evil-define-key nil global-map (kbd "C-u") #'aero/scroll-quarter-page-up)
-    (evil-define-key nil global-map (kbd "C-d") #'aero/scroll-quarter-page-down)
-
     ;; Use C-f to switch frames, have to override a scrolling function
     (evil-define-key nil global-map (kbd "C-f") #'other-frame)
     (evil-define-key '(normal visual motion) global-map (kbd "C-f") #'other-frame)
