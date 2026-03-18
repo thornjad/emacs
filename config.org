@@ -3093,7 +3093,6 @@ One of the truly great packages in Emacs. I use it for everything git-related.
       (setq magit-git-executable "/opt/homebrew/bin/git"))
 
     (add-hook 'with-editor-mode-hook #'evil-insert-state)
-    (magit-auto-revert-mode nil)
 
     ;; Force Magit to ALWAYS use the current window - no new windows or frames ever
     (add-to-list 'display-buffer-alist
