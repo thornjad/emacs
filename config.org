@@ -5243,21 +5243,14 @@ Allows managing feeds in an org file
 * AI
 I've moved most AI functions out of Emacs proper, as I can't keep up with the incredible advances of products like Cursor and Claude Code. I keep copilot around for occasional use, since GitHub gives it to me for free.
 
-** Claude Code IDE
-This makes Claude Code work better in Emacs, seems to behave better than my custom vterm handling attempts.
+** Claude Code
 
-Start by running =claude-code-ide= or with =SPC a c= in the directory you want it. I'll likely change bindings over time as I use this package more.
+Minimal wrapper that launches Claude Code in vterm with a split-and-close resize trick to force correct terminal dimensions on startup. Run with =SPC a c= in any project.
 
 #+begin_src emacs-lisp :lexical t
-  (package! claude-code-ide "manzaltu/claude-code-ide.el"
-    :commands (claude-code-ide claude-code-ide-menu)
-    :custom
-    (claude-code-ide-terminal-backend 'vterm) ; eat has the same problems with less usability, so use vterm
-    (claude-code-ide-use-side-window nil) ; use normal window
-    (claude-code-ide-diagnostics-backend 'flymake)
-    :init (aero-leader-def "ac" 'claude-code-ide-menu)
-    :config
-    (claude-code-ide-emacs-tools-setup))
+  (package! aero-claude :localpackage
+    :commands (aero/claude)
+    :init (aero-leader-def "ac" 'aero/claude))
 #+end_src
 
 ** Copilot
