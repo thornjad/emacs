@@ -3005,6 +3005,12 @@ Note that we can't use =:hook= for the =project-find-functions= because =project
       (interactive)
       (magit-status project-current-directory-override))
 
+    (defun aero/project-switch-claude ()
+      "Launch Claude Code in the project being switched to."
+      (interactive)
+      (let ((default-directory project-current-directory-override))
+        (aero/claude)))
+
     :custom
     (project-vc-ignores '("node_modules/" "straight/" "target/")) ; globally ignored
     (project-vc-extra-root-markers '(".project.el" ".projectile" ".git"))
@@ -3015,7 +3021,7 @@ Note that we can't use =:hook= for the =project-find-functions= because =project
     (setq project-switch-commands '((project-find-file "Find file" "f")
                                     (aero/project-switch-magit "Magit status" "g")
                                     (project-eshell "Eshell" "e")
-                                    (project-compile "Compile" "c")
+                                    (aero/project-switch-claude "Claude Code" "c")
                                     (project-find-dir "Find directory" "d")
                                     (project-find-regexp "Find regexp" "r")
                                     (project-any-command "Any command" "a")))
