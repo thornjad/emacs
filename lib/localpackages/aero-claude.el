@@ -34,25 +34,34 @@
 (defvar-local aero/claude--saved-cursor-type nil
   "Saved cursor-type before entering vterm-copy-mode.")
 
+(defvar-local aero/claude--drop-next-render nil
+  "When non-nil, discard the next complete sync block instead of flushing.")
+
 (defun aero/claude--buffer-p (buf)
   "Return non-nil if BUF is a claude-code buffer we manage."
   (string-match-p "\\*claude-code\\[" (buffer-name buf)))
 
 (defun aero/claude--flush-sync-queue (buf orig-fun)
-  "Flush accumulated sync queue for BUF using ORIG-FUN."
+  "Flush accumulated sync queue for BUF using ORIG-FUN.
+When `aero/claude--drop-next-render' is set, discard the block silently
+instead of sending it to vterm, then clear the flag."
   (when (buffer-live-p buf)
     (with-current-buffer buf
       (when aero/claude--sync-queue
-        (let* ((inhibit-redisplay t)
-               (data (apply #'concat (reverse aero/claude--sync-queue)))
-               (proc (get-buffer-process buf)))
-          (setq aero/claude--sync-queue nil
-                aero/claude--in-sync-block nil)
-          (when aero/claude--sync-timer
-            (cancel-timer aero/claude--sync-timer)
-            (setq aero/claude--sync-timer nil))
-          (when (and proc (process-live-p proc))
-            (funcall orig-fun proc data)))))))
+        (when aero/claude--sync-timer
+          (cancel-timer aero/claude--sync-timer)
+          (setq aero/claude--sync-timer nil))
+        (if aero/claude--drop-next-render
+            (setq aero/claude--sync-queue nil
+                  aero/claude--in-sync-block nil
+                  aero/claude--drop-next-render nil)
+          (let* ((inhibit-redisplay t)
+                 (data (apply #'concat (reverse aero/claude--sync-queue)))
+                 (proc (get-buffer-process buf)))
+            (setq aero/claude--sync-queue nil
+                  aero/claude--in-sync-block nil)
+            (when (and proc (process-live-p proc))
+              (funcall orig-fun proc data))))))))
 
 (defun aero/claude--smart-renderer (orig-fun process input)
   "Advice around `vterm--filter' that batches synchronized output blocks.
@@ -115,14 +124,30 @@ is the terminal output chunk."
 ;;; Startup resize
 
 (defun aero/claude--force-resize ()
-  "Force vterm to recalculate dimensions via split-and-close trick."
+  "Force vterm to recalculate dimensions via split-and-close trick.
+Sets `aero/claude--drop-next-render' so the sync renderer silently
+discards the intermediate-size render from the split, then closes
+the split to trigger the final correct-size render."
   (when-let ((win (get-buffer-window (current-buffer))))
-    (let ((split (split-window win -5 'below)))
-      (run-with-timer 0.15 nil
-                      (lambda (w)
-                        (when (window-live-p w)
-                          (delete-window w)))
-                      split))))
+    (let ((buf (current-buffer)))
+      (setq aero/claude--drop-next-render t)
+      (let ((split (split-window win -5 'below)))
+        (run-with-timer 0.3 nil
+                        (lambda (w b)
+                          ;; clear drop flag before close in case intermediate
+                          ;; render never arrived as a sync block
+                          (when (buffer-live-p b)
+                            (with-current-buffer b
+                              (setq aero/claude--drop-next-render nil)))
+                          (when (window-live-p w)
+                            (delete-window w))
+                          (run-with-timer 0.5 nil
+                                          (lambda (b)
+                                            (when (buffer-live-p b)
+                                              (with-current-buffer b
+                                                (vterm-clear-scrollback))))
+                                          b))
+                        split buf)))))
 
 (defun aero/claude--poll-for-startup (buffer retries)
   "Poll BUFFER for Claude Code startup text, trigger resize when found.
