@@ -5251,7 +5251,16 @@ I've moved most AI functions out of Emacs proper, as I can't keep up with the in
 
 ** Claude Code
 
-Minimal wrapper that launches Claude Code in vterm with a split-and-close resize trick to force correct terminal dimensions on startup. Run with =SPC a c= in any project.
+This is a custom local package (=aero-claude=) for running Claude Code inside Emacs via vterm. I wrote this from scratch after trying several third-party packages on GitHub (e.g. =claude-code-ide.el=) and finding them either too heavy, unreliable, or poorly suited to my workflow. The package handles several tricky vterm integration problems: it implements a synchronized output renderer that batches DEC sync blocks to eliminate flicker (libvterm ignores these markers), a split-and-close resize trick to force correct terminal dimensions on startup (with a drop-next-render mechanism to prevent the intermediate resize from causing duplicate display artifacts), and a clipboard image paste workaround since vterm lacks OSC 52 read support.
+
+Key bindings available in claude buffers:
+
+| Key           | Action                                                                     |
+|---------------+----------------------------------------------------------------------------|
+| =SPC a c=     | Launch Claude Code for the current project                                 |
+| =C-S-v=       | Paste clipboard image (saves to temp file via =pngpaste=, inserts path)    |
+| =C-<escape>=  | Send literal escape to the terminal (useful for dismissing Claude prompts) |
+| =S-<return>=  | Insert a literal newline without submitting (inherited from vterm config)   |
 
 #+begin_src emacs-lisp :lexical t
   (package! aero-claude :localpackage
