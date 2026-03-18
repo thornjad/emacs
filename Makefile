@@ -93,7 +93,7 @@ install-aspell:
 	brew install aspell
 
 install-deps: lsp-booster graphviz install-npm install-aspell
-	brew install node ripgrep
+	brew install node ripgrep pngpaste
 	gem install bundler prettier_print syntax_tree syntax_tree-haml syntax_tree-rbs && npm i -g prettier @prettier/plugin-ruby || true
 
 	pip install python-lsp-server pyls-mypy pyls-black pyls-isort mypy ruff black "ptvsd>=4.2" jedhy || true
