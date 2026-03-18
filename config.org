@@ -5315,11 +5315,12 @@ Note: vterm requires libvterm-dev, which may not be installed. See https://githu
         "S'" 'vterm)
 
       :config
-      ;; disable smartparens in vterm
+      ;; disable smartparens in vterm and let vterm handle ) natively
       (add-hook 'vterm-mode-hook
                 (lambda ()
                   (setq-local evil-insert-state-cursor 'bar)
                   (smartparens-mode -1)
+                  (evil-local-set-key 'insert ")" #'vterm--self-insert)
                   (evil-insert-state)))
 
       ;; bind Shift-Enter to insert literal newline (Ctrl-J)
