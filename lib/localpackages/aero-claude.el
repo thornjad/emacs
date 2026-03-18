@@ -162,6 +162,20 @@ Checks every 0.5s for up to RETRIES attempts."
                             #'aero/claude--poll-for-startup
                             buffer (1- retries))))))))
 
+;;; Clipboard image paste
+
+(defun aero/claude-paste-image ()
+  "Save clipboard image to a temp file and insert its path into vterm.
+Uses pngpaste on macOS to extract the image from the system clipboard."
+  (interactive)
+  (let ((tmpfile (make-temp-file "claude-img-" nil ".png")))
+    (if (not (zerop (call-process "pngpaste" nil nil nil tmpfile)))
+        (progn
+          (delete-file tmpfile)
+          (message "No image in clipboard"))
+      (vterm-send-string tmpfile)
+      (message "Pasted image: %s" tmpfile))))
+
 ;;; Entry point
 
 ;;;###autoload
@@ -181,6 +195,7 @@ Checks every 0.5s for up to RETRIES attempts."
     (vterm buf-name)
     (aero/claude--configure-buffer)
     (local-set-key (kbd "C-<escape>") #'vterm-send-escape)
+    (local-set-key (kbd "C-S-v") #'aero/claude-paste-image)
     (run-with-timer 1.0 nil
                     #'aero/claude--poll-for-startup
                     (current-buffer) 15)))
