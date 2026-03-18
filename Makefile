@@ -13,7 +13,8 @@ linux: build-emacs-linux install-linux
 # required, emacs-plus handles the actual Emacs dependencies
 macos-reqs:
 	brew update
-	brew install coreutils git-delta tree-sitter
+	brew install coreutils git-delta tree-sitter git-lfs
+	git lfs install --system
 	brew tap d12frosted/emacs-plus
 
 build-emacs-cask-stable: macos-reqs
