@@ -2682,18 +2682,25 @@ When multiple frames are open and tab-bar-mode is active, the focused frame gets
     "Track the previously focused frame to detect frame switches.")
 
   (defun aero/--update-tab-bar-highlight ()
-    "Highlight tab bar on active frame when multiple frames exist."
+    "Highlight tab bar on active frame when multiple frames exist.
+Skips update entirely when Emacs has no OS focus."
     (let* ((frames (seq-filter #'frame-visible-p (frame-list)))
-           (active (selected-frame))
-           (switched (not (eq active aero/--last-focused-frame))))
-      (setq aero/--last-focused-frame active)
-      (when (and (bound-and-true-p tab-bar-mode) (> (length frames) 1))
-        (dolist (f frames)
-          (if (eq f active)
-              (aero/--highlight-tab-bar f)
-            (aero/--unhighlight-tab-bar f)))
-        (when switched
-          (pulse-momentary-highlight-one-line (point))))))
+           (focused (seq-filter #'frame-focus-state frames)))
+      (when (and focused
+                 (bound-and-true-p tab-bar-mode)
+                 (> (length frames) 1))
+        (let* ((active (if (memq (selected-frame) focused)
+                           (selected-frame)
+                         (car focused)))
+               (switched (not (eq active aero/--last-focused-frame))))
+          (setq aero/--last-focused-frame active)
+          (dolist (f frames)
+            (if (eq f active)
+                (aero/--highlight-tab-bar f)
+              (aero/--unhighlight-tab-bar f)))
+          (when switched
+            (with-selected-frame active
+              (pulse-momentary-highlight-one-line (point))))))))
 
   (add-function :after after-focus-change-function
                 #'aero/--update-tab-bar-highlight)
