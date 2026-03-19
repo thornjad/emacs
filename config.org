@@ -2633,6 +2633,72 @@ Make sure new frames use window-divider
   (add-hook 'before-make-frame-hook 'window-divider-mode)
 #+END_SRC
 
+** Active frame tab-bar highlight
+
+When multiple frames are open and tab-bar-mode is active, the focused frame gets a Spacemacs-purple tab bar background to make it immediately obvious which frame has focus. Inactive frames keep the default muted tab bar. The effect only activates with two or more visible frames.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defvar aero/--tab-bar-active-bg "#655370"
+    "Spacemacs purple background for the active frame's tab bar.")
+  (defvar aero/--tab-bar-active-fg "#fefbf2"
+    "Light foreground for readability against the active tab bar.")
+
+  (defun aero/--highlight-tab-bar (frame)
+    "Apply accent tab bar to FRAME."
+    (set-face-attribute 'tab-bar frame
+                        :inherit nil
+                        :background aero/--tab-bar-active-bg
+                        :foreground "#d5cdd9")
+    (set-face-attribute 'tab-bar-tab frame
+                        :inherit nil
+                        :background "#7c6b86"
+                        :foreground aero/--tab-bar-active-fg
+                        :overline aero/--tab-bar-active-fg
+                        :weight 'bold)
+    (set-face-attribute 'tab-bar-tab-inactive frame
+                        :inherit nil
+                        :background aero/--tab-bar-active-bg
+                        :foreground "#d5cdd9"
+                        :weight 'normal
+                        :slant 'italic))
+
+  (defun aero/--unhighlight-tab-bar (frame)
+    "Restore muted tab bar on FRAME with consistent sizing."
+    (set-face-attribute 'tab-bar frame
+                        :inherit nil
+                        :background "#ece9e0"
+                        :foreground "#a094a2"
+                        :overline 'unspecified
+                        :weight 'normal)
+    (set-face-attribute 'tab-bar-tab frame
+                        :inherit nil
+                        :background "#ece9e0"
+                        :foreground "#655370"
+                        :overline "#ece9e0"
+                        :weight 'normal)
+    (set-face-attribute 'tab-bar-tab-inactive frame
+                        :inherit nil
+                        :background "#ece9e0"
+                        :foreground "#a094a2"
+                        :weight 'normal
+                        :slant 'italic))
+
+  (defun aero/--update-tab-bar-highlight ()
+    "Highlight tab bar on active frame when multiple frames exist."
+    (when (bound-and-true-p tab-bar-mode)
+      (let* ((frames (seq-filter #'frame-visible-p (frame-list)))
+             (active (selected-frame)))
+        (if (<= (length frames) 1)
+            (dolist (f frames) (aero/--unhighlight-tab-bar f))
+          (dolist (f frames)
+            (if (eq f active)
+                (aero/--highlight-tab-bar f)
+              (aero/--unhighlight-tab-bar f)))))))
+
+  (add-function :after after-focus-change-function
+                #'aero/--update-tab-bar-highlight)
+#+END_SRC
+
 ** General UI
 Better fringe symbols
 
