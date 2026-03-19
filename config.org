@@ -2635,30 +2635,25 @@ Make sure new frames use window-divider
 
 ** Active frame tab-bar highlight
 
-When multiple frames are open and tab-bar-mode is active, the focused frame gets a Spacemacs-purple tab bar background to make it immediately obvious which frame has focus. Inactive frames keep the default muted tab bar. The effect only activates with two or more visible frames.
+When multiple frames are open and tab-bar-mode is active, the focused frame gets a lavender-purple tab bar to make it immediately obvious which frame has focus. Inactive frames keep the default grey tab bar. The cursor line also pulses briefly on the newly focused frame. The effect only activates with two or more visible frames.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (defvar aero/--tab-bar-active-bg "#655370"
-    "Spacemacs purple background for the active frame's tab bar.")
-  (defvar aero/--tab-bar-active-fg "#fefbf2"
-    "Light foreground for readability against the active tab bar.")
-
   (defun aero/--highlight-tab-bar (frame)
     "Apply accent tab bar to FRAME."
     (set-face-attribute 'tab-bar frame
                         :inherit nil
-                        :background aero/--tab-bar-active-bg
-                        :foreground "#d5cdd9")
+                        :background "#d2cfd2"
+                        :foreground "#655370")
     (set-face-attribute 'tab-bar-tab frame
                         :inherit nil
-                        :background "#7c6b86"
-                        :foreground aero/--tab-bar-active-fg
-                        :overline aero/--tab-bar-active-fg
+                        :background "#c0b8c5"
+                        :foreground "#3a3730"
+                        :overline "#8b7f96"
                         :weight 'bold)
     (set-face-attribute 'tab-bar-tab-inactive frame
                         :inherit nil
-                        :background aero/--tab-bar-active-bg
-                        :foreground "#d5cdd9"
+                        :background "#d2cfd2"
+                        :foreground "#655370"
                         :weight 'normal
                         :slant 'italic))
 
@@ -2683,17 +2678,22 @@ When multiple frames are open and tab-bar-mode is active, the focused frame gets
                         :weight 'normal
                         :slant 'italic))
 
+  (defvar aero/--last-focused-frame nil
+    "Track the previously focused frame to detect frame switches.")
+
   (defun aero/--update-tab-bar-highlight ()
     "Highlight tab bar on active frame when multiple frames exist."
-    (when (bound-and-true-p tab-bar-mode)
-      (let* ((frames (seq-filter #'frame-visible-p (frame-list)))
-             (active (selected-frame)))
-        (if (<= (length frames) 1)
-            (dolist (f frames) (aero/--unhighlight-tab-bar f))
-          (dolist (f frames)
-            (if (eq f active)
-                (aero/--highlight-tab-bar f)
-              (aero/--unhighlight-tab-bar f)))))))
+    (let* ((frames (seq-filter #'frame-visible-p (frame-list)))
+           (active (selected-frame))
+           (switched (not (eq active aero/--last-focused-frame))))
+      (setq aero/--last-focused-frame active)
+      (when (and (bound-and-true-p tab-bar-mode) (> (length frames) 1))
+        (dolist (f frames)
+          (if (eq f active)
+              (aero/--highlight-tab-bar f)
+            (aero/--unhighlight-tab-bar f)))
+        (when switched
+          (pulse-momentary-highlight-one-line (point))))))
 
   (add-function :after after-focus-change-function
                 #'aero/--update-tab-bar-highlight)
