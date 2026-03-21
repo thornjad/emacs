@@ -5516,11 +5516,12 @@ Realistically this is my main shell. It does try to override some important bind
     :functions (eshell-previous-input
                 eshell-next-input)
     :config
-    (define-key eshell-mode-map (kbd "M-h") #'windmove-left)
-    (define-key eshell-mode-map (kbd "M-l") #'windmove-right)
-    (define-key eshell-mode-map (kbd "M-p") #'eshell-previous-input)
-    (define-key eshell-mode-map (kbd "M-n") #'eshell-next-input)
-    (define-key eshell-mode-map (kbd "M-r") #'consult-history)
+    (with-eval-after-load 'esh-mode
+      (define-key eshell-mode-map (kbd "M-h") #'windmove-left)
+      (define-key eshell-mode-map (kbd "M-l") #'windmove-right)
+      (define-key eshell-mode-map (kbd "M-p") #'eshell-previous-input)
+      (define-key eshell-mode-map (kbd "M-n") #'eshell-next-input)
+      (define-key eshell-mode-map (kbd "M-r") #'consult-history))
 
     (setq
      eshell-save-history-on-exit t
