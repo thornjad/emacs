@@ -7,6 +7,7 @@
 ;;; Code:
 
 (require 'vterm)
+(declare-function project-root "project")
 
 ;;; Anti-flicker renderer
 ;;
@@ -61,7 +62,13 @@ instead of sending it to vterm, then clear the flag."
             (setq aero/claude--sync-queue nil
                   aero/claude--in-sync-block nil)
             (when (and proc (process-live-p proc))
-              (funcall orig-fun proc data))))))))
+              (funcall orig-fun proc data)))
+          ;; after inhibit-redisplay scope, restore each window to the
+          ;; terminal cursor position so the clear-screen jump is invisible
+          (let ((pos (point)))
+            (dolist (win (get-buffer-window-list buf nil t))
+              (set-window-point win pos))))))))
+
 
 (defun aero/claude--smart-renderer (orig-fun process input)
   "Advice around `vterm--filter' that batches synchronized output blocks.
@@ -111,11 +118,13 @@ is the terminal output chunk."
 
 (defun aero/claude--configure-buffer ()
   "Apply buffer-local vterm tuning for Claude Code."
-  (setq-local vterm-scroll-to-bottom-on-output nil)
+  (setq-local vterm-scroll-to-bottom-on-output t)
   (setq-local vterm--redraw-immediately nil)
   (setq-local cursor-in-non-selected-windows nil)
   (setq-local cursor-type nil)
   (hl-line-mode -1)
+  (make-local-variable 'global-hl-line-mode)
+  (setq global-hl-line-mode nil)
   (face-remap-add-relative 'nobreak-space :inherit 'default)
   (add-hook 'vterm-copy-mode-hook #'aero/claude--copy-mode-hook nil t)
   (when-let ((proc (get-buffer-process (current-buffer))))
