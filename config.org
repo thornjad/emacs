@@ -3499,8 +3499,9 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     :preface
 
     :custom
-    ;; don't persist the element cache to disk; stale cache + kqueue events on
-    ;; wake from sleep causes incorrect buffer modifications in org files
+    ;; don't persist the element cache to disk; prevents stale cache from
+    ;; surviving across sessions (the in-session race condition is handled
+    ;; by aero/org-suspend-indent-before-revert below)
     (org-element-cache-persistent nil)
 
     (org-hide-leading-stars t)
@@ -3756,7 +3757,32 @@ Now for the actual package configuration. This is a long one, so I've made a lot
                   :around #'aero/org-capture-place-template-dont-delete-windows))
 
     ;; set up stuff for clock persistence
-    (org-clock-persistence-insinuate))
+    (org-clock-persistence-insinuate)
+
+    ;; prevent org-indent from firing during auto-revert; when revert-buffer
+    ;; erases and re-inserts file contents, org-indent-refresh-maybe runs via
+    ;; after-change-functions on the partially-populated buffer, org-element
+    ;; tries to parse a half-written timestamp and throws an error, aborting
+    ;; the revert mid-stream and leaving the buffer corrupted but marked as
+    ;; modified (Syncthing + auto-revert + org-indent = race condition)
+    (defvar-local aero/--org-indent-was-active nil)
+
+    (defun aero/org-suspend-indent-before-revert ()
+      "Disable org-indent-mode before revert to prevent mid-revert parse errors."
+      (when (and (derived-mode-p 'org-mode)
+                 (bound-and-true-p org-indent-mode))
+        (setq aero/--org-indent-was-active t)
+        (org-indent-mode -1)))
+
+    (defun aero/org-restore-indent-after-revert ()
+      "Re-enable org-indent-mode after revert completes."
+      (when (and (derived-mode-p 'org-mode)
+                 aero/--org-indent-was-active)
+        (setq aero/--org-indent-was-active nil)
+        (org-indent-mode 1)))
+
+    (add-hook 'before-revert-hook #'aero/org-suspend-indent-before-revert)
+    (add-hook 'after-revert-hook #'aero/org-restore-indent-after-revert))
 #+END_SRC
 
 ** Org-appear
