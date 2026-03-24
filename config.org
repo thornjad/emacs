@@ -2729,6 +2729,11 @@ Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight
   (show-paren-mode 1)
   (pixel-scroll-mode 1)
   (global-hl-line-mode +1)
+  (setq global-hl-line-buffers
+        '(not (or (lambda (b) (buffer-local-value 'cursor-face-highlight-mode b))
+                  (lambda (b) (string-match-p "\\` " (buffer-name b)))
+                  (lambda (b) (eq (buffer-local-value 'major-mode b) 'vterm-mode))
+                  minibufferp)))
 
   (defun aero/suggest-other-faces (func &rest args)
     "When hl-line-mode is active, suggest a face calculated without it.
