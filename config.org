@@ -1472,7 +1472,7 @@ This provides a more flexible completion system where we can use spaces to separ
 *** Consult
 Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface. I also hook it into Xref for more seamless integration.
 
-Buffer previews are disabled since they slow down navigation.
+Buffer previews are disabled for commands that browse files or buffers since loading unopened files is slow. Search commands like =consult-line= and =consult-ripgrep= keep automatic previews since the whole point is viewing the match in context.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defun consult-outline-top ()
@@ -1491,7 +1491,7 @@ Buffer previews are disabled since they slow down navigation.
     :custom
     (xref-show-xrefs-function #'consult-xref)
     (xref-show-definitions-function #'consult-xref)
-    (consult-preview-key nil)
+    (consult-preview-key 'any)
     (consult-ripgrep-args (append consult-ripgrep-args (list "--glob" "!.xlf")))
 
     ;; Always ignore xlf files
@@ -1512,6 +1512,11 @@ Buffer previews are disabled since they slow down navigation.
       "j'" 'consult-mark)
 
     :config
+    (consult-customize
+     consult-buffer consult-outline consult-imenu consult-theme
+     consult-mark consult-org-agenda consult-org-heading
+     :preview-key nil)
+
     (add-hook 'eshell-mode-hook (lambda () (setq outline-regexp eshell-prompt-regexp)))
 
     (defun consult--orderless-regexp-compiler (input type &rest _config)
