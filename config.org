@@ -5190,8 +5190,8 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
     (browse-url-browser-function
      '((".*google.*maps.*" . browse-url-generic)
        ("docs.google.com" . browse-url-generic)
-       ("*.atlassian.com" . browse-url-generic)
-       ("*.atlassian.net" . browse-url-generic)
+       (".*atlassian.com" . browse-url-generic)
+       (".*atlassian.net" . browse-url-generic)
        ("github.com" . browse-url-generic)
        ("gitlab.com" . browse-url-generic)
        ("melpa.org" . browse-url-generic)
@@ -5199,7 +5199,7 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
        ("t.co" . browse-url-generic)
        ("twitter.com" . browse-url-generic)
        ("youtube.com" . browse-url-generic)
-       ("*.reddit.com" . browse-url-generic)
+       (".*reddit.com" . browse-url-generic)
        ("." . eww-browse-url)))
 
     ;; MacOS needs its hand held to find the binary
