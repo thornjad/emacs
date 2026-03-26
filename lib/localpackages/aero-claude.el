@@ -165,6 +165,14 @@ Checks every 0.5s for up to RETRIES attempts."
                             #'aero/claude--poll-for-startup
                             buffer (1- retries))))))))
 
+;;; Navigation
+
+(defun aero/claude-jump-to-prompt ()
+  "Jump to the terminal cursor position and recenter near the bottom."
+  (interactive)
+  (vterm-reset-cursor-point)
+  (recenter -1))
+
 ;;; Clipboard image paste
 
 (defun aero/claude-paste-image ()
@@ -199,6 +207,7 @@ Uses pngpaste on macOS to extract the image from the system clipboard."
     (aero/claude--configure-buffer)
     (local-set-key (kbd "C-<escape>") #'vterm-send-escape)
     (local-set-key (kbd "C-S-v") #'aero/claude-paste-image)
+    (evil-local-set-key 'normal (kbd "G") #'aero/claude-jump-to-prompt)
     (run-with-timer 1.0 nil
                     #'aero/claude--poll-for-startup
                     (current-buffer) 15)))
