@@ -168,9 +168,9 @@ Checks every 0.5s for up to RETRIES attempts."
 ;;; Navigation
 
 (defun aero/claude-jump-to-prompt ()
-  "Jump to the terminal cursor position and recenter near the bottom."
+  "Jump to the end of the buffer and recenter so the last line is visible."
   (interactive)
-  (vterm-reset-cursor-point)
+  (goto-char (point-max))
   (recenter -1))
 
 ;;; Clipboard image paste
