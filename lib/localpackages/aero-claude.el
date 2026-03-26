@@ -62,12 +62,7 @@ instead of sending it to vterm, then clear the flag."
             (setq aero/claude--sync-queue nil
                   aero/claude--in-sync-block nil)
             (when (and proc (process-live-p proc))
-              (funcall orig-fun proc data)))
-          ;; after inhibit-redisplay scope, restore each window to the
-          ;; terminal cursor position so the clear-screen jump is invisible
-          (let ((pos (point)))
-            (dolist (win (get-buffer-window-list buf nil t))
-              (set-window-point win pos))))))))
+              (funcall orig-fun proc data))))))))
 
 
 (defun aero/claude--smart-renderer (orig-fun process input)
@@ -118,7 +113,6 @@ is the terminal output chunk."
 
 (defun aero/claude--configure-buffer ()
   "Apply buffer-local vterm tuning for Claude Code."
-  (setq-local vterm-scroll-to-bottom-on-output t)
   (setq-local vterm--redraw-immediately nil)
   (setq-local cursor-in-non-selected-windows nil)
   (setq-local cursor-type nil)
