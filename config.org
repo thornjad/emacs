@@ -2343,20 +2343,36 @@ The built-in VC system is disabled entirely because it runs a git subprocess on 
 
   ;;; Segments
 
+  (defun aero/modeline--evil-pill (letter face)
+    "Render LETTER as an SVG pill image using colors from FACE.
+Includes left padding to match the gap on the right side of the modeline."
+    (let* ((bg (face-background face nil t))
+           (fg (face-foreground face nil t))
+           (height aero/modeline-height)
+           (pill-width 20)
+           (pad 5)
+           (total-width (+ pad pill-width))
+           (svg (format "<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d'>
+  <rect x='%d' width='%d' height='%d' rx='3' fill='%s'/>
+  <text x='%d' y='%d' fill='%s' font-family='monospace' font-size='%d' font-weight='bold' text-anchor='middle' dominant-baseline='central'>%s</text>
+</svg>" total-width height pad pill-width height bg (+ pad (/ pill-width 2)) (/ height 2) fg (- height 16) letter)))
+      (propertize " " 'display
+                  (create-image svg 'svg t :ascent 'center))))
+
   (defun aero/modeline-segment-evil-state ()
-    "Display current evil state. Requires function `evil-mode'."
+    "Display current evil state as an SVG pill. Requires function `evil-mode'."
     (when (require 'evil nil 'noerror)
       (declare-function evil-state-property "evil")
       (defvar evil-state)
       (let ((state (evil-state-property evil-state :tag t)))
         (cond
-         ((functionp state) (propertize (funcall state) 'face 'aero/modeline-evil-visual))
-         ((string= state " <N> ") (propertize state 'face 'aero/modeline-evil-normal))
-         ((string= state " <I> ") (propertize state 'face 'aero/modeline-evil-insert))
-         ((string= state " <R> ") (propertize state 'face 'aero/modeline-evil-replace))
-         ((string= state " <O> ") (propertize state 'face 'aero/modeline-evil-operator))
-         ((string= state " <M> ") (propertize state 'face 'aero/modeline-evil-motion))
-         ((string= state " <E> ") (propertize state 'face 'aero/modeline-evil-emacs))
+         ((functionp state) (aero/modeline--evil-pill "V" 'aero/modeline-evil-visual))
+         ((string= state " <N> ") (aero/modeline--evil-pill "N" 'aero/modeline-evil-normal))
+         ((string= state " <I> ") (aero/modeline--evil-pill "I" 'aero/modeline-evil-insert))
+         ((string= state " <R> ") (aero/modeline--evil-pill "R" 'aero/modeline-evil-replace))
+         ((string= state " <O> ") (aero/modeline--evil-pill "O" 'aero/modeline-evil-operator))
+         ((string= state " <M> ") (aero/modeline--evil-pill "M" 'aero/modeline-evil-motion))
+         ((string= state " <E> ") (aero/modeline--evil-pill "E" 'aero/modeline-evil-emacs))
          (t state)))))
 
   (defun aero/modeline-segment-modified ()
@@ -2534,8 +2550,7 @@ Truncates long names to ensure other modeline segments remain visible."
                        (aero-info-line-format
                         ;; Left
                         (format-mode-line
-                         '((:eval (aero/modeline-segment-bar))
-                           (:eval (aero/modeline-segment-evil-state))
+                         '((:eval (aero/modeline-segment-evil-state))
                            " " (:eval (aero/modeline-segment-modified)) " "
                            (:eval (aero/modeline-segment-buffer-name))
                            (:eval (aero/modeline-segment-size-and-position))))
@@ -2547,7 +2562,8 @@ Truncates long names to ensure other modeline segments remain visible."
                            (:eval (aero/modeline-segment-flymake))
                            (:eval (aero/modeline-segment-git-state))
                            (:eval (aero/modeline-segment-remote))
-                           (:eval (aero/modeline-segment-major-mode))))))))))
+                           (:eval (aero/modeline-segment-major-mode))
+                           (:eval (aero/modeline-segment-bar))))))))))
 
   (define-globalized-minor-mode aero/modeline-global-mode aero/modeline-mode
     (lambda () (aero/modeline-mode 1)))
@@ -2589,6 +2605,24 @@ Sets the font-height to 140 only for Mac, it seems to scale normally by default 
     :config
     (setq aero-theme-font "JetBrains Mono")
     (load-theme 'aero t))
+
+  (defun aero/reload-current-theme ()
+    "Force-reload the current custom theme from disk.
+Clears the theme from the registry so Emacs re-reads the file
+instead of using cached settings."
+    (interactive)
+    (let* ((theme (car custom-enabled-themes))
+           (theme-file (locate-file (concat (symbol-name theme) "-theme.el")
+                                    custom-theme-load-path
+                                    '("" ".el"))))
+      (when theme
+        (disable-theme theme)
+        (put theme 'theme-settings nil)
+        (put theme 'theme-feature nil)
+        (setq custom-known-themes (delq theme custom-known-themes))
+        (when theme-file
+          (load-file theme-file))
+        (load-theme theme t))))
 #+END_SRC
 
 Other themes I like to enable to draw tweaks from
