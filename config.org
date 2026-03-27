@@ -1146,8 +1146,8 @@ From there, we set up all the main keybindings.
      "bm" 'switch-to-messages-buffer
      "bn" 'next-buffer
      "bp" 'previous-buffer
-     "br" '(aero/reopen-file-at-buffer :wk "buffer replace")
-     "bR" '(revert-buffer-quick :wk "buffer revert")
+     "br" '(revert-buffer-quick :wk "buffer revert")
+     "bR" '(aero/reopen-file-at-buffer :wk "buffer replace")
      "bw" '(whitespace-mode :wk "whitespace")
      "bx" 'kill-buffer-and-window
 
