@@ -3,6 +3,14 @@
 ;; minimal wrapper that launches claude code in a vterm buffer with correct
 ;; rendering, using a split-and-close trick to force proper terminal dimensions
 ;; and a sync-block renderer to eliminate flicker.
+;;
+;; known issue: vterm's C module calls adjust_topline() -> recenter() on every
+;; redraw, which yanks the selected window to the terminal cursor. this makes
+;; scrolling up during output impossible and causes visible jumps on window
+;; resize (e.g. M-x). attempted fixes: saving/restoring window-start around
+;; vterm--filter calls (overridden by display engine point-following),
+;; pre-redisplay-functions hook to enforce pinned scroll (breaks all point
+;; movement and input). a real fix likely requires patching vterm-module.c.
 
 ;;; Code:
 
@@ -63,7 +71,6 @@ instead of sending it to vterm, then clear the flag."
                   aero/claude--in-sync-block nil)
             (when (and proc (process-live-p proc))
               (funcall orig-fun proc data))))))))
-
 
 (defun aero/claude--smart-renderer (orig-fun process input)
   "Advice around `vterm--filter' that batches synchronized output blocks.
