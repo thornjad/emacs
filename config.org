@@ -25,7 +25,7 @@ Here lives my own configuration for GNU Emacs, blending all the best shit I can 
 "Configuring Emacs is more of a lifestyle choice than a task that one completes." — Stephen Ramsey
 #+end_quote
 
-This is most definitely not a general distribution Emacs configuration system. It undergoes constant evolution; bindings, settings and packages change with no warning and little to no documentation. This project is open source as a reference or source of ideas. Use at your own risk.
+This is most definitely not a general distribution Emacs configuration system. It undergoes constant evolution; bindings, settings and packages change with no warning and little to no documentation. This project is open source as a reference or source of ideas. Use at your own risk. Keep in mine that I, the author, am an engineering manager in the age of AI, and the code-related parts of this config are undergoing a slow decline. Most of my effort is put into the parts I really use for my job: org-mode, magit, and AI.
 
 To get started with Emacs, I highly recommend the distribution responsible for hooking me in: [[https://spacemacs.org][Spacemacs]].
 
@@ -42,7 +42,7 @@ My config uses my [[https://github.com/thornjad/aero-theme][aero-theme]], which 
 Within this config, you'll also find a custom improved mode line which works with any theme (though it looks great with =aero-light= and =aero-dark=). Rather than getting cluttered with info from every mode under the sun, the Aero mode line displays the current editing mode, file status (changed, saved, locked), filename, file size, line number at point, progression through the file (percentage), the remote hostname (if using TRAMP) and the current major mode.
 
 ** Installation
-Clone this repo into your =~/.config/emacs= and run =make init=. The make command will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as dependencies like =graphviz= and =lsp-booster=. It will also set up and update some submodules.
+Clone this repo into your =~/.config/emacs= and run =make init=. The make command will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as some small dependencies. It will also set up and update some submodules.
 
 Upon starting up Emacs for the first time, further third-party packages will automatically download and install via =straight.el=. Subsequent startups should take one or two seconds. If you encounter any errors at this stage, try restarting Emacs and/or opening a bug.
 
@@ -76,7 +76,7 @@ Like the Borg, my config amalgamates macros, functions, bindings and packages mo
 - [[https://github.com/sam217pa/emacs-config][Samuel Barreto]]
 
 ** Copyright Notice
-Copyright (c) 2016-2025 Jade Michael Thornton
+Copyright (c) 2016-2026 Jade Michael Thornton
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
