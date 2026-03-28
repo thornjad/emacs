@@ -1873,121 +1873,6 @@ This is a file manager in Emacs, but I really struggle to use it
            ("TAB" . #'dired-next-subdir)))
 #+END_SRC
 
-** Language server
-*** Eglot
-The introduction of the language server has been a game-changer. It provides a consistent interface for code completion, linting, and refactoring across quite a few languages. I've tried LSP-mode, but it's too slow and heavy for my taste. Eglot is built-in and lightweight.
-
-Using =:hook= we ensure it's enabled for particular languages, rather than trying to enable in every buffer.
-
-Set =eglot-confirm-server-initiated-edits= to nil to stop an infuriating default behavior that confirms editing a file immediately after explicitly initiating editing the file.
-
-Event logging is disabled to provide a slight performance boost, with no real downside.
-
-Document highlighting is disabled because most language servers are pretty slow at it. We use =highlight-thing= instead.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! eglot :builtin
-    :hook ((python-mode
-            python-ts-mode
-            clojure-mode
-            typescript-mode
-            typescript-ts-mode
-            astro-mode
-            js-mode
-            js-ts-mode)
-           . eglot-ensure)
-    :after (general project)
-
-    :custom
-    (eglot-confirm-server-initiated-edits nil)
-    (eglot-autoshutdown t)
-    (eglot-events-buffer-size 0)
-    (eglot-send-changes-idle-time 0.75)
-    (eglot-ignored-server-capabilities '(:documentHighlightProvider))
-
-    :config
-    (setq-default eglot-workspace-configuration
-                  '(:pylsp (:plugins (:pycodestyle (:enabled :json-false)
-                                      :pyls_mypy (:enabled t :live_mode :json-false)
-                                      :pyls_black (:enabled t)
-                                      :pyls_isort (:enabled t)))))
-    ;; Create binding for Astro
-    (add-to-list 'eglot-server-programs
-                 '(astro-mode . ("astro-ls" "--stdio"
-                                 :initializationOptions
-                                 (:typescript (:tsdk "./node_modules/typescript/lib")))))
-
-    (aero-leader-def
-      "la" 'eglot-code-actions
-      "lf" '(:ignore t :wk "find")
-      "lfr" 'xref-find-references
-      "lfd" 'eglot-find-declaration
-      "lfi" 'eglot-find-implementation
-      "lft" 'eglot-find-typeDefinition
-      "lr" '(:ignore t :wk "refactor")
-      "lrr" 'eglot-rename
-      "lrf" 'eglot-format
-      "lro" 'eglot-code-action-organize-imports))
-#+END_SRC
-
-**** Eglot-booster
-Optimizations to Eglot, using emacs-lsp-booster under the hood. emacs-lsp-booster must have been installed already (its a Rust binary), which can be done with =make install-deps= or the more specific =make lsp-booster=
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! eglot-booster "jdtsmith/eglot-booster"
-    :after eglot
-    :config (eglot-booster-mode))
-#+END_SRC
-
-**** Eglot-signature-eldoc-talkative
-Make eglot send more info to eldoc, including parameter and function documentation
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! eglot-signature-eldoc-talkative
-    (:host codeberg :repo "mekeor/eglot-signature-eldoc-talkative" :branch "default")
-    :after (eglot)
-    :config (advice-add #'eglot-signature-eldoc-function :override #'eglot-signature-eldoc-talkative))
-#+END_SRC
-
-*** Eldoc-box
-Puts eldoc in a child frame instead of the echo area. It's set up so that it only shows up when you want it to, rather than clobbering the minibuffer or showing on top of other code.
-
-Includes a function to ensure we fix the documentation strategy to show all of the available eldoc information when we want it. This way Flymake errors don't just get clobbered by docstrings.
-
-The configuration leaves single-line docs in the minibuffer, and shows multi-line docs in the child frame only when requested. Since we always show when the user requests it, max height and width are not important.
-
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! eldoc-box "casouri/eldoc-box"
-    :commands (eldoc-box-help-at-point eldoc-box-hover-mode)
-    :after general
-
-    :preface
-    (defun aero/eldoc-set-documentation-strategy ()
-      (setq-local eldoc-documentation-strategy #'eldoc-documentation-compose))
-
-    (defun aero/eldoc-box-help-at-point ()
-      "Display full eldoc at point on command"
-      (interactive)
-      (let ((eldoc-echo-area-use-multiline-p t))
-        (call-interactively #'eldoc-box-help-at-point)))
-
-    :hook (eglot-managed-mode . aero/eldoc-set-documentation-strategy)
-
-    :custom
-    (eldoc-idle-delay 0.5)
-    (eldoc-box-only-multi-line nil)
-    (eldoc-echo-area-use-multiline-p nil)
-    (eldoc-box-max-pixel-height 99999)
-    (eldoc-box-max-pixel-width 99999)
-
-    :init
-    (aero-leader-def "i" 'aero/eldoc-box-help-at-point)
-
-    :config
-    (add-hook 'eldoc-box-buffer-setup-hook #'eldoc-box-prettify-ts-errors 0 t))
-#+END_SRC
-
 ** System-specific setup
 Mac needs some extra hand-holding to connect the kill-ring to the system clipboard. Linux just needs the functionality enabled.
 
@@ -4459,21 +4344,6 @@ Adds support for Markdown files within the roam database. I generally use org, b
 #+END_SRC
 
 * Applications
-** Pomp (pomodoro)
-My pomodoro package
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! pomp (:host gitlab :repo "thornjad/pomp")
-    :after (general evil)
-    :commands (pomp)
-    :custom
-    (pomp-pomodoro-length 55)
-    (pomp-short-break-length 10)
-    (pomp-long-break-length 15)
-    :init
-    (aero-leader-def "ap" 'pomp))
-#+END_SRC
-
 ** Verb (HTTP requests from Org-mode)
 Make HTTP requests using org-mode, so I can save my queries in roam
 
@@ -4511,35 +4381,6 @@ The override of =esup-read-results= works around a bug where esup tries to profi
               (setq esup-last-result-start-point sep-end-point)
               (goto-char esup-last-result-start-point))))
         (nreverse results))))
-#+END_SRC
-
-** Virtual-comment
-An underrated package for temporary comments, really useful for debugging. The package doesn't define its own faces, using a variable instead, so we have to declare it.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! virtual-comment "thanhvg/emacs-virtual-comment"
-    :hook ((virtual-comment-make-mode . evil-insert-state))
-    :after (general evil)
-    :commands (virtual-comment-make
-               virtual-comment-next
-               virtual-comment-previous
-               virtual-comment-delete
-               virtual-comment-paste
-               virtual-comment-show)
-    :custom (virtual-comment-face 'virtual-comment-face)
-    :init
-    (defface virtual-comment-face
-      '((t :inherit highlight))
-      "Face for virtual comments"
-      :group 'virtual-comment)
-    (aero-leader-def
-      "v" '(:ignore t :wk "virtual comment")
-      "vv" 'virtual-comment-make
-      "vn" 'virtual-comment-next
-      "vp" 'virtual-comment-previous
-      "vk" 'virtual-comment-delete
-      "vP" 'virtual-comment-paste
-      "vs" 'virtual-comment-show))
 #+END_SRC
 
 * Prog modes
@@ -5053,30 +4894,6 @@ For fringe indicators, left is the default, but since git-gutter also uses left 
       "eb" 'flymake-show-buffer-diagnostics))
 #+END_SRC
 
-*** Flymake-diagnostic-at-point
-Makes flymake diagnostics appear in a popup
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! flymake-diagnostic-at-point (:repo "meqif/flymake-diagnostic-at-point")
-    :after flymake
-    :hook (flymake-mode . flymake-diagnostic-at-point-mode))
-#+END_SRC
-
-*** Flymake-eslint
-Flymake for ESLint. Must be added after eglot so eglot doesn't clobber it.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! flymake-eslint "orzechowskid/flymake-eslint"
-    :after (eglot)
-    :init
-    (add-hook 'eglot-managed-mode-hook
-              (lambda ()
-                (when (and (derived-mode-p '(typescript-mode typescript-ts-mode js-mode web-mode))
-                           (not (derived-mode-p 'json-mode))
-                           (executable-find "eslint"))
-                  (flymake-eslint-enable)))))
-#+END_SRC
-
 ** Flyspell
 Spell checking, using a custom dictionary. Skips code blocks in org-mode.
 
@@ -5393,7 +5210,6 @@ Allows managing feeds in an org file
 I've moved most AI functions out of Emacs proper, as I can't keep up with the incredible advances of products like Cursor and Claude Code. I keep copilot around for occasional use, since GitHub gives it to me for free.
 
 ** Claude Code
-
 This is a custom local package (=aero-claude=) for running Claude Code inside Emacs via vterm. I wrote this from scratch after trying several third-party packages on GitHub (e.g. =claude-code-ide.el=) and finding them either too heavy, unreliable, or poorly suited to my workflow. The package handles several tricky vterm integration problems: it implements a synchronized output renderer that batches DEC sync blocks to eliminate flicker (libvterm ignores these markers), a split-and-close resize trick to force correct terminal dimensions on startup (with a drop-next-render mechanism to prevent the intermediate resize from causing duplicate display artifacts), and a clipboard image paste workaround since vterm lacks OSC 52 read support.
 
 Key bindings available in claude buffers:
@@ -5410,23 +5226,6 @@ Key bindings available in claude buffers:
     :commands (aero/claude)
     :init (aero-leader-def "ac" 'aero/claude))
 #+end_src
-
-** Copilot
-A connection with Microsoft GitHub Copilot. Works best with company-box, so we consider it a requirement. The idle delay is longer than default so it doesn't mess with typing.
-
-Enabled in all programming modes. I've tried automatically enabling in org-mode as well, but copilot doesn't handle prose very well.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! copilot (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
-    :after (company-box general)
-    :commands (copilot-mode copilot-next-completion copilot-previous-completion copilot-accept-completion)
-    :custom (copilot-idle-delay 0.2)
-    :bind (:map copilot-mode-map
-           ("C-<tab>" . copilot-accept-completion)
-           ("C-c C-i" . copilot-accept-completion)
-           ("C-c C-n" . copilot-next-completion)
-           ("C-c C-p" . copilot-previous-completion)))
-#+END_SRC
 
 * Shell
 ** Xterm-color
@@ -5707,74 +5506,6 @@ Provides overlay suggestions in eshell. Use M-f to insert the next suggested wor
   (package! capf-autosuggest "emacs-straight/capf-autosuggest"
     :hook (eshell-mode . capf-autosuggest-mode))
 #+END_SRC
-
-* Thanks
-A little packages that uses =gh.el= to star all installed packages as a small thanks to the developers of those packages. I don't want this to run automatically, so instead run =M-x thanks= from time to time.
-
-Based on thanks.el by Jakub Kadlčík (https://github.com/FrostyX/thanks), but simplified and made to work with the CLI interface better.
-
-#+begin_src emacs-lisp :lexical t
-  (defun aero/thanks--installed-packages ()
-    "get names and urls of all installed straight.el packages."
-    (let ((packages '()))
-      (when (boundp 'straight--recipe-cache)
-        (maphash
-         (lambda (package recipe)
-           (let* ((plist recipe)
-                  (host (plist-get plist :host))
-                  (repo (plist-get plist :repo))
-                  (url nil))
-             ;; construct github url from recipe
-             (when (and repo (or (eq host 'github) (eq host 'GitHub)))
-               (setq url (concat "https://github.com/" repo)))
-             ;; some packages might have explicit :url
-             (when (and (not url) (plist-get plist :url))
-               (setq url (plist-get plist :url)))
-             (when url
-               (push (cons package url) packages))))
-         straight--recipe-cache))
-      packages))
-
-  (defun aero/thanks--github-project-url? (url)
-    "is this url a github project?"
-    (and (stringp url)
-         (string-prefix-p "https://github.com/" url)
-         (> (length (split-string (string-remove-prefix "https://github.com/" url) "/")) 1)))
-
-  (defun aero/thanks ()
-    "Say thanks to authors of installed packages by starring their repos."
-    (interactive)
-    (let* ((packages (aero/thanks--installed-packages))
-           (urls (seq-filter #'aero/thanks--github-project-url?
-                             (mapcar #'cdr packages)))
-           (urls (delete-dups urls)))
-      (if (null urls)
-          (message "no github packages found to thank")
-        (when (y-or-n-p
-               (format "do you want to say thanks to %d projects? " (length urls)))
-          (seq-do-indexed
-           (lambda (url i)
-             (let* ((i (1+ i))
-                    (path (string-remove-prefix "https://github.com/" url))
-                    (path (string-remove-suffix "/" path))
-                    (parts (split-string path "/"))
-                    (owner (car parts))
-                    (project (cadr parts)))
-               (when (= (mod i 50) 0)
-                 (message "[%d/%d] pausing briefly to respect rate limits..."
-                          i (length urls))
-                 (sit-for 30))
-               (message "[%d/%d] saying thanks to %s/%s" i (length urls) owner project)
-               (condition-case err
-                   (unless (= 0 (call-process "gh" nil nil nil "api" "-X" "PUT"
-                                              (format "/user/starred/%s/%s" owner project)
-                                              "--silent"))
-                     (message "failed to star %s/%s" owner project))
-                 (error (message "error starring %s/%s: %s" owner project err)))))
-           urls)
-          (message "said thanks to %d projects! you just made somebody's day better."
-                   (length urls))))))
-#+end_src
 
 * Yarn-lock derived mode
 Rather than loading in a whole package, creating a derived mode for Yarn Locks is so simple that I just do it here.
