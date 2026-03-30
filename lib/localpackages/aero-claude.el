@@ -172,6 +172,19 @@ Checks every 0.5s for up to RETRIES attempts."
                             #'aero/claude--poll-for-startup
                             buffer (1- retries))))))))
 
+;;; Redisplay
+
+(defun aero/claude-force-redisplay ()
+  "Force the current claude buffer to recalculate dimensions and redraw.
+Scrolls to the bottom first so the window is already at the cursor
+position, preventing term_redraw from causing a visible full-buffer
+scroll. Then triggers the split-and-close resize trick."
+  (interactive)
+  (unless (aero/claude--buffer-p (current-buffer))
+    (user-error "Not in a claude-code buffer"))
+  (goto-char (point-max))
+  (aero/claude--force-resize))
+
 ;;; Navigation
 
 (defun aero/claude-jump-to-prompt ()

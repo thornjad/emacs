@@ -5223,8 +5223,11 @@ Key bindings available in claude buffers:
 
 #+begin_src emacs-lisp :lexical t
   (package! aero-claude :localpackage
-    :commands (aero/claude)
-    :init (aero-leader-def "ac" 'aero/claude))
+    :commands (aero/claude aero/claude-force-redisplay)
+    :init
+    (aero-leader-def
+      "ac" 'aero/claude
+      "as" 'aero/claude-force-redisplay))
 #+end_src
 
 * Shell
