@@ -41,6 +41,8 @@ My config uses my [[https://github.com/thornjad/aero-theme][aero-theme]], which 
 
 Within this config, you'll also find a custom improved mode line which works with any theme (though it looks great with =aero-light= and =aero-dark=). Rather than getting cluttered with info from every mode under the sun, the Aero mode line displays the current editing mode, file status (changed, saved, locked), filename, file size, line number at point, progression through the file (percentage), the remote hostname (if using TRAMP) and the current major mode.
 
+If you found this useful, [[https://buymeacoffee.com/jademichaelthornton][buy me a coffee!]]
+
 ** Installation
 Clone this repo into your =~/.config/emacs= and run =make init=. The make command will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as some small dependencies. It will also set up and update some submodules.
 
