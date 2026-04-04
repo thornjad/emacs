@@ -131,10 +131,24 @@ is the terminal output chunk."
   (setq global-hl-line-mode nil)
   (face-remap-add-relative 'nobreak-space :inherit 'default)
   (add-hook 'vterm-copy-mode-hook #'aero/claude--copy-mode-hook nil t)
+  (add-hook 'window-configuration-change-hook #'aero/claude--set-body-dimensions nil t)
   (when-let ((proc (get-buffer-process (current-buffer))))
     (set-process-query-on-exit-flag proc t)))
 
 ;;; Startup resize
+
+(defun aero/claude--set-body-dimensions ()
+  "Set terminal process size to window body dimensions.
+Corrects vterm's default of using the full window width (including
+fringes and margins) rather than the usable text area.  Runs after
+every window configuration change to keep Claude's column count
+aligned with the visible area."
+  (when-let ((win (get-buffer-window (current-buffer)))
+             (proc (get-buffer-process (current-buffer))))
+    (when (process-live-p proc)
+      (set-process-window-size proc
+                               (window-body-height win)
+                               (window-body-width win)))))
 
 (defun aero/claude--force-resize ()
   "Force vterm to recalculate dimensions via split-and-close trick.
@@ -179,13 +193,14 @@ Checks every 0.5s for up to RETRIES attempts."
 
 (defun aero/claude-force-redisplay ()
   "Force the current claude buffer to recalculate dimensions and redraw.
-Scrolls to the bottom first so the window is already at the cursor
-position, preventing term_redraw from causing a visible full-buffer
-scroll. Then triggers the split-and-close resize trick."
+Immediately corrects process window size to body dimensions, then
+triggers the split-and-close trick to make Claude repaint at the
+correct width."
   (interactive)
   (unless (aero/claude--buffer-p (current-buffer))
     (user-error "Not in a claude-code buffer"))
   (goto-char (point-max))
+  (aero/claude--set-body-dimensions)
   (aero/claude--force-resize))
 
 ;;; Navigation
