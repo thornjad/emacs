@@ -4,6 +4,9 @@
 ;; rendering, using a split-and-close trick to force proper terminal dimensions
 ;; and a sync-block renderer to eliminate flicker.
 ;;
+;; reference: https://github.com/manzaltu/claude-code-ide.el
+;; last upstream commit examined: 56db02e (2026-04-02) "Add CLAUDE_CODE_NO_FLICKER support"
+;;
 ;; known issue: vterm's C module calls adjust_topline() -> recenter() on every
 ;; redraw, which yanks the selected window to the terminal cursor. this makes
 ;; scrolling up during output impossible and causes visible jumps on window
@@ -222,7 +225,8 @@ Uses pngpaste on macOS to extract the image from the system clipboard."
                     (format "*claude-code[%s]*" project-name)))
          (default-directory root)
          (vterm-shell "claude")
-         (vterm-buffer-name buf-name))
+         (vterm-buffer-name buf-name)
+         (vterm-environment (cons "CLAUDE_CODE_NO_FLICKER=1" vterm-environment)))
     (vterm buf-name)
     (aero/claude--configure-buffer)
     (local-set-key (kbd "C-<escape>") #'vterm-send-escape)
