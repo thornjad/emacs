@@ -6,6 +6,9 @@
 ;;
 ;; reference: https://github.com/manzaltu/claude-code-ide.el
 ;; last upstream commit examined: 56db02e (2026-04-02) "Add CLAUDE_CODE_NO_FLICKER support"
+;; note: CLAUDE_CODE_NO_FLICKER=1 was tested and removed — it clears vterm scrollback
+;; on every repaint (\033[3J), destroying scroll history. our sync-block renderer
+;; handles flicker without that env var.
 ;;
 ;; known issue: vterm's C module calls adjust_topline() -> recenter() on every
 ;; redraw, which yanks the selected window to the terminal cursor. this makes
@@ -167,13 +170,7 @@ the split to trigger the final correct-size render."
                             (with-current-buffer b
                               (setq aero/claude--drop-next-render nil)))
                           (when (window-live-p w)
-                            (delete-window w))
-                          (run-with-timer 0.5 nil
-                                          (lambda (b)
-                                            (when (buffer-live-p b)
-                                              (with-current-buffer b
-                                                (vterm-clear-scrollback))))
-                                          b))
+                            (delete-window w)))
                         split buf)))))
 
 (defun aero/claude--poll-for-startup (buffer retries)
@@ -240,8 +237,7 @@ Uses pngpaste on macOS to extract the image from the system clipboard."
                     (format "*claude-code[%s]*" project-name)))
          (default-directory root)
          (vterm-shell "claude")
-         (vterm-buffer-name buf-name)
-         (vterm-environment (cons "CLAUDE_CODE_NO_FLICKER=1" vterm-environment)))
+         (vterm-buffer-name buf-name))
     (vterm buf-name)
     (aero/claude--configure-buffer)
     (local-set-key (kbd "C-<escape>") #'vterm-send-escape)
