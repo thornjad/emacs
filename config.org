@@ -4691,13 +4691,6 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
   (package! applescript-mode :auto :mode "\\.applescript\\'")
 #+END_SRC
 
-** Nhexl
-Provides a hexl-mode with a better interface, for viewing and editing binary files.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! nhexl-mode :auto :defer t)
-#+END_SRC
-
 ** Terraform
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! terraform-mode :auto :mode "\\.tf\\'")
