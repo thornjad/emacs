@@ -1678,7 +1678,7 @@ By default, auto-saves to the local directory, but that's annoying, so we move i
 =undo-in-region= is disabled entirely because it's buggy enough that it will drop your undo history in some situations without warning.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! undo-tree "apchamberlain/undo-tree.el"
+  (package! undo-tree :auto
     :defer 2
     :custom
     (undo-tree-auto-save-history nil)
