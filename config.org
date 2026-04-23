@@ -3887,21 +3887,24 @@ Allow drag-and-drop of images from browser, finder, etc.
 
   (defun aero/local-quit-agenda ()
     "Quit agenda buffer in current frame only, without affecting other frames.
-    Switches to previous buffer and removes agenda buffer from window history
-    so aero/alternate-buffer won't immediately return to it."
+Switches to a live previous buffer and removes agenda buffer from window
+history so aero/alternate-buffer won't immediately return to it."
     (interactive)
     (let* ((agenda-buf (current-buffer))
            (current-window (selected-window))
-           ;; Get the buffer that was before the agenda in this window's history
-           (prev-buf (cl-find agenda-buf (window-prev-buffers) :key #'car :test-not #'eq)))
-      ;; Switch to the previous buffer
-      (if prev-buf
-          (switch-to-buffer (car prev-buf))
-        (switch-to-buffer (other-buffer agenda-buf)))
-      ;; Remove agenda buffer from this window's previous buffer list
+           (prev-buf (cl-find-if
+                      (lambda (entry)
+                        (let ((buf (car entry)))
+                          (and (not (eq buf agenda-buf))
+                               (buffer-live-p buf))))
+                      (window-prev-buffers)))
+           (target (or (and prev-buf (car prev-buf))
+                       (let ((other (other-buffer agenda-buf t)))
+                         (and (buffer-live-p other) other))
+                       (get-buffer-create "*scratch*"))))
+      (switch-to-buffer target)
       (set-window-prev-buffers current-window
                                (cl-remove agenda-buf (window-prev-buffers current-window) :key #'car))
-      ;; Also bury it globally
       (bury-buffer agenda-buf)))
   (with-eval-after-load 'org-agenda
     (define-key org-agenda-mode-map "q" #'aero/local-quit-agenda))
