@@ -4722,13 +4722,6 @@ Provides a hexl-mode with a better interface, for viewing and editing binary fil
      (prettify-symbols-mode nil)))
 #+END_SRC
 
-** Elm
-This mode should eanble elm-indent-mode by default, but for some reason it stopped doing this on Dec 21, 2022. Probably caused this myself, but the =:hook= fixes it.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! elm-mode :auto :hook (elm-mode . elm-indent-mode))
-#+END_SRC
-
 ** TCL
 The greatest tool command language
 
@@ -5871,6 +5864,20 @@ Log warnings but don't pop them up.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (setq warning-minimum-level :error)
+#+END_SRC
+
+* Buffer cleanup
+
+Emacs accumulates buffers over long sessions. The built-in =midnight= package runs a cleanup function on a timer, killing buffers that haven't been visited in a while. The "special" delay applies to ephemeral output buffers matched by =clean-buffer-list-kill-regexps= (help, compilation, man pages, etc.) and uses seconds rather than days. General file and tool buffers are killed after four days of inactivity.
+
+The timer fires at 5pm rather than actual midnight, since the machine is usually sleeping then.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (require 'midnight)
+  (setq clean-buffer-list-delay-general 4
+        clean-buffer-list-delay-special 3600
+        midnight-delay (* 17 60 60))
+  (midnight-mode t)
 #+END_SRC
 
 * Idle garbage collection
