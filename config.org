@@ -4431,7 +4431,7 @@ We make an alteration to =markdown-mode-syntax-table= to teach it that quotes me
 
 ** Yaml
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! yaml-mode (:repo "yoshiki/yaml-mode")
+  (package! yaml-mode :auto
     :mode "\\.ya?ml\\'")
 #+END_SRC
 
