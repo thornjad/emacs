@@ -175,22 +175,3 @@ precompile-setup-repos:
 		echo "Cloning straight.el..."; \
 		git clone --depth 1 https://github.com/radian-software/straight.el.git ~/.config/emacs/straight/repos/straight.el; \
 	fi
-
-.PHONY: export
-export: index.html
-
-# Export config to HTML. Uses htmlize to fontify the code blocks
-index.html: config.org
-	emacs --batch \
-	  --eval "(require 'package)" \
-	  --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
-	  --eval "(package-initialize)" \
-	  --eval "(package-refresh-contents)" \
-	  --eval "(unless (package-installed-p 'htmlize) (package-install 'htmlize))" \
-	  config.org \
-		--eval "(add-to-list 'custom-theme-load-path (concat default-directory \"lib/aero-theme\"))" \
-	  --eval "(load-theme 'aero t)" \
-	  --eval "(require 'org)" \
-	  --eval "(require 'htmlize)" \
-	  --eval "(setq org-html-wrap-src-lines t)" \
-	  --eval "(org-html-export-to-html)"

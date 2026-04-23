@@ -26,10 +26,6 @@ The configuration follows a literate programming pattern where all settings, fun
 - `make clear-straight-build` - Clear package build cache (gentler reset)
 - `make hard-init` - Clear packages and re-initialize everything
 
-### Documentation Export
-- `make export` - Export `config.org` to HTML with syntax highlighting
-- The exported HTML is viewable at https://emacs.jmthornton.net
-
 ### Development Dependencies
 - `make install-deps` - Install LSP servers and development tools (includes Python, Rust components)
 - `make install-npm` - Install Node.js-based language servers (TypeScript, Angular, Elm, etc.)
@@ -191,5 +187,4 @@ When looking for similar functionality:
 
 ### Validation Commands
 - NEVER restart Emacs without the user's consent
-- Use `make export` to validate org-mode syntax and generate HTML documentation
 - Check for byte-compilation warnings in `*Compile-Log*` buffer
