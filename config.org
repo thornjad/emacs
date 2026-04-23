@@ -4722,25 +4722,6 @@ Provides a hexl-mode with a better interface, for viewing and editing binary fil
      (prettify-symbols-mode nil)))
 #+END_SRC
 
-** TCL
-The greatest tool command language
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! tcl :builtin
-    :mode ("\\(\\.tcl\\|\\.test\\)\\'" . tcl-mode)
-    :custom
-    (tcl-application "tclsh")
-    :config
-    (add-to-list 'tcl-type-alist '("namespace" "eval" tcl-expr tcl-commands)))
-#+END_SRC
-
-** Rivet
-My own Rivet mode, which is a TCL extension for Apache
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! rivet-mode "thornjad/rivet-mode")
-#+END_SRC
-
 * Parentheses
 ** Smartparens
 Provides a better way of handling parentheses.
