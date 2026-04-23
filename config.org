@@ -4321,18 +4321,6 @@ Provides a more powerful interface for searching org-roam nodes using ripgrep
       "v'" 'consult-org-roam-search))
 #+END_SRC
 
-*** Support Markdown in org-roam with md-roam
-Adds support for Markdown files within the roam database. I generally use org, but Markdown can be useful at times and I'd rather not convert.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! md-roam "nobiot/md-roam"
-    :after (org-roam)
-    :custom
-    (org-roam-file-extensions '("org" "md"))
-    :config
-    (md-roam-mode +1))
-#+END_SRC
-
 * Applications
 ** Verb (HTTP requests from Org-mode)
 Make HTTP requests using org-mode, so I can save my queries in roam
