@@ -1439,6 +1439,18 @@ Provides a completion system similar to Ivy, but it's faster and more lightweigh
     (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
 #+END_SRC
 
+*** Vertico-prescient
+Provides MRU (most-recently-used) sorting for all vertico completions, including =M-x=. Replaces amx for command history sorting. Shares the prescient persistence store with company-prescient.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! vertico-prescient
+    (:host github
+     :repo "radian-software/prescient.el"
+     :files ("vertico-prescient.el"))
+    :after (vertico)
+    :config (vertico-prescient-mode +1))
+#+END_SRC
+
 *** Marginalia
 This provides a more informative completion system, showing more information about the candidates.
 
@@ -1550,15 +1562,6 @@ Buffer previews are disabled for commands that browse files or buffers since loa
             (cdr args)))
     (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
 
-#+END_SRC
-
-*** Amx
-Enhances =execute-extended-command= by showing recently used commands and keyboard shortcuts.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  (package! amx "DarwinAwardWinner/amx"
-    :defer 3
-    :config (amx-mode 1))
 #+END_SRC
 
 *** Yasnippet
