@@ -3973,6 +3973,7 @@ A fantastic note-taking system, used for building a second brain.
     (org-roam-directory (expand-file-name "roam" aero/thornlog-path))
     (org-roam-database-connector 'sqlite-builtin)
     (org-roam-db-update-on-save t)
+    (org-roam-db-gc-threshold most-positive-fixnum)
     (org-roam-mode-sections
      (list #'org-roam-backlinks-section
            #'org-roam-reflinks-section
@@ -4017,28 +4018,40 @@ A fantastic note-taking system, used for building a second brain.
 
 *** Database performance optimizations
 
-With 400+ nodes synced across multiple computers via Syncthing, database performance is critical. The default SQLite configuration is not optimized for this workload, leading to 2-4 minute sync times that completely break flow.
+With 670+ nodes synced across multiple computers via Syncthing, database performance is critical. The default SQLite configuration is not optimized for this workload, leading to 2-4 minute full sync times.
 
-The key optimization is enabling Write-Ahead Logging (WAL) mode. WAL allows concurrent reads during writes, reduces locking contention, and significantly improves write performance. Combined with a larger cache (increased from ~8MB to ~40MB), this provides 10-50x speedup for database operations. The synchronous mode is set to NORMAL (instead of FULL) for better performance while maintaining safety, and temporary tables are stored in memory rather than on disk.
+The key optimizations are Write-Ahead Logging (WAL) mode, a larger page cache (~40MB instead of the default ~8MB), ~synchronous NORMAL~ instead of ~FULL~, and temporary tables in memory. WAL mode is persistent once applied (stored in the database header), so it survives process restarts. The per-connection settings (cache, synchronous, temp_store) must be reapplied on each new connection.
+
+The correct hook is ~org-roam-db :after~, not ~org-roam-db--init :after~. The ~--init~ function only fires when the database file is first created, never on subsequent sessions. Since ~org-roam-db-sync~ closes and reopens the connection on every call, pragmas must be reapplied on each reconnect. The connection-tracking variable ensures the four PRAGMA calls fire only when the connection pointer changes — cheap (one hash lookup + ~eq~ check) on every query, but the actual work only runs on reconnect.
+
+Missing indexes on the ~links~ table are also created here. org-roam's schema only defines indexes for aliases, refs, and tags; ~dest~ and ~source~ on ~links~ have no indexes despite being the join columns for backlinks and reflinks queries. ~CREATE INDEX IF NOT EXISTS~ is idempotent after first application.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (defun aero/org-roam-db-optimize ()
-    "optimize org-roam database for better performance with WAL mode and larger cache."
-    (when (and org-roam-db-connection
-               (emacsql-live-p org-roam-db-connection))
-      (emacsql org-roam-db-connection [:pragma (= journal_mode WAL)])
-      (emacsql org-roam-db-connection [:pragma (= cache_size 10000)])
-      (emacsql org-roam-db-connection [:pragma (= synchronous NORMAL)])
-      (emacsql org-roam-db-connection [:pragma (= temp_store MEMORY)])))
+  (defvar aero/org-roam-db--last-connection nil
+    "last known org-roam connection object, used to detect reconnects.")
 
-  (advice-add 'org-roam-db--init :after #'aero/org-roam-db-optimize)
+  (defun aero/org-roam-db-apply-pragmas ()
+    "apply performance pragmas when a new db connection is detected."
+    (let ((conn (ignore-errors (org-roam-db--get-connection))))
+      (when (and conn
+                 (emacsql-live-p conn)
+                 (not (eq conn aero/org-roam-db--last-connection)))
+        (setq aero/org-roam-db--last-connection conn)
+        (emacsql conn [:pragma (= journal_mode WAL)])
+        (emacsql conn [:pragma (= cache_size 10000)])
+        (emacsql conn [:pragma (= synchronous NORMAL)])
+        (emacsql conn [:pragma (= temp_store MEMORY)])
+        (emacsql conn "CREATE INDEX IF NOT EXISTS links_dest ON links(dest)")
+        (emacsql conn "CREATE INDEX IF NOT EXISTS links_source ON links(source)"))))
+
+  (advice-add 'org-roam-db :after #'aero/org-roam-db-apply-pragmas)
 #+END_SRC
 
 *** Automatic incremental syncing
 
-When Syncthing adds a new node file from another computer, the org-roam database doesn't know about it until a sync occurs. The default autosync-mode uses file system watchers, but these don't always catch changes from Syncthing reliably. Additionally, manual sync with ~org-roam-db-sync~ defaults to a full scan of all files, taking 2-4 minutes.
+When Syncthing adds a new node file from another computer, the org-roam database doesn't know about it until a sync occurs. ~org-roam-db-autosync-mode~ (already enabled) handles files that are opened or saved in the current session via ~after-save-hook~, but it does not pick up files written directly to disk by an external process like Syncthing.
 
-This implementation adds an idle timer that runs incremental syncs every 30 seconds of idle time. Incremental sync (without the ~'force~ flag) only processes files that have changed since the last sync, typically completing in under 1 second. This catches Syncthing changes automatically without manual intervention, and the idle timer ensures it never interrupts active work.
+An idle timer handles Syncthing catch-up. The interval is 5 minutes: frequent enough to pick up synced files promptly, but not so frequent that it hashes all 670+ files during short idle gaps. Even "incremental" sync reads every file to compare content hashes before deciding what to reparse, so firing every 30 seconds was unnecessary background I/O.
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (defvar aero/org-roam-idle-sync-timer nil
@@ -4055,7 +4068,7 @@ This implementation adds an idle timer that runs incremental syncs every 30 seco
             (message "org-roam incremental sync: %.2fs" elapsed))))))
 
   (setq aero/org-roam-idle-sync-timer
-        (run-with-idle-timer 30 t #'aero/org-roam-incremental-sync))
+        (run-with-idle-timer 300 t #'aero/org-roam-incremental-sync))
 #+END_SRC
 
 *** Manual sync commands
@@ -4083,11 +4096,10 @@ Sometimes explicit control over database syncing is needed. These commands provi
   (defun aero/org-roam-db-vacuum ()
     "optimize database with vacuum and analyze."
     (interactive)
-    (when (and org-roam-db-connection
-               (emacsql-live-p org-roam-db-connection))
+    (let ((conn (org-roam-db)))
       (message "optimizing org-roam database...")
-      (emacsql org-roam-db-connection [:vacuum])
-      (emacsql org-roam-db-connection [:analyze])
+      (emacsql conn [:vacuum])
+      (emacsql conn [:analyze])
       (message "database optimized!")))
 #+END_SRC
 
@@ -4122,11 +4134,10 @@ This implementation uses a time-based approach: vacuum runs automatically once p
 
   (defun aero/org-roam-db-vacuum-auto ()
     "automatically vacuum database and record timestamp."
-    (when (and org-roam-db-connection
-               (emacsql-live-p org-roam-db-connection))
+    (let ((conn (org-roam-db)))
       (message "auto-vacuuming org-roam database...")
-      (emacsql org-roam-db-connection [:vacuum])
-      (emacsql org-roam-db-connection [:analyze])
+      (emacsql conn [:vacuum])
+      (emacsql conn [:analyze])
       (with-temp-file aero/org-roam-vacuum-state-file
         (insert (format "%.0f" (float-time))))
       (message "org-roam database auto-vacuum complete")))
@@ -4350,6 +4361,7 @@ Provides a more powerful interface for searching org-roam nodes using ripgrep
       "vl" 'consult-org-roam-forward-links
       "v'" 'consult-org-roam-search))
 #+END_SRC
+
 
 * Applications
 ** Verb (HTTP requests from Org-mode)
