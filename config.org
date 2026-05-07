@@ -499,6 +499,11 @@ instead."
     (interactive)
     (kill-new (aero/filename-relative-to-project)))
 
+  (defun aero/copy-file-absolute ()
+    "Copy the absolute path of the current buffer's file."
+    (interactive)
+    (kill-new (buffer-file-name)))
+
   (defun aero/delete-this-file ()
     "Delete the current file, and kill the buffer."
     (interactive)
@@ -1161,6 +1166,7 @@ From there, we set up all the main keybindings.
      "f" '(:ignore t :wk "files")
      "ff" 'find-file
      "fc" 'aero/copy-file-relative-to-project
+     "fC" 'aero/copy-file-absolute
      "fi" '(aero/thornlog-copy-roam-id :wk "copy roam id")
      "fD" '(aero/delete-this-file :wk "delete this file")
      "fR" '(aero/rename-this-file-and-buffer :wk "rename this file")
