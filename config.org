@@ -5817,6 +5817,14 @@ Try to save point position between sessions. Doesn't work consistently, but it's
   (save-place-mode 1)
 #+END_SRC
 
+After restoring position, recenter so the cursor doesn't land at the bottom of the window.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (advice-add 'save-place-find-file-hook :after
+              (lambda (&rest _)
+                (when buffer-file-name (ignore-errors (recenter)))))
+#+END_SRC
+
 Ensure buffer names are unique when filenames match. The forward option will expand each duplicate buffer name to include their parent directories as far as necessary to make them unique. Does not apply to renamed buffers.
 
 #+BEGIN_SRC emacs-lisp :lexical t
