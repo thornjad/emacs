@@ -5858,6 +5858,12 @@ Don't allow the cursor in the minibuffer
   (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
 #+END_SRC
 
+Prevent =find-file-at-point= from pinging hostnames to validate them, which can cause multi-second freezes on VPN or slow networks.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (setq ffap-machine-p-known 'reject)
+#+END_SRC
+
 Make files executable if the first line has a shebang
 
 #+BEGIN_SRC emacs-lisp :lexical t
