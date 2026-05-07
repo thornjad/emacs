@@ -5562,6 +5562,7 @@ This is loaded toward the end so that it overrides other packages. This solves s
    window-sides-slots '(0 1 1 1) ; side-window slots (left top right bottom)
    shared-game-score-directory (expand-file-name "game-scores/" aero-etc-dir)
    idle-update-delay 0.5 ; default is 0.5
+   bidi-display-reordering 'left-to-right ; no need to check both directions
    bidi-paragraph-direction 'left-to-right ; no need to check
    bidi-inhibit-bpa t ; don't look for bidi paren balancing
    create-lockfiles nil ; tries to solve a non-existent problem and causes trouble doing it
