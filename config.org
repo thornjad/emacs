@@ -3989,6 +3989,9 @@ A fantastic note-taking system, used for building a second brain.
     (org-roam-node-display-template
      (concat "${title} " (propertize "${tags}" 'face 'org-tag)))
 
+    (org-roam-graph-executable "fdp")
+    (org-roam-graph-link-hidden-types '("https" "http" "cite"))
+
     :init
     (defun aero/org-roam-node-insert-dwim ()
       "Insert a roam node link. If region is active, wrap it; otherwise insert after point."
