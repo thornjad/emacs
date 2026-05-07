@@ -893,6 +893,17 @@ If we're using =--debug-init=, make package loading verbose.
   (setq use-package-verbose init-file-debug)
 #+END_SRC
 
+** Compatibility shims
+Functions that may be missing from the current Emacs build but required by packages tracking the bleeding edge of Emacs development.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  ;; Added in Emacs 31.1+; vertico and others use it before it landed in all builds.
+  (unless (fboundp 'set-local)
+    (defun set-local (variable value)
+      "Set VARIABLE's buffer-local value to VALUE."
+      (set (make-local-variable variable) value)))
+#+END_SRC
+
 ** Custom package macro
 The rest of the config uses this custom =package!= macro to abstract away some internals that have changed in the past and may change again (such as using =straight.el=).
 
