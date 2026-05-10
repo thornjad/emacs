@@ -2525,6 +2525,7 @@ Other themes I like to enable to draw tweaks from
 #+begin_src emacs-lisp :lexical t
   (package! tao-theme "11111000000/tao-theme-emacs")
   (package! lambda-themes "Lambda-Emacs/lambda-themes")
+  (package! folio-theme "kn66/folio-theme.el")
 #+end_src
 
 ** Default frame setup
@@ -3663,6 +3664,32 @@ Now for the actual package configuration. This is a long one, so I've made a lot
 
     ;; start with all levels collapsed
     (add-hook 'org-mode-hook #'org-hide-block-all)
+
+    ;; Restore overline on TODO keywords and priorities within headings. org-mode
+    ;; applies org-todo with override=t, wiping the heading face's overline from
+    ;; those characters. This re-applies it via append (lower priority), so
+    ;; org-todo's foreground/height still win but the overline shows through.
+    ;; Using font-lock-add-keywords scopes this to org-mode buffers only, keeping
+    ;; org-agenda unaffected.
+    (defun aero/org-heading-overline-at-point ()
+      (save-excursion
+        (beginning-of-line)
+        (when (looking-at "\\(\\*+\\)")
+          (let* ((level (min (length (match-string 1)) 8))
+                 (color (face-attribute (intern (format "org-level-%d" level))
+                                        :overline nil 'default)))
+            (unless (eq color 'unspecified)
+              `(face (:overline ,color)))))))
+
+    (add-hook 'org-mode-hook
+              (lambda ()
+                (font-lock-add-keywords
+                 nil
+                 `((,(concat "^\\*+ +\\(" org-todo-regexp "\\)")
+                    (1 (aero/org-heading-overline-at-point) append t))
+                   ("^\\*+ +\\(?:[A-Z][A-Z0-9_-]* +\\)?\\(\\[#[A-Z0-9]\\]\\)"
+                    (1 (aero/org-heading-overline-at-point) append t)))
+                 'set)))
 
     ;; Save org files when using clock
     (add-hook 'org-clock-in-hook #'org-save-all-org-buffers)
