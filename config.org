@@ -3683,7 +3683,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
                     (1 (aero/org-heading-overline-at-point) append t))
                    ("^\\*+ +\\(?:[A-Z][A-Z0-9_-]* +\\)?\\(\\[#[A-Z0-9]\\]\\)"
                     (1 (aero/org-heading-overline-at-point) append t)))
-                 'set)))
+                 'append)))
 
     ;; Save org files when using clock
     (add-hook 'org-clock-in-hook #'org-save-all-org-buffers)
