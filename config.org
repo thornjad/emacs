@@ -3659,30 +3659,45 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     ;; start with all levels collapsed
     (add-hook 'org-mode-hook #'org-hide-block-all)
 
-    ;; Restore overline on TODO keywords and priorities within headings. org-mode
-    ;; applies org-todo with override=t, wiping the heading face's overline from
-    ;; those characters. This re-applies it via append (lower priority), so
-    ;; org-todo's foreground/height still win but the overline shows through.
-    ;; Using font-lock-add-keywords scopes this to org-mode buffers only, keeping
-    ;; org-agenda unaffected.
-    (defun aero/org-heading-overline-at-point ()
+    ;; Apply heading-line decorations (:overline always, :strike-through on DONE
+    ;; when the theme defines it) as a font-lock keyword spanning the entire
+    ;; heading line with append priority. The theme's :overline lives on
+    ;; org-level-N faces and gets wiped out wherever an override face (org-todo,
+    ;; org-modern-tag, org-modern-priority, org-headline-done, etc.) covers the
+    ;; heading text. Layering the decoration via font-lock with append means it
+    ;; survives every override that doesn't also specify those attributes — the
+    ;; same fix applied once for the whole line instead of per-region. Scoped
+    ;; to org-mode buffers; org-agenda is unaffected.
+    (defun aero/org-heading-line-face ()
+      "Compute heading-line face spec at the current match.
+Reads :overline from the matching org-level-N face and
+:strike-through from org-headline-done when the heading is DONE.
+Both attributes come from the active theme."
       (save-excursion
         (beginning-of-line)
-        (when (looking-at "\\(\\*+\\)")
+        (when (looking-at "\\(\\*+\\) +\\(\\S-+\\)?")
           (let* ((level (min (length (match-string 1)) 8))
-                 (color (face-attribute (intern (format "org-level-%d" level))
-                                        :overline nil 'default)))
-            (unless (eq color 'unspecified)
-              `(face (:overline ,color)))))))
+                 (keyword (match-string 2))
+                 (overline (face-attribute (intern (format "org-level-%d" level))
+                                           :overline nil 'default))
+                 (strike (and keyword
+                              (member keyword (bound-and-true-p org-done-keywords))
+                              (face-attribute 'org-headline-done
+                                              :strike-through nil 'default)))
+                 (spec (append
+                        (when (and overline (not (eq overline 'unspecified)))
+                          (list :overline overline))
+                        (when (and strike (not (eq strike 'unspecified)))
+                          (list :strike-through strike)))))
+            (when spec
+              `(face ,spec))))))
 
     (add-hook 'org-mode-hook
               (lambda ()
                 (font-lock-add-keywords
                  nil
-                 `((,(concat "^\\*+ +\\(" org-todo-regexp "\\)")
-                    (1 (aero/org-heading-overline-at-point) append t))
-                   ("^\\*+ +\\(?:[A-Z][A-Z0-9_-]* +\\)?\\(\\[#[A-Z0-9]\\]\\)"
-                    (1 (aero/org-heading-overline-at-point) append t)))
+                 '(("^\\*+ +.*$"
+                    (0 (aero/org-heading-line-face) append t)))
                  'append)))
 
     ;; Save org files when using clock
