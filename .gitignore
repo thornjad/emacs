@@ -1,4 +1,8 @@
+# no idea what this is:
+# tangled config
 *.db
+*.db-shm
+*.db-wal
 *.elc
 *.pyc
 *.sqlite
@@ -17,12 +21,13 @@
 .last-package-update-day
 .lsp-*
 .places
-.projectile
 .project.el
+.projectile
 .recentf
 .recentf~
 .smex-items
 .sx/
+.wrangler/
 /*.zip
 /.cask/
 /backups
@@ -38,7 +43,6 @@ auto-save-list/
 bin/Emacs\ (Aero).app
 bookmarks
 build-logs/
-# tangled config
 config.el
 crown/
 debug-adapters/
@@ -60,7 +64,6 @@ games/
 ielm-history.eld
 index.html
 lsp-cache
-# no idea what this is:
 multisession/
 nov-places
 places
@@ -77,7 +80,6 @@ transient/
 tree-sitter/
 var/
 workspace/
-.wrangler/
 xkcd/
 
 # Ignore local init and custom file
