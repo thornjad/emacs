@@ -3448,21 +3448,15 @@ Now for the actual package configuration. This is a long one, so I've made a lot
 
     (org-capture-templates
      `(("t" "Deadline/Scheduled Task" entry
-        (file+headline
-         ,(expand-file-name "todo.org" aero/roam-path)
-         "Tasks")
+        (file ,(expand-file-name "todo.org" aero/roam-path))
         "* TODO [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n\n"
         :empty-lines 1)
        ("p" "Ticket (PR)" entry
-        (file+headline
-         ,(expand-file-name "todo.org" aero/roam-path)
-         "Tasks")
+        (file ,(expand-file-name "todo.org" aero/roam-path))
         "* TICKET [#E] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n"
         :empty-lines 1)
        ("r" "Review (PR or tech design)" entry
-        (file+headline
-         ,(expand-file-name "todo.org" aero/roam-path)
-         "Tasks")
+        (file ,(expand-file-name "todo.org" aero/roam-path))
         "* REVIEW [#B] %? :review:\nSCHEDULED: %t DEADLINE: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\nLink: "
         :empty-lines 1)
        ("s" "School inbox item" entry
