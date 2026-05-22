@@ -4278,8 +4278,11 @@ This is a personal logging and note taking system, based on org-roam. It's evolv
           (progn
             (re-search-forward "^\\*\\*\\* Since last update" nil t)
             (forward-line 1))
-        ;; No entry for today, create one
+        ;; No entry for today, create one with a blank line above the heading
         (goto-char (point-max))
+        (skip-chars-backward " \t\n")
+        (delete-region (point) (point-max))
+        (insert "\n\n")
         (yas-expand-snippet (yas-lookup-snippet "new-day")))))
 
   (defun aero/org-add-file-tag ()
