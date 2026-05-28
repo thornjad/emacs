@@ -86,6 +86,8 @@ Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= c
 
 This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
 
+=org-babel-load-file= works by tangling this file to =config.el= and loading the result — it does not consult =org-confirm-babel-evaluate= at all. That variable governs interactive execution only: when you press =C-c C-c= on a source block in any =.org= file. =org-confirm-babel-evaluate= is set further down (in the Org package configuration) to a function that permits silent execution in this file and requires explicit confirmation in every other =.org= file, preventing a malicious or untrusted file from running arbitrary code interactively.
+
 *** Tips
 When inside of an Org source block, you can use =org-babel-demarcate-block= to split the block you're currently in so that you can insert an annotation.
 
@@ -3487,6 +3489,12 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     :preface
 
     :custom
+    ;; only permit silent babel execution for this config; everything else prompts
+    (org-confirm-babel-evaluate
+     (lambda (_lang _body)
+       (not (string= (buffer-file-name)
+                     (expand-file-name "config.org" user-emacs-directory)))))
+
     ;; don't persist the element cache to disk; prevents stale cache from
     ;; surviving across sessions (the in-session race condition is handled
     ;; by aero/org-suspend-indent-before-revert below)
