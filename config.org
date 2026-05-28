@@ -5117,7 +5117,35 @@ This simply calls `ace-link-eww' with a fake double prefix, which is
 equivalent to the list containing 16."
     (interactive)
     (ace-link-eww '(16)))
+
+  (defun aero/eww-imenu-headings ()
+    "Build an imenu index by scanning shr heading faces in the current buffer."
+    (let (index)
+      (save-excursion
+        (goto-char (point-min))
+        (while (not (eobp))
+          (let* ((face (get-text-property (point) 'face))
+                 (faces (if (listp face) face (list face))))
+            (when (cl-some (lambda (f)
+                             (memq f '(shr-h1 shr-h2 shr-h3
+                                       shr-h4 shr-h5 shr-h6)))
+                           faces)
+              (let ((text (string-trim
+                           (buffer-substring-no-properties
+                            (point) (line-end-position)))))
+                (unless (string-empty-p text)
+                  (push (cons text (point)) index)))))
+          (forward-line 1)))
+      (nreverse index)))
+
+  (defun aero/eww-setup-heading-nav ()
+    "Wire up imenu heading navigation for eww buffers."
+    (setq-local imenu-create-index-function #'aero/eww-imenu-headings))
 #+END_SRC
+
+=consult-outline= relies on =outline-regexp=, which eww buffers never configure — so =SPC j o= finds nothing useful there. The shr renderer does, however, apply faces like =shr-h1= through =shr-h6= to the text it produces for HTML headings. We exploit that by providing a custom =imenu-create-index-function= that walks the buffer line by line and collects any line whose text properties include a heading face.
+
+=eww-mode-map= binds =SPC= to =scroll-up-command= by default, which makes =SPC= a non-prefix key in the evil normal state overlay and blocks any longer =SPC=-prefixed sequence from being defined there. We clear that binding explicitly (=nil= in the evil keymap), which lets the general.el leader take over =SPC= as a prefix normally. =SPC j o= can then be bound to =consult-imenu= for eww just like any other mode-specific leader binding.
 
 Then the actual EWW config. We open almost everything from Emacs into EWW, except a few sites that are so JS-heavy that they don't work at all.
 
@@ -5126,6 +5154,8 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
     :after (general evil ace-link)
     :commands (eww eww-browse-url eww-search-words browse-url-at-point)
     :hook ((eww-mode . visual-line-mode)
+           (eww-mode . aero/eww-setup-heading-nav)
+           (eww-mode . (lambda () (setq-local scroll-margin 0)))
            (eww-after-render . aero/set-eww-buffer-title))
 
     :custom
@@ -5156,9 +5186,11 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
 
     :init
     (aero-leader-def "wbn" '(aero/wiki-news :wk "wikipedia news"))
+    (aero-leader-def :keymaps 'eww-mode-map "jo" 'consult-imenu)
 
     :config
     (evil-define-key 'normal eww-mode-map
+      (kbd "SPC") nil
       "SPC SPC" 'execute-extended-command
       "?" 'describe-mode
       "^" 'eww-up-url
