@@ -810,19 +810,13 @@ Evaluate =gnutls= and disallow TLS connections
 #+END_SRC
 
 ** Straight.el
-We want to use the =develop= branch of =straight.el=, since it tends to be better.
-
-#+BEGIN_SRC emacs-lisp :lexical t
-  ;; Use the more-cutting-edge develop branch of straight
-  (eval-when-compile
-    (defvar straight-repository-branch)
-    (defvar straight-check-for-modifications))
-  (setq straight-repository-branch "develop")
-#+END_SRC
+straight.el is managed as a vendored git submodule at =lib/straight.el= tracking the default branch. Since the submodule is pinned to an explicit commit, the branch is mostly advisory; updates happen by advancing the submodule pointer, not by running straight's own update commands.
 
 Don't allow straight to check for modifications in every repo on Emacs init, saving some startup time
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (eval-when-compile
+    (defvar straight-check-for-modifications))
   (setq straight-check-for-modifications nil)
 #+END_SRC
 
@@ -851,20 +845,22 @@ Tell straight that let-alist is a built-in package now, so it doesn't need to be
     (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
 #+END_SRC
 
-Bootstrapping for =straight.el=
+straight.el is vendored as a git submodule at =lib/straight.el= rather than fetched from the network on first run. The standard bootstrap snippet downloads =install.el= from =raw.githubusercontent.com= and evaluates it in place, which is unauthenticated remote code execution on every fresh machine setup. Because =straight.el= is the trust anchor for every other package in this configuration, it is treated as a first-class threat surface and pinned under version control. To update it, advance the submodule commit and commit the pointer change; straight's own update commands will not affect it.
+
+On a fresh machine where =straight/repos/straight.el= does not yet exist, the bootstrap creates a symlink from =straight/repos/straight.el= to the vendored =lib/straight.el= and loads =bootstrap.el= from there. =bootstrap.el= uses =file-truename= on =load-file-name=, so it resolves the symlink and correctly finds =straight.el= in =lib/straight.el/=. Subsequent runs find the existing repo (real or symlinked) and load =bootstrap.el= directly. No network access occurs at any point during bootstrap.
+
+This mirrors the approach straight.el's own README documents as the alternative for environments where =url-retrieve-synchronously= is unavailable: clone the repository into =~/.emacs.d/straight/repos/straight.el= and check out the desired revision.
+
+This is an intermediate arrangement. The longer-term plan is to replace straight with Borg, which manages all packages as git submodules natively and eliminates the bootstrap trust problem entirely.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (defvar bootstrap-version)
-  (let ((bootstrap-file
-         (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-        (bootstrap-version 5))
-    (unless (file-exists-p bootstrap-file)
-      (with-current-buffer
-          (url-retrieve-synchronously
-           "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-           'silent 'inhibit-cookies)
-        (goto-char (point-max))
-        (eval-print-last-sexp)))
+  (let* ((repos-dir (expand-file-name "straight/repos" user-emacs-directory))
+         (repos-straight (expand-file-name "straight.el" repos-dir))
+         (lib-straight (expand-file-name "lib/straight.el" user-emacs-directory))
+         (bootstrap-file (expand-file-name "bootstrap.el" repos-straight)))
+    (unless (file-exists-p repos-straight)
+      (make-directory repos-dir t)
+      (make-symbolic-link lib-straight repos-straight))
     (load bootstrap-file nil 'nomessage))
 #+END_SRC
 

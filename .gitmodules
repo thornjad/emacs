@@ -1,3 +1,6 @@
 [submodule "lib/aero-theme"]
 	path = lib/aero-theme
 	url = git@github.com:thornjad/aero-theme.git
+[submodule "lib/straight.el"]
+	path = lib/straight.el
+	url = https://github.com/radian-software/straight.el.git
