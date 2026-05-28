@@ -3412,6 +3412,73 @@ Call on region or line at point to apply formatting markers
     (aero/org-apply-format "~" "~"))
 #+END_SRC
 
+*** Org link helpers
+Fetch a page title from the web and wrap a URL at point into a proper org link.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/decode-html-entities (str)
+    "Decode HTML entities in STR, including named and numeric forms."
+    (let ((named '(("&amp;" . "&") ("&lt;" . "<") ("&gt;" . ">")
+                   ("&quot;" . "\"") ("&apos;" . "'") ("&nbsp;" . " "))))
+      (dolist (pair named)
+        (setq str (replace-regexp-in-string (car pair) (cdr pair) str t t)))
+      ;; decimal numeric entities: &#N;
+      (setq str (replace-regexp-in-string
+                 "&#\\([0-9]+\\);"
+                 (lambda (m) (char-to-string (string-to-number (match-string 1 m))))
+                 str t))
+      ;; hex numeric entities: &#xN;
+      (setq str (replace-regexp-in-string
+                 "&#x\\([0-9a-fA-F]+\\);"
+                 (lambda (m) (char-to-string (string-to-number (match-string 1 m) 16)))
+                 str t))
+      str))
+
+  (defun aero/fetch-url-title (url)
+    "Synchronously fetch and return the HTML page title for URL."
+    (unless (string-match-p "\\`https?://" url)
+      (user-error "Cannot fetch title for non-HTTP URL: %s" url))
+    (let ((buf (url-retrieve-synchronously url t t 15)))
+      (when buf
+        (unwind-protect
+            (with-current-buffer buf
+              (set-buffer-multibyte t)
+              (goto-char (point-min))
+              (when (re-search-forward "\r?\n\r?\n" nil t)
+                (let* ((case-fold-search t)
+                       (html (buffer-substring-no-properties (point) (point-max))))
+                  (when (string-match "<title[^>]*>\\([^<]+\\)</title>" html)
+                    (aero/decode-html-entities
+                     (string-trim
+                      (replace-regexp-in-string
+                       "[ \t\r\n]+" " " (match-string 1 html))))))))
+          (kill-buffer buf)))))
+
+  (defun aero/org-url-to-titled-link ()
+    "Replace URL at point with an org link [[URL][page title]].
+  Works on both plain URLs and existing org-mode links."
+    (interactive)
+    (let* ((context (org-element-context))
+           (is-link (and context (eq (car context) 'link)))
+           (url (if is-link
+                    (org-element-property :raw-link context)
+                  (thing-at-point 'url t)))
+           (bounds (if is-link
+                       (cons (org-element-property :begin context)
+                             (org-element-property :end context))
+                     (bounds-of-thing-at-point 'url))))
+      (unless url
+        (user-error "No URL at point"))
+      (unless bounds
+        (user-error "Cannot determine bounds of URL at point"))
+      (message "Fetching title for %s..." url)
+      (let ((title (aero/fetch-url-title url)))
+        (unless title
+          (user-error "Could not fetch title for %s" url))
+        (delete-region (car bounds) (cdr bounds))
+        (insert (format "[[%s][%s]]" url title)))))
+#+END_SRC
+
 ** Org package
 Now for the actual package configuration. This is a long one, so I've made a lot of comments within the code block rather than putting everything up here.
 
@@ -3610,6 +3677,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
       "ii" 'org-insert-structure-template
       "id" '(org-insert-drawer :wk "drawer")
       "im" 'insert-meeting-task
+      "U" 'aero/org-url-to-titled-link
       "A" 'aero/org-archive-cleanup
       "c" '(:ignore t :wk "clock / cell")
       "cc" '(org-babel-execute-src-block :wk "exec cell")
