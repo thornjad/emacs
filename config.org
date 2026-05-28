@@ -979,7 +979,7 @@ To ensure we can use this easily later, require treesitter as long as it's avail
 Set up automatic compilation for everything past this point
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! compile-angel "jamescherti/compile-angel.el"
+  (package! compile-angel :auto
     :demand t
     :hook (emacs-lisp-mode-hook . compile-angel-on-save-local-mode)
 
@@ -1461,10 +1461,7 @@ Provides a completion system similar to Ivy, but it's faster and more lightweigh
 Provides MRU (most-recently-used) sorting for all vertico completions, including =M-x=. Replaces amx for command history sorting. Shares the prescient persistence store with company-prescient.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! vertico-prescient
-    (:host github
-     :repo "radian-software/prescient.el"
-     :files ("vertico-prescient.el"))
+  (package! vertico-prescient :auto
     :after (vertico)
     :config (vertico-prescient-mode +1))
 #+END_SRC
@@ -1586,7 +1583,7 @@ Buffer previews are disabled for commands that browse files or buffers since loa
 Yasnippet provides a powerful templating system for inserting boilerplate code.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! yasnippet "joaotavora/yasnippet"
+  (package! yasnippet :auto
     :defer 1
     :custom
     (yas-installed-snippets-dir aero-snippets-dir)
@@ -1598,7 +1595,7 @@ Yasnippet provides a powerful templating system for inserting boilerplate code.
 Plug yasnipet into consult for a better interface to snippets
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! consult-yasnippet "mohkale/consult-yasnippet"
+  (package! consult-yasnippet :auto
     :after (consult yasnippet)
     :config
     (aero-leader-def
@@ -1634,7 +1631,7 @@ Doesn't seem like indent activates properly for me without an intervention into 
 Support for icon insertion, and used as a lib in other packages
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! all-the-icons (:repo "domtronn/all-the-icons.el" :files (:defaults "data"))
+  (package! all-the-icons :auto
     :after (general)
     :defer 3
     :when (display-graphic-p)
@@ -1645,7 +1642,7 @@ Support for icon insertion, and used as a lib in other packages
 Utility for visual navgation
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! avy "abo-abo/avy"
+  (package! avy :auto
     :after (general)
     :init
     (general-define-key
@@ -1661,7 +1658,7 @@ Utility for visual navgation
 Jump to links in eww with Avy
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! ace-link "abo-abo/ace-link"
+  (package! ace-link :auto
     :after (avy eww)
     :functions (ace-link-setup-default)
     :config (ace-link-setup-default))
@@ -1671,7 +1668,7 @@ Jump to links in eww with Avy
 Gives us the =M-n= and =M-p= symbol-following ability
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! smartscan "mickeynp/smart-scan"
+  (package! smartscan :auto
     :hook ((prog-mode org-mode) . smartscan-mode)
     :config
     (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
@@ -1786,7 +1783,7 @@ Truncates long names to keep tab bar manageable."
 Jump to windows by number. 1 is the upper-left-most
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! winum "deb0ch/emacs-winum"
+  (package! winum :auto
     :defer 5
     :after (general which-key)
     :init
@@ -1808,9 +1805,7 @@ Jump to windows by number. 1 is the upper-left-most
 I can't believe this isn't built-in. Company provides a completion system that's more powerful than the default.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! company
-    (:repo "company-mode/company-mode"
-     :files (:defaults "icons" ("images/small" "doc/images/small/*.png")))
+  (package! company :auto
     :after (evil)
     :hook ((prog-mode . company-mode)
            (company-mode-hook . evil-normalize-keymaps))
@@ -1836,10 +1831,7 @@ I can't believe this isn't built-in. Company provides a completion system that's
 Moves commonly-used completions to the top, and provides a better sorting algorithm.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! company-prescient
-    (:host github
-     :repo "radian-software/prescient.el"
-     :files ("company-prescient.el"))
+  (package! company-prescient :auto
     :after (company)
     :hook (company-mode . company-prescient-mode)
     :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
@@ -1850,8 +1842,7 @@ Moves commonly-used completions to the top, and provides a better sorting algori
 Provides a better popup interface for company
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! company-box
-    (:repo "sebastiencs/company-box" :files (:defaults "images"))
+  (package! company-box :auto
     :hook (company-mode . company-box-mode))
 #+END_SRC
 
@@ -1987,7 +1978,7 @@ Provides a global minor mode that respects =.editorconfig= files.
 Detects when the buffer matches what's on disk and marks it unmodified. If, for example, you visit a file, change something, then undo the change, this package ensures the buffer doesn't think its still modified.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! unmodified-buffer "arthurcgusmao/unmodified-buffer"
+  (package! unmodified-buffer :auto
     :defer 1
     :hook ((prog-mode text-mode) . unmodified-buffer-mode))
 #+END_SRC
@@ -2014,7 +2005,7 @@ Saves the minibuffer history.
 A better version of the built-in help buffers. This ought to be included in Emacs.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! helpful "Wilfred/helpful"
+  (package! helpful :auto
     :commands (helpful-function
                helpful-variable
                helpful-macro
@@ -2525,7 +2516,7 @@ instead of using cached settings."
 Other themes I like to enable to draw tweaks from
 
 #+begin_src emacs-lisp :lexical t
-  (package! tao-theme "11111000000/tao-theme-emacs")
+  (package! tao-theme :auto)
   (package! lambda-themes "Lambda-Emacs/lambda-themes")
   (package! folio-theme "kn66/folio-theme.el")
 #+end_src
@@ -2755,7 +2746,7 @@ We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffe
 
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! highlight-thing (:host github :repo "fgeller/highlight-thing.el")
+  (package! highlight-thing :auto
     :hook (prog-mode . highlight-thing-mode)
     :commands (highlight-thing-mode)
     :custom
@@ -2789,8 +2780,7 @@ Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert 
 
 #+BEGIN_SRC emacs-lisp :lexical t
   (unless (display-graphic-p)
-    (package! evil-terminal-cursor-changer
-      (:host github :repo "7696122/evil-terminal-cursor-changer")
+    (package! evil-terminal-cursor-changer :auto
       :after evil
       :functions (evil-terminal-cursor-changer-activate)
       :config (evil-terminal-cursor-changer-activate)))
@@ -3821,7 +3811,7 @@ Both attributes come from the active theme."
 Show formatting markers when point is near
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-appear "awth13/org-appear"
+  (package! org-appear :auto
     :custom (org-hide-emphasis-markers t)
     :hook (org-mode . org-appear-mode))
 #+END_SRC
@@ -3830,7 +3820,7 @@ Show formatting markers when point is near
 Some trivial UI improvements for org files. Uses the "replace" set of stars for headings.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-modern "minad/org-modern"
+  (package! org-modern :auto
     :hook ((org-mode . org-modern-mode)
            (org-agenda-finalize-hook . org-modern-agenda))
     :custom
@@ -3884,7 +3874,7 @@ Use evil in org, particularly in org-agenda. Also unblocks using aero-leader cho
 Custom display of org priorities
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-fancy-priorities "harrybournis/org-fancy-priorities"
+  (package! org-fancy-priorities :auto
     :after (org)
     :hook (org-mode . org-fancy-priorities-mode)
     :custom
@@ -3898,7 +3888,7 @@ Custom display of org priorities
 The workhorse of my task management. This package allows me to group tasks in the agenda in a way that makes sense to me.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-super-agenda "alphapapa/org-super-agenda"
+  (package! org-super-agenda :auto
     :preface
     (defun aero/org-super-agenda-without-keymap ()
       "Stops super-agenda from overriding evil-org bindings."
@@ -3971,7 +3961,7 @@ The workhorse of my task management. This package allows me to group tasks in th
 Allow drag-and-drop of images from browser, finder, etc.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-download "abo-abo/org-download"
+  (package! org-download :auto
     :after (org general)
     :commands (org-download-clipboard org-download-yank org-download-screenshot)
     :custom (org-download-method 'directory)
@@ -4275,7 +4265,7 @@ Highlights unlinked references to existing org-roam nodes in buffers. Click or p
 When org-roam-latte's =after-change-function= runs during an =org-todo= state change, the inflections library's =replace-match= (called with =FIXEDCASE=nil=) interacts with =evil-org-mode= to upcase heading text. We prevent this by inhibiting latte's after-change hook while =org-todo= is executing.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! org-roam-latte "yad-tahir/org-roam-latte"
+  (package! org-roam-latte :auto
     :after org-roam
     :hook (org-roam-find-file . org-roam-latte-mode)
     :config
@@ -4465,7 +4455,7 @@ Assumes it follows the default naming scheme."
 Provides a more powerful interface for searching org-roam nodes using ripgrep
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! consult-org-roam "jgru/consult-org-roam"
+  (package! consult-org-roam :auto
     :after (org-roam general)
     :custom
     (consult-org-roam-grep-func #'consult-ripgrep)
@@ -4498,7 +4488,7 @@ Emacs startup profiler.
 The override of =esup-read-results= works around a bug where esup tries to profile cl-lib and fails by doing some nil checking.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! esup "jschaf/esup"
+  (package! esup :auto
     :commands (esup)
     :config
     (defun esup-read-results ()
@@ -4562,7 +4552,7 @@ For some reason, makefile-mode doesn't always activate for Makefiles, so we add 
 We make an alteration to =markdown-mode-syntax-table= to teach it that quotes mean strings, regardless of what the mode's developer believes. We also ensure that checkboxes are not expanded by smartparens.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! markdown-mode "jrblevin/markdown-mode"
+  (package! markdown-mode :auto
     :after (general smartparens)
     :mode (("\\.md\\'" . gfm-mode)
            ("\\.markdown\\'" . gfm-mode)
@@ -4588,7 +4578,7 @@ We make an alteration to =markdown-mode-syntax-table= to teach it that quotes me
 *** Markdown-toc
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! markdown-toc (:repo "ardumont/markdown-toc")
+  (package! markdown-toc :auto
     :commands (markdown-toc-generate-toc markdown-toc-refresh-toc))
 #+END_SRC
 
@@ -4602,7 +4592,7 @@ We make an alteration to =markdown-mode-syntax-table= to teach it that quotes me
 If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! web-mode "fxbois/web-mode"
+  (package! web-mode :auto
     :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|mjs\\|jsx\\|s?css\\|astro\\)\\'"
     :custom (web-mode-enable-engine-detection t)
     :config
@@ -4647,7 +4637,7 @@ My own package for running Jest tests from within Emacs. Based loosely on the fu
 Linting for Emacs packages
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! package-lint "purcell/package-lint"
+  (package! package-lint :auto
     :commands (package-lint-current-buffer))
 #+END_SRC
 
@@ -4804,7 +4794,7 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
 Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! flymake-ruff "erickgnavar/flymake-ruff"
+  (package! flymake-ruff :auto
     :after (eglot flymake)
     :functions (flymake-ruff-load)
     :init
@@ -4868,7 +4858,7 @@ We also set up a bunch of paren pairs that aren't default for some reason.
 Toward the end we set up parens with post-handlers to add an extra newline and indent when hitting RET inside them.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! smartparens "Fuco1/smartparens"
+  (package! smartparens :auto
     :after (general) :defer 5
     :functions (show-smartparens-global-mode
                 sp-kill-sexp sp-local-pair
@@ -5025,7 +5015,7 @@ idle timer is the real value here; it replaces flyspell's
 post-command-hook so typing stays responsive.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! flyspell-lazy (:repo "rolandwalker/flyspell-lazy")
+  (package! flyspell-lazy :auto
     :hook ((flyspell-mode . flyspell-lazy-mode)))
 #+END_SRC
 
@@ -5033,7 +5023,7 @@ post-command-hook so typing stays responsive.
 A better interface for correcting spelling
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! flyspell-correct "d12frosted/flyspell-correct"
+  (package! flyspell-correct :auto
     :after (general flyspell)
     :config
     (aero-leader-def
@@ -5047,9 +5037,7 @@ A better interface for correcting spelling
 It's hard to remember what this package is called, which is a marker of a bad name. However, it's good code, handling auto-formatting on save.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! apheleia
-    (:repo "radian-software/apheleia"
-     :files (:defaults ("scripts" "scripts/formatters")))
+  (package! apheleia :auto
     :defer 2
     :after general
 
@@ -5074,7 +5062,7 @@ It's hard to remember what this package is called, which is a marker of a bad na
 WS-Butler removes trailing whitespace, but only in modes where it's not important. This is a good default, but we need to exempt some modes where whitespace is important.
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! ws-butler (:repo "lewang/ws-butler" :branch "master")
+  (package! ws-butler :auto
     :defer 1
     :functions (ws-butler-global-mode)
     :config (ws-butler-global-mode)
@@ -5264,7 +5252,7 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
 Adds some org-like features to EWW
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! shrface (:host github :repo "chenyanming/shrface")
+  (package! shrface :auto
     :defer t
     :after (eww)
     :hook (eww-after-render . shrface-mode)
@@ -5279,7 +5267,7 @@ Adds some org-like features to EWW
 Syntax highlighting for HTML pre tags
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! shr-tag-pre-highlight "xuchunyang/shr-tag-pre-highlight.el"
+  (package! shr-tag-pre-highlight :auto
     :after (shr)
     :config
     (add-to-list 'shr-external-rendering-functions '(pre . shr-tag-pre-highlight)))
@@ -5289,7 +5277,7 @@ Syntax highlighting for HTML pre tags
 Simple RSS reader
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! elfeed "skeeto/elfeed"
+  (package! elfeed :auto
     :commands (elfeed elfeed-db-compact)
     :after (general evil)
     :custom
@@ -5615,7 +5603,7 @@ Realistically this is my main shell. It does try to override some important bind
 Adds a more informative prompt to eshell
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! eshell-prompt-extras "zwild/eshell-prompt-extras"
+  (package! eshell-prompt-extras :auto
     :after (eshell)
     :config
     (with-eval-after-load "esh-opt"
@@ -5628,7 +5616,7 @@ Adds a more informative prompt to eshell
 Syntax highlighting in eshell
 
 #+BEGIN_SRC emacs-lisp :lexical t
-  (package! eshell-syntax-highlighting "akreisher/eshell-syntax-highlighting"
+  (package! eshell-syntax-highlighting :auto
     :after eshell-mode
     :hook (eshell-mode . eshell-syntax-highlighting-mode))
 #+END_SRC
