@@ -71,7 +71,10 @@ projectile-bookmarks.eld
 projectile.cache
 projects
 request/
-straight/
+straight/*
+!straight/versions
+straight/versions/*
+!straight/versions/default.el
 tags
 tmp.*
 tmp/
