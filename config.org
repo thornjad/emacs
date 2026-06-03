@@ -4918,6 +4918,7 @@ Toward the end we set up parens with post-handlers to add an extra newline and i
     (defun aero/sp-wrap-single-quote () (interactive) (sp-wrap-with-pair "'"))
     (defun aero/sp-wrap-backtick () (interactive) (sp-wrap-with-pair "`"))
     (defun aero/sp-wrap-angle () (interactive) (sp-wrap-with-pair "<"))
+    (defun aero/sp-wrap-equals () (interactive) (sp-wrap-with-pair "="))
 
     (general-define-key
      :states '(normal visual)
@@ -4934,6 +4935,7 @@ Toward the end we set up parens with post-handlers to add an extra newline and i
      "sw\"" '(aero/sp-wrap-double-quote :wk "wrap double quote")
      "sw'" '(aero/sp-wrap-single-quote :wk "wrap single quote")
      "sw`" '(aero/sp-wrap-backtick :wk "wrap backtick")
+     "sw=" '(aero/sp-wrap-equals :wk "wrap equals")
      "swr" 'sp-rewrap-sexp
      "su" '(sp-unwrap-sexp :which-key "unwrap")
      "sk" '(sp-kill-sexp :which-key "kill")
@@ -5320,6 +5322,7 @@ Allows managing feeds in an org file
   (with-eval-after-load 'elfeed
     (aero-elfeed-org))
 #+END_SRC
+
 
 * AI
 I've moved most AI functions out of Emacs proper, as I can't keep up with the incredible advances of products like Cursor and Claude Code. I keep copilot around for occasional use, since GitHub gives it to me for free.
