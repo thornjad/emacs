@@ -4,3 +4,7 @@
 [submodule "lib/straight.el"]
 	path = lib/straight.el
 	url = https://github.com/radian-software/straight.el.git
+[submodule "lib/borg"]
+	path = lib/borg
+	url = https://github.com/emacscollective/borg.git
+	ignore = untracked
