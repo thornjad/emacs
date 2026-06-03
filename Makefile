@@ -73,10 +73,27 @@ nongnu-elpa:
 	git clone https://git.savannah.gnu.org/git/emacs/nongnu.git ~/.config/emacs/straight/repos/nongnu-elpa --config transfer.fsckobjects=false --config receive.fsckobjects=false --config fetch.fsckobjects=false
 
 submodule:
-	git submodule init
-	git submodule update
+	git submodule update --init --recursive
 
-init: nongnu-elpa install-deps submodule
+# pull the superproject and bring all submodules into sync, including newly added drones
+sync:
+	git pull --recurse-submodules
+	git submodule update --init --recursive
+
+# repo-local git config for a comfortable submodule/drone workflow
+borg-config:
+	git config submodule.recurse true
+	git config diff.submodule log
+	git config status.submoduleSummary true
+
+# (re)generate autoloads for all Borg drones; compilation is left to compile-angel and
+# native-comp at load time, so this dependency-free step never miscompiles a drone
+borg-autoloads:
+	$(EMACS) --batch -L lib/borg -l borg \
+		--eval "(setq borg-drones-directory (expand-file-name \"lib/drones\"))" \
+		--eval "(borg-do-drones (d) (borg-update-autoloads d))"
+
+init: nongnu-elpa install-deps submodule borg-config borg-autoloads
 
 clear-straight:
 	rm -rf ./straight/

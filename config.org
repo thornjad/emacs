@@ -809,6 +809,185 @@ Evaluate =gnutls= and disallow TLS connections
     (setq gnutls-verify-error t)) ; Do not allow insecure TLS connections.
 #+END_SRC
 
+** Borg
+Borg is being introduced alongside straight as the long-term replacement for package management. It manages each package as a git submodule (a "drone") under =lib/drones/=, which means every package is pinned to an explicit commit, updates show up as reviewable submodule-pointer diffs in git history, and there is no network access or remote code evaluation at init time. This directly addresses the largest security gap in this configuration, which is unvetted package updates. The migration is incremental: straight and Borg coexist, with each package owned by exactly one of them, and packages move over one at a time.
+
+Borg is itself vendored as a submodule at =lib/borg=, so it is added to the load path and required directly rather than bootstrapped from the network. Its only load-time dependencies are built-in Emacs libraries.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (add-to-list 'load-path (expand-file-name "lib/borg" user-emacs-directory))
+  (require 'borg)
+#+END_SRC
+
+Borg derives =borg-drones-directory= from its own location, which would default to =lib/= and sweep in the non-drone submodules =lib/aero-theme=, =lib/straight.el=, and =lib/borg= itself. We instead keep drones in a dedicated =lib/drones/= subdirectory. This is set with =setq= rather than the =borg.drones-directory= git variable because git config lives in =.git/config= and does not sync across machines, whereas this configuration does. Borg's other derived locations are computed from the repository root, not the drones directory, so they remain correct after this override.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (setq borg-drones-directory (expand-file-name "lib/drones" user-emacs-directory))
+#+END_SRC
+
+These helpers support the =:borg= recipe in the =package!= macro and the startup self-heal below. =aero/borg-drone-names= deliberately uses =borg-do-drones=, which filters submodules by the drones-directory path prefix; the bare =borg-drones= function strips a fixed prefix length from every submodule without filtering and would mangle the non-drone submodules. =aero/borg-drone-present-p= reports whether a drone's source is actually checked out on this machine, and =aero/borg-drone-autoloads-p= whether its autoloads have been generated. =aero/borg-warn-unassimilated= surfaces a non-fatal warning when a declared drone has not been fetched, rather than failing init.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/borg-drone-names ()
+    "Return the prefix-filtered list of assimilated drone names.
+Uses `borg-do-drones', not the bare `borg-drones', which would mangle
+submodules outside `borg-drones-directory'."
+    (let (names)
+      (borg-do-drones (drone) (push drone names))
+      (nreverse names)))
+
+  (defun aero/borg-drone-present-p (name)
+    "Return non-nil if drone NAME is checked out with source present."
+    (let ((dir (borg-worktree name)))
+      (and (file-directory-p dir)
+           (directory-files dir nil "\\`[^.].*\\.el\\'" t))))
+
+  (defun aero/borg-drone-autoloads-p (name)
+    "Return non-nil if drone NAME already has a generated autoloads file."
+    (file-exists-p (expand-file-name (format "%s-autoloads.el" name)
+                                     (borg-worktree name))))
+
+  (defun aero/borg-warn-unassimilated (name)
+    "Warn that drone NAME is declared but not checked out on this machine."
+    (display-warning
+     'borg
+     (format "Drone `%s' is declared but not checked out. Run `make sync' to fetch it."
+             name)
+     :warning))
+#+END_SRC
+
+Borg owns autoloads; =compile-angel= owns compilation. The self-heal below generates autoloads for any present drone that lacks them, which is dependency-free and therefore safe regardless of load order. It deliberately does not byte-compile, because compiling a drone before its dependencies are loaded would silently miscompile macro calls. Byte and native compilation are left to =compile-angel= and the native-comp JIT, which compile each drone's source on first load, by which point =use-package='s =:after= and =:hook= deferral guarantees the drone's dependencies are present. This also means a machine that has pulled new drone source but not yet built it heals itself on the next startup, with no network access. Finally =borg-initialize= activates every present, non-disabled drone by adding it to the load path and loading its autoloads.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (borg-do-drones (drone)
+    (when (and (aero/borg-drone-present-p drone)
+               (not (aero/borg-drone-autoloads-p drone)))
+      (borg-update-autoloads drone)))
+  (borg-initialize)
+#+END_SRC
+
+Borg assumes every submodule is a drone living directly under =borg-drones-directory=. The no-argument form of =borg-drones= relies on that assumption: it strips a fixed prefix length from every submodule path without filtering, so in this configuration, where =lib/borg=, =lib/aero-theme=, and =lib/straight.el= are submodules outside =lib/drones/=, it returns garbage and even errors on paths shorter than the prefix. Only one Borg function depends on this no-argument form, =borg-remove=; everything else uses the prefix-filtered =borg-drones 'raw=. This advice reroutes the no-argument call through that same filtered path, which is what it should have returned, so =borg-remove= and any future caller work correctly without us having to flatten the submodule layout.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (define-advice borg-drones (:around (orig &optional include-variables) aero/prefix-safe)
+    "Make the no-argument `borg-drones' filter submodules by the drones-directory prefix."
+    (if include-variables
+        (funcall orig include-variables)
+      (mapcar #'car (funcall orig 'raw))))
+#+END_SRC
+
+*** Assimilation helpers
+Adding a package to Borg is a deliberate, committed act, never something that happens at load time. These helpers make that act ergonomic while keeping it secure. The guiding idea is clone-before-build: source is placed on disk and can be inspected before any of its code is allowed to run, which is also where a future diff-audit step would slot in.
+
+=aero/borg-package-requires= reads a drone's dependencies from the =Package-Requires= header in its source, scanning every non-generated Emacs Lisp file because the declaring file is not always named after the drone. =aero/borg-dep-status= classifies each dependency as Emacs itself, an existing drone, otherwise available (built-in or still provided by straight during the migration), or missing. We read dependencies from local source rather than an external database, so =epkg= is not needed and is deliberately not used.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/borg-package-requires (name)
+    "Return the merged Package-Requires of drone NAME as a list of (DEP VERSION).
+Scans every non-generated Emacs Lisp file in the drone, since the file that
+declares the requirements is not always named after the drone."
+    (require 'lisp-mnt)
+    (let ((dir (borg-worktree name))
+          (reqs '()))
+      (when (file-directory-p dir)
+        (dolist (file (directory-files dir t "\\`[^.].*\\.el\\'"))
+          (unless (string-match-p "\\(?:-autoloads\\|-pkg\\|-tests?\\)\\.el\\'" file)
+            (with-temp-buffer
+              (insert-file-contents file)
+              (dolist (req (ignore-errors (lm-package-requires)))
+                (unless (assq (car req) reqs)
+                  (push req reqs)))))))
+      (nreverse reqs)))
+
+  (defun aero/borg-dep-status (dep)
+    "Classify dependency DEP (a symbol): `emacs', `drone', `present', or `missing'."
+    (cond
+     ((eq dep 'emacs) 'emacs)
+     ((member (symbol-name dep) (aero/borg-drone-names)) 'drone)
+     ((locate-library (symbol-name dep)) 'present)
+     (t 'missing)))
+
+  (defun aero/borg--insert-deps (name &optional added)
+    "Insert NAME's dependency lines at point.
+Names in ADDED are flagged as assimilated during the current run."
+    (let ((reqs (aero/borg-package-requires name)))
+      (if (null reqs)
+          (insert "  (no dependencies declared)\n")
+        (dolist (req reqs)
+          (let* ((dep (car req))
+                 (ver (cadr req))
+                 (dn (symbol-name dep))
+                 (status (aero/borg-dep-status dep)))
+            (insert (format "  %-22s %-9s %s\n"
+                            dep (or ver "")
+                            (cond ((eq status 'emacs) "Emacs itself")
+                                  ((member dn added) "drone (added this run)")
+                                  ((eq status 'drone) "assimilated drone")
+                                  ((eq status 'present) "available (built-in or via straight)")
+                                  (t "MISSING -- needs assimilation")))))))))
+
+  (defun aero/borg-describe-deps (name)
+    "Display drone NAME's dependency tree with each dependency's status."
+    (interactive (list (completing-read "Drone: " (aero/borg-drone-names) nil t)))
+    (with-current-buffer (get-buffer-create (format "*borg-deps: %s*" name))
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "Dependencies for drone `%s'\n\n" name))
+        (aero/borg--insert-deps name)
+        (goto-char (point-min))
+        (special-mode))
+      (display-buffer (current-buffer))))
+#+END_SRC
+
+=aero/borg-assimilate= ties this together. It registers the target and each missing dependency as a submodule and places their source on disk without building or activating them, so none of their code runs. It then shows a report and only builds and activates after explicit confirmation, leaving a window to inspect the cloned source. It uses =borg-assimilate= with its =partially= argument for the no-build registration step, and =borg-build= for the deferred build.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/borg-assimilate (name url)
+    "Assimilate drone NAME from URL together with its missing dependencies.
+Register NAME and each missing dependency as a submodule and place their
+source on disk WITHOUT building or activating them, so none of their code
+runs.  Show a report, then build and activate only after confirmation,
+leaving a window to inspect the cloned source first.  Dependencies are read
+from each package's Package-Requires header; URLs are entered at the prompt."
+    (interactive (list (read-string "Package name: ")
+                       (read-string "Git URL: ")))
+    (let ((added '())
+          (queue (list (cons name url))))
+      (while queue
+        (pcase-let ((`(,n . ,u) (pop queue)))
+          (unless (aero/borg-drone-present-p n)
+            (borg-assimilate n u t)
+            (push n added))
+          (dolist (req (aero/borg-package-requires n))
+            (let ((dep (symbol-name (car req))))
+              (when (and (eq (aero/borg-dep-status (car req)) 'missing)
+                         (not (assoc dep queue))
+                         (not (member dep added)))
+                (if (y-or-n-p (format "`%s' needs missing dependency `%s'.  Assimilate it too? "
+                                      n dep))
+                    (push (cons dep (read-string (format "Git URL for %s: " dep))) queue)
+                  (message "Skipping `%s'; the build may fail until it is assimilated." dep)))))))
+      (with-current-buffer (get-buffer-create (format "*borg-assimilate: %s*" name))
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Assimilation report for `%s'\n\n" name))
+          (insert "Added this run (source on disk, NOT yet built):\n")
+          (if added
+              (dolist (a (reverse added))
+                (insert (format "  + %-22s %s\n" a (borg-worktree a))))
+            (insert "  (none -- already present)\n"))
+          (insert (format "\nDependency tree for `%s':\n" name))
+          (aero/borg--insert-deps name added)
+          (insert "\nNothing has run yet. Inspect the source above before continuing.\n")
+          (goto-char (point-min))
+          (special-mode))
+        (display-buffer (current-buffer)))
+      (if (yes-or-no-p "Source is on disk; nothing has run. Build and activate now? ")
+          (dolist (a (reverse added)) (borg-build a t))
+        (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
+                 (length added)))))
+#+END_SRC
+
 ** Straight.el
 straight.el is managed as a vendored git submodule at =lib/straight.el= tracking the default branch. Since the submodule is pinned to an explicit commit, the branch is mostly advisory; updates happen by advancing the submodule pointer, not by running straight's own update commands.
 
@@ -919,6 +1098,10 @@ Example:
   within Emacs while :local should be used for user packages which exist locally. :local packages may
   require a :load-path for `use-package' to load properly.
 
+  If the RECIPE is :borg, the package is a Borg drone (a git submodule under lib/drones/). Borg has
+  already set up its load path and autoloads during init, so only BODY is passed to `use-package'. If
+  the drone is not checked out on this machine, a warning is issued rather than failing.
+
   If the BODY contains the keyword :disabled, the package is completely ignored, with an expansion
   indicating the package has been disabled.
 
@@ -945,6 +1128,15 @@ Example:
 
      ((equal recipe :localpackage)
       `(use-package ,package :straight nil :load-path "lib/localpackages" ,@body))
+
+     ;; Borg drone: configure an already-assimilated submodule. Borg has set up the load path and
+     ;; autoloads during init, so this only hands BODY to `use-package'. If the drone is not checked
+     ;; out on this machine, warn rather than fail. Assimilation is a separate, explicit act, never
+     ;; something this macro does at load time.
+     ((equal recipe :borg)
+      `(if (aero/borg-drone-present-p ,(symbol-name package))
+           (use-package ,package :straight nil ,@body)
+         (aero/borg-warn-unassimilated ,(symbol-name package))))
 
      ;; Use straight
      (t
