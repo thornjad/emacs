@@ -38,7 +38,6 @@
  ("evil" . "c222ce1ea6fbefaed08308c061371ebdf01b078f")
  ("evil-collection" . "8fb2f037b890b84ac4bf35f3acb6c74a4c826acd")
  ("evil-matchit" . "8a94e56bd2987c6d0c1a85fbf189f9a86e623cde")
- ("evil-org-mode" . "b1f309726b1326e1a103742524ec331789f2bf94")
  ("exec-path-from-shell" . "4896a797252fbfdac32fb77508500ac7d220f717")
  ("f.el" . "931b6d0667fe03e7bf1c6c282d6d8d7006143c52")
  ("flymake-mypy" . "1fd2005a15afcfdc7c3ae932335846d704009225")

@@ -8,3 +8,7 @@
 	path = lib/borg
 	url = https://github.com/emacscollective/borg.git
 	ignore = untracked
+[submodule "evil-org-mode"]
+	path = lib/drones/evil-org-mode
+	url = https://github.com/Somelauw/evil-org-mode.git
+	ignore = untracked
