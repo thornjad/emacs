@@ -2146,8 +2146,18 @@ Linux only needs some functionality enabled.
   (defvar x-gtk-use-system-tooltips)
 
   (when (system-is-linux)
+    (when (executable-find "wl-copy")
+      (setq interprogram-cut-function
+            (lambda (text)
+              (let ((process-connection-type nil))
+                (let ((proc (start-process "wl-copy" nil "wl-copy")))
+                  (process-send-string proc text)
+                  (process-send-eof proc))))
+            interprogram-paste-function
+            (lambda ()
+              (let ((text (shell-command-to-string "wl-paste --no-newline 2>/dev/null")))
+                (unless (string= text "") text)))))
     (setq select-enable-clipboard t
-          interprogram-paste-function #'gui-selection-value
           x-gtk-use-system-tooltips t
           dired-listing-switches "-lFaGh1v --group-directories-first"))
 #+END_SRC
