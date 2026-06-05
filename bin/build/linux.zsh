@@ -41,13 +41,16 @@ cd "$WORK_DIR"
 
 sudo apt update || { echo "AERO --- Failed to update apt"; exit 1; }
 
+GCC_VERSION=$(gcc -dumpversion | cut -d. -f1)
+MULTIARCH=$(gcc -print-multiarch)
+
 libs=(
   autoconf
   build-essential
   git
   gnutls-bin
   libgccjit0
-  libgccjit-13-dev
+  libgccjit${GCC_VERSION}-dev
   libgif-dev
   libglib2.0-dev
   libgnutls30
@@ -94,7 +97,7 @@ pwd
 # --without-pop: disables pop support, which is insecure and unused
 # CFLAGS: enables CPU optimizations, using native architecture
 
-export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+export PKG_CONFIG_PATH=/usr/lib/${MULTIARCH}/pkgconfig:/usr/share/pkgconfig
 ./autogen.sh && ./configure --with-native-compilation=aot --with-json --with-threads --with-compress-install --with-modules --with-tree-sitter --with-gnutls=ifavailable --without-mailutils --without-pop CFLAGS="-O3 -mtune=native -march=native -fomit-frame-pointer"
 
 if [[ $? -ne 0 ]]; then

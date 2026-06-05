@@ -4,11 +4,11 @@
 EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
-macos: upgrade-emacs-macos init precompile
+macos: sync upgrade-emacs-macos init precompile
 	@echo "Installed"
 
-linux: build-emacs-linux install-linux
-	@echo "Installed, run make init to install dependencies, and make clear-straight-build to rebuild all packages on next start"
+linux: sync build-emacs-linux install-linux init
+	@echo "Installed, and make clear-straight-build to rebuild all packages on next start"
 
 # required, emacs-plus handles the actual Emacs dependencies
 macos-reqs:
@@ -113,10 +113,8 @@ install-deps: lsp-booster graphviz install-npm install-aspell
 	brew install node ripgrep pngpaste
 	gem install bundler prettier_print syntax_tree syntax_tree-haml syntax_tree-rbs && npm i -g prettier @prettier/plugin-ruby || true
 
-	pip install python-lsp-server pyls-mypy pyls-black pyls-isort mypy ruff black "ptvsd>=4.2" jedhy || true
+	pip install python-lsp-server pyls-mypy mypy ruff black "ptvsd>=4.2" || true
 
-	rustup component add rls rust-analysis rust-src || true
-	brew install clojure-lsp/brew/clojure-lsp-native || true
 	brew install cmake
 
 install-npm:
