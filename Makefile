@@ -110,7 +110,9 @@ install-aspell:
 	brew install aspell
 
 install-deps: lsp-booster graphviz install-npm install-aspell
-	brew install node ripgrep pngpaste
+	brew install node ripgrep
+	if [ "$$(uname)" = "Darwin" ]; then brew install pngpaste; fi
+	if [ "$$(uname)" = "Linux" ]; then sudo apt install -y wl-clipboard; fi
 	gem install bundler prettier_print syntax_tree syntax_tree-haml syntax_tree-rbs && npm i -g prettier @prettier/plugin-ruby || true
 
 	pip install python-lsp-server pyls-mypy mypy ruff black "ptvsd>=4.2" || true
