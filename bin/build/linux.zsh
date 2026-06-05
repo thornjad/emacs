@@ -50,7 +50,7 @@ libs=(
   git
   gnutls-bin
   libgccjit0
-  libgccjit${GCC_VERSION}-dev
+  libgccjit-${GCC_VERSION}-dev
   libgif-dev
   libglib2.0-dev
   libgnutls30
