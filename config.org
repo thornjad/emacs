@@ -5478,6 +5478,8 @@ Syntax highlighting for HTML pre tags
 * Elfeed
 Simple RSS reader
 
+=url-queue-timeout= controls how long an image fetch can sit in the async queue before being silently dropped. The default of 5 seconds is too short when an entry has several images and other fetches are already in flight — later images get evicted before they even start. 30 seconds gives enough headroom without letting truly broken requests linger indefinitely.
+
 #+BEGIN_SRC emacs-lisp :lexical t
   (package! elfeed :auto
     :commands (elfeed elfeed-db-compact)
@@ -5487,6 +5489,7 @@ Simple RSS reader
     (elfeed-db-directory aero/thornlog-elfeed-directory)
     (elfeed-search-filter "+unread")
     (elfeed-sort-order 'ascending)
+    (url-queue-timeout 30)
     :config
     (evil-set-initial-state 'elfeed-search-mode 'normal)
     (evil-set-initial-state 'elfeed-show-mode 'normal))
