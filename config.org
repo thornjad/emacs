@@ -5339,6 +5339,10 @@ equivalent to the list containing 16."
   (defun aero/eww-setup-heading-nav ()
     "Wire up imenu heading navigation for eww buffers."
     (setq-local imenu-create-index-function #'aero/eww-imenu-headings))
+
+  (defun aero/eww-disable-scroll-margin ()
+    "Disable scroll-margin in eww buffers."
+    (setq-local scroll-margin 0))
 #+END_SRC
 
 =consult-outline= relies on =outline-regexp=, which eww buffers never configure — so =SPC j o= finds nothing useful there. The shr renderer does, however, apply faces like =shr-h1= through =shr-h6= to the text it produces for HTML headings. We exploit that by providing a custom =imenu-create-index-function= that walks the buffer line by line and collects any line whose text properties include a heading face.
@@ -5353,7 +5357,7 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
     :commands (eww eww-browse-url eww-search-words browse-url-at-point)
     :hook ((eww-mode . visual-line-mode)
            (eww-mode . aero/eww-setup-heading-nav)
-           (eww-mode . (lambda () (setq-local scroll-margin 0)))
+           (eww-mode . aero/eww-disable-scroll-margin)
            (eww-after-render . aero/set-eww-buffer-title))
 
     :custom
@@ -5481,9 +5485,14 @@ Simple RSS reader
 =url-queue-timeout= controls how long an image fetch can sit in the async queue before being silently dropped. The default of 5 seconds is too short when an entry has several images and other fetches are already in flight — later images get evicted before they even start. 30 seconds gives enough headroom without letting truly broken requests linger indefinitely.
 
 #+BEGIN_SRC emacs-lisp :lexical t
+  (defun aero/elfeed-show-disable-scroll-margin ()
+    "Disable scroll-margin in elfeed entry buffers."
+    (setq-local scroll-margin 0))
+
   (package! elfeed :auto
     :commands (elfeed elfeed-db-compact)
     :after (general evil)
+    :hook (elfeed-show-mode . aero/elfeed-show-disable-scroll-margin)
     :custom
     (elfeed-search-title-max-width 120)
     (elfeed-db-directory aero/thornlog-elfeed-directory)
