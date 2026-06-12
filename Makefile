@@ -80,6 +80,9 @@ sync:
 	git pull --recurse-submodules
 	git submodule update --init --recursive
 
+.PHONY: borg
+borg: sync borg-config borg-autoloads
+
 # repo-local git config for a comfortable submodule/drone workflow
 borg-config:
 	git config submodule.recurse true
@@ -93,7 +96,7 @@ borg-autoloads:
 		--eval "(setq borg-drones-directory (expand-file-name \"lib/drones\"))" \
 		--eval "(borg-do-drones (d) (borg-update-autoloads d))"
 
-init: nongnu-elpa install-deps submodule borg-config borg-autoloads
+init: nongnu-elpa install-deps submodule borg
 
 clear-straight:
 	rm -rf ./straight/

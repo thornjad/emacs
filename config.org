@@ -1956,6 +1956,7 @@ Truncates long names to keep tab bar manageable."
 
     (setq tab-bar-tab-name-function #'aero/tab-bar-tab-name-function)
 
+    (global-set-key (kbd "s-t") #'tab-new)
     (global-set-key (kbd "s-1") (lambda () (interactive) (tab-bar-select-tab 1)))
     (global-set-key (kbd "s-2") (lambda () (interactive) (tab-bar-select-tab 2)))
     (global-set-key (kbd "s-3") (lambda () (interactive) (tab-bar-select-tab 3)))
