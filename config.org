@@ -1929,6 +1929,8 @@ Tab bar mode provides workspace-like tabs in Emacs. Use Command-1 through Comman
 
 Tab Bar mode is not enabled by default since we don't always want it. Call =tab-bar-mode= when you want to start using tabs.
 
+The =s-1= through =s-9= bindings jump to a tab by position, and =s-t= opens a new tab, mirroring the macOS Command-T convention and the =SPC T c= leader binding.
+
 #+BEGIN_SRC emacs-lisp :lexical t
     (setq tab-bar-tab-hints t)
     (setq tab-bar-separator "  ")
@@ -6151,7 +6153,6 @@ Disable idiotic Super keybindings. These are defined in =ns-win.el=. In my view,
   (global-unset-key (kbd "s-n"))
   (global-unset-key (kbd "s-o"))
   (global-unset-key (kbd "s-q"))
-  (global-unset-key (kbd "s-t"))
   (global-unset-key (kbd "s-u"))
   (global-unset-key (kbd "s-w"))
 #+END_SRC
