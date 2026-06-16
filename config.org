@@ -3691,6 +3691,7 @@ Now for the actual package configuration. This is a long one, so I've made a lot
 
     (org-hide-leading-stars t)
     (org-pretty-entities t)
+    (org-use-sub-superscripts '{}) ; only treat _{x}/^{x} as sub/superscript, not bare a_b
     (org-indent-mode-turns-on-hiding-stars nil) ; why would this even exist??
     (org-fontify-quote-and-verse-blocks t)
     (org-insert-heading-respect-content t) ; insert headings after current subtree
