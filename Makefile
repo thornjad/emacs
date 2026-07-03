@@ -14,7 +14,7 @@ linux: sync build-emacs-linux install-linux init
 macos-reqs:
 	brew update
 	brew install coreutils git-delta tree-sitter git-lfs
-	git lfs install --system
+	git lfs install --system --skip-repo
 	brew tap d12frosted/emacs-plus
 
 build-emacs-cask-stable: macos-reqs
