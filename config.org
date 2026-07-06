@@ -1348,6 +1348,7 @@ From there, we set up all the main keybindings.
      "br" '(revert-buffer-quick :wk "buffer revert")
      "bR" '(aero/reopen-file-at-buffer :wk "buffer replace")
      "bw" '(whitespace-mode :wk "whitespace")
+     "bW" '(delete-trailing-whitespace :wk "whitespace trim")
      "bx" 'kill-buffer-and-window
 
      "n" '(:ignore t :wk "narrow")
