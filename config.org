@@ -3734,8 +3734,8 @@ Now for the actual package configuration. This is a long one, so I've made a lot
         :empty-lines 1)))
 
     (org-todo-keywords
-     '((sequence "TODO(t)" "WAITING(w!)" "BLOCKED(b!)" "BACKLOG(l!)" "|" "DONE(d!)" "REMOVED(k)")
-       (sequence "TICKET(T)" "PR(p!)" "|" "DONE(d!)" "CLOSED(x)")
+     '((sequence "TODO(t)" "WAITING(w!)" "INPROGRESS(p!)" "BLOCKED(b!)" "BACKLOG(l!)" "|" "DONE(d!)" "REMOVED(k)")
+       (sequence "TICKET(T)" "PR(P)" "|" "DONE(d!)" "CLOSED(x)")
        (sequence "REVIEW(r)" "WAITING(w!)" "BLOCKED(b!)" "|" "DONE(d!)" "CLOSED(x)")))
 
     (org-use-fast-todo-selection 'expert) ; don't fuck up the window layout
@@ -4006,7 +4006,16 @@ Both attributes come from the active theme."
         (org-indent-mode 1)))
 
     (add-hook 'before-revert-hook #'aero/org-suspend-indent-before-revert)
-    (add-hook 'after-revert-hook #'aero/org-restore-indent-after-revert))
+    (add-hook 'after-revert-hook #'aero/org-restore-indent-after-revert)
+
+    ;; auto-revert todo.org silently when the MCP server or any external process writes it;
+    ;; auto-revert-mode only reloads when the buffer has no local modifications, so the
+    ;; "do you want to reload?" prompt disappears without risk of clobbering edits in flight
+    (defun aero/auto-revert-todo ()
+      (when (and buffer-file-name
+                 (string-suffix-p "todo.org" buffer-file-name))
+        (auto-revert-mode 1)))
+    (add-hook 'org-mode-hook #'aero/auto-revert-todo))
 #+END_SRC
 
 ** Org-appear
@@ -4137,6 +4146,7 @@ The workhorse of my task management. This package allows me to group tasks in th
        (:name "Support" :tag "support")
        (:name "Waiting/blocked" :todo ("WAITING" "BLOCKED"))
        (:name "Past due" :and (:deadline past :not (:todo ("WAITING" "BLOCKED"))))
+       (:name "In Progress" :todo "INPROGRESS")
        (:name "Due today" :and (:deadline today :not (:todo ("WAITING" "BLOCKED"))))
        (:name "PRs" :and (:tag "ticket" :todo "PR"))
        (:name "Tickets" :todo ("TICKET") :tag "ticket")
