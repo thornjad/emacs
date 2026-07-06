@@ -1218,7 +1218,8 @@ We only really need this in MacOS, grabbing environment variables from the defau
     (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO"
                    "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH"
                    "MANPATH" "INFOPATH" "HOMEBREW_PREFIX"
-                   "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"))
+                   "HOMEBREW_CELLAR" "HOMEBREW_REPOSITORY"
+                   "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"))
       (add-to-list 'exec-path-from-shell-variables var))
     (exec-path-from-shell-initialize))
 #+END_SRC

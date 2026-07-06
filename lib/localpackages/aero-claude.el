@@ -236,7 +236,7 @@ Uses pngpaste on macOS to extract the image from the system clipboard."
          (buf-name (generate-new-buffer-name
                     (format "*claude-code[%s]*" project-name)))
          (default-directory root)
-         (vterm-shell "claude")
+         (vterm-shell "env CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude")
          (vterm-buffer-name buf-name))
     (vterm buf-name)
     (aero/claude--configure-buffer)
