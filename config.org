@@ -1253,11 +1253,13 @@ From there, we set up all the main keybindings.
 
     (general-create-definer aero-leader-def
       :states '(normal visual emacs motion)
+      :keymaps 'override
       :prefix "SPC"
       :non-normal-prefix "C-SPC")
 
     (general-create-definer aero-mode-leader-def
       :states '(normal visual emacs motion)
+      :keymaps 'override
       :prefix "SPC ,")
 
     :config
