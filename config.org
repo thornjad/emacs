@@ -3695,6 +3695,15 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     ;; by aero/org-suspend-indent-before-revert below)
     (org-element-cache-persistent nil)
 
+    ;; disable the element cache entirely. agenda files get rewritten
+    ;; out-of-band (Syncthing, org-roam, automated routines), which desyncs
+    ;; the cache from the buffer; on this Emacs build that desync makes
+    ;; org-element storm warnings instead of reparsing, pegging a core in
+    ;; unbreakable C-level GC until memory runs out (seen twice: Jun 2026,
+    ;; Jul 2026). Nothing here depends on the cache's speed -- org-roam uses
+    ;; its own SQLite DB, and reparsing these files is sub-second anyway.
+    (org-element-use-cache nil)
+
     (org-hide-leading-stars t)
     (org-pretty-entities t)
     (org-use-sub-superscripts '{}) ; only treat _{x}/^{x} as sub/superscript, not bare a_b
