@@ -144,6 +144,8 @@ lsp-booster:
 # Works on fresh installs: sets up recipe repos, tangles config, bootstraps straight.el, installs packages, then compiles
 .PHONY: precompile
 precompile: precompile-setup-repos precompile-tangle
+	@echo "Pruning stale straight.el build symlinks..."
+	@find ~/.config/emacs/straight/build -xtype l -delete 2>/dev/null || true
 	@echo "Loading configuration and installing packages (this may take several minutes)..."
 	@/Applications/Emacs.app/Contents/MacOS/Emacs --batch \
 		--eval "(setq native-comp-async-report-warnings-errors 'silent)" \
