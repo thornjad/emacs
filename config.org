@@ -3744,6 +3744,10 @@ Now for the actual package configuration. This is a long one, so I've made a lot
          ,(expand-file-name "school_todo.org" aero/roam-path)
          "Tasks")
         "* TODO [#B] %?\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n\n"
+        :empty-lines 1)
+       ("w" "Web capture (org-protocol)" entry
+        (file ,(expand-file-name "todo.org" aero/roam-path))
+        "* TODO [#E] Read: [[%:link][%:description]] :firefox_capture:\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n%?"
         :empty-lines 1)))
 
     (org-todo-keywords
@@ -4029,6 +4033,15 @@ Both attributes come from the active theme."
                  (string-suffix-p "todo.org" buffer-file-name))
         (auto-revert-mode 1)))
     (add-hook 'org-mode-hook #'aero/auto-revert-todo))
+#+END_SRC
+
+** Org-protocol
+Handles capture requests coming in via the =org-protocol://= URL scheme. A Firefox bookmarklet and a small macOS app forward the current page's link and title to Emacs, which pre-fills an org-capture buffer (the "w" template above) without needing to restart Emacs.
+
+#+BEGIN_SRC emacs-lisp :lexical t
+  (package! org-protocol :builtin
+    :config
+    (setopt org-protocol-default-template-key "w"))
 #+END_SRC
 
 ** Org-appear
