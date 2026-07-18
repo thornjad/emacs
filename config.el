@@ -1,4 +1,5 @@
 ;;; config.el --- Thornjad's Emacs Configuration -*- lexical-binding: t; -*-
+
 ;;
 ;; Copyright (c) 2016-2026 Jade Michael Thornton
 ;;
@@ -15,6 +16,7 @@
 ;; performance of this software.
 ;;
 ;;; Commentary:
+
 ;;
 ;; Here lives Thornjad's Emacs configuration. There are many like it, but this
 ;; one is mine. Blending all the best shit I can find, making a conscious
@@ -24,6 +26,7 @@
 
 
 ;;; Introduction
+
 ;; Here lives my own configuration for GNU Emacs, blending all the best shit I
 ;; can find, making a conscious effort for speed, robustness and above all,
 ;; skillfulness. There are many like it, but this one is mine.
@@ -41,102 +44,107 @@
 ;; AI.
 
 ;; To get started with Emacs, I highly recommend the distribution responsible
-;; for hooking me in: [[https://spacemacs.org][Spacemacs]].
+;; for hooking me in: Spacemacs (https://spacemacs.org).
 
 ;; "An infinite number of monkeys typing into GNU Emacs would never make a good
 ;; program." — Linus Torvalds
 
 ;; When I first started using Emacs, I took full advantage of Spacemacs, so the
 ;; architecture of that project has shaped the way I think about editing. As
-;; such, the majority of the config revolves around a single leader key, =SPC=.
-;; For example, =SPC SPC= is the same as =M-x=, =SPC f w= (for file write) saves
+;; such, the majority of the config revolves around a single leader key, `SPC`.
+;; For example, `SPC SPC` is the same as `M-x`, `SPC f w` (for file write) saves
 ;; the buffer to disk.
 
-;; For everything else, this config makes extensive use of
-;; [[https://github.com/emacs-evil/evil][Evil]], providing the user with
+;; For everything else, this config makes extensive use of Evil
+;; (https://github.com/emacs-evil/evil), providing the user with
 ;; modifier-key-free modal editing, though the majority of Emacs bindings remain
 ;; available. Emacs keybindings belong in the dark ages where they originated.
-;; They might work for RMS, but I can only hold =CTRL= for so long.
+;; They might work for RMS, but I can only hold `CTRL` for so long.
 
-;; My config uses my [[https://github.com/thornjad/aero-theme][aero-theme]],
-;; which pulls loose inspiration from the
-;; [[https://github.com/11111000000/tao-theme-emacs][Tao themes]] and colors
-;; inspired by northern Minnesota in Autumn. The theme package also contains
-;; =aero-dark=, which incorporates further inspiration from my own
-;; [[https://github.com/ClearNight/clearnight-retro-syntax][ClearNight Retro]]
-;; theme for [[https://atom.io][Atom]] (may it rest in peace).
+;; My config uses my aero-theme (https://github.com/thornjad/aero-theme), which
+;; pulls loose inspiration from the Tao themes
+;; (https://github.com/11111000000/tao-theme-emacs) and colors inspired by
+;; northern Minnesota in Autumn. The theme package also contains `aero-dark`,
+;; which incorporates further inspiration from my own ClearNight Retro
+;; (https://github.com/ClearNight/clearnight-retro-syntax) theme for Atom
+;; (https://atom.io) (may it rest in peace).
 
 ;; Within this config, you'll also find a custom improved mode line which works
-;; with any theme (though it looks great with =aero-light= and =aero-dark=).
+;; with any theme (though it looks great with `aero-light` and `aero-dark`).
 ;; Rather than getting cluttered with info from every mode under the sun, the
 ;; Aero mode line displays the current editing mode, file status (changed,
 ;; saved, locked), filename, file size, line number at point, progression
 ;; through the file (percentage), the remote hostname (if using TRAMP) and the
 ;; current major mode.
 
-;; If you found this useful, [[https://buymeacoffee.com/jademichaelthornton][buy
-;; me a coffee!]]
+;; If you found this useful, buy me a coffee!
+;; (https://buymeacoffee.com/jademichaelthornton)
 
 ;;;; Installation
-;; Clone this repo into your =~/.config/emacs= and run =make init=. The make
+
+;; Clone this repo into your `~/.config/emacs` and run `make init`. The make
 ;; command will install dependencies needed for LSP servers, using any tools
-;; already available on the system (e.g. it will not error if =opam= isn't
+;; already available on the system (e.g. it will not error if `opam` isn't
 ;; installed), as well as some small dependencies. It will also set up and
 ;; update some submodules.
 
 ;; Upon starting up Emacs for the first time, further third-party packages will
-;; automatically download and install via =straight.el=. Subsequent startups
+;; automatically download and install via `straight.el`. Subsequent startups
 ;; should take one or two seconds. If you encounter any errors at this stage,
 ;; try restarting Emacs and/or opening a bug.
 
 ;;;;; Emacs installation using included build scripts
+
 ;; My configuration includes some convenient scripting to install Emacs on Linux
 ;; and Mac, with both a stable and cutting-edge version supported for Mac.
 
 ;;;;;; Installing Emacs on Linux
-;; The =make linux= target will call =linux.zsh=, which installs requirements,
+
+;; The `make linux` target will call `linux.zsh`, which installs requirements,
 ;; configures, builds and installs the latest version of Emacs.
 
 ;;;;;; Installing Emacs on MacOS
+
 ;; Unlike Linux, installing and running Emacs on MacOS can be flaky, so several
 ;; installation options are provided. Use the one that works best on your
 ;; machine.
 
-;; - =make build-emacs-macos=: This is the preferred option, installing the
-;; development version of Emacs with native compilation and XWidgets support.
-;; - =make build-emacs-macos-stable=: A fallback option, installing the mainline
-;; release version of Emacs, with native compilation and XWidgets support.
-;; - =make build-emacs-macos-minimal=: Same as =build-emacs-macos= but without
-;; native compilation.
-;; - =make build-emacs-macos-stable-minimal=: Same as =build-emacs-macos-stable=
-;; but without native compilation.
-;; - =make build-emacs-cask=: Install the standard Homebrew Cask =emacs-nightly=
+;; - `make build-emacs-macos`: This is the preferred option, installing the
+;; development version of Emacs with native compilation and XWidgets support. -
+;; `make build-emacs-macos-stable`: A fallback option, installing the mainline
+;; release version of Emacs, with native compilation and XWidgets support. -
+;; `make build-emacs-macos-minimal`: Same as `build-emacs-macos` but without
+;; native compilation. - `make build-emacs-macos-stable-minimal`: Same as
+;; `build-emacs-macos-stable` but without native compilation. - `make
+;; build-emacs-cask`: Install the standard Homebrew Cask `emacs-nightly`
 ;; package, still cutting-edge but should be more stable than the previous
-;; options.
-;; - =make build-emacs-cask-stable=: The final fallback, the standard Homebrew
-;; Cask =emacs= package.
+;; options. - `make build-emacs-cask-stable`: The final fallback, the standard
+;; Homebrew Cask `emacs` package.
 
 ;;;; Local configuration
+
 ;; Your environment may require specific configuration, such as secret keys,
 ;; environment variables, or work-specific functions, which should not appear in
-;; a git repository. My config features the ability to read an =init.local.el=
-;; when it exists in the same directory as the =init.el=. This local file may
+;; a git repository. My config features the ability to read an `init.local.el`
+;; when it exists in the same directory as the `init.el`. This local file may
 ;; contain arbitrary Elisp, which is executed after everything else.
 
 ;;;; Credits and acknowledgements
+
 ;; Like the Borg, my config amalgamates macros, functions, bindings and packages
 ;; modified from or inspired by a plethora of developers. Special thanks to
 ;; these fantastic people, with links to the invaluable resource they provide:
 
-;; - [[https://github.com/sachac/.emacs.d][Sacha Chua]]
-;; - [[https://svn.red-bean.com/repos/kfogel/trunk/.emacs][Karl Fogel]]
-;; - [[https://github.com/Wilfred/.emacs.d][Wilfred Hughes]]
-;; - [[https://github.com/jwiegley/dot-emacs][John Wiegley]]
-;; - [[https://github.com/purcell/emacs.d][Steve Purcell]]
-;; - [[https://github.com/sam217pa/emacs-config][Samuel Barreto]]
+;; - Sacha Chua (https://github.com/sachac/.emacs.d) - Karl Fogel
+;; (https://svn.red-bean.com/repos/kfogel/trunk/.emacs) - Wilfred Hughes
+;; (https://github.com/Wilfred/.emacs.d) - John Wiegley
+;; (https://github.com/jwiegley/dot-emacs) - Steve Purcell
+;; (https://github.com/purcell/emacs.d) - Samuel Barreto
+;; (https://github.com/sam217pa/emacs-config)
 
 
 ;;; Directory constants
+
 ;; These define some locations that we can reference later
 
 (defconst aero-lib-dir (expand-file-name "lib/" user-emacs-directory))
@@ -148,7 +156,7 @@
 
 ;; We also need to set up locations for org-roam and thornlog. Thornlog is a
 ;; custom daily logging and note-taking system, using org-roam. Check out the
-;; [[Thornlog]] section for more.
+;; Thornlog section for more.
 
 (defconst aero/documents-path (expand-file-name "~/Documents/"))
 (defconst aero/thornlog-path (expand-file-name "thornlog/" aero/documents-path))
@@ -160,11 +168,13 @@
 
 
 ;;; Builtin requires
+
 (require 'cl-lib)
 (require 'subr-x)
 
 
 ;;; Disable custom system
+
 ;; I strongly prefer setting up customization with this very config file, so
 ;; make sure nothing happens if I accidentally customize a variable. This will
 ;; write customizations to a file that is never loaded, effectively disabling
@@ -176,6 +186,7 @@
 ;;; Define Library functions
 
 ;;;; Advice
+
 ;; Also kill excess whitespace when joining lines.
 (defun aero/kill-line-autoreindent ()
   "Kill excess whitespace when joining lines.
@@ -219,6 +230,7 @@ whitespace in front of the next line."
 (advice-add 'kill-buffer :around #'aero/kill-buffer-around-advice)
 
 ;;;; Utilities
+
 (defun aero/keyboard-quit-context ()
   "Quit current context.
 
@@ -273,6 +285,7 @@ avoiding the weird single-line behavior of `comment-dwim'."
   `(and ,@body))
 
 ;;;; System and logging
+
 (defun system-is-mac () (string= system-type 'darwin))
 (defun system-is-linux () (string= system-type 'gnu/linux))
 (defun system-is-mswindows () (string= system-type 'windows-nt))
@@ -288,6 +301,7 @@ avoiding the weird single-line behavior of `comment-dwim'."
   (and (functionp 'treesit-available-p) (treesit-available-p)))
 
 ;;;;; Change font size (zoom in and out)
+
 ;; Especially useful when screen sharing, Google Meet in particular really makes
 ;; things blurry.
 
@@ -302,11 +316,12 @@ avoiding the weird single-line behavior of `comment-dwim'."
 (global-set-key (kbd "C-+") 'aero/increase-font-size)
 (global-set-key (kbd "C--") 'aero/decrease-font-size)
 
-;; Also allow =C-==, just to be less annoying since that's just + without shift
+;; Also allow `C-=`, just to be less annoying since that's just + without shift
 
 (global-set-key (kbd "C-=") 'aero/increase-font-size)
 
 ;;;; Buffers, windows, frames, tabs
+
 ;; A collection of helpers for managing windows and buffers
 (defun aero/switch-to-minibuffer-window ()
   "switch to minibuffer window (if active)"
@@ -431,6 +446,7 @@ avoiding the weird single-line behavior of `comment-dwim'."
 ;;;; Files
 
 ;;;;; Reopen file at buffer
+
 ;; It's occasionally useful to "restart" the current buffer. To my current
 ;; knowledge this isn't a builtin functionality, so I have my own function.
 (defun aero/reopen-file-at-buffer ()
@@ -460,6 +476,7 @@ avoiding the weird single-line behavior of `comment-dwim'."
     (recenter)))
 
 ;;;;; Other file helpers
+
 (defun aero/insert-org-date ()
   "Insert current date."
   (interactive)
@@ -616,6 +633,7 @@ instead."
   (aero/xdg-open url))
 
 ;;;; Et cetera
+
 ;; written by github user rompy
 (defun aero/smarter-backward-kill-word ()
   "Deletes the previous word, respecting:
@@ -813,16 +831,18 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 ;;; Packaging setup
 
 ;;;; GnuTLS
-;; Evaluate =gnutls= and disallow TLS connections
+
+;; Evaluate `gnutls` and disallow TLS connections
 
 (with-eval-after-load 'gnutls
   (eval-when-compile (require 'gnutls))
   (setq gnutls-verify-error t)) ; Do not allow insecure TLS connections.
 
 ;;;; Borg
+
 ;; Borg is being introduced alongside straight as the long-term replacement for
 ;; package management. It manages each package as a git submodule (a "drone")
-;; under =lib/drones/=, which means every package is pinned to an explicit
+;; under `lib/drones/`, which means every package is pinned to an explicit
 ;; commit, updates show up as reviewable submodule-pointer diffs in git history,
 ;; and there is no network access or remote code evaluation at init time. This
 ;; directly addresses the largest security gap in this configuration, which is
@@ -830,32 +850,32 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 ;; coexist, with each package owned by exactly one of them, and packages move
 ;; over one at a time.
 
-;; Borg is itself vendored as a submodule at =lib/borg=, so it is added to the
+;; Borg is itself vendored as a submodule at `lib/borg`, so it is added to the
 ;; load path and required directly rather than bootstrapped from the network.
 ;; Its only load-time dependencies are built-in Emacs libraries.
 
 (add-to-list 'load-path (expand-file-name "lib/borg" user-emacs-directory))
 (require 'borg)
 
-;; Borg derives =borg-drones-directory= from its own location, which would
-;; default to =lib/= and sweep in the non-drone submodules =lib/aero-theme=,
-;; =lib/straight.el=, and =lib/borg= itself. We instead keep drones in a
-;; dedicated =lib/drones/= subdirectory. This is set with =setq= rather than the
-;; =borg.drones-directory= git variable because git config lives in
-;; =.git/config= and does not sync across machines, whereas this configuration
+;; Borg derives `borg-drones-directory` from its own location, which would
+;; default to `lib/` and sweep in the non-drone submodules `lib/aero-theme`,
+;; `lib/straight.el`, and `lib/borg` itself. We instead keep drones in a
+;; dedicated `lib/drones/` subdirectory. This is set with `setq` rather than the
+;; `borg.drones-directory` git variable because git config lives in
+;; `.git/config` and does not sync across machines, whereas this configuration
 ;; does. Borg's other derived locations are computed from the repository root,
 ;; not the drones directory, so they remain correct after this override.
 
 (setq borg-drones-directory (expand-file-name "lib/drones" user-emacs-directory))
 
-;; These helpers support the =:borg= recipe in the =package!= macro and the
-;; startup self-heal below. =aero/borg-drone-names= deliberately uses
-;; =borg-do-drones=, which filters submodules by the drones-directory path
-;; prefix; the bare =borg-drones= function strips a fixed prefix length from
+;; These helpers support the `:borg` recipe in the `package!` macro and the
+;; startup self-heal below. `aero/borg-drone-names` deliberately uses
+;; `borg-do-drones`, which filters submodules by the drones-directory path
+;; prefix; the bare `borg-drones` function strips a fixed prefix length from
 ;; every submodule without filtering and would mangle the non-drone submodules.
-;; =aero/borg-drone-present-p= reports whether a drone's source is actually
-;; checked out on this machine, and =aero/borg-drone-autoloads-p= whether its
-;; autoloads have been generated. =aero/borg-warn-unassimilated= surfaces a
+;; `aero/borg-drone-present-p` reports whether a drone's source is actually
+;; checked out on this machine, and `aero/borg-drone-autoloads-p` whether its
+;; autoloads have been generated. `aero/borg-warn-unassimilated` surfaces a
 ;; non-fatal warning when a declared drone has not been fetched, rather than
 ;; failing init.
 (defun aero/borg-drone-names ()
@@ -885,16 +905,16 @@ submodules outside `borg-drones-directory'."
            name)
    :warning))
 
-;; Borg owns autoloads; =compile-angel= owns compilation. The self-heal below
+;; Borg owns autoloads; `compile-angel` owns compilation. The self-heal below
 ;; generates autoloads for any present drone that lacks them, which is
 ;; dependency-free and therefore safe regardless of load order. It deliberately
 ;; does not byte-compile, because compiling a drone before its dependencies are
 ;; loaded would silently miscompile macro calls. Byte and native compilation are
-;; left to =compile-angel= and the native-comp JIT, which compile each drone's
-;; source on first load, by which point =use-package='s =:after= and =:hook=
+;; left to `compile-angel` and the native-comp JIT, which compile each drone's
+;; source on first load, by which point `use-package`'s `:after` and `:hook`
 ;; deferral guarantees the drone's dependencies are present. This also means a
 ;; machine that has pulled new drone source but not yet built it heals itself on
-;; the next startup, with no network access. Finally =borg-initialize= activates
+;; the next startup, with no network access. Finally `borg-initialize` activates
 ;; every present, non-disabled drone by adding it to the load path and loading
 ;; its autoloads.
 
@@ -905,15 +925,15 @@ submodules outside `borg-drones-directory'."
 (borg-initialize)
 
 ;; Borg assumes every submodule is a drone living directly under
-;; =borg-drones-directory=. The no-argument form of =borg-drones= relies on that
+;; `borg-drones-directory`. The no-argument form of `borg-drones` relies on that
 ;; assumption: it strips a fixed prefix length from every submodule path without
-;; filtering, so in this configuration, where =lib/borg=, =lib/aero-theme=, and
-;; =lib/straight.el= are submodules outside =lib/drones/=, it returns garbage
+;; filtering, so in this configuration, where `lib/borg`, `lib/aero-theme`, and
+;; `lib/straight.el` are submodules outside `lib/drones/`, it returns garbage
 ;; and even errors on paths shorter than the prefix. Only one Borg function
-;; depends on this no-argument form, =borg-remove=; everything else uses the
-;; prefix-filtered =borg-drones 'raw=. This advice reroutes the no-argument call
+;; depends on this no-argument form, `borg-remove`; everything else uses the
+;; prefix-filtered `borg-drones 'raw`. This advice reroutes the no-argument call
 ;; through that same filtered path, which is what it should have returned, so
-;; =borg-remove= and any future caller work correctly without us having to
+;; `borg-remove` and any future caller work correctly without us having to
 ;; flatten the submodule layout.
 
 (define-advice borg-drones (:around (orig &optional include-variables) aero/prefix-safe)
@@ -923,19 +943,20 @@ submodules outside `borg-drones-directory'."
     (mapcar #'car (funcall orig 'raw))))
 
 ;;;;; Assimilation helpers
+
 ;; Adding a package to Borg is a deliberate, committed act, never something that
 ;; happens at load time. These helpers make that act ergonomic while keeping it
 ;; secure. The guiding idea is clone-before-build: source is placed on disk and
 ;; can be inspected before any of its code is allowed to run, which is also
 ;; where a future diff-audit step would slot in.
 
-;; =aero/borg-package-requires= reads a drone's dependencies from the
-;; =Package-Requires= header in its source, scanning every non-generated Emacs
+;; `aero/borg-package-requires` reads a drone's dependencies from the
+;; `Package-Requires` header in its source, scanning every non-generated Emacs
 ;; Lisp file because the declaring file is not always named after the drone.
-;; =aero/borg-dep-status= classifies each dependency as Emacs itself, an
+;; `aero/borg-dep-status` classifies each dependency as Emacs itself, an
 ;; existing drone, otherwise available (built-in or still provided by straight
 ;; during the migration), or missing. We read dependencies from local source
-;; rather than an external database, so =epkg= is not needed and is deliberately
+;; rather than an external database, so `epkg` is not needed and is deliberately
 ;; not used.
 (defun aero/borg-package-requires (name)
   "Return the merged Package-Requires of drone NAME as a list of (DEP VERSION).
@@ -993,12 +1014,12 @@ Names in ADDED are flagged as assimilated during the current run."
       (special-mode))
     (display-buffer (current-buffer))))
 
-;; =aero/borg-assimilate= ties this together. It registers the target and each
+;; `aero/borg-assimilate` ties this together. It registers the target and each
 ;; missing dependency as a submodule and places their source on disk without
 ;; building or activating them, so none of their code runs. It then shows a
 ;; report and only builds and activates after explicit confirmation, leaving a
-;; window to inspect the cloned source. It uses =borg-assimilate= with its
-;; =partially= argument for the no-build registration step, and =borg-build= for
+;; window to inspect the cloned source. It uses `borg-assimilate` with its
+;; `partially` argument for the no-build registration step, and `borg-build` for
 ;; the deferred build.
 (defun aero/borg-assimilate (name url)
   "Assimilate drone NAME from URL together with its missing dependencies.
@@ -1046,7 +1067,8 @@ from each package's Package-Requires header; URLs are entered at the prompt."
                (length added)))))
 
 ;;;; Straight.el
-;; straight.el is managed as a vendored git submodule at =lib/straight.el=
+
+;; straight.el is managed as a vendored git submodule at `lib/straight.el`
 ;; tracking the default branch. Since the submodule is pinned to an explicit
 ;; commit, the branch is mostly advisory; updates happen by advancing the
 ;; submodule pointer, not by running straight's own update commands.
@@ -1058,7 +1080,7 @@ from each package's Package-Requires header; URLs are entered at the prompt."
   (defvar straight-check-for-modifications))
 (setq straight-check-for-modifications nil)
 
-;; Set the order in which repositories are checked for =:auto= recipes. These
+;; Set the order in which repositories are checked for `:auto` recipes. These
 ;; are based on broad levels of trust, if something appears in both GNU ELPA and
 ;; MELPA, for example, we'd prefer the GNU ELPA version. Also prefer using the
 ;; mirror of GNU ELPA because it's stupidly more efficient than the normal GNU
@@ -1085,27 +1107,27 @@ from each package's Package-Requires header; URLs are entered at the prompt."
 (with-eval-after-load 'straight
   (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
 
-;; straight.el is vendored as a git submodule at =lib/straight.el= rather than
+;; straight.el is vendored as a git submodule at `lib/straight.el` rather than
 ;; fetched from the network on first run. The standard bootstrap snippet
-;; downloads =install.el= from =raw.githubusercontent.com= and evaluates it in
+;; downloads `install.el` from `raw.githubusercontent.com` and evaluates it in
 ;; place, which is unauthenticated remote code execution on every fresh machine
-;; setup. Because =straight.el= is the trust anchor for every other package in
+;; setup. Because `straight.el` is the trust anchor for every other package in
 ;; this configuration, it is treated as a first-class threat surface and pinned
 ;; under version control. To update it, advance the submodule commit and commit
 ;; the pointer change; straight's own update commands will not affect it.
 
-;; On a fresh machine where =straight/repos/straight.el= does not yet exist, the
-;; bootstrap creates a symlink from =straight/repos/straight.el= to the vendored
-;; =lib/straight.el= and loads =bootstrap.el= from there. =bootstrap.el= uses
-;; =file-truename= on =load-file-name=, so it resolves the symlink and correctly
-;; finds =straight.el= in =lib/straight.el/=. Subsequent runs find the existing
-;; repo (real or symlinked) and load =bootstrap.el= directly. No network access
+;; On a fresh machine where `straight/repos/straight.el` does not yet exist, the
+;; bootstrap creates a symlink from `straight/repos/straight.el` to the vendored
+;; `lib/straight.el` and loads `bootstrap.el` from there. `bootstrap.el` uses
+;; `file-truename` on `load-file-name`, so it resolves the symlink and correctly
+;; finds `straight.el` in `lib/straight.el/`. Subsequent runs find the existing
+;; repo (real or symlinked) and load `bootstrap.el` directly. No network access
 ;; occurs at any point during bootstrap.
 
 ;; This mirrors the approach straight.el's own README documents as the
-;; alternative for environments where =url-retrieve-synchronously= is
+;; alternative for environments where `url-retrieve-synchronously` is
 ;; unavailable: clone the repository into
-;; =~/.emacs.d/straight/repos/straight.el= and check out the desired revision.
+;; `~/.emacs.d/straight/repos/straight.el` and check out the desired revision.
 
 ;; This is an intermediate arrangement. The longer-term plan is to replace
 ;; straight with Borg, which manages all packages as git submodules natively and
@@ -1139,11 +1161,12 @@ from each package's Package-Requires header; URLs are entered at the prompt."
       package-native-compile t ; compile when installing (not sure if this works)
       use-package-minimum-reported-time 0.1)
 
-;; If we're using =--debug-init=, make package loading verbose.
+;; If we're using `--debug-init`, make package loading verbose.
 
 (setq use-package-verbose init-file-debug)
 
 ;;;; Compatibility shims
+
 ;; Functions that may be missing from the current Emacs build but required by
 ;; packages tracking the bleeding edge of Emacs development.
 
@@ -1154,9 +1177,10 @@ from each package's Package-Requires header; URLs are entered at the prompt."
     (set (make-local-variable variable) value)))
 
 ;;;; Custom package macro
-;; The rest of the config uses this custom =package!= macro to abstract away
+
+;; The rest of the config uses this custom `package!` macro to abstract away
 ;; some internals that have changed in the past and may change again (such as
-;; using =straight.el=).
+;; using `straight.el`).
 
 (defmacro package! (package recipe &rest body)
   "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package\\='.
@@ -1223,14 +1247,16 @@ Example:
 
 
 ;;; Core setup (prelude)
+
 ;; I use "prelude" here as a nod to earlier iterations of this configuration,
 ;; where the core setup lived in a prelude file, meaning it was required to
 ;; setup important functionality. The name is only tangentially related to the
 ;; Prelude configuration distribution, the two usages are cognate.
 
 ;;;; Treesitter initialization
+
 ;; To ensure we can use this easily later, require treesitter as long as it's
-;; available and wanted. See [[*Treesitter][Treesitter]] section for the full
+;; available and wanted. See Treesitter (*Treesitter) section for the full
 ;; config.
 
 (and (and (treesitterp)
@@ -1239,6 +1265,7 @@ Example:
      (require 'treesit nil t))
 
 ;;;; Compile angel
+
 ;; Set up automatic compilation for everything past this point
 
 (package! compile-angel :auto
@@ -1261,10 +1288,12 @@ Example:
   (compile-angel-on-load-mode))
 
 ;;;; Fix GNU ELPA Keyring
+
 ;; The ELPA keyring sometimes gets screwed up, this fixes it
 (package! gnu-elpa-keyring-update :auto)
 
 ;;;; Library requirements
+
 (package! dash :auto)
 (package! async :auto :commands (async-save)) ; required by org-download
 
@@ -1277,6 +1306,7 @@ Example:
   (fset #'jsonrpc--log-event #'ignore))
 
 ;;;; PATH from shell
+
 ;; We only really need this in MacOS, grabbing environment variables from the
 ;; default shell
 
@@ -1297,6 +1327,7 @@ Example:
 ;;;; Keybindings
 
 ;;;;; Which-key
+
 ;; Gives us a variety of menus for keybindings, and integrates nicely with
 ;; General
 
@@ -1307,14 +1338,15 @@ Example:
   (setq which-key-special-keys '("SPC" "TAB" "RET" "ESC" "DEL")))
 
 ;;;;; General
+
 ;; The vast majority of keybindings are set up with General. A lot of this could
 ;; be done almost as easily with regular keybinding, but General gives us an
 ;; easier time setting up a leader key and better which-key integration.
 
-;; Most bindings will fall under the =SPC= leader key, so we generate a macro
-;; called =aero-leader-def= to make it easier for other packages to add their
-;; own bindings under this leader. For mode-specific keybindings, we use =SPC ,=
-;; as the leader, and a corresponding =aero-mode-leader-def= to suit.
+;; Most bindings will fall under the `SPC` leader key, so we generate a macro
+;; called `aero-leader-def` to make it easier for other packages to add their
+;; own bindings under this leader. For mode-specific keybindings, we use `SPC ,`
+;; as the leader, and a corresponding `aero-mode-leader-def` to suit.
 
 ;; From there, we set up all the main keybindings.
 
@@ -1549,6 +1581,7 @@ Example:
    "z" 'repeat))
 
 ;;;; Evil
+
 ;; "Emacs is a great operating system, lacking only a decent editor." — ancient
 ;; Vi proverb
 
@@ -1557,16 +1590,16 @@ Example:
 ;; all. Evil provides the best of Vi with the power of Emacs, but it needs some
 ;; heavy configuration to work well.
 
-;; The "wants" setup /must/ be in =:init= because Evil needs these set prior to
+;; The "wants" setup /must/ be in `:init` because Evil needs these set prior to
 ;; setting up everything else.
 
-;; Note that =evil-want-keybinding= is set to =nil= because =evil-collection=
+;; Note that `evil-want-keybinding` is set to `nil` because `evil-collection`
 ;; will handle that for us.
 
-;; To change the =undo-system= without restarting Emacs, run
-;; =(evil-set-undo-system)=.
+;; To change the `undo-system` without restarting Emacs, run
+;; `(evil-set-undo-system)`.
 
-;; In visual mode, use =<= and =>= to indent/unindent the line(s)
+;; In visual mode, use `<` and `>` to indent/unindent the line(s)
 
 (package! evil :auto
   :init
@@ -1668,6 +1701,7 @@ Example:
   (evil-mode +1))
 
 ;;;;; Evil collection
+
 ;; Provides Evil defaults for many modes which Evil proper overlooks
 
 (package! evil-collection :auto
@@ -1676,6 +1710,7 @@ Example:
   :config (evil-collection-init))
 
 ;;;;; Evil-matchit
+
 ;; Allows % to jump matching tags
 
 (package! evil-matchit :auto
@@ -1691,10 +1726,10 @@ Example:
 ;; org-mode, tree-sitter's benefits are marginal, but opening code files happens
 ;; just often enough to keep it around.
 
-;; We do not use =treesit-auto= because =global-treesit-auto-mode= hooks into
+;; We do not use `treesit-auto` because `global-treesit-auto-mode` hooks into
 ;; every file open to check grammar readiness across all modes in
-;; =auto-mode-alist=, which is a known performance problem on macOS. Instead, we
-;; use a simple =major-mode-remap-alist= to redirect only the languages we
+;; `auto-mode-alist`, which is a known performance problem on macOS. Instead, we
+;; use a simple `major-mode-remap-alist` to redirect only the languages we
 ;; actually use to their tree-sitter variants. This is a zero-cost alist lookup
 ;; with no per-file overhead.
 
@@ -1707,6 +1742,7 @@ Example:
 ;;;; Completion and navigation
 
 ;;;;; Vertico
+
 ;; Provides a completion system similar to Ivy, but it's faster and more
 ;; lightweight. Also make sure selections can wrap around the top and bottom of
 ;; the menu.
@@ -1728,8 +1764,9 @@ Example:
   (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
 
 ;;;;; Vertico-prescient
+
 ;; Provides MRU (most-recently-used) sorting for all vertico completions,
-;; including =M-x=. Replaces amx for command history sorting. Shares the
+;; including `M-x`. Replaces amx for command history sorting. Shares the
 ;; prescient persistence store with company-prescient.
 
 (package! vertico-prescient :auto
@@ -1737,12 +1774,14 @@ Example:
   :config (vertico-prescient-mode +1))
 
 ;;;;; Marginalia
+
 ;; This provides a more informative completion system, showing more information
 ;; about the candidates.
 
 (package! marginalia :auto :init (marginalia-mode))
 
 ;;;;; Orderless
+
 ;; This provides a more flexible completion system where we can use spaces to
 ;; separate search terms, inputting them in any order.
 
@@ -1756,13 +1795,14 @@ Example:
   (completion-ignore-case t))
 
 ;;;;; Consult
+
 ;; Super useful package, providing a variety of wrappers that provide a powerful
 ;; and consistent completing-read interface. I also hook it into Xref for more
 ;; seamless integration.
 
 ;; Buffer previews are disabled for commands that browse files or buffers since
-;; loading unopened files is slow. Search commands like =consult-line= and
-;; =consult-ripgrep= keep automatic previews since the whole point is viewing
+;; loading unopened files is slow. Search commands like `consult-line` and
+;; `consult-ripgrep` keep automatic previews since the whole point is viewing
 ;; the match in context.
 (defun consult-outline-top ()
   (interactive)
@@ -1849,6 +1889,7 @@ Example:
   (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
 
 ;;;;; Yasnippet
+
 ;; Yasnippet provides a powerful templating system for inserting boilerplate
 ;; code.
 
@@ -1860,6 +1901,7 @@ Example:
   (yas-global-mode 1))
 
 ;;;;;; Consult-yasnippet
+
 ;; Plug yasnipet into consult for a better interface to snippets
 
 (package! consult-yasnippet :auto
@@ -1869,6 +1911,7 @@ Example:
     "y" 'consult-yasnippet))
 
 ;;;;; Recentf (builtin)
+
 ;; Recentf provides a list of recently opened files, and is honestly one of the
 ;; main ways I open buffers.
 
@@ -1895,6 +1938,7 @@ Example:
   (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
 
 ;;;;; All-the-icons
+
 ;; Support for icon insertion, and used as a lib in other packages
 
 (package! all-the-icons :auto
@@ -1904,6 +1948,7 @@ Example:
   :config (aero-leader-def "qi" 'all-the-icons-insert))
 
 ;;;;; Avy
+
 ;; Utility for visual navgation
 
 (package! avy :auto
@@ -1918,6 +1963,7 @@ Example:
    "jw" '(avy-goto-word-1 :wk "jump to word")))
 
 ;;;;;; Ace-link
+
 ;; Jump to links in eww with Avy
 
 (package! ace-link :auto
@@ -1926,7 +1972,8 @@ Example:
   :config (ace-link-setup-default))
 
 ;;;;; Smartscan
-;; Gives us the =M-n= and =M-p= symbol-following ability
+
+;; Gives us the `M-n` and `M-p` symbol-following ability
 
 (package! smartscan :auto
   :hook ((prog-mode org-mode) . smartscan-mode)
@@ -1943,13 +1990,14 @@ Example:
     (subword-mode original-mode)))
 
 ;;;;; Undo-tree
+
 ;; Provides a visual representation of the undo history.
 
 ;; By default, auto-saves to the local directory, but that's annoying, so we
 ;; move it to the cache directory. Also enable timestamps and diffs in the
 ;; visualizer.
 
-;; =undo-in-region= is disabled entirely because it's buggy enough that it will
+;; `undo-in-region` is disabled entirely because it's buggy enough that it will
 ;; drop your undo history in some situations without warning.
 
 (package! undo-tree :auto
@@ -1967,6 +2015,7 @@ Example:
   (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
 
 ;;;;; Winner
+
 ;; Provides a way to undo/redo window configurations.
 
 (package! winner :builtin
@@ -1992,14 +2041,15 @@ Example:
     "wU" 'winner-redo))
 
 ;;;; Tab Bar
+
 ;; Tab bar mode provides workspace-like tabs in Emacs. Use Command-1 through
 ;; Command-9 to quickly switch between tabs.
 
 ;; Tab Bar mode is not enabled by default since we don't always want it. Call
-;; =tab-bar-mode= when you want to start using tabs.
+;; `tab-bar-mode` when you want to start using tabs.
 
-;; The =s-1= through =s-9= bindings jump to a tab by position, and =s-t= opens a
-;; new tab, mirroring the macOS Command-T convention and the =SPC T c= leader
+;; The `s-1` through `s-9` bindings jump to a tab by position, and `s-t` opens a
+;; new tab, mirroring the macOS Command-T convention and the `SPC T c` leader
 ;; binding.
 
 (setq tab-bar-tab-hints t)
@@ -2040,6 +2090,7 @@ Truncates long names to keep tab bar manageable."
 (global-set-key (kbd "s-9") (lambda () (interactive) (tab-bar-select-tab 9)))
 
 ;;;; Winum
+
 ;; Jump to windows by number. 1 is the upper-left-most
 
 (package! winum :auto
@@ -2060,6 +2111,7 @@ Truncates long names to keep tab bar manageable."
     "9" '(winum-select-window-9 :wk "window-9")))
 
 ;;;; Company completions
+
 ;; I can't believe this isn't built-in. Company provides a completion system
 ;; that's more powerful than the default.
 
@@ -2085,6 +2137,7 @@ Truncates long names to keep tab bar manageable."
   (setq company-frontends (delq 'company-preview-if-just-one-frontend company-frontends)))
 
 ;;;;; Company-prescient
+
 ;; Moves commonly-used completions to the top, and provides a better sorting
 ;; algorithm.
 
@@ -2095,15 +2148,17 @@ Truncates long names to keep tab bar manageable."
   :config (prescient-persist-mode +1))
 
 ;;;;; Company-box
+
 ;; Provides a better popup interface for company
 
 (package! company-box :auto
   :hook (company-mode . company-box-mode))
 
 ;;;; Tramp
+
 ;; Tramp provides a way to edit files on remote servers. This was a way of life
 ;; in a previous job, but I haven't touched it in several years. I'm keeping it
-;; around just in case, frozen in time. The =:defer t= ensures it's not loaded
+;; around just in case, frozen in time. The `:defer t` ensures it's not loaded
 ;; until it's needed.
 
 (package! tramp :builtin
@@ -2119,6 +2174,7 @@ Truncates long names to keep tab bar manageable."
   (tramp-terminal-type "tramp"))
 
 ;;;; Dired
+
 ;; This is a file manager in Emacs, but I really struggle to use it
 
 (package! dired :builtin
@@ -2130,6 +2186,7 @@ Truncates long names to keep tab bar manageable."
          ("TAB" . #'dired-next-subdir)))
 
 ;;;; System-specific setup
+
 ;; Mac needs some extra hand-holding to connect the kill-ring to the system
 ;; clipboard. Linux just needs the functionality enabled.
 
@@ -2227,13 +2284,15 @@ Truncates long names to keep tab bar manageable."
 ;;;; Editor setup
 
 ;;;;; Editorconfig
-;; Provides a global minor mode that respects =.editorconfig= files.
+
+;; Provides a global minor mode that respects `.editorconfig` files.
 
 (package! editorconfig :builtin
   :defer 1
   :config (editorconfig-mode))
 
 ;;;;; Unmodified-buffer
+
 ;; Detects when the buffer matches what's on disk and marks it unmodified. If,
 ;; for example, you visit a file, change something, then undo the change, this
 ;; package ensures the buffer doesn't think its still modified.
@@ -2243,8 +2302,9 @@ Truncates long names to keep tab bar manageable."
   :hook ((prog-mode text-mode) . unmodified-buffer-mode))
 
 ;;;;; So-long mode
+
 ;; Performance enhancement for files with extremely long lines or exceptionally
-;; many lines. Use =so-long-revert= in a buffer to get back to what it would
+;; many lines. Use `so-long-revert` in a buffer to get back to what it would
 ;; have otherwise loaded as.
 
 (package! so-long :builtin
@@ -2252,6 +2312,7 @@ Truncates long names to keep tab bar manageable."
   :config (global-so-long-mode +1))
 
 ;;;;; Savehist
+
 ;; Saves the minibuffer history.
 
 (package! savehist :builtin
@@ -2259,6 +2320,7 @@ Truncates long names to keep tab bar manageable."
   :custom (savehist-file (expand-file-name "history" aero-cache-dir)))
 
 ;;;;; Helpful
+
 ;; A better version of the built-in help buffers. This ought to be included in
 ;; Emacs.
 
@@ -2289,12 +2351,14 @@ Truncates long names to keep tab bar manageable."
 ;;; UI
 
 ;;;; Frame containment
-;; Never let =display-buffer= pop up new frames automatically. Explicit frame
-;; commands (=other-frame=, =find-file-other-frame=, etc.) are unaffected.
+
+;; Never let `display-buffer` pop up new frames automatically. Explicit frame
+;; commands (`other-frame`, `find-file-other-frame`, etc.) are unaffected.
 
 (setq pop-up-frames nil)
 
 ;;;; Window navigation
+
 ;; Useful when windmove thinks a window doesn't exist
 
 (package! ace-window :auto
@@ -2305,6 +2369,7 @@ Truncates long names to keep tab bar manageable."
     "wW" 'ace-window))
 
 ;;;; Side-window management
+
 ;; This macro makes it easier to configure side windows
 
 (defmacro aero/configure-side-window (&rest args)
@@ -2340,11 +2405,12 @@ Truncates long names to keep tab bar manageable."
  :height 20)
 
 ;;;; Aero modeline
+
 ;; My custom modeline. Originally based on Doom's modeline, but the code
 ;; diverged many years ago.
 
 ;; The built-in VC system is disabled entirely because it runs a git subprocess
-;; on every file open to populate =vc-mode=, which is expensive on macOS.
+;; on every file open to populate `vc-mode`, which is expensive on macOS.
 ;; Instead, the git branch segment below queries git directly and caches the
 ;; result per buffer, refreshing only on save and window focus.
 
@@ -2728,6 +2794,7 @@ Truncates long names to ensure other modeline segments remain visible."
 (add-hook 'eshell-mode-hook 'aero/modeline-hide-mode)
 
 ;;;; Theme (Aero theme)
+
 ;; My custom theme, stored as a submodule. Also sets the font.
 
 ;; Sets the font-height to 140 only for Mac, it seems to scale normally by
@@ -2766,6 +2833,7 @@ instead of using cached settings."
 (package! folio-theme "kn66/folio-theme.el")
 
 ;;;; Default frame setup
+
 ;; Set up the default frame in an agreeable fashion. The width is based on a
 ;; buffer that's 106 columns wide, in two columns. The rest has been tweaked
 ;; over the years to look extra nice on startup.
@@ -2791,7 +2859,7 @@ instead of using cached settings."
       window-divider-mode t)
 
 ;; Set up 1-column window margins on each side for visual breathing room. Uses
-;; =window-state-change-hook= rather than =window-configuration-change-hook=
+;; `window-state-change-hook` rather than `window-configuration-change-hook`
 ;; because the latter fires on every individual window operation during layout
 ;; changes, while the state-change hook coalesces into a single callback per
 ;; redisplay cycle.
@@ -2880,6 +2948,7 @@ Skips update entirely when Emacs has no OS focus."
   #'aero/--update-tab-bar-highlight)
 
 ;;;; General UI
+
 ;; Better fringe symbols
 
 (when (and (require 'disp-table nil 'noerror) standard-display-table)
@@ -2959,6 +3028,7 @@ Skips update entirely when Emacs has no OS focus."
   (advice-add fn :after #'pulse-line))
 
 ;;;; Formfeeder
+
 ;; Displays formfeed characters, which are often used by convention in Elisp
 
 (package! formfeeder "thornjad/formfeeder"
@@ -2970,10 +3040,11 @@ Skips update entirely when Emacs has no OS focus."
   (global-formfeeder-mode 1))
 
 ;;;; Highlight-thing
+
 ;; Highlight the current thing at point, kind of like what lsp-ui does for some
 ;; languages, but in all buffers and modes.
 
-;; We set =highlight-thing-limit-to-region-in-large-buffers= so that in large
+;; We set `highlight-thing-limit-to-region-in-large-buffers` so that in large
 ;; buffers, only look at nearby lines
 
 (package! highlight-thing :auto
@@ -2986,6 +3057,7 @@ Skips update entirely when Emacs has no OS focus."
   (highlight-thing-limit-to-region-in-large-buffers-p t))
 
 ;;;; Selection highlight
+
 ;; Shows all matching selections from region. Very useful for comparing and
 ;; editing multiple instances of the same thing.
 
@@ -2995,6 +3067,7 @@ Skips update entirely when Emacs has no OS focus."
   :custom (selection-highlight-mode-min-length 3))
 
 ;;;; Todo-light
+
 ;; Highlight todo and similar words
 
 (package! todo-light "thornjad/todo-light"
@@ -3002,6 +3075,7 @@ Skips update entirely when Emacs has no OS focus."
   :config (global-todo-light-mode +1))
 
 ;;;; Evil-terminal-cursor-changer
+
 ;; Doesn't do anything for GUI, so don't bother. In TUI, use a line when in
 ;; insert mode
 
@@ -3013,6 +3087,7 @@ Skips update entirely when Emacs has no OS focus."
 
 
 ;;; Breadcrumbs in the headerline
+
 ;; Shows breadcrumbs in the headerline for many modes, showing the "trail" that
 ;; the current point sits in, such as the hierarchy of headers in org-mode or
 ;; the class and method in object-oriented languages.
@@ -3023,10 +3098,10 @@ Skips update entirely when Emacs has no OS focus."
 ;; is fine for code where structural changes are infrequent.
 
 ;; For org-mode, breadcrumbs bypass imenu entirely and walk the outline tree
-;; upward from point using =org-up-heading-safe=. This is O(heading-depth)
+;; upward from point using `org-up-heading-safe`. This is O(heading-depth)
 ;; rather than O(total-headings), typically visiting only 3-6 nodes, and
 ;; leverages org-element's internal cache. This makes it cheap enough to run on
-;; every redisplay via =:eval= with no idle timer, so the header line updates
+;; every redisplay via `:eval` with no idle timer, so the header line updates
 ;; instantly as you move between headings.
 
 ;; Breadcrumbs are disabled for gptel since it uses its own system.
@@ -3216,12 +3291,13 @@ for instant updates with no idle timer dependency."
 
 
 ;;; Project management
+
 ;; Nearly all my code is organized within projects, and navigated using this
 ;; built-in package.
 
-;; Note that we can't use =:hook= for the =project-find-functions= because
-;; =project-find-functions= doesn't end in "-hook", and we can't use this in
-;; =:init= because it won't be defined yet.
+;; Note that we can't use `:hook` for the `project-find-functions` because
+;; `project-find-functions` doesn't end in "-hook", and we can't use this in
+;; `:init` because it won't be defined yet.
 
 (package! project :builtin
   :after (general)
@@ -3372,6 +3448,7 @@ for instant updates with no idle timer dependency."
       (message "Checked out PR as %s" new-branch))))
 
 ;;;; Git master
+
 ;; This is an Emacs version of a git alias I use a lot, and running it here is a
 ;; lot faster than starting up Magit on MacOS. Magit is just as fast as this
 ;; command on Linux, but it's still convenient.
@@ -3385,6 +3462,7 @@ Show status and update submodules."
      "*project-git-sync-master*")))
 
 ;;;; git-gutter
+
 ;; Provides a visual indicator of changes in the gutter. I use it to quickly see
 ;; what's changed in a file. The backends is set to git by default, and only
 ;; loads the others if they actually exist on the system, which they never do.
@@ -3412,6 +3490,7 @@ Show status and update submodules."
   (add-hook 'focus-in-hook #'git-gutter))
 
 ;;;;; git-gutter-fringe
+
 ;; Redefine the fringe bitmap definer to a no-op in GUI, if it's not already
 ;; bound, otherwise git-gutter-fringe will error. I've never tracked down the
 ;; real cause, but this makes things work smoothly.
@@ -3451,6 +3530,7 @@ Show status and update submodules."
     (add-hook 'find-file-hook #'git-gutter-find-file-hook)))
 
 ;;;; Ediff
+
 ;; A decent way to compare diffs. I've set it up to split horizontally and use a
 ;; plain window setup.
 
@@ -3461,6 +3541,7 @@ Show status and update submodules."
   (ediff-window-setup-function #'ediff-setup-windows-plain))
 
 ;;;; Git-link
+
 ;; Super simple way to get a link to a file or line in a file on GitHub
 
 (package! git-link :auto
@@ -3470,10 +3551,12 @@ Show status and update submodules."
 
 
 ;;; Org mode and org agenda
+
 ;; Org is an incredibly powerful tool in Emacs, and I make the most use of it
 ;; for task management and note-taking.
 
 ;;;; Org helper functions
+
 ;; Before the actual package config, let's define some useful functions.
 (defun archive-buffer-closed-tasks ()
   (interactive)
@@ -3588,6 +3671,7 @@ automatic indentation any longer."
     (delete-horizontal-space)))
 
 ;;;;; Org formatting helpers
+
 ;; Call on region or line at point to apply formatting markers
 (defun aero/org-apply-format (prefix suffix)
   "Apply the specified PREFIX and SUFFIX to the active region or current line.
@@ -3634,6 +3718,7 @@ automatic indentation any longer."
   (aero/org-apply-format "~" "~"))
 
 ;;;;; Org link helpers
+
 ;; Fetch a page title from the web and wrap a URL at point into a proper org
 ;; link.
 (defun aero/decode-html-entities (str)
@@ -3699,6 +3784,7 @@ automatic indentation any longer."
       (insert (format "[[%s][%s]]" url title)))))
 
 ;;;; Org package
+
 ;; Now for the actual package configuration. This is a long one, so I've made a
 ;; lot of comments within the code block rather than putting everything up here.
 
@@ -4055,7 +4141,8 @@ Both attributes come from the active theme."
   (add-hook 'org-mode-hook #'aero/auto-revert-todo))
 
 ;;;; Org-protocol
-;; Handles capture requests coming in via the =org-protocol://= URL scheme. A
+
+;; Handles capture requests coming in via the `org-protocol://` URL scheme. A
 ;; Firefox bookmarklet and a small macOS app forward the current page's link and
 ;; title to Emacs, which pre-fills an org-capture buffer (the "w" template
 ;; above) without needing to restart Emacs.
@@ -4065,6 +4152,7 @@ Both attributes come from the active theme."
   (setopt org-protocol-default-template-key "w"))
 
 ;;;; Org-appear
+
 ;; Show formatting markers when point is near
 
 (package! org-appear :auto
@@ -4072,6 +4160,7 @@ Both attributes come from the active theme."
   :hook (org-mode . org-appear-mode))
 
 ;;;; Org-modern
+
 ;; Some trivial UI improvements for org files. Uses the "replace" set of stars
 ;; for headings.
 
@@ -4087,6 +4176,7 @@ Both attributes come from the active theme."
   (org-modern-table-horizontal (when (display-graphic-p) 0.1)))
 
 ;;;; Evil-org-mode
+
 ;; Use evil in org, particularly in org-agenda. Also unblocks using aero-leader
 ;; chords. See https://github.com/Somelauw/evil-org-mode for a list of available
 ;; commands. Some of the most useful are listed here:
@@ -4114,9 +4204,9 @@ Both attributes come from the active theme."
 ;; | gt  | show tags                   |
 
 ;; This is the first package migrated to Borg (see the Borg section above). Its
-;; source is the drone at =lib/drones/evil-org-mode=, vendored from
-;; https://github.com/Somelauw/evil-org-mode and pinned at commit =b1f3097=. The
-;; =:borg= recipe configures the already-assimilated drone; to update it,
+;; source is the drone at `lib/drones/evil-org-mode`, vendored from
+;; https://github.com/Somelauw/evil-org-mode and pinned at commit `b1f3097`. The
+;; `:borg` recipe configures the already-assimilated drone; to update it,
 ;; advance the submodule pointer and review the diff.
 
 (package! evil-org-mode :borg
@@ -4131,6 +4221,7 @@ Both attributes come from the active theme."
          (org-agenda-mode . aero/evil-org-agenda-mode)))
 
 ;;;; Org-fancy-priorities
+
 ;; Custom display of org priorities
 
 (package! org-fancy-priorities :auto
@@ -4143,6 +4234,7 @@ Both attributes come from the active theme."
   (org-fancy-priorities-list '("!!↑↑" "!↑" "!↓" "↑" "·" "↓" "_")))
 
 ;;;; Org-super-agenda
+
 ;; The workhorse of my task management. This package allows me to group tasks in
 ;; the agenda in a way that makes sense to me.
 
@@ -4216,6 +4308,7 @@ Both attributes come from the active theme."
                 (aero/org-super-agenda-stop-timer)))))
 
 ;;;; Org-download
+
 ;; Allow drag-and-drop of images from browser, finder, etc.
 
 (package! org-download :auto
@@ -4228,6 +4321,7 @@ Both attributes come from the active theme."
     "ic" '(org-download-clipboard :wk "insert image from clipboard")))
 
 ;;;; Functions for the org agenda
+
 (defun aero/org-agenda-list ()
   "`org-agenda', skipping command menu to list."
   (interactive)
@@ -4296,6 +4390,7 @@ a live non-transient previous buffer."
   (define-key org-agenda-mode-map "q" #'aero/local-quit-agenda))
 
 ;;;;; Auto-save after org-agenda changes
+
 ;; Automatically save files after making changes through org-agenda to prevent
 ;; data loss.
 (defun aero/org-agenda-save-modified-buffers (&rest _)
@@ -4311,6 +4406,7 @@ a live non-transient previous buffer."
   (advice-add 'org-agenda-refile :after #'aero/org-agenda-save-modified-buffers))
 
 ;;;; Org-roam
+
 ;; A fantastic note-taking system, used for building a second brain.
 
 (package! org-roam :auto
@@ -4542,14 +4638,15 @@ a live non-transient previous buffer."
       (run-at-time "3:00am" (* 24 60 60) #'aero/org-roam-maybe-schedule-vacuum))
 
 ;;;;; Org-roam-latte
+
 ;; Highlights unlinked references to existing org-roam nodes in buffers. Click
 ;; or press RET on highlighted text to visit the node, or M-RET to convert it
 ;; into a link.
 
-;; When org-roam-latte's =after-change-function= runs during an =org-todo= state
-;; change, the inflections library's =replace-match= (called with
-;; =FIXEDCASE=nil=) interacts with =evil-org-mode= to upcase heading text. We
-;; prevent this by inhibiting latte's after-change hook while =org-todo= is
+;; When org-roam-latte's `after-change-function` runs during an `org-todo` state
+;; change, the inflections library's `replace-match` (called with
+;; `FIXEDCASE`nil`) interacts with `evil-org-mode= to upcase heading text. We
+;; prevent this by inhibiting latte's after-change hook while `org-todo` is
 ;; executing.
 
 (package! org-roam-latte :auto
@@ -4571,6 +4668,7 @@ a live non-transient previous buffer."
     "v" '(org-roam-latte-complete-at-point :wk "complete roam node")))
 
 ;;;;; Thornlog
+
 ;; This is a personal logging and note taking system, based on org-roam. It's
 ;; evolved drastically over the years, from a bespoke system to a more generic
 ;; org-roam setup. The functions here are for managing the thornlog system.
@@ -4671,6 +4769,7 @@ Add it to the file tags, placing it after the #+title: line if it exists."
     (org-set-tags-command)))
 
 ;;;;; Updated (modified) and created timestamps in Org-roam
+
 ;; This section appears as a blog post at
 ;; https://jmthornton.net/blog/p/org-roam-created-modified-dates
 
@@ -4687,6 +4786,7 @@ Add it to the file tags, placing it after the #+title: line if it exists."
 ;; properties to a markdown file.
 
 ;;;;;; Automated creation date
+
 (defun aero/org-roam-timestamp-excluded-file-p ()
   "Return t if current file should be excluded from automatic timestamp updates."
   (when (buffer-file-name)
@@ -4709,6 +4809,7 @@ Add it to the file tags, placing it after the #+title: line if it exists."
             (org-set-property "created" creation-time)))))))
 
 ;;;;;; Keeping modification dates current
+
 (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
   "Extract timestamp from the Org-roam FILEPATH.
 Assumes it follows the default naming scheme."
@@ -4737,6 +4838,7 @@ Assumes it follows the default naming scheme."
 (add-hook 'before-save-hook #'aero/org-roam-insert-modified-property)
 
 ;;;;; Consult-org-roam
+
 ;; Provides a more powerful interface for searching org-roam nodes using ripgrep
 
 (package! consult-org-roam :auto
@@ -4754,6 +4856,7 @@ Assumes it follows the default naming scheme."
 ;;; Applications
 
 ;;;; Verb (HTTP requests from Org-mode)
+
 ;; Make HTTP requests using org-mode, so I can save my queries in roam
 
 (package! verb :auto
@@ -4765,9 +4868,10 @@ Assumes it follows the default naming scheme."
     "RET" 'verb-send-request-on-point-other-window-stay))
 
 ;;;; ESUP
+
 ;; Emacs startup profiler.
 
-;; The override of =esup-read-results= works around a bug where esup tries to
+;; The override of `esup-read-results` works around a bug where esup tries to
 ;; profile cl-lib and fails by doing some nil checking.
 
 (package! esup :auto
@@ -4793,6 +4897,7 @@ Assumes it follows the default naming scheme."
 ;;; Prog modes
 
 ;;;; Auto-mode settings
+
 ;; Set up some auto-mode settings for various file types. Files without
 ;; extensions are assumed to be text files.
 
@@ -4806,6 +4911,7 @@ Assumes it follows the default naming scheme."
 (add-to-list 'auto-mode-alist '("Makefile" . makefile-mode))
 
 ;;;; C Language
+
 (package! cc-mode :builtin
   :mode (("\\.c\\'" . c-mode)
          ("\\.h\\'" . c-mode)
@@ -4828,7 +4934,8 @@ Assumes it follows the default naming scheme."
       (mark-paragraph) (indent-region (region-beginning) (region-end)))))
 
 ;;;; Markdown
-;; We make an alteration to =markdown-mode-syntax-table= to teach it that quotes
+
+;; We make an alteration to `markdown-mode-syntax-table` to teach it that quotes
 ;; mean strings, regardless of what the mode's developer believes. We also
 ;; ensure that checkboxes are not expanded by smartparens.
 
@@ -4860,10 +4967,12 @@ Assumes it follows the default naming scheme."
   :commands (markdown-toc-generate-toc markdown-toc-refresh-toc))
 
 ;;;; Yaml
+
 (package! yaml-mode :auto
   :mode "\\.ya?ml\\'")
 
 ;;;; Web mode (HTML, CSS, JS)
+
 ;; If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
 (package! web-mode :auto
@@ -4873,12 +4982,14 @@ Assumes it follows the default naming scheme."
   (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
 
 ;;;;; Astro mode
+
 ;; We define a custom mode for Astro files, which is really just web mode. This
 ;; allows us to set up Eglot to run the Astro LS on these files
 
 (define-derived-mode astro-mode web-mode "astro")
 
 ;;;;; Emmet
+
 ;; Provides emmet expansion in web-mode
 
 (package! emmet-mode :auto
@@ -4889,6 +5000,7 @@ Assumes it follows the default naming scheme."
   (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t))))
 
 ;;;; Jest
+
 ;; My own package for running Jest tests from within Emacs. Based loosely on the
 ;; functionality in VS Code
 
@@ -4897,17 +5009,20 @@ Assumes it follows the default naming scheme."
   :after (general))
 
 ;;;; Clojure
+
 (package! clojure-mode :auto :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
 
 ;;;; Emacs Lisp
 
 ;;;;; Package-lint
+
 ;; Linting for Emacs packages
 
 (package! package-lint :auto
   :commands (package-lint-current-buffer))
 
 ;;;;; Elisp-autofmt
+
 ;; Automatically format elisp code
 
 (package! elisp-autofmt :auto
@@ -4918,6 +5033,7 @@ Assumes it follows the default naming scheme."
    (expand-file-name "elisp-autofmt-cache" aero-cache-dir)))
 
 ;;;;; El2md
+
 ;; Convert elisp files to markdown Readme files
 
 (package! el2md (:host gitlab :repo "thornjad/el2md")
@@ -4934,21 +5050,22 @@ Assumes it follows the default naming scheme."
     "mw" 'el2md-write-file))
 
 ;;;;; Lisp indentation
-;; The default =lisp-indent-function= aligns plist continuation lines to the
+
+;; The default `lisp-indent-function` aligns plist continuation lines to the
 ;; first /argument/ rather than the first /element/. This means a plist like:
 
 ;; (:weight regular :underline nil
 ;;          :height 0.8)
 
-;; ...gets aligned to =regular= (the value after =:weight=) instead of to
-;; =:weight= itself. This is especially visible in face definitions inside
-;; =deftheme= or =custom-set-faces= blocks.
+;; ...gets aligned to `regular` (the value after `:weight`) instead of to
+;; `:weight` itself. This is especially visible in face definitions inside
+;; `deftheme` or `custom-set-faces` blocks.
 
 ;; This replacement, originally sourced from a widely-circulated fix for this
 ;; known Emacs indentation quirk, corrects the behavior so that keyword-headed
 ;; lists and other non-function-call lists indent to the opening parenthesis.
 
-;; Without this, =indent-buffer= will consistently misalign face attribute
+;; Without this, `indent-buffer` will consistently misalign face attribute
 ;; plists in the theme files.
 (defun lisp-indent-function (indent-point state)
   "This function is the normal value of the variable `lisp-indent-function'.
@@ -5028,6 +5145,7 @@ Assumes it follows the default naming scheme."
 (add-hook 'lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
 
 ;;;; Python
+
 (package! python :builtin
   :after (general)
   :mode ("\\.py\\'" . python-mode)
@@ -5039,6 +5157,7 @@ Assumes it follows the default naming scheme."
   (setq-default python-indent-offset 4))
 
 ;;;;; Flymake-mypy
+
 ;; Some type checking via Flymake. Must be added after eglot so eglot doesn't
 ;; clobber it.
 
@@ -5051,6 +5170,7 @@ Assumes it follows the default naming scheme."
                 (flymake-mypy-enable)))))
 
 ;;;;; Flymake-ruff
+
 ;; Some type checking via Flymake. Must be added after eglot so eglot doesn't
 ;; clobber it.
 
@@ -5066,26 +5186,33 @@ Assumes it follows the default naming scheme."
                   (flymake-ruff-load))))))
 
 ;;;; TOML
+
 (package! toml-mode :auto
   :mode "\\(\\.toml\\|Cargo\\.lock\\)\\'")
 
 ;;;; Docker
+
 (package! docker-compose-mode :auto :mode "docker-compose.*\.yml\\'")
 (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
 
 ;;;; AppleScript
+
 (package! applescript-mode :auto :mode "\\.applescript\\'")
 
 ;;;; Terraform
+
 (package! terraform-mode :auto :mode "\\.tf\\'")
 
 ;;;; GraphQL
+
 (package! graphql-mode :auto :mode "\\.graphql\\'")
 
 ;;;; CSV
+
 (package! csv-mode :auto :mode "\\.csv\\'")
 
 ;;;; Orson (WIP)
+
 (add-hook
  'orson-mode-hook
  (lambda ()
@@ -5096,9 +5223,10 @@ Assumes it follows the default naming scheme."
 ;;; Parentheses
 
 ;;;; Smartparens
+
 ;; Provides a better way of handling parentheses.
 
-;; My =aero/smart-closing-parenthesis= is based on a similar function in
+;; My `aero/smart-closing-parenthesis` is based on a similar function in
 ;; Spacemacs.
 
 ;; We also set up a bunch of paren pairs that aren't default for some reason.
@@ -5215,6 +5343,7 @@ Assumes it follows the default naming scheme."
 ;;; Flymake & Flyspell
 
 ;;;; Flymake
+
 ;; Diagnostics, errors, warnings, etc. This is a faster version of Flycheck.
 
 ;; For fringe indicators, left is the default, but since git-gutter also uses
@@ -5235,6 +5364,7 @@ Assumes it follows the default naming scheme."
     "eb" 'flymake-show-buffer-diagnostics))
 
 ;;;; Flyspell
+
 ;; Spell checking, using a custom dictionary. Skips code blocks in org-mode.
 
 (package! flyspell :builtin
@@ -5259,6 +5389,7 @@ Assumes it follows the default naming scheme."
     "psr" 'flyspell-region))
 
 ;;;;; Flyspell-lazy
+
 ;; Lazy flyspell mode, which only checks words when they're idle. The
 ;; idle timer is the real value here; it replaces flyspell's
 ;; post-command-hook so typing stays responsive.
@@ -5267,6 +5398,7 @@ Assumes it follows the default naming scheme."
   :hook ((flyspell-mode . flyspell-lazy-mode)))
 
 ;;;;; Flyspell-correct
+
 ;; A better interface for correcting spelling
 
 (package! flyspell-correct :auto
@@ -5280,6 +5412,7 @@ Assumes it follows the default naming scheme."
 
 
 ;;; Formatting (Apheleia)
+
 ;; It's hard to remember what this package is called, which is a marker of a bad
 ;; name. However, it's good code, handling auto-formatting on save.
 
@@ -5305,6 +5438,7 @@ Assumes it follows the default naming scheme."
 
 
 ;;; Whitespace and indentation
+
 ;; WS-Butler removes trailing whitespace, but only in modes where it's not
 ;; important. This is a good default, but we need to exempt some modes where
 ;; whitespace is important.
@@ -5318,6 +5452,7 @@ Assumes it follows the default naming scheme."
 
 
 ;;; EWW: the Emacs Web Wowser
+
 ;; A basic builtin browser. Very lightweight. Uses shr, which is a simple HTML
 ;; renderer.
 
@@ -5390,19 +5525,19 @@ equivalent to the list containing 16."
   "Disable scroll-margin in eww buffers."
   (setq-local scroll-margin 0))
 
-;; =consult-outline= relies on =outline-regexp=, which eww buffers never
-;; configure — so =SPC j o= finds nothing useful there. The shr renderer does,
-;; however, apply faces like =shr-h1= through =shr-h6= to the text it produces
+;; `consult-outline` relies on `outline-regexp`, which eww buffers never
+;; configure — so `SPC j o` finds nothing useful there. The shr renderer does,
+;; however, apply faces like `shr-h1` through `shr-h6` to the text it produces
 ;; for HTML headings. We exploit that by providing a custom
-;; =imenu-create-index-function= that walks the buffer line by line and collects
+;; `imenu-create-index-function` that walks the buffer line by line and collects
 ;; any line whose text properties include a heading face.
 
-;; =eww-mode-map= binds =SPC= to =scroll-up-command= by default, which makes
-;; =SPC= a non-prefix key in the evil normal state overlay and blocks any longer
-;; =SPC=-prefixed sequence from being defined there. We clear that binding
-;; explicitly (=nil= in the evil keymap), which lets the general.el leader take
-;; over =SPC= as a prefix normally. =SPC j o= can then be bound to
-;; =consult-imenu= for eww just like any other mode-specific leader binding —
+;; `eww-mode-map` binds `SPC` to `scroll-up-command` by default, which makes
+;; `SPC` a non-prefix key in the evil normal state overlay and blocks any longer
+;; `SPC`-prefixed sequence from being defined there. We clear that binding
+;; explicitly (`nil` in the evil keymap), which lets the general.el leader take
+;; over `SPC` as a prefix normally. `SPC j o` can then be bound to
+;; `consult-imenu` for eww just like any other mode-specific leader binding —
 ;; this must happen in :config, after the SPC clear, not in :init, or the leader
 ;; bind races ahead of the fix and fails with "Key sequence SPC j o starts with
 ;; non-prefix key SPC".
@@ -5512,6 +5647,7 @@ equivalent to the list containing 16."
     "q" 'quit-window))
 
 ;;;; Shrface
+
 ;; Adds some org-like features to EWW
 
 (package! shrface :auto
@@ -5525,6 +5661,7 @@ equivalent to the list containing 16."
   (shrface-default-keybindings))
 
 ;;;; Shr-tag-pre-highlight
+
 ;; Syntax highlighting for HTML pre tags
 
 (package! shr-tag-pre-highlight :auto
@@ -5534,9 +5671,10 @@ equivalent to the list containing 16."
 
 
 ;;; Elfeed
+
 ;; Simple RSS reader
 
-;; =url-queue-timeout= controls how long an image fetch can sit in the async
+;; `url-queue-timeout` controls how long an image fetch can sit in the async
 ;; queue before being silently dropped. The default of 5 seconds is too short
 ;; when an entry has several images and other fetches are already in flight —
 ;; later images get evicted before they even start. 30 seconds gives enough
@@ -5560,6 +5698,7 @@ equivalent to the list containing 16."
   (evil-set-initial-state 'elfeed-show-mode 'normal))
 
 ;;;; Elfeed-org
+
 ;; Allows managing feeds in an org file
 (defun aero-elfeed-org ()
   "Set `elfeed-feeds' from the org file."
@@ -5593,14 +5732,16 @@ equivalent to the list containing 16."
 
 
 ;;; AI
+
 ;; I've moved most AI functions out of Emacs proper, as I can't keep up with the
 ;; incredible advances of products like Cursor and Claude Code. I keep copilot
 ;; around for occasional use, since GitHub gives it to me for free.
 
 ;;;; Claude Code
-;; This is a custom local package (=aero-claude=) for running Claude Code inside
+
+;; This is a custom local package (`aero-claude`) for running Claude Code inside
 ;; Emacs via vterm. I wrote this from scratch after trying several third-party
-;; packages on GitHub (e.g. =claude-code-ide.el=) and finding them either too
+;; packages on GitHub (e.g. `claude-code-ide.el`) and finding them either too
 ;; heavy, unreliable, or poorly suited to my workflow. The package handles
 ;; several tricky vterm integration problems: it implements a synchronized
 ;; output renderer that batches DEC sync blocks to eliminate flicker (libvterm
@@ -5629,6 +5770,7 @@ equivalent to the list containing 16."
 ;;; Shell
 
 ;;;; Xterm-color
+
 ;; Colorize shell output
 
 (package! xterm-color :auto
@@ -5640,6 +5782,7 @@ equivalent to the list containing 16."
   (advice-add 'compilation-filter :around #'aero/advice-compilation-filter))
 
 ;;;; vterm
+
 ;; Note: vterm requires libvterm-dev, which may not be installed. See
 ;; https://github.com/akermu/emacs-libvterm for full install instructions. Also
 ;; requires shell-side configuration.
@@ -5679,6 +5822,7 @@ equivalent to the list containing 16."
         (vterm-send-key "j" nil nil t)))))
 
 ;;;;; multi-vterm
+
 ;; Makes it easier to run multiple vterm instances at once, especially
 ;; per-project
 
@@ -5696,6 +5840,7 @@ equivalent to the list containing 16."
     "p" 'multi-vterm-prev))
 
 ;;;;; Cursor Agent wrapper
+
 ;; Cursor Agent (and other TUI apps) sometimes don't get proper terminal
 ;; dimensions on startup in vterm. This wrapper launches Cursor Agent and
 ;; triggers a redraw to ensure proper display.
@@ -5764,6 +5909,7 @@ equivalent to the list containing 16."
                                               10)))))))))
 
 ;;;; Eshell
+
 ;; Realistically this is my main shell. It does try to override some important
 ;; bindings by default, so we undo that.
 
@@ -5873,6 +6019,7 @@ equivalent to the list containing 16."
     (require 'em-term)))
 
 ;;;;; Eshell-prompt-extras
+
 ;; Adds a more informative prompt to eshell
 
 (package! eshell-prompt-extras :auto
@@ -5884,6 +6031,7 @@ equivalent to the list containing 16."
           eshell-prompt-function 'epe-theme-multiline-with-status)))
 
 ;;;;; Eshell-syntax-highlighting
+
 ;; Syntax highlighting in eshell
 
 (package! eshell-syntax-highlighting :auto
@@ -5891,6 +6039,7 @@ equivalent to the list containing 16."
   :hook (eshell-mode . eshell-syntax-highlighting-mode))
 
 ;;;;; Capf-autosuggest
+
 ;; Provides overlay suggestions in eshell. Use M-f to insert the next suggested
 ;; word
 
@@ -5899,6 +6048,7 @@ equivalent to the list containing 16."
 
 
 ;;; Yarn-lock derived mode
+
 ;; Rather than loading in a whole package, creating a derived mode for Yarn
 ;; Locks is so simple that I just do it here.
 
@@ -5928,6 +6078,7 @@ equivalent to the list containing 16."
 ;;; Fun stuff
 
 ;;;; Lichess
+
 (package! lichess :auto
   :commands (lichess lichess-tv lichess-game-watch)
   :custom
@@ -5935,6 +6086,7 @@ equivalent to the list containing 16."
 
 
 ;;; General variable configuration
+
 ;; This is loaded toward the end so that it overrides other packages. This
 ;; solves some occasional issues where a mode overrides indenting, for example.
 
@@ -6167,7 +6319,7 @@ equivalent to the list containing 16."
   (global-set-key (kbd "<mouse-4>") 'scroll-down-line)
   (global-set-key (kbd "<mouse-5>") 'scroll-up-line))
 
-;; Disable idiotic Super keybindings. These are defined in =ns-win.el=. In my
+;; Disable idiotic Super keybindings. These are defined in `ns-win.el`. In my
 ;; view, Super should be the domain of the OS and nothing in Emacs should ever
 ;; be bound to it.
 
@@ -6232,7 +6384,7 @@ equivalent to the list containing 16."
 
 (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
 
-;; Prevent =find-file-at-point= from pinging hostnames to validate them, which
+;; Prevent `find-file-at-point` from pinging hostnames to validate them, which
 ;; can cause multi-second freezes on VPN or slow networks.
 
 (setq ffap-machine-p-known 'reject)
@@ -6252,10 +6404,10 @@ equivalent to the list containing 16."
 
 ;;; Buffer cleanup
 
-;; Emacs accumulates buffers over long sessions. The built-in =midnight= package
+;; Emacs accumulates buffers over long sessions. The built-in `midnight` package
 ;; runs a cleanup function on a timer, killing buffers that haven't been visited
 ;; in a while. The "special" delay applies to ephemeral output buffers matched
-;; by =clean-buffer-list-kill-regexps= (help, compilation, man pages, etc.) and
+;; by `clean-buffer-list-kill-regexps` (help, compilation, man pages, etc.) and
 ;; uses seconds rather than days. General file and tool buffers are killed after
 ;; four days of inactivity.
 
@@ -6270,6 +6422,7 @@ equivalent to the list containing 16."
 
 
 ;;; Idle garbage collection
+
 ;; Do garbage collection when I'm not actively doing anything for twenty
 ;; seconds.
 
@@ -6277,6 +6430,7 @@ equivalent to the list containing 16."
 
 
 ;;; Load local file
+
 ;; Load a local init file if it exists. This is a great place to put secrets and
 ;; keys, or machine-specific functions such as helpers that rely on proprietary
 ;; code structure or information.
