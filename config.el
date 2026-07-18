@@ -5354,7 +5354,7 @@ equivalent to the list containing 16."
 
 ;; =consult-outline= relies on =outline-regexp=, which eww buffers never configure — so =SPC j o= finds nothing useful there. The shr renderer does, however, apply faces like =shr-h1= through =shr-h6= to the text it produces for HTML headings. We exploit that by providing a custom =imenu-create-index-function= that walks the buffer line by line and collects any line whose text properties include a heading face.
 
-;; =eww-mode-map= binds =SPC= to =scroll-up-command= by default, which makes =SPC= a non-prefix key in the evil normal state overlay and blocks any longer =SPC=-prefixed sequence from being defined there. We clear that binding explicitly (=nil= in the evil keymap), which lets the general.el leader take over =SPC= as a prefix normally. =SPC j o= can then be bound to =consult-imenu= for eww just like any other mode-specific leader binding.
+;; =eww-mode-map= binds =SPC= to =scroll-up-command= by default, which makes =SPC= a non-prefix key in the evil normal state overlay and blocks any longer =SPC=-prefixed sequence from being defined there. We clear that binding explicitly (=nil= in the evil keymap), which lets the general.el leader take over =SPC= as a prefix normally. =SPC j o= can then be bound to =consult-imenu= for eww just like any other mode-specific leader binding — this must happen in :config, after the SPC clear, not in :init, or the leader bind races ahead of the fix and fails with "Key sequence SPC j o starts with non-prefix key SPC".
 
 ;; Then the actual EWW config. We open almost everything from Emacs into EWW, except a few sites that are so JS-heavy that they don't work at all.
 
@@ -5394,7 +5394,6 @@ equivalent to the list containing 16."
 
     :init
     (aero-leader-def "wbn" '(aero/wiki-news :wk "wikipedia news"))
-    (aero-leader-def :keymaps 'eww-mode-map "jo" 'consult-imenu)
 
     :config
     (evil-define-key 'normal eww-mode-map
@@ -5429,6 +5428,7 @@ equivalent to the list containing 16."
       "gh" 'eww-list-histories
       "gb" 'eww-list-buffers
       "gt" 'eww-list-buffers)
+    (aero-leader-def :keymaps 'eww-mode-map "jo" 'consult-imenu)
 
     ;; viewing history
     (evil-set-initial-state 'eww-history-mode 'normal)
