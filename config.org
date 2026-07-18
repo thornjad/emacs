@@ -3695,14 +3695,18 @@ Now for the actual package configuration. This is a long one, so I've made a lot
     ;; by aero/org-suspend-indent-before-revert below)
     (org-element-cache-persistent nil)
 
-    ;; disable the element cache entirely. agenda files get rewritten
-    ;; out-of-band (Syncthing, org-roam, automated routines), which desyncs
-    ;; the cache from the buffer; on this Emacs build that desync makes
-    ;; org-element storm warnings instead of reparsing, pegging a core in
-    ;; unbreakable C-level GC until memory runs out (seen twice: Jun 2026,
-    ;; Jul 2026). Nothing here depends on the cache's speed -- org-roam uses
-    ;; its own SQLite DB, and reparsing these files is sub-second anyway.
-    (org-element-use-cache nil)
+    ;; keep the element cache on by default. it used to be disabled
+    ;; globally here because thornlog's agenda/roam files get rewritten
+    ;; out-of-band (Syncthing, org-roam, automated routines), and on this
+    ;; Emacs build that desync pegged a core in unbreakable C-level GC
+    ;; instead of reparsing (seen twice: Jun 2026, Jul 2026). But that
+    ;; out-of-band rewrite risk only applies to the thornlog directory, not
+    ;; this file, and disabling the cache globally made org-babel-tangle on
+    ;; this config pathologically slow (every source-block context check
+    ;; became a full uncached parse). The disable now lives in
+    ;; ~/Documents/thornlog/.dir-locals.el, scoped to where the actual risk
+    ;; is.
+    (org-element-use-cache t)
 
     (org-hide-leading-stars t)
     (org-pretty-entities t)
