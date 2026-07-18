@@ -64,6 +64,13 @@
 (global-unset-key (kbd "C-x m"))
 (defun goto-address-find-address-at-point () "Disabled by Aero." nil)
 
+;; ~/Documents/thornlog/.dir-locals.el sets org-element-use-cache to nil for
+;; org-mode buffers there. A boolean toggle on the parse cache can't execute
+;; code, so trust any t/nil value from a dir-locals file instead of getting
+;; prompted every time org-roam touches a thornlog file at startup. Set this
+;; before anything (org-roam's db sync included) can visit such a file.
+(put 'org-element-use-cache 'safe-local-variable #'booleanp)
+
 (setq site-run-file nil ; One less file to load at startup, and we'll never use it
       frame-inhibit-implied-resize t ; only explicit resize
       window-resize-pixelwise t
