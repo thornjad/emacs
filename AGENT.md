@@ -14,6 +14,16 @@ This is a single-file Emacs configuration:
 
 `config.el` was converted from a literate org-mode config (`config.org`, now removed) in July 2026 to cut memory overhead and the org-babel tangle step from the load path. All settings, functions, and package configurations live directly in `config.el`, with prose explanation as comments above each section.
 
+## Formatting Conventions in config.el
+
+- **Headings**: `;;;`-style outline comments, semicolon count = org heading level + 2 (level 1 → `;;;`, level 2 → `;;;;`, etc.). Every heading, at every level, gets exactly one blank line before and one blank line after it.
+- **Top-level headings** (`;;;` exactly) additionally get a formfeed page-break (`^L`, a literal 0x0C byte — not the two characters `\f`) directly above them, itself preceded by the blank line: `blank line`, `^L`, `heading`. Deeper headings (`;;;;`+) get just the blank line, no formfeed.
+- **Exception**: the standard Elisp file-header block at the top of the file (the `;;; config.el ... -*- lexical-binding: t; -*-` line, `;;; Commentary:`, `;;; Code:`) does *not* get a blank line after it — it follows the conventional package.el header style, where a bare `;;` comment line separates content instead. The second line of the file is always a bare `;;`, then real header content.
+- **Prose comments**: top-level (column 0) `;; ` paragraph comments are hard-wrapped at 80 columns. Org tables (`;; | ... |`) and unbreakable single tokens (bare URLs) are left un-wrapped even if they exceed 80 columns.
+- **No org syntax in comments**: this file is no longer org-mode, so `[[url][text]]` links become `text (url)`, and `=verbatim=` markup becomes `` `backtick` `` code spans.
+- **Doc comments directly above a `(defun ...)`** have no blank line between the comment and the defun it documents.
+- **Indented comments inside a form** (nested code comments, not column-0 prose) are left untouched — they're part of code, not prose, and don't get wrapped or otherwise reformatted.
+
 ## Common Development Commands
 
 ### Initial Setup

@@ -1,5 +1,4 @@
 ;;; config.el --- Thornjad's Emacs Configuration -*- lexical-binding: t; -*-
-
 ;;
 ;; Copyright (c) 2016-2026 Jade Michael Thornton
 ;;
@@ -16,7 +15,6 @@
 ;; performance of this software.
 ;;
 ;;; Commentary:
-
 ;;
 ;; Here lives Thornjad's Emacs configuration. There are many like it, but this
 ;; one is mine. Blending all the best shit I can find, making a conscious
