@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-This is a comprehensive Emacs configuration using a literate programming approach:
+This is a single-file Emacs configuration:
 
-- **Main configuration**: `config.org` - The primary configuration file written in org-mode with embedded Emacs Lisp
-- **Bootstrap**: `init.el` - Minimal bootstrap that loads the org configuration using `org-babel-load-file`
+- **Main configuration**: `config.el` - Plain Emacs Lisp, organized into sections with `;;;`-style outline headings (navigate with `outline-minor-mode`/imenu, not org headlines)
+- **Bootstrap**: `init.el` - Minimal bootstrap that loads `config.el` directly
 - **Package management**: Uses `straight.el` for package management (installed automatically on first run)
 - **Theme**: Custom `aero-theme` located in `lib/aero-theme/`
-- **Modular structure**: Configuration is organized in sections within `config.org`
+- **Modular structure**: Configuration is organized in sections within `config.el`
 
-The configuration follows a literate programming pattern where all settings, functions, and package configurations are documented inline within the org file, then tangled into `config.el` for execution.
+`config.el` was converted from a literate org-mode config (`config.org`, now removed) in July 2026 to cut memory overhead and the org-babel tangle step from the load path. All settings, functions, and package configurations live directly in `config.el`, with prose explanation as comments above each section.
 
 ## Common Development Commands
 
@@ -48,7 +48,7 @@ The configuration heavily uses Evil mode for Vim-like editing with extensive cus
 - `SPC g` - Git operations via Magit
 
 ### Package Configuration Structure
-Most packages follow this pattern in `config.org`:
+Most packages follow this pattern in `config.el`:
 ```elisp
 (package! package-name :auto ; or repo name
   :config
@@ -74,11 +74,11 @@ The configuration implements controversial but potentially beneficial GC tuning:
 
 ## Important Files to Understand
 
-- `config.org` - The main literate configuration file (org-mode with embedded Emacs Lisp)
-  - Lines 1-200: Core setup, directory constants, package management bootstrap
+- `config.el` - The main configuration file (plain Emacs Lisp, `;;;`-style outline headings)
+  - Early sections: core setup, directory constants, package management bootstrap
   - Contains all package configurations, custom functions, and keybindings
-  - Tangled to `config.el` on startup via `org-babel-load-file`
-- `init.el` - Bootstrap file that loads the org configuration with GC optimization
+  - Loaded directly by `init.el`, no tangle/build step
+- `init.el` - Bootstrap file that loads `config.el` with GC optimization
 - `early-init.el` - Early initialization (GUI tweaks, UTF-8 setup, package system disable)
 - `lib/aero-theme/` - Custom theme implementation (aero-light and aero-dark)
 - `Makefile` - All build, installation, and maintenance commands
@@ -91,7 +91,7 @@ This is a highly personal configuration optimized for:
 - **Modal editing**: Evil mode with extensive customization, SPC-based leader key system
 - **Development workflows**: Comprehensive LSP setup with eglot, multiple language support
 - **Aesthetic consistency**: Custom aero-theme and modeline implementation
-- **Literate configuration**: Everything documented and organized in config.org
+- **Single-file configuration**: Everything documented and organized in config.el, with outline headings for navigation
 - **Thornlog integration**: Custom daily logging and note-taking system using org-roam
 
 The configuration is not designed as a distribution but as a personal system that evolves constantly.
@@ -123,8 +123,8 @@ All custom functions follow the `aero/` prefix convention. Common patterns:
 - **Shell commands**: Use `shell-command` for synchronous, `async-shell-command` for non-blocking
 - **Directory context**: Use `(let ((default-directory path)) ...)` to run commands in specific directories
 
-### Configuration Structure in `config.org`
-- **"Directory constants"** section: Path definitions and environment setup (lines ~108-131)
+### Configuration Structure in `config.el`
+- **"Directory constants"** section: Path definitions and environment setup
 - **"Keybindings" → "General"** section: Key bindings defined using general.el with Evil mode leader keys
 - **"Org mode and org agenda"** section: Personal workflow functions and org-mode customizations
 - **"Org-roam" → "Thornlog"** subsection: Personal logging and task management functions
@@ -172,17 +172,18 @@ When looking for similar functionality:
 - **Theme issues**: Custom themes are in `lib/aero-theme/` and loaded via directory constant
 
 ### Configuration Reloading Guidelines
-- **NEVER reload the entire configuration** without explicit user instruction (using `org-babel-load-file` is slow and disruptive)
-- **For config.org changes**: Attempt to reload specific source blocks using org-babel:
+- **NEVER reload the entire configuration** without explicit user instruction (`load`-ing all of `config.el` re-runs every `package!` block and is slow and disruptive)
+- **For config.el changes**: Attempt to reload just the changed form via Emacs's own tools:
   ```elisp
-  (with-current-buffer (find-file-noselect (expand-file-name "config.org" user-emacs-directory))
+  (with-current-buffer (find-file-noselect (expand-file-name "config.el" user-emacs-directory))
     (goto-char (point-min))
-    (when (re-search-forward "Section Name" nil t)
-      (org-babel-execute-src-block)))
+    (when (re-search-forward "defun aero/some-function" nil t)
+      (eval-defun nil)))
   ```
-- **If org-babel reload fails**: Stop and ask the user to evaluate the specific section, providing:
+  For a non-`defun` top-level form (e.g. a `package!` block or `setq`), use `eval-last-sexp` after point is past the closing paren, or select the region and use `eval-region`.
+- **If reload fails**: Stop and ask the user to evaluate the specific section, providing:
   - Exact line number or section name to navigate to
-  - Clear instructions like "Go to line 3940 (Claude Code MCP Interface section) and execute the code block with C-c C-c"
+  - Clear instructions like "Go to line 3940 (Claude Code MCP Interface section) and evaluate the form with C-M-x"
   - Which specific function or feature needs to be available
 
 ### Validation Commands

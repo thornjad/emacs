@@ -58,7 +58,7 @@ upgrade-emacs-macos: remove-emacs-macos build-emacs-macos
 clean-emacs-macos:
 	rm -rf /Applications/Emacs.app
 
-build-emacs-linux: 
+build-emacs-linux:
 	./bin/build/linux.zsh
 
 install-linux:
@@ -141,9 +141,9 @@ lsp-booster:
 	ln -sf ~/.config/emacs/tmp/emacs-lsp-booster/target/release/emacs-lsp-booster ~/.local/bin/emacs-lsp-booster
 
 # Pre-compile all packages for native compilation to avoid slow first launch
-# Works on fresh installs: sets up recipe repos, tangles config, bootstraps straight.el, installs packages, then compiles
+# Works on fresh installs: sets up recipe repos, bootstraps straight.el, installs packages, then compiles
 .PHONY: precompile
-precompile: precompile-setup-repos precompile-tangle
+precompile: precompile-setup-repos
 	@echo "Pruning stale straight.el build symlinks..."
 	@find ~/.config/emacs/straight/build -xtype l -delete 2>/dev/null || true
 	@echo "Loading configuration and installing packages (this may take several minutes)..."
@@ -163,14 +163,6 @@ precompile: precompile-setup-repos precompile-tangle
 		         (message \"Native compilation complete in %.1f seconds\" \
 		                  (float-time (time-subtract (current-time) start-time))))"
 	@echo "Pre-compilation finished."
-
-# Tangle config.org to config.el so it doesn't need to be tangled on first interactive startup
-.PHONY: precompile-tangle
-precompile-tangle:
-	@echo "Tangling config.org to config.el..."
-	@/Applications/Emacs.app/Contents/MacOS/Emacs --batch \
-		-l org \
-		--eval "(org-babel-tangle-file \"~/.config/emacs/config.org\")"
 
 # Clone essential recipe repositories for straight.el if they don't exist (needed for batch bootstrap)
 .PHONY: precompile-setup-repos

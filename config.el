@@ -1,118 +1,114 @@
-# -*- lexical-binding: t; -*-
-#+title: Thornjad's Emacs Configuration
-#+author: Jade Michael Thornton <thornjad>
-#+description: Here lives Thornjad's Emacs configuration. There are many like it, but this one is mine.
-#+filetags: :emacs:
-#+startup: overview
-#+options: num:nil toc:t
-#+property: header-args:emacs-lisp :tangle yes :lexical t :results silent :exports code :eval never-export
+;;; config.el --- Thornjad's Emacs Configuration -*- lexical-binding: t; -*-
+;;
+;; Copyright (c) 2016-2026 Jade Michael Thornton
+;;
+;; Permission to use, copy, modify, and/or distribute this software for any
+;; purpose with or without fee is hereby granted, provided that the above
+;; copyright notice and this permission notice appear in all copies.
+;;
+;; The software is provided "as is" and the author disclaims all warranties with
+;; regard to this software including all implied warranties of merchantability
+;; and fitness. In no event shall the author be liable for any special, direct,
+;; indirect, or consequential damages or any damages whatsoever resulting from
+;; loss of use, data or profits, whether in an action of contract, negligence or
+;; other tortious action, arising out of or in connection with the use or
+;; performance of this software.
+;;
+;;; Commentary:
+;;
+;; Here lives Thornjad's Emacs configuration. There are many like it, but this
+;; one is mine. Blending all the best shit I can find, making a conscious
+;; effort for speed, robustness and above all, skillfulness.
+;;
+;;; Code:
+;;; Introduction
+;; Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
 
-* Introduction
-Here lives my own configuration for GNU Emacs, blending all the best shit I can find, making a conscious effort for speed, robustness and above all, skillfulness. There are many like it, but this one is mine.
+;; "Configuring Emacs is more of a lifestyle choice than a task that one completes." — Stephen Ramsey
 
-#+begin_quote
-"Configuring Emacs is more of a lifestyle choice than a task that one completes." — Stephen Ramsey
-#+end_quote
+;; This is most definitely not a general distribution Emacs configuration system. It undergoes constant evolution; bindings, settings and packages change with no warning and little to no documentation. This project is open source as a reference or source of ideas. Use at your own risk. Keep in mine that I, the author, am an engineering manager in the age of AI, and the code-related parts of this config are undergoing a slow decline. Most of my effort is put into the parts I really use for my job: org-mode, magit, and AI.
 
-This is most definitely not a general distribution Emacs configuration system. It undergoes constant evolution; bindings, settings and packages change with no warning and little to no documentation. This project is open source as a reference or source of ideas. Use at your own risk. Keep in mine that I, the author, am an engineering manager in the age of AI, and the code-related parts of this config are undergoing a slow decline. Most of my effort is put into the parts I really use for my job: org-mode, magit, and AI.
+;; To get started with Emacs, I highly recommend the distribution responsible for hooking me in: [[https://spacemacs.org][Spacemacs]].
 
-To get started with Emacs, I highly recommend the distribution responsible for hooking me in: [[https://spacemacs.org][Spacemacs]].
+;; "An infinite number of monkeys typing into GNU Emacs would never make a good program." — Linus Torvalds
 
-#+begin_quote
-"An infinite number of monkeys typing into GNU Emacs would never make a good program." — Linus Torvalds
-#+end_quote
+;; When I first started using Emacs, I took full advantage of Spacemacs, so the architecture of that project has shaped the way I think about editing. As such, the majority of the config revolves around a single leader key, =SPC=. For example, =SPC SPC= is the same as =M-x=, =SPC f w= (for file write) saves the buffer to disk.
 
-When I first started using Emacs, I took full advantage of Spacemacs, so the architecture of that project has shaped the way I think about editing. As such, the majority of the config revolves around a single leader key, =SPC=. For example, =SPC SPC= is the same as =M-x=, =SPC f w= (for file write) saves the buffer to disk.
+;; For everything else, this config makes extensive use of [[https://github.com/emacs-evil/evil][Evil]], providing the user with modifier-key-free modal editing, though the majority of Emacs bindings remain available. Emacs keybindings belong in the dark ages where they originated. They might work for RMS, but I can only hold =CTRL= for so long.
 
-For everything else, this config makes extensive use of [[https://github.com/emacs-evil/evil][Evil]], providing the user with modifier-key-free modal editing, though the majority of Emacs bindings remain available. Emacs keybindings belong in the dark ages where they originated. They might work for RMS, but I can only hold =CTRL= for so long.
+;; My config uses my [[https://github.com/thornjad/aero-theme][aero-theme]], which pulls loose inspiration from the [[https://github.com/11111000000/tao-theme-emacs][Tao themes]] and colors inspired by northern Minnesota in Autumn. The theme package also contains =aero-dark=, which incorporates further inspiration from my own [[https://github.com/ClearNight/clearnight-retro-syntax][ClearNight Retro]] theme for [[https://atom.io][Atom]] (may it rest in peace).
 
-My config uses my [[https://github.com/thornjad/aero-theme][aero-theme]], which pulls loose inspiration from the [[https://github.com/11111000000/tao-theme-emacs][Tao themes]] and colors inspired by northern Minnesota in Autumn. The theme package also contains =aero-dark=, which incorporates further inspiration from my own [[https://github.com/ClearNight/clearnight-retro-syntax][ClearNight Retro]] theme for [[https://atom.io][Atom]] (may it rest in peace).
+;; Within this config, you'll also find a custom improved mode line which works with any theme (though it looks great with =aero-light= and =aero-dark=). Rather than getting cluttered with info from every mode under the sun, the Aero mode line displays the current editing mode, file status (changed, saved, locked), filename, file size, line number at point, progression through the file (percentage), the remote hostname (if using TRAMP) and the current major mode.
 
-Within this config, you'll also find a custom improved mode line which works with any theme (though it looks great with =aero-light= and =aero-dark=). Rather than getting cluttered with info from every mode under the sun, the Aero mode line displays the current editing mode, file status (changed, saved, locked), filename, file size, line number at point, progression through the file (percentage), the remote hostname (if using TRAMP) and the current major mode.
+;; If you found this useful, [[https://buymeacoffee.com/jademichaelthornton][buy me a coffee!]]
 
-If you found this useful, [[https://buymeacoffee.com/jademichaelthornton][buy me a coffee!]]
 
-** Installation
-Clone this repo into your =~/.config/emacs= and run =make init=. The make command will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as some small dependencies. It will also set up and update some submodules.
+;;;; Installation
+;; Clone this repo into your =~/.config/emacs= and run =make init=. The make command will install dependencies needed for LSP servers, using any tools already available on the system (e.g. it will not error if =opam= isn't installed), as well as some small dependencies. It will also set up and update some submodules.
 
-Upon starting up Emacs for the first time, further third-party packages will automatically download and install via =straight.el=. Subsequent startups should take one or two seconds. If you encounter any errors at this stage, try restarting Emacs and/or opening a bug.
+;; Upon starting up Emacs for the first time, further third-party packages will automatically download and install via =straight.el=. Subsequent startups should take one or two seconds. If you encounter any errors at this stage, try restarting Emacs and/or opening a bug.
 
-*** Emacs installation using included build scripts
-My configuration includes some convenient scripting to install Emacs on Linux and Mac, with both a stable and cutting-edge version supported for Mac.
 
-**** Installing Emacs on Linux
-The =make linux= target will call =linux.zsh=, which installs requirements, configures, builds and installs the latest version of Emacs.
+;;;;; Emacs installation using included build scripts
+;; My configuration includes some convenient scripting to install Emacs on Linux and Mac, with both a stable and cutting-edge version supported for Mac.
 
-**** Installing Emacs on MacOS
-Unlike Linux, installing and running Emacs on MacOS can be flaky, so several installation options are provided. Use the one that works best on your machine.
 
-- =make build-emacs-macos=: This is the preferred option, installing the development version of Emacs with native compilation and XWidgets support.
-- =make build-emacs-macos-stable=: A fallback option, installing the mainline release version of Emacs, with native compilation and XWidgets support.
-- =make build-emacs-macos-minimal=: Same as =build-emacs-macos= but without native compilation.
-- =make build-emacs-macos-stable-minimal=: Same as =build-emacs-macos-stable= but without native compilation.
-- =make build-emacs-cask=: Install the standard Homebrew Cask =emacs-nightly= package, still cutting-edge but should be more stable than the previous options.
-- =make build-emacs-cask-stable=: The final fallback, the standard Homebrew Cask =emacs= package.
+;;;;;; Installing Emacs on Linux
+;; The =make linux= target will call =linux.zsh=, which installs requirements, configures, builds and installs the latest version of Emacs.
 
-** Local configuration
-Your environment may require specific configuration, such as secret keys, environment variables, or work-specific functions, which should not appear in a git repository. My config features the ability to read an =init.local.el= when it exists in the same directory as the =init.el=. This local file may contain arbitrary Elisp, which is executed after everything else.
 
-** Credits and acknowledgements
-Like the Borg, my config amalgamates macros, functions, bindings and packages modified from or inspired by a plethora of developers. Special thanks to these fantastic people, with links to the invaluable resource they provide:
+;;;;;; Installing Emacs on MacOS
+;; Unlike Linux, installing and running Emacs on MacOS can be flaky, so several installation options are provided. Use the one that works best on your machine.
 
-- [[https://github.com/sachac/.emacs.d][Sacha Chua]]
-- [[https://svn.red-bean.com/repos/kfogel/trunk/.emacs][Karl Fogel]]
-- [[https://github.com/Wilfred/.emacs.d][Wilfred Hughes]]
-- [[https://github.com/jwiegley/dot-emacs][John Wiegley]]
-- [[https://github.com/purcell/emacs.d][Steve Purcell]]
-- [[https://github.com/sam217pa/emacs-config][Samuel Barreto]]
+;; - =make build-emacs-macos=: This is the preferred option, installing the development version of Emacs with native compilation and XWidgets support.
+;; - =make build-emacs-macos-stable=: A fallback option, installing the mainline release version of Emacs, with native compilation and XWidgets support.
+;; - =make build-emacs-macos-minimal=: Same as =build-emacs-macos= but without native compilation.
+;; - =make build-emacs-macos-stable-minimal=: Same as =build-emacs-macos-stable= but without native compilation.
+;; - =make build-emacs-cask=: Install the standard Homebrew Cask =emacs-nightly= package, still cutting-edge but should be more stable than the previous options.
+;; - =make build-emacs-cask-stable=: The final fallback, the standard Homebrew Cask =emacs= package.
 
-** Copyright Notice
-Copyright (c) 2016-2026 Jade Michael Thornton
 
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
+;;;; Local configuration
+;; Your environment may require specific configuration, such as secret keys, environment variables, or work-specific functions, which should not appear in a git repository. My config features the ability to read an =init.local.el= when it exists in the same directory as the =init.el=. This local file may contain arbitrary Elisp, which is executed after everything else.
 
-The software is provided "as is" and the author disclaims all warranties with
-regard to this software including all implied warranties of merchantability
-and fitness. In no event shall the author be liable for any special, direct,
-indirect, or consequential damages or any damages whatsoever resulting from
-loss of use, data or profits, whether in an action of contract, negligence or
-other tortious action, arising out of or in connection with the use or
-performance of this software.
 
-* How this file is loaded
-Obviously you're reading an org file right now, not Emacs Lisp, so =org-babel= converts (tangles) all the source block in this file into a =config.el= file, which is then actually executed to configure Emacs.
+;;;; Credits and acknowledgements
+;; Like the Borg, my config amalgamates macros, functions, bindings and packages modified from or inspired by a plethora of developers. Special thanks to these fantastic people, with links to the invaluable resource they provide:
 
-This conversion kicks off from =init.el=, which also sets up some critical early functionality such as determining if treesitter is available and messing with garbage collection (a controversial practice). Then =org-babel-load-file= is called on this org file and whole configuration journey is launched. The rest of this file is executed in order, with everything that is not inside a source block stripped out.
+;; - [[https://github.com/sachac/.emacs.d][Sacha Chua]]
+;; - [[https://svn.red-bean.com/repos/kfogel/trunk/.emacs][Karl Fogel]]
+;; - [[https://github.com/Wilfred/.emacs.d][Wilfred Hughes]]
+;; - [[https://github.com/jwiegley/dot-emacs][John Wiegley]]
+;; - [[https://github.com/purcell/emacs.d][Steve Purcell]]
+;; - [[https://github.com/sam217pa/emacs-config][Samuel Barreto]]
 
-=org-babel-load-file= works by tangling this file to =config.el= and loading the result — it does not consult =org-confirm-babel-evaluate= at all. That variable governs interactive execution only: when you press =C-c C-c= on a source block in any =.org= file. =org-confirm-babel-evaluate= is set further down (in the Org package configuration) to a function that permits silent execution in this file and requires explicit confirmation in every other =.org= file, preventing a malicious or untrusted file from running arbitrary code interactively.
 
-*** Tips
-When inside of an Org source block, you can use =org-babel-demarcate-block= to split the block you're currently in so that you can insert an annotation.
+;;; How this file is loaded
+;; =init.el= sets up critical early functionality such as garbage collection tuning (a
+;; controversial practice), then loads this file directly. The rest of this file is executed in
+;; order.
 
-* Lexical binding
-Before any other code, we have to make sure the tangled =config.el= has lexical binding, or else we're in for a world of pain. I cannot understand why this isn't the default. Emacs should at least have an option to make everything lexical by default, forcing old code to opt-out.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Lexical binding
+;; Before any other code, we have to make sure the tangled =config.el= has lexical binding, or else we're in for a world of pain. I cannot understand why this isn't the default. Emacs should at least have an option to make everything lexical by default, forcing old code to opt-out.
+
   ;;; -*- lexical-binding: t -*-
-#+END_SRC
 
-* Directory constants
-These define some locations that we can reference later
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Directory constants
+;; These define some locations that we can reference later
+
   (defconst aero-lib-dir (expand-file-name "lib/" user-emacs-directory))
   (defconst aero-etc-dir (expand-file-name "etc/" user-emacs-directory))
   (defconst aero-snippets-dir (expand-file-name "snippets/" user-emacs-directory))
   (defconst aero-cache-dir (expand-file-name "cache/" aero-etc-dir))
   (defconst pcache-directory (expand-file-name "pcache/" aero-cache-dir))
   (unless (file-exists-p aero-cache-dir) (make-directory aero-cache-dir))
-#+END_SRC
 
-We also need to set up locations for org-roam and thornlog. Thornlog is a custom daily logging and note-taking system, using org-roam. Check out the [[Thornlog]] section for more.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; We also need to set up locations for org-roam and thornlog. Thornlog is a custom daily logging and note-taking system, using org-roam. Check out the [[Thornlog]] section for more.
+
   (defconst aero/documents-path (expand-file-name "~/Documents/"))
   (defconst aero/thornlog-path (expand-file-name "thornlog/" aero/documents-path))
   (defconst aero/roam-path (expand-file-name "roam/" aero/thornlog-path))
@@ -120,26 +116,27 @@ We also need to set up locations for org-roam and thornlog. Thornlog is a custom
   (defconst aero/thornlog-elfeed-directory (expand-file-name "elfeed/" aero/documents-path)
     "The directory where elfeed will store its database and other files.")
   (defconst aero/thornlog-elfeed-org-file (expand-file-name "rss_feeds.org" aero/roam-path))
-#+END_SRC
 
-* Builtin requires
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;; Builtin requires
   (require 'cl-lib)
   (require 'subr-x)
-#+END_SRC
 
-* Disable custom system
-I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will write customizations to a file that is never loaded, effectively disabling them.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Disable custom system
+;; I strongly prefer setting up customization with this very config file, so make sure nothing happens if I accidentally customize a variable. This will write customizations to a file that is never loaded, effectively disabling them.
+
   (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-#+END_SRC
 
-* Define Library functions
-** Advice
-Also kill excess whitespace when joining lines.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Define Library functions
+
+;;;; Advice
+;; Also kill excess whitespace when joining lines.
+
   (defun aero/kill-line-autoreindent ()
     "Kill excess whitespace when joining lines.
 If the next line is joined to the current line, kill the extra indent
@@ -149,11 +146,10 @@ whitespace in front of the next line."
         (forward-char 1)
         (just-one-space 1))))
   (advice-add 'kill-line :before #'aero/kill-line-autoreindent)
-#+END_SRC
 
-When getting symbol documentation in Elisp, also append its docstring.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; When getting symbol documentation in Elisp, also append its docstring.
+
   (defun aero/advice-elisp-get-fnsym-args-string (fn sym &rest args)
     "If SYM is a function, append its docstring."
     (concat
@@ -164,11 +160,10 @@ When getting symbol documentation in Elisp, also append its docstring.
             (not (string= "" doc))
             (concat "\n\n" (propertize doc 'face 'italic))))))
   (advice-add 'elisp-get-fnsym-args-string :around #'aero/advice-elisp-get-fnsym-args-string)
-#+END_SRC
 
-When indenting a new line inside a comment, add at least one space at the start.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; When indenting a new line inside a comment, add at least one space at the start.
+
   (define-advice comment-indent-new-line (:after (&optional _soft) at-least-one-space)
     "Ensure that at least one space is added after the comment-start."
     (let ((start (regexp-quote comment-start)))
@@ -176,11 +171,10 @@ When indenting a new line inside a comment, add at least one space at the start.
                  (looking-back start (+ (point) (length start)))
                  (not (looking-back " "  (+ (point) 1))))
         (insert " "))))
-#+END_SRC
 
-Don't kill the main scratch buffer, only bury it.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Don't kill the main scratch buffer, only bury it.
+
   (defun aero/kill-buffer-around-advice (orig-fun &rest args)
     "Don't kill my scratch!"
     (let ((buffer-to-kill (car args)))
@@ -188,10 +182,10 @@ Don't kill the main scratch buffer, only bury it.
           (bury-buffer)
         (apply orig-fun args))))
   (advice-add 'kill-buffer :around #'aero/kill-buffer-around-advice)
-#+END_SRC
 
-** Utilities
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Utilities
   (defun aero/keyboard-quit-context ()
     "Quit current context.
 
@@ -244,10 +238,10 @@ avoiding the weird single-line behavior of `comment-dwim'."
 
   Similar to C++'s void var construct."
     `(and ,@body))
-#+END_SRC
 
-** System and logging
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; System and logging
   (defun system-is-mac () (string= system-type 'darwin))
   (defun system-is-linux () (string= system-type 'gnu/linux))
   (defun system-is-mswindows () (string= system-type 'windows-nt))
@@ -261,14 +255,14 @@ avoiding the weird single-line behavior of `comment-dwim'."
   (defun treesitterp ()
     "Evaluate whether Emacs has treesitter support."
     (and (functionp 'treesit-available-p) (treesit-available-p)))
-#+END_SRC
 
-*** Change font size (zoom in and out)
-Especially useful when screen sharing, Google Meet in particular really makes things blurry.
 
-Based on https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-fly/
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;;; Change font size (zoom in and out)
+;; Especially useful when screen sharing, Google Meet in particular really makes things blurry.
+
+;; Based on https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-fly/
+
   (defun aero/increase-font-size ()
     (interactive)
     (set-face-attribute 'default nil :height (ceiling (* 1.10 (face-attribute 'default :height)))))
@@ -277,18 +271,17 @@ Based on https://sachachua.com/blog/2006/09/emacs-changing-the-font-size-on-the-
     (set-face-attribute 'default nil :height (floor (* 0.9 (face-attribute 'default :height)))))
   (global-set-key (kbd "C-+") 'aero/increase-font-size)
   (global-set-key (kbd "C--") 'aero/decrease-font-size)
-#+END_SRC
 
-Also allow =C-==, just to be less annoying since that's just + without shift
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Also allow =C-==, just to be less annoying since that's just + without shift
+
   (global-set-key (kbd "C-=") 'aero/increase-font-size)
-#+END_SRC
 
-** Buffers, windows, frames, tabs
-A collection of helpers for managing windows and buffers
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Buffers, windows, frames, tabs
+;; A collection of helpers for managing windows and buffers
+
   (defun aero/switch-to-minibuffer-window ()
     "switch to minibuffer window (if active)"
     (interactive)
@@ -408,13 +401,14 @@ A collection of helpers for managing windows and buffers
     "Run COMMAND asynchronously like `async-shell-command' but with PATH loaded."
     `(let ((shell-command-switch "-ic"))
        (async-shell-command ,command ,buffer ,error-buffer)))
-#+END_SRC
 
-** Files
-*** Reopen file at buffer
-It's occasionally useful to "restart" the current buffer. To my current knowledge this isn't a builtin functionality, so I have my own function.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Files
+
+;;;;; Reopen file at buffer
+;; It's occasionally useful to "restart" the current buffer. To my current knowledge this isn't a builtin functionality, so I have my own function.
+
   (defun aero/reopen-file-at-buffer ()
     "Re-open the file at buffer, replacing buffer.
 
@@ -440,11 +434,11 @@ It's occasionally useful to "restart" the current buffer. To my current knowledg
       ;; Finally, recenter the line. We may not have been centered before, but this is more often than
       ;; not what we want.
       (recenter)))
-#+END_SRC
 
-*** Other file helpers
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Other file helpers
+
   (defun aero/insert-org-date ()
     "Insert current date."
     (interactive)
@@ -599,10 +593,10 @@ instead."
            (list (org-element-property :raw-link link))
          (browse-url-interactive-arg "URL: "))))
     (aero/xdg-open url))
-#+END_SRC
 
-** Et cetera
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Et cetera
   ;; written by github user rompy
   (defun aero/smarter-backward-kill-word ()
     "Deletes the previous word, respecting:
@@ -727,9 +721,9 @@ instead."
     (shell-command-on-region beg end "pandoc -t org" nil t))
 
   (defun aero/open-emacs-config ()
-    "Open an org-agenda file from a list of all agenda files."
+    "Open the main Emacs configuration file."
     (interactive)
-    (find-file (expand-file-name "config.org" user-emacs-directory)))
+    (find-file (expand-file-name "config.el" user-emacs-directory)))
 
   (defun aero/eslint-fix-file ()
     "Run eslint --fix on the current buffer's file."
@@ -780,9 +774,8 @@ including this config."
     (interactive)
     (let ((default-directory (expand-file-name "~/")))
       (compile "make")))
-#+END_SRC
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
   (defun aero/docker-restart ()
     "Run \\='make docker-restart\\=' in the home directory.
 
@@ -797,37 +790,36 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
     (interactive)
     (let ((default-directory aero/thornlog-path))
       (compile "make tickets")))
-#+END_SRC
 
-* Packaging setup
-** GnuTLS
-Evaluate =gnutls= and disallow TLS connections
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Packaging setup
+
+;;;; GnuTLS
+;; Evaluate =gnutls= and disallow TLS connections
+
   (with-eval-after-load 'gnutls
     (eval-when-compile (require 'gnutls))
     (setq gnutls-verify-error t)) ; Do not allow insecure TLS connections.
-#+END_SRC
 
-** Borg
-Borg is being introduced alongside straight as the long-term replacement for package management. It manages each package as a git submodule (a "drone") under =lib/drones/=, which means every package is pinned to an explicit commit, updates show up as reviewable submodule-pointer diffs in git history, and there is no network access or remote code evaluation at init time. This directly addresses the largest security gap in this configuration, which is unvetted package updates. The migration is incremental: straight and Borg coexist, with each package owned by exactly one of them, and packages move over one at a time.
 
-Borg is itself vendored as a submodule at =lib/borg=, so it is added to the load path and required directly rather than bootstrapped from the network. Its only load-time dependencies are built-in Emacs libraries.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; Borg
+;; Borg is being introduced alongside straight as the long-term replacement for package management. It manages each package as a git submodule (a "drone") under =lib/drones/=, which means every package is pinned to an explicit commit, updates show up as reviewable submodule-pointer diffs in git history, and there is no network access or remote code evaluation at init time. This directly addresses the largest security gap in this configuration, which is unvetted package updates. The migration is incremental: straight and Borg coexist, with each package owned by exactly one of them, and packages move over one at a time.
+
+;; Borg is itself vendored as a submodule at =lib/borg=, so it is added to the load path and required directly rather than bootstrapped from the network. Its only load-time dependencies are built-in Emacs libraries.
+
   (add-to-list 'load-path (expand-file-name "lib/borg" user-emacs-directory))
   (require 'borg)
-#+END_SRC
 
-Borg derives =borg-drones-directory= from its own location, which would default to =lib/= and sweep in the non-drone submodules =lib/aero-theme=, =lib/straight.el=, and =lib/borg= itself. We instead keep drones in a dedicated =lib/drones/= subdirectory. This is set with =setq= rather than the =borg.drones-directory= git variable because git config lives in =.git/config= and does not sync across machines, whereas this configuration does. Borg's other derived locations are computed from the repository root, not the drones directory, so they remain correct after this override.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Borg derives =borg-drones-directory= from its own location, which would default to =lib/= and sweep in the non-drone submodules =lib/aero-theme=, =lib/straight.el=, and =lib/borg= itself. We instead keep drones in a dedicated =lib/drones/= subdirectory. This is set with =setq= rather than the =borg.drones-directory= git variable because git config lives in =.git/config= and does not sync across machines, whereas this configuration does. Borg's other derived locations are computed from the repository root, not the drones directory, so they remain correct after this override.
+
   (setq borg-drones-directory (expand-file-name "lib/drones" user-emacs-directory))
-#+END_SRC
 
-These helpers support the =:borg= recipe in the =package!= macro and the startup self-heal below. =aero/borg-drone-names= deliberately uses =borg-do-drones=, which filters submodules by the drones-directory path prefix; the bare =borg-drones= function strips a fixed prefix length from every submodule without filtering and would mangle the non-drone submodules. =aero/borg-drone-present-p= reports whether a drone's source is actually checked out on this machine, and =aero/borg-drone-autoloads-p= whether its autoloads have been generated. =aero/borg-warn-unassimilated= surfaces a non-fatal warning when a declared drone has not been fetched, rather than failing init.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; These helpers support the =:borg= recipe in the =package!= macro and the startup self-heal below. =aero/borg-drone-names= deliberately uses =borg-do-drones=, which filters submodules by the drones-directory path prefix; the bare =borg-drones= function strips a fixed prefix length from every submodule without filtering and would mangle the non-drone submodules. =aero/borg-drone-present-p= reports whether a drone's source is actually checked out on this machine, and =aero/borg-drone-autoloads-p= whether its autoloads have been generated. =aero/borg-warn-unassimilated= surfaces a non-fatal warning when a declared drone has not been fetched, rather than failing init.
+
   (defun aero/borg-drone-names ()
     "Return the prefix-filtered list of assimilated drone names.
 Uses `borg-do-drones', not the bare `borg-drones', which would mangle
@@ -854,34 +846,32 @@ submodules outside `borg-drones-directory'."
      (format "Drone `%s' is declared but not checked out. Run `make sync' to fetch it."
              name)
      :warning))
-#+END_SRC
 
-Borg owns autoloads; =compile-angel= owns compilation. The self-heal below generates autoloads for any present drone that lacks them, which is dependency-free and therefore safe regardless of load order. It deliberately does not byte-compile, because compiling a drone before its dependencies are loaded would silently miscompile macro calls. Byte and native compilation are left to =compile-angel= and the native-comp JIT, which compile each drone's source on first load, by which point =use-package='s =:after= and =:hook= deferral guarantees the drone's dependencies are present. This also means a machine that has pulled new drone source but not yet built it heals itself on the next startup, with no network access. Finally =borg-initialize= activates every present, non-disabled drone by adding it to the load path and loading its autoloads.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Borg owns autoloads; =compile-angel= owns compilation. The self-heal below generates autoloads for any present drone that lacks them, which is dependency-free and therefore safe regardless of load order. It deliberately does not byte-compile, because compiling a drone before its dependencies are loaded would silently miscompile macro calls. Byte and native compilation are left to =compile-angel= and the native-comp JIT, which compile each drone's source on first load, by which point =use-package='s =:after= and =:hook= deferral guarantees the drone's dependencies are present. This also means a machine that has pulled new drone source but not yet built it heals itself on the next startup, with no network access. Finally =borg-initialize= activates every present, non-disabled drone by adding it to the load path and loading its autoloads.
+
   (borg-do-drones (drone)
     (when (and (aero/borg-drone-present-p drone)
                (not (aero/borg-drone-autoloads-p drone)))
       (borg-update-autoloads drone)))
   (borg-initialize)
-#+END_SRC
 
-Borg assumes every submodule is a drone living directly under =borg-drones-directory=. The no-argument form of =borg-drones= relies on that assumption: it strips a fixed prefix length from every submodule path without filtering, so in this configuration, where =lib/borg=, =lib/aero-theme=, and =lib/straight.el= are submodules outside =lib/drones/=, it returns garbage and even errors on paths shorter than the prefix. Only one Borg function depends on this no-argument form, =borg-remove=; everything else uses the prefix-filtered =borg-drones 'raw=. This advice reroutes the no-argument call through that same filtered path, which is what it should have returned, so =borg-remove= and any future caller work correctly without us having to flatten the submodule layout.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Borg assumes every submodule is a drone living directly under =borg-drones-directory=. The no-argument form of =borg-drones= relies on that assumption: it strips a fixed prefix length from every submodule path without filtering, so in this configuration, where =lib/borg=, =lib/aero-theme=, and =lib/straight.el= are submodules outside =lib/drones/=, it returns garbage and even errors on paths shorter than the prefix. Only one Borg function depends on this no-argument form, =borg-remove=; everything else uses the prefix-filtered =borg-drones 'raw=. This advice reroutes the no-argument call through that same filtered path, which is what it should have returned, so =borg-remove= and any future caller work correctly without us having to flatten the submodule layout.
+
   (define-advice borg-drones (:around (orig &optional include-variables) aero/prefix-safe)
     "Make the no-argument `borg-drones' filter submodules by the drones-directory prefix."
     (if include-variables
         (funcall orig include-variables)
       (mapcar #'car (funcall orig 'raw))))
-#+END_SRC
 
-*** Assimilation helpers
-Adding a package to Borg is a deliberate, committed act, never something that happens at load time. These helpers make that act ergonomic while keeping it secure. The guiding idea is clone-before-build: source is placed on disk and can be inspected before any of its code is allowed to run, which is also where a future diff-audit step would slot in.
 
-=aero/borg-package-requires= reads a drone's dependencies from the =Package-Requires= header in its source, scanning every non-generated Emacs Lisp file because the declaring file is not always named after the drone. =aero/borg-dep-status= classifies each dependency as Emacs itself, an existing drone, otherwise available (built-in or still provided by straight during the migration), or missing. We read dependencies from local source rather than an external database, so =epkg= is not needed and is deliberately not used.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;;; Assimilation helpers
+;; Adding a package to Borg is a deliberate, committed act, never something that happens at load time. These helpers make that act ergonomic while keeping it secure. The guiding idea is clone-before-build: source is placed on disk and can be inspected before any of its code is allowed to run, which is also where a future diff-audit step would slot in.
+
+;; =aero/borg-package-requires= reads a drone's dependencies from the =Package-Requires= header in its source, scanning every non-generated Emacs Lisp file because the declaring file is not always named after the drone. =aero/borg-dep-status= classifies each dependency as Emacs itself, an existing drone, otherwise available (built-in or still provided by straight during the migration), or missing. We read dependencies from local source rather than an external database, so =epkg= is not needed and is deliberately not used.
+
   (defun aero/borg-package-requires (name)
     "Return the merged Package-Requires of drone NAME as a list of (DEP VERSION).
 Scans every non-generated Emacs Lisp file in the drone, since the file that
@@ -937,11 +927,10 @@ Names in ADDED are flagged as assimilated during the current run."
         (goto-char (point-min))
         (special-mode))
       (display-buffer (current-buffer))))
-#+END_SRC
 
-=aero/borg-assimilate= ties this together. It registers the target and each missing dependency as a submodule and places their source on disk without building or activating them, so none of their code runs. It then shows a report and only builds and activates after explicit confirmation, leaving a window to inspect the cloned source. It uses =borg-assimilate= with its =partially= argument for the no-build registration step, and =borg-build= for the deferred build.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; =aero/borg-assimilate= ties this together. It registers the target and each missing dependency as a submodule and places their source on disk without building or activating them, so none of their code runs. It then shows a report and only builds and activates after explicit confirmation, leaving a window to inspect the cloned source. It uses =borg-assimilate= with its =partially= argument for the no-build registration step, and =borg-build= for the deferred build.
+
   (defun aero/borg-assimilate (name url)
     "Assimilate drone NAME from URL together with its missing dependencies.
 Register NAME and each missing dependency as a submodule and place their
@@ -986,24 +975,23 @@ from each package's Package-Requires header; URLs are entered at the prompt."
           (dolist (a (reverse added)) (borg-build a t))
         (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
                  (length added)))))
-#+END_SRC
 
-** Straight.el
-straight.el is managed as a vendored git submodule at =lib/straight.el= tracking the default branch. Since the submodule is pinned to an explicit commit, the branch is mostly advisory; updates happen by advancing the submodule pointer, not by running straight's own update commands.
 
-Don't allow straight to check for modifications in every repo on Emacs init, saving some startup time
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; Straight.el
+;; straight.el is managed as a vendored git submodule at =lib/straight.el= tracking the default branch. Since the submodule is pinned to an explicit commit, the branch is mostly advisory; updates happen by advancing the submodule pointer, not by running straight's own update commands.
+
+;; Don't allow straight to check for modifications in every repo on Emacs init, saving some startup time
+
   (eval-when-compile
     (defvar straight-check-for-modifications))
   (setq straight-check-for-modifications nil)
-#+END_SRC
 
-Set the order in which repositories are checked for =:auto= recipes. These are based on broad levels of trust, if something appears in both GNU ELPA and MELPA, for example, we'd prefer the GNU ELPA version. Also prefer using the mirror of GNU ELPA because it's stupidly more efficient than the normal GNU ELPA build process.
 
-We also use the GitHub mirror of Non-GNU ELPA because the source Savannah server gets overloaded fairly often.
+;; Set the order in which repositories are checked for =:auto= recipes. These are based on broad levels of trust, if something appears in both GNU ELPA and MELPA, for example, we'd prefer the GNU ELPA version. Also prefer using the mirror of GNU ELPA because it's stupidly more efficient than the normal GNU ELPA build process.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; We also use the GitHub mirror of Non-GNU ELPA because the source Savannah server gets overloaded fairly often.
+
   (defvar straight-recipe-repositories)
   (defvar straight-recipes-gnu-elpa-use-mirror)
   (defvar straight-built-in-pseudo-packages)
@@ -1015,24 +1003,22 @@ We also use the GitHub mirror of Non-GNU ELPA because the source Savannah server
                        :branch "main")
           emacsmirror-mirror melpa))
   (setq straight-recipes-gnu-elpa-use-mirror t)
-#+END_SRC
 
-Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we (or more likely any dependency) try to pull it in.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Tell straight that let-alist is a built-in package now, so it doesn't need to be checked if we (or more likely any dependency) try to pull it in.
+
   (with-eval-after-load 'straight
     (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
-#+END_SRC
 
-straight.el is vendored as a git submodule at =lib/straight.el= rather than fetched from the network on first run. The standard bootstrap snippet downloads =install.el= from =raw.githubusercontent.com= and evaluates it in place, which is unauthenticated remote code execution on every fresh machine setup. Because =straight.el= is the trust anchor for every other package in this configuration, it is treated as a first-class threat surface and pinned under version control. To update it, advance the submodule commit and commit the pointer change; straight's own update commands will not affect it.
 
-On a fresh machine where =straight/repos/straight.el= does not yet exist, the bootstrap creates a symlink from =straight/repos/straight.el= to the vendored =lib/straight.el= and loads =bootstrap.el= from there. =bootstrap.el= uses =file-truename= on =load-file-name=, so it resolves the symlink and correctly finds =straight.el= in =lib/straight.el/=. Subsequent runs find the existing repo (real or symlinked) and load =bootstrap.el= directly. No network access occurs at any point during bootstrap.
+;; straight.el is vendored as a git submodule at =lib/straight.el= rather than fetched from the network on first run. The standard bootstrap snippet downloads =install.el= from =raw.githubusercontent.com= and evaluates it in place, which is unauthenticated remote code execution on every fresh machine setup. Because =straight.el= is the trust anchor for every other package in this configuration, it is treated as a first-class threat surface and pinned under version control. To update it, advance the submodule commit and commit the pointer change; straight's own update commands will not affect it.
 
-This mirrors the approach straight.el's own README documents as the alternative for environments where =url-retrieve-synchronously= is unavailable: clone the repository into =~/.emacs.d/straight/repos/straight.el= and check out the desired revision.
+;; On a fresh machine where =straight/repos/straight.el= does not yet exist, the bootstrap creates a symlink from =straight/repos/straight.el= to the vendored =lib/straight.el= and loads =bootstrap.el= from there. =bootstrap.el= uses =file-truename= on =load-file-name=, so it resolves the symlink and correctly finds =straight.el= in =lib/straight.el/=. Subsequent runs find the existing repo (real or symlinked) and load =bootstrap.el= directly. No network access occurs at any point during bootstrap.
 
-This is an intermediate arrangement. The longer-term plan is to replace straight with Borg, which manages all packages as git submodules natively and eliminates the bootstrap trust problem entirely.
+;; This mirrors the approach straight.el's own README documents as the alternative for environments where =url-retrieve-synchronously= is unavailable: clone the repository into =~/.emacs.d/straight/repos/straight.el= and check out the desired revision.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; This is an intermediate arrangement. The longer-term plan is to replace straight with Borg, which manages all packages as git submodules natively and eliminates the bootstrap trust problem entirely.
+
   (let* ((repos-dir (expand-file-name "straight/repos" user-emacs-directory))
          (repos-straight (expand-file-name "straight.el" repos-dir))
          (lib-straight (expand-file-name "lib/straight.el" user-emacs-directory))
@@ -1041,17 +1027,15 @@ This is an intermediate arrangement. The longer-term plan is to replace straight
       (make-directory repos-dir t)
       (make-symbolic-link lib-straight repos-straight))
     (load bootstrap-file nil 'nomessage))
-#+END_SRC
 
-I'm not certain straight needs to be set up before use-package, but before use-package was built in to Emacs something got messed up when use-package was loaded first.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; I'm not certain straight needs to be set up before use-package, but before use-package was built in to Emacs something got messed up when use-package was loaded first.
+
   (require 'use-package)
-#+END_SRC
 
-If we're byte-compiling something, only expand minimally
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; If we're byte-compiling something, only expand minimally
+
   (eval-when-compile
     (defvar use-package-expand-minimally)
     (defvar use-package-compute-statistics)
@@ -1062,29 +1046,28 @@ If we're byte-compiling something, only expand minimally
         use-package-compute-statistics nil ; t then `use-package-report' to find packages not used
         package-native-compile t ; compile when installing (not sure if this works)
         use-package-minimum-reported-time 0.1)
-#+END_SRC
 
-If we're using =--debug-init=, make package loading verbose.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; If we're using =--debug-init=, make package loading verbose.
+
   (setq use-package-verbose init-file-debug)
-#+END_SRC
 
-** Compatibility shims
-Functions that may be missing from the current Emacs build but required by packages tracking the bleeding edge of Emacs development.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Compatibility shims
+;; Functions that may be missing from the current Emacs build but required by packages tracking the bleeding edge of Emacs development.
+
   ;; Added in Emacs 31.1+; vertico and others use it before it landed in all builds.
   (unless (fboundp 'set-local)
     (defun set-local (variable value)
       "Set VARIABLE's buffer-local value to VALUE."
       (set (make-local-variable variable) value)))
-#+END_SRC
 
-** Custom package macro
-The rest of the config uses this custom =package!= macro to abstract away some internals that have changed in the past and may change again (such as using =straight.el=).
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Custom package macro
+;; The rest of the config uses this custom =package!= macro to abstract away some internals that have changed in the past and may change again (such as using =straight.el=).
+
   (defmacro package! (package recipe &rest body)
     "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package\\='.
 
@@ -1148,25 +1131,26 @@ Example:
 
         `(use-package ,package :straight ,(or (equal recipe :auto) recipe) ,@body)))))
 
-#+END_SRC
 
-* Core setup (prelude)
-I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution, the two usages are cognate.
 
-** Treesitter initialization
-To ensure we can use this easily later, require treesitter as long as it's available and wanted. See [[*Treesitter][Treesitter]] section for the full config.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Core setup (prelude)
+;; I use "prelude" here as a nod to earlier iterations of this configuration, where the core setup lived in a prelude file, meaning it was required to setup important functionality. The name is only tangentially related to the Prelude configuration distribution, the two usages are cognate.
+
+
+;;;; Treesitter initialization
+;; To ensure we can use this easily later, require treesitter as long as it's available and wanted. See [[*Treesitter][Treesitter]] section for the full config.
+
   (and (and (treesitterp)
             (functionp 'module-load)
             (bound-and-true-p module-file-suffix))
        (require 'treesit nil t))
-#+END_SRC
 
-** Compile angel
-Set up automatic compilation for everything past this point
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Compile angel
+;; Set up automatic compilation for everything past this point
+
   (package! compile-angel :auto
     :demand t
     :hook (emacs-lisp-mode-hook . compile-angel-on-save-local-mode)
@@ -1185,33 +1169,32 @@ Set up automatic compilation for everything past this point
                                            compile-angel-excluded-files))
 
     (compile-angel-on-load-mode))
-#+END_SRC
 
-** Fix GNU ELPA Keyring
-The ELPA keyring sometimes gets screwed up, this fixes it
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Fix GNU ELPA Keyring
+;; The ELPA keyring sometimes gets screwed up, this fixes it
   (package! gnu-elpa-keyring-update :auto)
-#+END_SRC
 
-** Library requirements
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Library requirements
   (package! dash :auto)
   (package! async :auto :commands (async-save)) ; required by org-download
-#+END_SRC
 
-JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want to stop logging everything as a performance optimization.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we want to stop logging everything as a performance optimization.
+
   (package! jsonrpc :builtin
     :config
     ;; Don't waste time logging events
     (fset #'jsonrpc--log-event #'ignore))
-#+END_SRC
 
-** PATH from shell
-We only really need this in MacOS, grabbing environment variables from the default shell
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; PATH from shell
+;; We only really need this in MacOS, grabbing environment variables from the default shell
+
   (package! exec-path-from-shell :auto
     :when (or (memq window-system '(mac ns x)) (daemonp))
     :config
@@ -1222,29 +1205,31 @@ We only really need this in MacOS, grabbing environment variables from the defau
                    "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"))
       (add-to-list 'exec-path-from-shell-variables var))
     (exec-path-from-shell-initialize))
-#+END_SRC
 
-* Foundational functionality
-** Keybindings
-*** Which-key
-Gives us a variety of menus for keybindings, and integrates nicely with General
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Foundational functionality
+
+;;;; Keybindings
+
+;;;;; Which-key
+;; Gives us a variety of menus for keybindings, and integrates nicely with General
+
   (package! which-key :builtin
     :defines which-key-mode
     :config
     (which-key-mode)
     (setq which-key-special-keys '("SPC" "TAB" "RET" "ESC" "DEL")))
-#+END_SRC
 
-*** General
-The vast majority of keybindings are set up with General. A lot of this could be done almost as easily with regular keybinding, but General gives us an easier time setting up a leader key and better which-key integration.
 
-Most bindings will fall under the =SPC= leader key, so we generate a macro called =aero-leader-def= to make it easier for other packages to add their own bindings under this leader. For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding =aero-mode-leader-def= to suit.
 
-From there, we set up all the main keybindings.
+;;;;; General
+;; The vast majority of keybindings are set up with General. A lot of this could be done almost as easily with regular keybinding, but General gives us an easier time setting up a leader key and better which-key integration.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Most bindings will fall under the =SPC= leader key, so we generate a macro called =aero-leader-def= to make it easier for other packages to add their own bindings under this leader. For mode-specific keybindings, we use =SPC ,= as the leader, and a corresponding =aero-mode-leader-def= to suit.
+
+;; From there, we set up all the main keybindings.
+
   (package! general :auto
     :functions (general-define-key aero-leader-def aero-mode-leader-def)
     :init
@@ -1474,24 +1459,22 @@ From there, we set up all the main keybindings.
      "w}" 'enlarge-window
 
      "z" 'repeat))
-#+END_SRC
 
-** Evil
-#+begin_quote
-"Emacs is a great operating system, lacking only a decent editor." — ancient Vi proverb
-#+end_quote
 
-I'm going to say it, Vi has a better navigation scheme than default Emacs. Even with a thumb-cluster keyboard, I don't want to hold Ctrl basically at all. Evil provides the best of Vi with the power of Emacs, but it needs some heavy configuration to work well.
 
-The "wants" setup /must/ be in =:init= because Evil needs these set prior to setting up everything else.
+;;;; Evil
+;; "Emacs is a great operating system, lacking only a decent editor." — ancient Vi proverb
 
-Note that =evil-want-keybinding= is set to =nil= because =evil-collection= will handle that for us.
+;; I'm going to say it, Vi has a better navigation scheme than default Emacs. Even with a thumb-cluster keyboard, I don't want to hold Ctrl basically at all. Evil provides the best of Vi with the power of Emacs, but it needs some heavy configuration to work well.
 
-To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system)=.
+;; The "wants" setup /must/ be in =:init= because Evil needs these set prior to setting up everything else.
 
-In visual mode, use =<= and =>= to indent/unindent the line(s)
+;; Note that =evil-want-keybinding= is set to =nil= because =evil-collection= will handle that for us.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; To change the =undo-system= without restarting Emacs, run =(evil-set-undo-system)=.
+
+;; In visual mode, use =<= and =>= to indent/unindent the line(s)
+
   (package! evil :auto
     :init
     (setq evil-want-keybinding nil
@@ -1590,48 +1573,49 @@ In visual mode, use =<= and =>= to indent/unindent the line(s)
     (evil-define-key '(insert) global-map (kbd "C-S-y") #'evil-paste-before)
 
     (evil-mode +1))
-#+END_SRC
 
-*** Evil collection
-Provides Evil defaults for many modes which Evil proper overlooks
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Evil collection
+;; Provides Evil defaults for many modes which Evil proper overlooks
+
   (package! evil-collection :auto
     :defer 1
     :after evil
     :config (evil-collection-init))
-#+END_SRC
 
-*** Evil-matchit
-Allows % to jump matching tags
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Evil-matchit
+;; Allows % to jump matching tags
+
   (package! evil-matchit :auto
     :defer 5
     :after evil
     :defines global-evil-matchit-mode
     :config (global-evil-matchit-mode 1))
-#+END_SRC
 
-** Treesitter
 
-Tree-sitter provides faster and more accurate syntax highlighting and structural navigation in code files. As a manager who primarily works in org-mode, tree-sitter's benefits are marginal, but opening code files happens just often enough to keep it around.
 
-We do not use =treesit-auto= because =global-treesit-auto-mode= hooks into every file open to check grammar readiness across all modes in =auto-mode-alist=, which is a known performance problem on macOS. Instead, we use a simple =major-mode-remap-alist= to redirect only the languages we actually use to their tree-sitter variants. This is a zero-cost alist lookup with no per-file overhead.
+;;;; Treesitter
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Tree-sitter provides faster and more accurate syntax highlighting and structural navigation in code files. As a manager who primarily works in org-mode, tree-sitter's benefits are marginal, but opening code files happens just often enough to keep it around.
+
+;; We do not use =treesit-auto= because =global-treesit-auto-mode= hooks into every file open to check grammar readiness across all modes in =auto-mode-alist=, which is a known performance problem on macOS. Instead, we use a simple =major-mode-remap-alist= to redirect only the languages we actually use to their tree-sitter variants. This is a zero-cost alist lookup with no per-file overhead.
+
   (when (treesitterp)
     (setq major-mode-remap-alist
           '((python-mode . python-ts-mode)
             (typescript-mode . typescript-ts-mode)
             (js-mode . js-ts-mode))))
-#+END_SRC
 
-** Completion and navigation
-*** Vertico
-Provides a completion system similar to Ivy, but it's faster and more lightweight. Also make sure selections can wrap around the top and bottom of the menu.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Completion and navigation
+
+;;;;; Vertico
+;; Provides a completion system similar to Ivy, but it's faster and more lightweight. Also make sure selections can wrap around the top and bottom of the menu.
+
   (package! vertico :auto
     :init (vertico-mode)
     :custom
@@ -1647,28 +1631,28 @@ Provides a completion system similar to Ivy, but it's faster and more lightweigh
           (vertico-directory-up)
         (delete-char -1)))
     (define-key vertico-map (kbd "DEL") #'aero/vertico-directory-up-maybe))
-#+END_SRC
 
-*** Vertico-prescient
-Provides MRU (most-recently-used) sorting for all vertico completions, including =M-x=. Replaces amx for command history sorting. Shares the prescient persistence store with company-prescient.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Vertico-prescient
+;; Provides MRU (most-recently-used) sorting for all vertico completions, including =M-x=. Replaces amx for command history sorting. Shares the prescient persistence store with company-prescient.
+
   (package! vertico-prescient :auto
     :after (vertico)
     :config (vertico-prescient-mode +1))
-#+END_SRC
 
-*** Marginalia
-This provides a more informative completion system, showing more information about the candidates.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Marginalia
+;; This provides a more informative completion system, showing more information about the candidates.
+
   (package! marginalia :auto :init (marginalia-mode))
-#+END_SRC
 
-*** Orderless
-This provides a more flexible completion system where we can use spaces to separate search terms, inputting them in any order.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Orderless
+;; This provides a more flexible completion system where we can use spaces to separate search terms, inputting them in any order.
+
   (package! orderless :auto
     :custom
     (completion-styles '(substring orderless basic))
@@ -1677,14 +1661,14 @@ This provides a more flexible completion system where we can use spaces to separ
     (read-file-name-completion-ignore-case t)
     (read-buffer-completion-ignore-case t)
     (completion-ignore-case t))
-#+END_SRC
 
-*** Consult
-Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface. I also hook it into Xref for more seamless integration.
 
-Buffer previews are disabled for commands that browse files or buffers since loading unopened files is slow. Search commands like =consult-line= and =consult-ripgrep= keep automatic previews since the whole point is viewing the match in context.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;;; Consult
+;; Super useful package, providing a variety of wrappers that provide a powerful and consistent completing-read interface. I also hook it into Xref for more seamless integration.
+
+;; Buffer previews are disabled for commands that browse files or buffers since loading unopened files is slow. Search commands like =consult-line= and =consult-ripgrep= keep automatic previews since the whole point is viewing the match in context.
+
   (defun consult-outline-top ()
     (interactive)
     (funcall #'consult-outline 1))
@@ -1769,37 +1753,37 @@ Buffer previews are disabled for commands that browse files or buffers since loa
             (cdr args)))
     (advice-add #'completing-read-multiple :filter-args #'crm-indicator))
 
-#+END_SRC
 
-*** Yasnippet
-Yasnippet provides a powerful templating system for inserting boilerplate code.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Yasnippet
+;; Yasnippet provides a powerful templating system for inserting boilerplate code.
+
   (package! yasnippet :auto
     :defer 1
     :custom
     (yas-installed-snippets-dir aero-snippets-dir)
     :config
     (yas-global-mode 1))
-#+END_SRC
 
-**** Consult-yasnippet
-Plug yasnipet into consult for a better interface to snippets
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;;; Consult-yasnippet
+;; Plug yasnipet into consult for a better interface to snippets
+
   (package! consult-yasnippet :auto
     :after (consult yasnippet)
     :config
     (aero-leader-def
       "y" 'consult-yasnippet))
-#+END_SRC
 
-*** Recentf (builtin)
-Recentf provides a list of recently opened files, and is honestly one of the main ways I open buffers.
 
-Doesn't seem like indent activates properly for me without an intervention into the save list. Here we move it to a known cache file and set up an auto-save every 5 minutes.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;;; Recentf (builtin)
+;; Recentf provides a list of recently opened files, and is honestly one of the main ways I open buffers.
+
+;; Doesn't seem like indent activates properly for me without an intervention into the save list. Here we move it to a known cache file and set up an auto-save every 5 minutes.
+
   (package! recentf :builtin
     :defer 1
     :defines (recentf-mode)
@@ -1817,23 +1801,23 @@ Doesn't seem like indent activates properly for me without an intervention into 
     :config
     (recentf-mode 1)
     (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
-#+END_SRC
 
-*** All-the-icons
-Support for icon insertion, and used as a lib in other packages
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; All-the-icons
+;; Support for icon insertion, and used as a lib in other packages
+
   (package! all-the-icons :auto
     :after (general)
     :defer 3
     :when (display-graphic-p)
     :config (aero-leader-def "qi" 'all-the-icons-insert))
-#+END_SRC
 
-*** Avy
-Utility for visual navgation
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Avy
+;; Utility for visual navgation
+
   (package! avy :auto
     :after (general)
     :init
@@ -1844,48 +1828,47 @@ Utility for visual navgation
      "jc" '(avy-goto-char :wk "jump to char")
      "jj" '(avy-goto-char :wk "jump to char")
      "jw" '(avy-goto-word-1 :wk "jump to word")))
-#+END_SRC
 
-**** Ace-link
-Jump to links in eww with Avy
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;;; Ace-link
+;; Jump to links in eww with Avy
+
   (package! ace-link :auto
     :after (avy eww)
     :functions (ace-link-setup-default)
     :config (ace-link-setup-default))
-#+END_SRC
 
-*** Smartscan
-Gives us the =M-n= and =M-p= symbol-following ability
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Smartscan
+;; Gives us the =M-n= and =M-p= symbol-following ability
+
   (package! smartscan :auto
     :hook ((prog-mode org-mode) . smartscan-mode)
     :config
     (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
     (advice-add 'smartscan-symbol-go-backward :around #'aero/advice-disable-subword))
-#+END_SRC
 
-Advice to disabled subword-mode used during scanning
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Advice to disabled subword-mode used during scanning
+
   (defun aero/advice-disable-subword (orig-fun &rest args)
     "Disable `subword-mode' around the given function."
     (let ((original-mode subword-mode))
       (subword-mode -1)
       (apply orig-fun args)
       (subword-mode original-mode)))
-#+END_SRC
 
-*** Undo-tree
-Provides a visual representation of the undo history.
 
-By default, auto-saves to the local directory, but that's annoying, so we move it to the cache directory. Also enable timestamps and diffs in the visualizer.
 
-=undo-in-region= is disabled entirely because it's buggy enough that it will drop your undo history in some situations without warning.
+;;;;; Undo-tree
+;; Provides a visual representation of the undo history.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; By default, auto-saves to the local directory, but that's annoying, so we move it to the cache directory. Also enable timestamps and diffs in the visualizer.
+
+;; =undo-in-region= is disabled entirely because it's buggy enough that it will drop your undo history in some situations without warning.
+
   (package! undo-tree :auto
     :defer 2
     :custom
@@ -1899,12 +1882,12 @@ By default, auto-saves to the local directory, but that's annoying, so we move i
     :config
     (global-undo-tree-mode +1)
     (add-hook 'evil-local-mode-hook 'turn-on-undo-tree-mode))
-#+END_SRC
 
-*** Winner
-Provides a way to undo/redo window configurations.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Winner
+;; Provides a way to undo/redo window configurations.
+
   (package! winner :builtin
     :defer 2
     :after (general)
@@ -1926,16 +1909,16 @@ Provides a way to undo/redo window configurations.
     (aero-leader-def
       "wu" 'winner-undo
       "wU" 'winner-redo))
-#+END_SRC
 
-** Tab Bar
-Tab bar mode provides workspace-like tabs in Emacs. Use Command-1 through Command-9 to quickly switch between tabs.
 
-Tab Bar mode is not enabled by default since we don't always want it. Call =tab-bar-mode= when you want to start using tabs.
 
-The =s-1= through =s-9= bindings jump to a tab by position, and =s-t= opens a new tab, mirroring the macOS Command-T convention and the =SPC T c= leader binding.
+;;;; Tab Bar
+;; Tab bar mode provides workspace-like tabs in Emacs. Use Command-1 through Command-9 to quickly switch between tabs.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Tab Bar mode is not enabled by default since we don't always want it. Call =tab-bar-mode= when you want to start using tabs.
+
+;; The =s-1= through =s-9= bindings jump to a tab by position, and =s-t= opens a new tab, mirroring the macOS Command-T convention and the =SPC T c= leader binding.
+
     (setq tab-bar-tab-hints t)
     (setq tab-bar-separator "  ")
 
@@ -1972,12 +1955,12 @@ Truncates long names to keep tab bar manageable."
     (global-set-key (kbd "s-7") (lambda () (interactive) (tab-bar-select-tab 7)))
     (global-set-key (kbd "s-8") (lambda () (interactive) (tab-bar-select-tab 8)))
     (global-set-key (kbd "s-9") (lambda () (interactive) (tab-bar-select-tab 9)))
-#+END_SRC
 
-** Winum
-Jump to windows by number. 1 is the upper-left-most
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Winum
+;; Jump to windows by number. 1 is the upper-left-most
+
   (package! winum :auto
     :defer 5
     :after (general which-key)
@@ -1994,12 +1977,12 @@ Jump to windows by number. 1 is the upper-left-most
       "7" '(winum-select-window-7 :wk "window-7")
       "8" '(winum-select-window-8 :wk "window-8")
       "9" '(winum-select-window-9 :wk "window-9")))
-#+END_SRC
 
-** Company completions
-I can't believe this isn't built-in. Company provides a completion system that's more powerful than the default.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Company completions
+;; I can't believe this isn't built-in. Company provides a completion system that's more powerful than the default.
+
   (package! company :auto
     :after (evil)
     :hook ((prog-mode . company-mode)
@@ -2020,31 +2003,31 @@ I can't believe this isn't built-in. Company provides a completion system that's
     :config
     ;; Wait until it's defined, then disable preview after point
     (setq company-frontends (delq 'company-preview-if-just-one-frontend company-frontends)))
-#+END_SRC
 
-*** Company-prescient
-Moves commonly-used completions to the top, and provides a better sorting algorithm.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Company-prescient
+;; Moves commonly-used completions to the top, and provides a better sorting algorithm.
+
   (package! company-prescient :auto
     :after (company)
     :hook (company-mode . company-prescient-mode)
     :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
     :config (prescient-persist-mode +1))
-#+END_SRC
 
-*** Company-box
-Provides a better popup interface for company
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Company-box
+;; Provides a better popup interface for company
+
   (package! company-box :auto
     :hook (company-mode . company-box-mode))
-#+END_SRC
 
-** Tramp
-Tramp provides a way to edit files on remote servers. This was a way of life in a previous job, but I haven't touched it in several years. I'm keeping it around just in case, frozen in time. The =:defer t= ensures it's not loaded until it's needed.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Tramp
+;; Tramp provides a way to edit files on remote servers. This was a way of life in a previous job, but I haven't touched it in several years. I'm keeping it around just in case, frozen in time. The =:defer t= ensures it's not loaded until it's needed.
+
   (package! tramp :builtin
     :defer t
     :functions tramp-cleanup-all-connection
@@ -2056,12 +2039,12 @@ Tramp provides a way to edit files on remote servers. This was a way of life in 
     (tramp-use-ssh-controlmaster-options nil)  ; use system settings instead
     (tramp-default-method "rsync")
     (tramp-terminal-type "tramp"))
-#+END_SRC
 
-** Dired
-This is a file manager in Emacs, but I really struggle to use it
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Dired
+;; This is a file manager in Emacs, but I really struggle to use it
+
   (package! dired :builtin
     :hook ((dired-mode . hl-line-mode)
            (dired-mode . dired-async-mode))
@@ -2069,12 +2052,12 @@ This is a file manager in Emacs, but I really struggle to use it
            ("M-n" . #'dired-next-dirline)
            ("M-p" . #'dired-prev-dirline)
            ("TAB" . #'dired-next-subdir)))
-#+END_SRC
 
-** System-specific setup
-Mac needs some extra hand-holding to connect the kill-ring to the system clipboard. Linux just needs the functionality enabled.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; System-specific setup
+;; Mac needs some extra hand-holding to connect the kill-ring to the system clipboard. Linux just needs the functionality enabled.
+
   (when (system-is-mac)
     (defvar aero/pbcopier-program (executable-find "pbcopy")
       "Name of Pbcopy program tool.")
@@ -2145,11 +2128,10 @@ Mac needs some extra hand-holding to connect the kill-ring to the system clipboa
           (setq insert-directory-program "gls")
           (setq dired-listing-switches "-lFaGh1v --group-directories-first"))
       (setq dired-listing-switches "-ahlF")))
-#+END_SRC
 
-Linux only needs some functionality enabled.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Linux only needs some functionality enabled.
+
   (defvar x-gtk-use-system-tooltips)
 
   (when (system-is-linux)
@@ -2167,49 +2149,50 @@ Linux only needs some functionality enabled.
     (setq select-enable-clipboard t
           x-gtk-use-system-tooltips t
           dired-listing-switches "-lFaGh1v --group-directories-first"))
-#+END_SRC
 
-** Editor setup
-*** Editorconfig
-Provides a global minor mode that respects =.editorconfig= files.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Editor setup
+
+;;;;; Editorconfig
+;; Provides a global minor mode that respects =.editorconfig= files.
+
   (package! editorconfig :builtin
     :defer 1
     :config (editorconfig-mode))
-#+END_SRC
 
-*** Unmodified-buffer
-Detects when the buffer matches what's on disk and marks it unmodified. If, for example, you visit a file, change something, then undo the change, this package ensures the buffer doesn't think its still modified.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Unmodified-buffer
+;; Detects when the buffer matches what's on disk and marks it unmodified. If, for example, you visit a file, change something, then undo the change, this package ensures the buffer doesn't think its still modified.
+
   (package! unmodified-buffer :auto
     :defer 1
     :hook ((prog-mode text-mode) . unmodified-buffer-mode))
-#+END_SRC
 
-*** So-long mode
-Performance enhancement for files with extremely long lines or exceptionally many lines. Use =so-long-revert= in a buffer to get back to what it would have otherwise loaded as.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; So-long mode
+;; Performance enhancement for files with extremely long lines or exceptionally many lines. Use =so-long-revert= in a buffer to get back to what it would have otherwise loaded as.
+
   (package! so-long :builtin
     :defer 1
     :config (global-so-long-mode +1))
-#+END_SRC
 
-*** Savehist
-Saves the minibuffer history.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Savehist
+;; Saves the minibuffer history.
+
   (package! savehist :builtin
     :init (savehist-mode)
     :custom (savehist-file (expand-file-name "history" aero-cache-dir)))
-#+END_SRC
 
-*** Helpful
-A better version of the built-in help buffers. This ought to be included in Emacs.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Helpful
+;; A better version of the built-in help buffers. This ought to be included in Emacs.
+
   (package! helpful :auto
     :commands (helpful-function
                helpful-variable
@@ -2232,33 +2215,34 @@ A better version of the built-in help buffers. This ought to be included in Emac
     (evil-define-key 'normal helpful-mode-map
       "q" 'kill-current-buffer
       "?" 'describe-mode))
-#+END_SRC
 
-* UI
-** Frame containment
-Never let =display-buffer= pop up new frames automatically. Explicit frame
-commands (=other-frame=, =find-file-other-frame=, etc.) are unaffected.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; UI
+
+;;;; Frame containment
+;; Never let =display-buffer= pop up new frames automatically. Explicit frame
+;; commands (=other-frame=, =find-file-other-frame=, etc.) are unaffected.
+
   (setq pop-up-frames nil)
-#+END_SRC
 
-** Window navigation
-Useful when windmove thinks a window doesn't exist
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Window navigation
+;; Useful when windmove thinks a window doesn't exist
+
   (package! ace-window :auto
     :after (general)
     :commands (ace-window)
     :init
     (aero-leader-def
       "wW" 'ace-window))
-#+END_SRC
 
-** Side-window management
-This macro makes it easier to configure side windows
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Side-window management
+;; This macro makes it easier to configure side windows
+
   (defmacro aero/configure-side-window (&rest args)
     (let ((regex (plist-get args :regex))
           (side (plist-get args :side))
@@ -2269,41 +2253,38 @@ This macro makes it easier to configure side windows
                       (side . ,side)
                       (window-height . ,height)
                       (window-parameters . ((no-other-window . nil)))))))
-#+END_SRC
 
-Put Eshell in bottom side window
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Put Eshell in bottom side window
+
   (aero/configure-side-window
    :regex "e?shell\\*\\(?:<[[:digit:]]+>\\)?\\'"
    :side bottom
    :height 23)
-#+END_SRC
 
-Same for vterm
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Same for vterm
+
   (aero/configure-side-window
    :regex "\\*vterminal.*"
    :side bottom
    :height 23)
-#+END_SRC
 
-Flymake goes in the bottom
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Flymake goes in the bottom
+
   (aero/configure-side-window
    :regex "\\*Flymake diagnostics for.*"
    :side bottom
    :height 20)
-#+END_SRC
 
-** Aero modeline
-My custom modeline. Originally based on Doom's modeline, but the code diverged many years ago.
 
-The built-in VC system is disabled entirely because it runs a git subprocess on every file open to populate =vc-mode=, which is expensive on macOS. Instead, the git branch segment below queries git directly and caches the result per buffer, refreshing only on save and window focus.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; Aero modeline
+;; My custom modeline. Originally based on Doom's modeline, but the code diverged many years ago.
+
+;; The built-in VC system is disabled entirely because it runs a git subprocess on every file open to populate =vc-mode=, which is expensive on macOS. Instead, the git branch segment below queries git directly and caches the result per buffer, refreshing only on save and window focus.
+
   (setq vc-handled-backends nil)
 
   (defgroup aero/modeline nil
@@ -2520,11 +2501,10 @@ Includes left padding to match the gap on the right side of the modeline."
                 (host (file-remote-p filename 'host)))
       (concat " @" (propertize host 'face 'aero/modeline-remote) " ")))
 
-#+END_SRC
 
-For org-roam buffers, the modeline displays the node title rather than the filename. Since the modeline redraws on every keystroke and cursor movement, querying the org-roam SQLite database on each redisplay is prohibitively expensive. Instead, the display name is computed once when the buffer is opened and refreshed on save, which is the only time a title would realistically change.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; For org-roam buffers, the modeline displays the node title rather than the filename. Since the modeline redraws on every keystroke and cursor movement, querying the org-roam SQLite database on each redisplay is prohibitively expensive. Instead, the display name is computed once when the buffer is opened and refreshed on save, which is the only time a title would realistically change.
+
   (defvar-local aero/modeline--buffer-display-name nil
     "Cached display name for the current buffer's modeline segment.")
 
@@ -2676,21 +2656,20 @@ Truncates long names to ensure other modeline segments remain visible."
             aero/modeline-hide--old-format nil))
     (when (called-interactively-p 'any)
       (redraw-display)))
-#+END_SRC
 
-And now we actually turn it on everywhere. Except we hide it in eshell for a more sleek interface.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; And now we actually turn it on everywhere. Except we hide it in eshell for a more sleek interface.
+
   (aero/modeline-global-mode +1)
   (add-hook 'eshell-mode-hook 'aero/modeline-hide-mode)
-#+END_SRC
 
-** Theme (Aero theme)
-My custom theme, stored as a submodule. Also sets the font.
 
-Sets the font-height to 140 only for Mac, it seems to scale normally by default in Linux.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; Theme (Aero theme)
+;; My custom theme, stored as a submodule. Also sets the font.
+
+;; Sets the font-height to 140 only for Mac, it seems to scale normally by default in Linux.
+
   (package! aero-theme :local :load-path "lib/aero-theme"
     :init
     (when (system-is-mac)
@@ -2716,20 +2695,19 @@ instead of using cached settings."
         (when theme-file
           (load-file theme-file))
         (load-theme theme t))))
-#+END_SRC
 
-Other themes I like to enable to draw tweaks from
 
-#+begin_src emacs-lisp :lexical t
+;; Other themes I like to enable to draw tweaks from
+
   (package! tao-theme :auto)
   (package! lambda-themes "Lambda-Emacs/lambda-themes")
   (package! folio-theme "kn66/folio-theme.el")
-#+end_src
 
-** Default frame setup
-Set up the default frame in an agreeable fashion. The width is based on a buffer that's 106 columns wide, in two columns. The rest has been tweaked over the years to look extra nice on startup.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Default frame setup
+;; Set up the default frame in an agreeable fashion. The width is based on a buffer that's 106 columns wide, in two columns. The rest has been tweaked over the years to look extra nice on startup.
+
   (setq default-frame-alist
         (append (list
                  ;; '(width  . 212) '(height . 62)
@@ -2749,28 +2727,26 @@ Set up the default frame in an agreeable fashion. The width is based on a buffer
         window-divider-default-bottom-width 1
         window-divider-default-places 'right-only
         window-divider-mode t)
-#+END_SRC
 
-Set up 1-column window margins on each side for visual breathing room. Uses =window-state-change-hook= rather than =window-configuration-change-hook= because the latter fires on every individual window operation during layout changes, while the state-change hook coalesces into a single callback per redisplay cycle.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Set up 1-column window margins on each side for visual breathing room. Uses =window-state-change-hook= rather than =window-configuration-change-hook= because the latter fires on every individual window operation during layout changes, while the state-change hook coalesces into a single callback per redisplay cycle.
+
   (add-hook 'window-state-change-hook
             (lambda ()
               (set-window-margins
                (car (get-buffer-window-list (current-buffer) nil t)) 1 1)))
-#+END_SRC
 
-Make sure new frames use window-divider
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Make sure new frames use window-divider
+
   (add-hook 'before-make-frame-hook 'window-divider-mode)
-#+END_SRC
 
-** Active frame tab-bar highlight
 
-When multiple frames are open and tab-bar-mode is active, the focused frame gets a lavender-purple tab bar to make it immediately obvious which frame has focus. Inactive frames keep the default grey tab bar. The cursor line also pulses briefly on the newly focused frame. The effect only activates with two or more visible frames.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; Active frame tab-bar highlight
+
+;; When multiple frames are open and tab-bar-mode is active, the focused frame gets a lavender-purple tab bar to make it immediately obvious which frame has focus. Inactive frames keep the default grey tab bar. The cursor line also pulses briefly on the newly focused frame. The effect only activates with two or more visible frames.
+
   (defun aero/--highlight-tab-bar (frame)
     "Apply accent tab bar to FRAME."
     (set-face-attribute 'tab-bar frame
@@ -2837,22 +2813,21 @@ Skips update entirely when Emacs has no OS focus."
 
   (add-function :after after-focus-change-function
                 #'aero/--update-tab-bar-highlight)
-#+END_SRC
 
-** General UI
-Better fringe symbols
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; General UI
+;; Better fringe symbols
+
   (when (and (require 'disp-table nil 'noerror) standard-display-table)
     (set-display-table-slot standard-display-table 'truncation ?…)
     (set-display-table-slot standard-display-table 'wrap ?↩)
     (set-display-table-slot standard-display-table 'selective-display
                             (string-to-vector " …")))
-#+END_SRC
 
-Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight the current line.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight the current line.
+
   (blink-cursor-mode 0)
   (show-paren-mode 1)
   (pixel-scroll-mode 1)
@@ -2873,11 +2848,10 @@ Stop cursor blinking, highlight matching parens, smooth scrolling, and highlight
             (global-hl-line-mode 1)))
       (apply func args)))
   (advice-add #'face-at-point :around #'aero/suggest-other-faces)
-#+END_SRC
 
-Simple rainbow mode to highlight hex colors in code. Runs on all prog-mode and conf-mode buffers. For org-mode, it only runs in =config.org= (the literate Emacs configuration) since that's the only org file likely to contain hex color values. Scanning the entire buffer for hex color regex on every file open is wasteful for general org files.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Simple rainbow mode to highlight hex colors in code. Runs on all prog-mode and conf-mode buffers.
+
   (defun aero/rainbow-mode ()
     "Display colors represented as hex values."
     (interactive)
@@ -2896,26 +2870,19 @@ Simple rainbow mode to highlight hex colors in code. Runs on all prog-mode and c
     (interactive)
     (remove-overlays (point-min) (point-max)))
   (add-hook 'prog-mode-hook #'aero/rainbow-mode)
-  (add-hook 'org-mode-hook
-            (lambda ()
-              (when (and buffer-file-name
-                         (string-match-p "config\\.org\\'" buffer-file-name))
-                (aero/rainbow-mode))))
   (add-hook 'conf-space-mode-hook #'aero/rainbow-mode)
 
   ;; disable show-paren-mode in org-mode to avoid false "unmatched expression" errors
   (add-hook 'org-mode-hook (lambda () (show-paren-mode -1)))
-#+END_SRC
 
-Makes links in comments clickable
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Makes links in comments clickable
+
   (global-goto-address-mode +1)
-#+END_SRC
 
-Pulse the current line when changing windows. There's whole packages that do this functionality and more, but I only care about switching windows, so there's no need to pull in a whole package.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Pulse the current line when changing windows. There's whole packages that do this functionality and more, but I only care about switching windows, so there's no need to pull in a whole package.
+
   (defun pulse-line (&rest _)
     "Briefly pulse a highlight of the line at point.
   This function, when bound to certain commands like scrolling, acts as a native
@@ -2929,12 +2896,12 @@ Pulse the current line when changing windows. There's whole packages that do thi
                 aero/alternate-buffer
                 aero/alternate-window))
     (advice-add fn :after #'pulse-line))
-#+END_SRC
 
-** Formfeeder
-Displays formfeed characters, which are often used by convention in Elisp
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Formfeeder
+;; Displays formfeed characters, which are often used by convention in Elisp
+
   (package! formfeeder "thornjad/formfeeder"
     :defer 2
     :defines (formfeeder-line-width)
@@ -2942,15 +2909,15 @@ Displays formfeed characters, which are often used by convention in Elisp
     (setq formfeeder-line-width (- fill-column 1))
     (declare-function global-formfeeder-mode "formfeeder.el")
     (global-formfeeder-mode 1))
-#+END_SRC
-
-** Highlight-thing
-Highlight the current thing at point, kind of like what lsp-ui does for some languages, but in all buffers and modes.
-
-We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffers, only look at nearby lines
 
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Highlight-thing
+;; Highlight the current thing at point, kind of like what lsp-ui does for some languages, but in all buffers and modes.
+
+;; We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffers, only look at nearby lines
+
+
   (package! highlight-thing :auto
     :hook (prog-mode . highlight-thing-mode)
     :commands (highlight-thing-mode)
@@ -2959,48 +2926,48 @@ We set =highlight-thing-limit-to-region-in-large-buffers= so that in large buffe
     (highlight-thing-narrow-region-lines 70)
     (highlight-thing-large-buffer-limit 5000)
     (highlight-thing-limit-to-region-in-large-buffers-p t))
-#+END_SRC
 
-** Selection highlight
-Shows all matching selections from region. Very useful for comparing and editing multiple instances of the same thing.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Selection highlight
+;; Shows all matching selections from region. Very useful for comparing and editing multiple instances of the same thing.
+
   (package! selection-highlight-mode
     (:host github :repo "balloneij/selection-highlight-mode")
     :hook (prog-mode . selection-highlight-mode)
     :custom (selection-highlight-mode-min-length 3))
-#+END_SRC
 
-** Todo-light
-Highlight todo and similar words
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Todo-light
+;; Highlight todo and similar words
+
   (package! todo-light "thornjad/todo-light"
     :defer 2
     :config (global-todo-light-mode +1))
-#+END_SRC
 
-** Evil-terminal-cursor-changer
-Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert mode
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Evil-terminal-cursor-changer
+;; Doesn't do anything for GUI, so don't bother. In TUI, use a line when in insert mode
+
   (unless (display-graphic-p)
     (package! evil-terminal-cursor-changer :auto
       :after evil
       :functions (evil-terminal-cursor-changer-activate)
       :config (evil-terminal-cursor-changer-activate)))
-#+END_SRC
 
-* Breadcrumbs in the headerline
-Shows breadcrumbs in the headerline for many modes, showing the "trail" that the current point sits in, such as the hierarchy of headers in org-mode or the class and method in object-oriented languages.
 
-For prog-mode and other non-org modes, breadcrumbs use imenu to build a full buffer index. Because this index is expensive to rebuild (it scans every heading/definition in the file), it refreshes on a 1-second idle timer. This is fine for code where structural changes are infrequent.
 
-For org-mode, breadcrumbs bypass imenu entirely and walk the outline tree upward from point using =org-up-heading-safe=. This is O(heading-depth) rather than O(total-headings), typically visiting only 3-6 nodes, and leverages org-element's internal cache. This makes it cheap enough to run on every redisplay via =:eval= with no idle timer, so the header line updates instantly as you move between headings.
+;;; Breadcrumbs in the headerline
+;; Shows breadcrumbs in the headerline for many modes, showing the "trail" that the current point sits in, such as the hierarchy of headers in org-mode or the class and method in object-oriented languages.
 
-Breadcrumbs are disabled for gptel since it uses its own system.
+;; For prog-mode and other non-org modes, breadcrumbs use imenu to build a full buffer index. Because this index is expensive to rebuild (it scans every heading/definition in the file), it refreshes on a 1-second idle timer. This is fine for code where structural changes are infrequent.
 
-#+BEGIN_SRC emacs-lisp
+;; For org-mode, breadcrumbs bypass imenu entirely and walk the outline tree upward from point using =org-up-heading-safe=. This is O(heading-depth) rather than O(total-headings), typically visiting only 3-6 nodes, and leverages org-element's internal cache. This makes it cheap enough to run on every redisplay via =:eval= with no idle timer, so the header line updates instantly as you move between headings.
+
+;; Breadcrumbs are disabled for gptel since it uses its own system.
+
   (cl-defun aero-breadcrumb--bisect (a x &key (from 0) (to (length a)) key from-end)
     "Compute index to insert X in sequence A, keeping it sorted.
     If X already in A, the resulting index is the leftmost such
@@ -3172,11 +3139,10 @@ for instant updates with no idle timer dependency."
     :init-value nil
     (if aero-breadcrumb-local-mode (add-to-list 'header-line-format '(:eval (aero-breadcrumb--header-line)))
       (setq header-line-format (delete '(:eval (aero-breadcrumb--header-line)) header-line-format))))
-#+END_SRC
 
-Now we set up the hooks, but also disable for gptel (which uses markdown-mode in this config).
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Now we set up the hooks, but also disable for gptel (which uses markdown-mode in this config).
+
   (add-hook 'prog-mode-hook #'aero-breadcrumb-local-mode)
   (add-hook 'markdown-mode-hook #'aero-breadcrumb-local-mode)
   (add-hook 'gfm-mode-hook #'aero-breadcrumb-local-mode)
@@ -3184,14 +3150,14 @@ Now we set up the hooks, but also disable for gptel (which uses markdown-mode in
 
   (with-eval-after-load 'gptel
     (add-hook 'gptel-mode-hook (lambda () (aero-breadcrumb-local-mode -1))))
-#+END_SRC
 
-* Project management
-Nearly all my code is organized within projects, and navigated using this built-in package.
 
-Note that we can't use =:hook= for the =project-find-functions= because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Project management
+;; Nearly all my code is organized within projects, and navigated using this built-in package.
+
+;; Note that we can't use =:hook= for the =project-find-functions= because =project-find-functions= doesn't end in "-hook", and we can't use this in =:init= because it won't be defined yet.
+
   (package! project :builtin
     :after (general)
 
@@ -3246,13 +3212,13 @@ Note that we can't use =:hook= for the =project-find-functions= because =project
       "p`" 'project-shell
       "p%" 'project-query-replace-regexp
       "cp" 'project-compile))
-#+END_SRC
 
-* Magit
 
-One of the truly great packages in Emacs. I use it for everything git-related.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Magit
+
+;; One of the truly great packages in Emacs. I use it for everything git-related.
+
   (package! magit :auto
     :after (general)
     :commands (magit-blame
@@ -3339,12 +3305,12 @@ One of the truly great packages in Emacs. I use it for everything git-related.
         (shell-command fetch-command)
         (magit-status)
         (message "Checked out PR as %s" new-branch))))
-#+END_SRC
 
-** Git master
-This is an Emacs version of a git alias I use a lot, and running it here is a lot faster than starting up Magit on MacOS. Magit is just as fast as this command on Linux, but it's still convenient.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Git master
+;; This is an Emacs version of a git alias I use a lot, and running it here is a lot faster than starting up Magit on MacOS. Magit is just as fast as this command on Linux, but it's still convenient.
+
   (defun aero/project-git-sync-master ()
     "In the current project root, switch to master, pull, and update.
 Show status and update submodules."
@@ -3353,14 +3319,14 @@ Show status and update submodules."
       (async-shell-command
        "git switch master && git pull && git submodule update && git status -sb"
        "*project-git-sync-master*")))
-#+END_SRC
 
-** git-gutter
-Provides a visual indicator of changes in the gutter. I use it to quickly see what's changed in a file. The backends is set to git by default, and only loads the others if they actually exist on the system, which they never do.
 
-On focus return, only the current buffer is updated rather than all visible windows. This avoids spawning multiple git subprocesses on every Cmd-Tab. Other buffers update via git-gutter's own internal hooks when they become active.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; git-gutter
+;; Provides a visual indicator of changes in the gutter. I use it to quickly see what's changed in a file. The backends is set to git by default, and only loads the others if they actually exist on the system, which they never do.
+
+;; On focus return, only the current buffer is updated rather than all visible windows. This avoids spawning multiple git subprocesses on every Cmd-Tab. Other buffers update via git-gutter's own internal hooks when they become active.
+
   (package! git-gutter :auto
     :hook ((prog-mode text-mode conf-mode) . git-gutter-mode)
     :custom
@@ -3377,25 +3343,24 @@ On focus return, only the current buffer is updated rather than all visible wind
 
     :config
     (add-hook 'focus-in-hook #'git-gutter))
-#+END_SRC
 
-*** git-gutter-fringe
-Redefine the fringe bitmap definer to a no-op in GUI, if it's not already bound, otherwise git-gutter-fringe will error. I've never tracked down the real cause, but this makes things work smoothly.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; git-gutter-fringe
+;; Redefine the fringe bitmap definer to a no-op in GUI, if it's not already bound, otherwise git-gutter-fringe will error. I've never tracked down the real cause, but this makes things work smoothly.
+
   (when (display-graphic-p)
     (unless (fboundp 'define-fringe-bitmap)
       (defun define-fringe-bitmap (bitmap &rest _)
         "This is a no-op placeholder function."
         ;; Return the symbol, just like the normal function does.
         bitmap))
-#+END_SRC
 
-The actual package, which moves the git-gutter functionality to the buffer fringe where it doesn't push text around.
 
-The fringe bitmaps are a thin bar, expecting the theme to give them suitable coloring. The functionality is disabled in Tramp because it hogs the connection bandwidth.
+;; The actual package, which moves the git-gutter functionality to the buffer fringe where it doesn't push text around.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; The fringe bitmaps are a thin bar, expecting the theme to give them suitable coloring. The functionality is disabled in Tramp because it hogs the connection bandwidth.
+
   (package! git-gutter-fringe :auto :after (git-gutter)
     :custom
     (fringes-outside-margins t)
@@ -3415,36 +3380,37 @@ The fringe bitmaps are a thin bar, expecting the theme to give them suitable col
            0
          1)))
     (add-hook 'find-file-hook #'git-gutter-find-file-hook)))
-#+END_SRC
 
-** Ediff
-A decent way to compare diffs. I've set it up to split horizontally and use a plain window setup.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Ediff
+;; A decent way to compare diffs. I've set it up to split horizontally and use a plain window setup.
+
   (package! ediff :builtin
     :commands (ediff ediff3)
     :custom
     (ediff-split-window-function #'split-window-horizontally )
     (ediff-window-setup-function #'ediff-setup-windows-plain))
-#+END_SRC
 
-** Git-link
-Super simple way to get a link to a file or line in a file on GitHub
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Git-link
+;; Super simple way to get a link to a file or line in a file on GitHub
+
   (package! git-link :auto
     :after (general)
     :commands (git-link git-link-commit git-link-homepage)
     :init (aero-leader-def "gL" 'git-link))
-#+END_SRC
 
-* Org mode and org agenda
-Org is an incredibly powerful tool in Emacs, and I make the most use of it for task management and note-taking.
 
-** Org helper functions
-Before the actual package config, let's define some useful functions.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Org mode and org agenda
+;; Org is an incredibly powerful tool in Emacs, and I make the most use of it for task management and note-taking.
+
+
+;;;; Org helper functions
+;; Before the actual package config, let's define some useful functions.
+
   (defun archive-buffer-closed-tasks ()
     (interactive)
     (org-map-entries
@@ -3498,11 +3464,10 @@ Before the actual package config, let's define some useful functions.
   (defun aero/org-capture-created-timestamp ()
     "Return formatted timestamp for org-capture CREATED property."
     (format-time-string "[%Y-%m-%d %a %H:%M]"))
-#+END_SRC
 
-Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Reordering is based on https://ag91.github.io/blog/2022/03/12/org-agenda-keep-the-buffer-order-untouched-after-saving-all-modified-org-buffers/
+
   (defun aero/reorder-buffer-list (new-list)
     (while new-list
       (bury-buffer (car new-list))
@@ -3558,12 +3523,12 @@ automatic indentation any longer."
                  (move-beginning-of-line 1)
                  (looking-at-p "[ \t]*$")))
       (delete-horizontal-space)))
-#+END_SRC
 
-*** Org formatting helpers
-Call on region or line at point to apply formatting markers
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Org formatting helpers
+;; Call on region or line at point to apply formatting markers
+
   (defun aero/org-apply-format (prefix suffix)
     "Apply the specified PREFIX and SUFFIX to the active region or current line.
   If there is an active region, wrap it directly. If there is no active region,
@@ -3607,12 +3572,12 @@ Call on region or line at point to apply formatting markers
     "Wrap region or line in Org ~code~ markers."
     (interactive)
     (aero/org-apply-format "~" "~"))
-#+END_SRC
 
-*** Org link helpers
-Fetch a page title from the web and wrap a URL at point into a proper org link.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Org link helpers
+;; Fetch a page title from the web and wrap a URL at point into a proper org link.
+
   (defun aero/decode-html-entities (str)
     "Decode HTML entities in STR, including named and numeric forms."
     (let ((named '(("&amp;" . "&") ("&lt;" . "<") ("&gt;" . ">")
@@ -3674,22 +3639,16 @@ Fetch a page title from the web and wrap a URL at point into a proper org link.
           (user-error "Could not fetch title for %s" url))
         (delete-region (car bounds) (cdr bounds))
         (insert (format "[[%s][%s]]" url title)))))
-#+END_SRC
 
-** Org package
-Now for the actual package configuration. This is a long one, so I've made a lot of comments within the code block rather than putting everything up here.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org package
+;; Now for the actual package configuration. This is a long one, so I've made a lot of comments within the code block rather than putting everything up here.
+
   (package! org :builtin
     :preface
 
     :custom
-    ;; only permit silent babel execution for this config; everything else prompts
-    (org-confirm-babel-evaluate
-     (lambda (_lang _body)
-       (not (string= (buffer-file-name)
-                     (expand-file-name "config.org" user-emacs-directory)))))
-
     ;; don't persist the element cache to disk; prevents stale cache from
     ;; surviving across sessions (the in-session race condition is handled
     ;; by aero/org-suspend-indent-before-revert below)
@@ -4037,30 +3996,30 @@ Both attributes come from the active theme."
                  (string-suffix-p "todo.org" buffer-file-name))
         (auto-revert-mode 1)))
     (add-hook 'org-mode-hook #'aero/auto-revert-todo))
-#+END_SRC
 
-** Org-protocol
-Handles capture requests coming in via the =org-protocol://= URL scheme. A Firefox bookmarklet and a small macOS app forward the current page's link and title to Emacs, which pre-fills an org-capture buffer (the "w" template above) without needing to restart Emacs.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-protocol
+;; Handles capture requests coming in via the =org-protocol://= URL scheme. A Firefox bookmarklet and a small macOS app forward the current page's link and title to Emacs, which pre-fills an org-capture buffer (the "w" template above) without needing to restart Emacs.
+
   (package! org-protocol :builtin
     :config
     (setopt org-protocol-default-template-key "w"))
-#+END_SRC
 
-** Org-appear
-Show formatting markers when point is near
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-appear
+;; Show formatting markers when point is near
+
   (package! org-appear :auto
     :custom (org-hide-emphasis-markers t)
     :hook (org-mode . org-appear-mode))
-#+END_SRC
 
-** Org-modern
-Some trivial UI improvements for org files. Uses the "replace" set of stars for headings.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-modern
+;; Some trivial UI improvements for org files. Uses the "replace" set of stars for headings.
+
   (package! org-modern :auto
     :hook ((org-mode . org-modern-mode)
            (org-agenda-finalize-hook . org-modern-agenda))
@@ -4071,36 +4030,36 @@ Some trivial UI improvements for org files. Uses the "replace" set of stars for 
     (org-modern-table (when (display-graphic-p) t))
     (org-modern-table-vertical (when (display-graphic-p) 1))
     (org-modern-table-horizontal (when (display-graphic-p) 0.1)))
-#+END_SRC
 
-** Evil-org-mode
-Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See https://github.com/Somelauw/evil-org-mode for a list of available commands. Some of the most useful are listed here:
 
-| Key | Command                     |
-|-----+-----------------------------|
-| j   | next line                   |
-| k   | prev line                   |
-| TAB | go to entry in other window |
-| RET | go to entry in this window  |
-| J   | priority up                 |
-| K   | priority down               |
-| gr  | refresh                     |
-| H   | adjust deadline earlier     |
-| L   | adjust deadline later       |
-| p   | date prompt (gr) to apply   |
-| t   | set todo status             |
-| u   | undo                        |
-| ct  | set tags                    |
-| ce  | set effort                  |
-| C   | enter capture               |
-| gh  | show holidays               |
-| gm  | show moon calendar          |
-| gs  | show sunrise/sunset         |
-| gt  | show tags                   |
 
-This is the first package migrated to Borg (see the Borg section above). Its source is the drone at =lib/drones/evil-org-mode=, vendored from https://github.com/Somelauw/evil-org-mode and pinned at commit =b1f3097=. The =:borg= recipe configures the already-assimilated drone; to update it, advance the submodule pointer and review the diff.
+;;;; Evil-org-mode
+;; Use evil in org, particularly in org-agenda. Also unblocks using aero-leader chords. See https://github.com/Somelauw/evil-org-mode for a list of available commands. Some of the most useful are listed here:
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; | Key | Command                     |
+;; |-----+-----------------------------|
+;; | j   | next line                   |
+;; | k   | prev line                   |
+;; | TAB | go to entry in other window |
+;; | RET | go to entry in this window  |
+;; | J   | priority up                 |
+;; | K   | priority down               |
+;; | gr  | refresh                     |
+;; | H   | adjust deadline earlier     |
+;; | L   | adjust deadline later       |
+;; | p   | date prompt (gr) to apply   |
+;; | t   | set todo status             |
+;; | u   | undo                        |
+;; | ct  | set tags                    |
+;; | ce  | set effort                  |
+;; | C   | enter capture               |
+;; | gh  | show holidays               |
+;; | gm  | show moon calendar          |
+;; | gs  | show sunrise/sunset         |
+;; | gt  | show tags                   |
+
+;; This is the first package migrated to Borg (see the Borg section above). Its source is the drone at =lib/drones/evil-org-mode=, vendored from https://github.com/Somelauw/evil-org-mode and pinned at commit =b1f3097=. The =:borg= recipe configures the already-assimilated drone; to update it, advance the submodule pointer and review the diff.
+
   (package! evil-org-mode :borg
     :after (evil org)
     :preface
@@ -4111,12 +4070,12 @@ This is the first package migrated to Borg (see the Borg section above). Its sou
 
     :hook ((org-mode . evil-org-mode)
            (org-agenda-mode . aero/evil-org-agenda-mode)))
-#+END_SRC
 
-** Org-fancy-priorities
-Custom display of org priorities
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-fancy-priorities
+;; Custom display of org priorities
+
   (package! org-fancy-priorities :auto
     :after (org)
     :hook (org-mode . org-fancy-priorities-mode)
@@ -4125,12 +4084,12 @@ Custom display of org priorities
     ;; Based on the Eisenhower matrix. "!" means urgent, arrows represent importance. "_" is a
     ;; "backburner" lowest priority. #A is an emergency priority, likely overriding other tasks.
     (org-fancy-priorities-list '("!!↑↑" "!↑" "!↓" "↑" "·" "↓" "_")))
-#+END_SRC
 
-** Org-super-agenda
-The workhorse of my task management. This package allows me to group tasks in the agenda in a way that makes sense to me.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-super-agenda
+;; The workhorse of my task management. This package allows me to group tasks in the agenda in a way that makes sense to me.
+
   (package! org-super-agenda :auto
     :preface
     (defun aero/org-super-agenda-without-keymap ()
@@ -4199,12 +4158,12 @@ The workhorse of my task management. This package allows me to group tasks in th
               (lambda ()
                 (when (string= (buffer-name) "*Org Agenda*")
                   (aero/org-super-agenda-stop-timer)))))
-#+END_SRC
 
-** Org-download
-Allow drag-and-drop of images from browser, finder, etc.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-download
+;; Allow drag-and-drop of images from browser, finder, etc.
+
   (package! org-download :auto
     :after (org general)
     :commands (org-download-clipboard org-download-yank org-download-screenshot)
@@ -4213,11 +4172,11 @@ Allow drag-and-drop of images from browser, finder, etc.
     (aero-mode-leader-def
       :keymaps 'org-mode-map
       "ic" '(org-download-clipboard :wk "insert image from clipboard")))
-#+END_SRC
 
-** Functions for the org agenda
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Functions for the org agenda
+
   (defun aero/org-agenda-list ()
     "`org-agenda', skipping command menu to list."
     (interactive)
@@ -4284,12 +4243,12 @@ a live non-transient previous buffer."
       (bury-buffer agenda-buf)))
   (with-eval-after-load 'org-agenda
     (define-key org-agenda-mode-map "q" #'aero/local-quit-agenda))
-#+END_SRC
 
-*** Auto-save after org-agenda changes
-Automatically save files after making changes through org-agenda to prevent data loss.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Auto-save after org-agenda changes
+;; Automatically save files after making changes through org-agenda to prevent data loss.
+
   (defun aero/org-agenda-save-modified-buffers (&rest _)
     "Save all modified org buffers after agenda operations."
     (org-save-all-org-buffers))
@@ -4301,12 +4260,12 @@ Automatically save files after making changes through org-agenda to prevent data
     (advice-add 'org-agenda-priority :after #'aero/org-agenda-save-modified-buffers)
     (advice-add 'org-agenda-set-tags :after #'aero/org-agenda-save-modified-buffers)
     (advice-add 'org-agenda-refile :after #'aero/org-agenda-save-modified-buffers))
-#+END_SRC
 
-** Org-roam
-A fantastic note-taking system, used for building a second brain.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Org-roam
+;; A fantastic note-taking system, used for building a second brain.
+
   (package! org-roam :auto
     :after (general org)
     :functions (org-roam-node-find
@@ -4360,19 +4319,19 @@ A fantastic note-taking system, used for building a second brain.
 
     :config
     (org-roam-db-autosync-mode))
-#+END_SRC
 
-*** Database performance optimizations
 
-With 670+ nodes synced across multiple computers via Syncthing, database performance is critical. The default SQLite configuration is not optimized for this workload, leading to 2-4 minute full sync times.
 
-The key optimizations are Write-Ahead Logging (WAL) mode, a larger page cache (~40MB instead of the default ~8MB), ~synchronous NORMAL~ instead of ~FULL~, and temporary tables in memory. WAL mode is persistent once applied (stored in the database header), so it survives process restarts. The per-connection settings (cache, synchronous, temp_store) must be reapplied on each new connection.
+;;;;; Database performance optimizations
 
-The correct hook is ~org-roam-db :after~, not ~org-roam-db--init :after~. The ~--init~ function only fires when the database file is first created, never on subsequent sessions. Since ~org-roam-db-sync~ closes and reopens the connection on every call, pragmas must be reapplied on each reconnect. The connection-tracking variable ensures the four PRAGMA calls fire only when the connection pointer changes — cheap (one hash lookup + ~eq~ check) on every query, but the actual work only runs on reconnect.
+;; With 670+ nodes synced across multiple computers via Syncthing, database performance is critical. The default SQLite configuration is not optimized for this workload, leading to 2-4 minute full sync times.
 
-Missing indexes on the ~links~ table are also created here. org-roam's schema only defines indexes for aliases, refs, and tags; ~dest~ and ~source~ on ~links~ have no indexes despite being the join columns for backlinks and reflinks queries. ~CREATE INDEX IF NOT EXISTS~ is idempotent after first application.
+;; The key optimizations are Write-Ahead Logging (WAL) mode, a larger page cache (~40MB instead of the default ~8MB), ~synchronous NORMAL~ instead of ~FULL~, and temporary tables in memory. WAL mode is persistent once applied (stored in the database header), so it survives process restarts. The per-connection settings (cache, synchronous, temp_store) must be reapplied on each new connection.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; The correct hook is ~org-roam-db :after~, not ~org-roam-db--init :after~. The ~--init~ function only fires when the database file is first created, never on subsequent sessions. Since ~org-roam-db-sync~ closes and reopens the connection on every call, pragmas must be reapplied on each reconnect. The connection-tracking variable ensures the four PRAGMA calls fire only when the connection pointer changes — cheap (one hash lookup + ~eq~ check) on every query, but the actual work only runs on reconnect.
+
+;; Missing indexes on the ~links~ table are also created here. org-roam's schema only defines indexes for aliases, refs, and tags; ~dest~ and ~source~ on ~links~ have no indexes despite being the join columns for backlinks and reflinks queries. ~CREATE INDEX IF NOT EXISTS~ is idempotent after first application.
+
   (defvar aero/org-roam-db--last-connection nil
     "last known org-roam connection object, used to detect reconnects.")
 
@@ -4391,15 +4350,15 @@ Missing indexes on the ~links~ table are also created here. org-roam's schema on
         (emacsql conn "CREATE INDEX IF NOT EXISTS links_source ON links(source)"))))
 
   (advice-add 'org-roam-db :after #'aero/org-roam-db-apply-pragmas)
-#+END_SRC
 
-*** Automatic incremental syncing
 
-When Syncthing adds a new node file from another computer, the org-roam database doesn't know about it until a sync occurs. ~org-roam-db-autosync-mode~ (already enabled) handles files that are opened or saved in the current session via ~after-save-hook~, but it does not pick up files written directly to disk by an external process like Syncthing.
 
-An idle timer handles Syncthing catch-up. The interval is 5 minutes: frequent enough to pick up synced files promptly, but not so frequent that it hashes all 670+ files during short idle gaps. Even "incremental" sync reads every file to compare content hashes before deciding what to reparse, so firing every 30 seconds was unnecessary background I/O.
+;;;;; Automatic incremental syncing
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; When Syncthing adds a new node file from another computer, the org-roam database doesn't know about it until a sync occurs. ~org-roam-db-autosync-mode~ (already enabled) handles files that are opened or saved in the current session via ~after-save-hook~, but it does not pick up files written directly to disk by an external process like Syncthing.
+
+;; An idle timer handles Syncthing catch-up. The interval is 5 minutes: frequent enough to pick up synced files promptly, but not so frequent that it hashes all 670+ files during short idle gaps. Even "incremental" sync reads every file to compare content hashes before deciding what to reparse, so firing every 30 seconds was unnecessary background I/O.
+
   (defvar aero/org-roam-idle-sync-timer nil
     "timer for automatic incremental org-roam sync during idle time.")
 
@@ -4415,13 +4374,13 @@ An idle timer handles Syncthing catch-up. The interval is 5 minutes: frequent en
 
   (setq aero/org-roam-idle-sync-timer
         (run-with-idle-timer 300 t #'aero/org-roam-incremental-sync))
-#+END_SRC
 
-*** Manual sync commands
 
-Sometimes explicit control over database syncing is needed. These commands provide manual control with clear feedback about what's happening and how long it takes.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;;; Manual sync commands
+
+;; Sometimes explicit control over database syncing is needed. These commands provide manual control with clear feedback about what's happening and how long it takes.
+
   (defun aero/org-roam-db-sync-incremental ()
     "fast incremental sync - only new/changed files."
     (interactive)
@@ -4447,17 +4406,17 @@ Sometimes explicit control over database syncing is needed. These commands provi
       (emacsql conn [:vacuum])
       (emacsql conn [:analyze])
       (message "database optimized!")))
-#+END_SRC
 
-**** Automatic database maintenance
 
-SQLite databases require periodic maintenance through the VACUUM command. Over time, as nodes are added, modified, and deleted, the database file becomes fragmented and accumulates unused space. VACUUM rebuilds the entire database file, reclaiming this space and reorganizing data for optimal query performance. The ANALYZE command updates query optimizer statistics, ensuring SQLite chooses efficient query plans.
 
-For a multi-computer setup with Syncthing, regular maintenance is especially important because constant syncing creates churn in the database. However, VACUUM is an expensive operation that locks the database during execution, so it should run infrequently and during idle time to avoid interrupting workflow.
+;;;;;; Automatic database maintenance
 
-This implementation uses a time-based approach: vacuum runs automatically once per week maximum. The system tracks the last vacuum timestamp in a persistent state file. On Emacs startup, it checks if a vacuum is needed. For long-running Emacs sessions (which may run for months between restarts), a daily timer checks at 3am whether it's been more than 7 days since the last vacuum. If maintenance is needed, it schedules the vacuum operation to run during the next 5-minute idle period, ensuring it never blocks active work.
+;; SQLite databases require periodic maintenance through the VACUUM command. Over time, as nodes are added, modified, and deleted, the database file becomes fragmented and accumulates unused space. VACUUM rebuilds the entire database file, reclaiming this space and reorganizing data for optimal query performance. The ANALYZE command updates query optimizer statistics, ensuring SQLite chooses efficient query plans.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; For a multi-computer setup with Syncthing, regular maintenance is especially important because constant syncing creates churn in the database. However, VACUUM is an expensive operation that locks the database during execution, so it should run infrequently and during idle time to avoid interrupting workflow.
+
+;; This implementation uses a time-based approach: vacuum runs automatically once per week maximum. The system tracks the last vacuum timestamp in a persistent state file. On Emacs startup, it checks if a vacuum is needed. For long-running Emacs sessions (which may run for months between restarts), a daily timer checks at 3am whether it's been more than 7 days since the last vacuum. If maintenance is needed, it schedules the vacuum operation to run during the next 5-minute idle period, ensuring it never blocks active work.
+
   (defvar aero/org-roam-vacuum-state-file
     (expand-file-name "org-roam-vacuum-state" aero-cache-dir)
     "file to track last vacuum timestamp.")
@@ -4501,14 +4460,14 @@ This implementation uses a time-based approach: vacuum runs automatically once p
   ;; runs at 3am daily or 24 hours after Emacs startup, whichever comes first
   (setq aero/org-roam-vacuum-check-timer
         (run-at-time "3:00am" (* 24 60 60) #'aero/org-roam-maybe-schedule-vacuum))
-#+END_SRC
 
-*** Org-roam-latte
-Highlights unlinked references to existing org-roam nodes in buffers. Click or press RET on highlighted text to visit the node, or M-RET to convert it into a link.
 
-When org-roam-latte's =after-change-function= runs during an =org-todo= state change, the inflections library's =replace-match= (called with =FIXEDCASE=nil=) interacts with =evil-org-mode= to upcase heading text. We prevent this by inhibiting latte's after-change hook while =org-todo= is executing.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;;; Org-roam-latte
+;; Highlights unlinked references to existing org-roam nodes in buffers. Click or press RET on highlighted text to visit the node, or M-RET to convert it into a link.
+
+;; When org-roam-latte's =after-change-function= runs during an =org-todo= state change, the inflections library's =replace-match= (called with =FIXEDCASE=nil=) interacts with =evil-org-mode= to upcase heading text. We prevent this by inhibiting latte's after-change hook while =org-todo= is executing.
+
   (package! org-roam-latte :auto
     :after org-roam
     :hook (org-roam-find-file . org-roam-latte-mode)
@@ -4526,12 +4485,12 @@ When org-roam-latte's =after-change-function= runs during an =org-todo= state ch
     (aero-mode-leader-def
       :keymaps 'org-mode-map
       "v" '(org-roam-latte-complete-at-point :wk "complete roam node")))
-#+END_SRC
 
-*** Thornlog
-This is a personal logging and note taking system, based on org-roam. It's evolved drastically over the years, from a bespoke system to a more generic org-roam setup. The functions here are for managing the thornlog system.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Thornlog
+;; This is a personal logging and note taking system, based on org-roam. It's evolved drastically over the years, from a bespoke system to a more generic org-roam setup. The functions here are for managing the thornlog system.
+
   (when (file-exists-p (expand-file-name "lisp/thornlog.el" aero/thornlog-path))
     (load (expand-file-name "lisp/thornlog.el" aero/thornlog-path)))
 
@@ -4626,20 +4585,21 @@ Add it to the file tags, placing it after the #+title: line if it exists."
     (if (org-before-first-heading-p)
         (aero/org-add-file-tag)
       (org-set-tags-command)))
-#+END_SRC
 
 
-*** Updated (modified) and created timestamps in Org-roam
-This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
 
 
-It's useful to know when an org-roam node was created and when it's updated, so I automatically add a ~:created:~ property when visiting a node if it doesn't already exist, and a ~:modified:~ property when saving a node. This way, I can see when a note was created and when it was last modified. Note that the ~:created:~ property parses the timestamp from the filename and relies on Org-roam's default naming scheme. If you use a different naming scheme, you'll need to modify the ~org-roam-extract-timestamp-from-filepath~ function to match your scheme.
+;;;;; Updated (modified) and created timestamps in Org-roam
+;; This section appears as a blog post at https://jmthornton.net/blog/p/org-roam-created-modified-dates
 
-For each of these, we ignore non-org files so that we don't try to add org properties to a markdown file.
 
-**** Automated creation date
+;; It's useful to know when an org-roam node was created and when it's updated, so I automatically add a ~:created:~ property when visiting a node if it doesn't already exist, and a ~:modified:~ property when saving a node. This way, I can see when a note was created and when it was last modified. Note that the ~:created:~ property parses the timestamp from the filename and relies on Org-roam's default naming scheme. If you use a different naming scheme, you'll need to modify the ~org-roam-extract-timestamp-from-filepath~ function to match your scheme.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; For each of these, we ignore non-org files so that we don't try to add org properties to a markdown file.
+
+
+;;;;;; Automated creation date
+
   (defun aero/org-roam-timestamp-excluded-file-p ()
     "Return t if current file should be excluded from automatic timestamp updates."
     (when (buffer-file-name)
@@ -4660,11 +4620,11 @@ For each of these, we ignore non-org files so that we don't try to add org prope
             (save-excursion
               (goto-char (point-min))
               (org-set-property "created" creation-time)))))))
-#+END_SRC
 
-**** Keeping modification dates current
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;;; Keeping modification dates current
+
   (defun aero/org-roam-extract-timestamp-from-filepath (filepath)
     "Extract timestamp from the Org-roam FILEPATH.
 Assumes it follows the default naming scheme."
@@ -4686,19 +4646,19 @@ Assumes it follows the default naming scheme."
       (save-excursion
         (goto-char (point-min))  ; Ensure property is applied to the whole file
         (org-set-property "modified" (format-time-string "[%Y-%m-%d %a %H:%M]")))))
-#+END_SRC
 
-**** Hooking it up
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;;; Hooking it up
+
   (add-hook 'before-save-hook #'aero/org-roam-insert-created-property)
   (add-hook 'before-save-hook #'aero/org-roam-insert-modified-property)
-#+END_SRC
 
-*** Consult-org-roam
-Provides a more powerful interface for searching org-roam nodes using ripgrep
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Consult-org-roam
+;; Provides a more powerful interface for searching org-roam nodes using ripgrep
+
   (package! consult-org-roam :auto
     :after (org-roam general)
     :custom
@@ -4709,14 +4669,15 @@ Provides a more powerful interface for searching org-roam nodes using ripgrep
       "vB" 'consult-org-roam-backlinks-recursive
       "vl" 'consult-org-roam-forward-links
       "v'" 'consult-org-roam-search))
-#+END_SRC
 
 
-* Applications
-** Verb (HTTP requests from Org-mode)
-Make HTTP requests using org-mode, so I can save my queries in roam
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Applications
+
+;;;; Verb (HTTP requests from Org-mode)
+;; Make HTTP requests using org-mode, so I can save my queries in roam
+
   (package! verb :auto
     :commands (verb-send-request-on-point-other-window-stay)
     :after (org general)
@@ -4724,14 +4685,14 @@ Make HTTP requests using org-mode, so I can save my queries in roam
     (aero-mode-leader-def
       :keymaps 'org-mode-map
       "RET" 'verb-send-request-on-point-other-window-stay))
-#+END_SRC
 
-** ESUP
-Emacs startup profiler.
 
-The override of =esup-read-results= works around a bug where esup tries to profile cl-lib and fails by doing some nil checking.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;;; ESUP
+;; Emacs startup profiler.
+
+;; The override of =esup-read-results= works around a bug where esup tries to profile cl-lib and fails by doing some nil checking.
+
   (package! esup :auto
     :commands (esup)
     :config
@@ -4750,24 +4711,25 @@ The override of =esup-read-results= works around a bug where esup tries to profi
               (setq esup-last-result-start-point sep-end-point)
               (goto-char esup-last-result-start-point))))
         (nreverse results))))
-#+END_SRC
 
-* Prog modes
-** Auto-mode settings
-Set up some auto-mode settings for various file types. Files without extensions are assumed to be text files.
 
-For some reason, makefile-mode doesn't always activate for Makefiles, so we add it here.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Prog modes
+
+;;;; Auto-mode settings
+;; Set up some auto-mode settings for various file types. Files without extensions are assumed to be text files.
+
+;; For some reason, makefile-mode doesn't always activate for Makefiles, so we add it here.
+
   (add-to-list 'auto-mode-alist '("/[^./]*\\'" . text-mode))
   (add-to-list 'auto-mode-alist '("\\(README\\|readme\\)\\'" . text-mode))
   (add-to-list 'auto-mode-alist '("/\\.dir-locals\\.el\\'" . emacs-lisp-mode))
   (add-to-list 'auto-mode-alist '("/Cask\\'" . emacs-lisp-mode))
   (add-to-list 'auto-mode-alist '("Makefile" . makefile-mode))
-#+END_SRC
 
-** C Language
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; C Language
   (package! cc-mode :builtin
     :mode (("\\.c\\'" . c-mode)
            ("\\.h\\'" . c-mode)
@@ -4778,11 +4740,11 @@ For some reason, makefile-mode doesn't always activate for Makefiles, so we add 
       "Hook to run in all C modes"
       (set (make-local-variable 'parens-require-spaces) nil))
     :hook (c-mode-common . aero/c-mode-common-hook))
-#+END_SRC
 
-** Sh-script
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Sh-script
+
   (package! sh-script :builtin :defer t
     :mode ("\\.\\(sh\\|bash\\|zsh\\|zsh-theme\\)\\'" . sh-mode)
     :config
@@ -4790,12 +4752,12 @@ For some reason, makefile-mode doesn't always activate for Makefiles, so we add 
       (interactive)
       (save-excursion
         (mark-paragraph) (indent-region (region-beginning) (region-end)))))
-#+END_SRC
 
-** Markdown
-We make an alteration to =markdown-mode-syntax-table= to teach it that quotes mean strings, regardless of what the mode's developer believes. We also ensure that checkboxes are not expanded by smartparens.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Markdown
+;; We make an alteration to =markdown-mode-syntax-table= to teach it that quotes mean strings, regardless of what the mode's developer believes. We also ensure that checkboxes are not expanded by smartparens.
+
   (package! markdown-mode :auto
     :after (general smartparens)
     :mode (("\\.md\\'" . gfm-mode)
@@ -4817,90 +4779,91 @@ We make an alteration to =markdown-mode-syntax-table= to teach it that quotes me
 
     :config
     (sp-local-pair 'gfm-mode "- [ " "]"))
-#+END_SRC
 
-*** Markdown-toc
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Markdown-toc
+
   (package! markdown-toc :auto
     :commands (markdown-toc-generate-toc markdown-toc-refresh-toc))
-#+END_SRC
 
-** Yaml
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Yaml
   (package! yaml-mode :auto
     :mode "\\.ya?ml\\'")
-#+END_SRC
 
-** Web mode (HTML, CSS, JS)
-If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Web mode (HTML, CSS, JS)
+;; If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
+
   (package! web-mode :auto
     :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|mjs\\|jsx\\|s?css\\|astro\\)\\'"
     :custom (web-mode-enable-engine-detection t)
     :config
     (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
-#+END_SRC
 
-*** Astro mode
-We define a custom mode for Astro files, which is really just web mode. This allows us to set up Eglot to run the Astro LS on these files
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Astro mode
+;; We define a custom mode for Astro files, which is really just web mode. This allows us to set up Eglot to run the Astro LS on these files
+
   (define-derived-mode astro-mode web-mode "astro")
-#+END_SRC
 
-*** Emmet
-Provides emmet expansion in web-mode
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Emmet
+;; Provides emmet expansion in web-mode
+
   (package! emmet-mode :auto
     :hook ((web-mode html-mode css-mode scss-mode js-mode) . emmet-mode)
     :init (setq emmet-self-closing-tag-style " /")
     :config
     (eval-when-compile (defvar emmet-expand-jsx-className?))
     (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t))))
-#+END_SRC
 
-** Jest
-My own package for running Jest tests from within Emacs. Based loosely on the functionality in VS Code
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Jest
+;; My own package for running Jest tests from within Emacs. Based loosely on the functionality in VS Code
+
   (package! jest "thornjad/emacs-jest"
     :commands (jest jest-file jest-test)
     :after (general))
-#+END_SRC
 
-** Clojure
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Clojure
   (package! clojure-mode :auto :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
-#+END_SRC
 
-** Emacs Lisp
-*** Package-lint
-Linting for Emacs packages
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Emacs Lisp
+
+;;;;; Package-lint
+;; Linting for Emacs packages
+
   (package! package-lint :auto
     :commands (package-lint-current-buffer))
-#+END_SRC
 
-*** Elisp-autofmt
-Automatically format elisp code
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Elisp-autofmt
+;; Automatically format elisp code
+
   (package! elisp-autofmt :auto
     :commands (elisp-autofmt-buffer
                elisp-autofmt-region)
     :custom
     (elisp-autofmt-cache-directory
      (expand-file-name "elisp-autofmt-cache" aero-cache-dir)))
-#+END_SRC
 
-*** El2md
-Convert elisp files to markdown Readme files
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; El2md
+;; Convert elisp files to markdown Readme files
+
   (package! el2md (:host gitlab :repo "thornjad/el2md")
     :after (general)
     :commands (el2md-write-readme
@@ -4913,23 +4876,21 @@ Convert elisp files to markdown Readme files
       "mr" 'el2md-write-readme
       "mv" 'el2md-view-buffer
       "mw" 'el2md-write-file))
-#+END_SRC
 
-*** Lisp indentation
-The default =lisp-indent-function= aligns plist continuation lines to the first /argument/ rather than the first /element/. This means a plist like:
 
-#+BEGIN_EXAMPLE
-(:weight regular :underline nil
-         :height 0.8)
-#+END_EXAMPLE
 
-...gets aligned to =regular= (the value after =:weight=) instead of to =:weight= itself. This is especially visible in face definitions inside =deftheme= or =custom-set-faces= blocks.
+;;;;; Lisp indentation
+;; The default =lisp-indent-function= aligns plist continuation lines to the first /argument/ rather than the first /element/. This means a plist like:
 
-This replacement, originally sourced from a widely-circulated fix for this known Emacs indentation quirk, corrects the behavior so that keyword-headed lists and other non-function-call lists indent to the opening parenthesis.
+;; (:weight regular :underline nil
+;;          :height 0.8)
 
-Without this, =indent-buffer= will consistently misalign face attribute plists in the theme files.
+;; ...gets aligned to =regular= (the value after =:weight=) instead of to =:weight= itself. This is especially visible in face definitions inside =deftheme= or =custom-set-faces= blocks.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; This replacement, originally sourced from a widely-circulated fix for this known Emacs indentation quirk, corrects the behavior so that keyword-headed lists and other non-function-call lists indent to the opening parenthesis.
+
+;; Without this, =indent-buffer= will consistently misalign face attribute plists in the theme files.
+
   (defun lisp-indent-function (indent-point state)
     "This function is the normal value of the variable `lisp-indent-function'.
   The function `calculate-lisp-indent' calls this to determine if the arguments of
@@ -5006,10 +4967,10 @@ Without this, =indent-buffer= will consistently misalign face attribute plists i
   (add-hook 'emacs-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
   (add-hook 'common-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
   (add-hook 'lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
-#+END_SRC
 
-** Python
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Python
   (package! python :builtin
     :after (general)
     :mode ("\\.py\\'" . python-mode)
@@ -5019,12 +4980,12 @@ Without this, =indent-buffer= will consistently misalign face attribute plists i
     :init
     (setq-default python-shell-interpreter "python3")
     (setq-default python-indent-offset 4))
-#+END_SRC
 
-*** Flymake-mypy
-Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Flymake-mypy
+;; Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
+
   (package! flymake-mypy "com4/flymake-mypy"
     :after (eglot flymake)
     :init
@@ -5032,12 +4993,12 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
               (lambda ()
                 (when (derived-mode-p 'python-base-mode)
                   (flymake-mypy-enable)))))
-#+END_SRC
 
-*** Flymake-ruff
-Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Flymake-ruff
+;; Some type checking via Flymake. Must be added after eglot so eglot doesn't clobber it.
+
   (package! flymake-ruff :auto
     :after (eglot flymake)
     :functions (flymake-ruff-load)
@@ -5048,60 +5009,61 @@ Some type checking via Flymake. Must be added after eglot so eglot doesn't clobb
                   (when (derived-mode-p 'python-base-mode)
                     (setq python-flymake-command '("ruff" "--quiet" "--stdin-filename=stdin" "-"))
                     (flymake-ruff-load))))))
-#+END_SRC
 
-** TOML
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; TOML
   (package! toml-mode :auto
     :mode "\\(\\.toml\\|Cargo\\.lock\\)\\'")
-#+END_SRC
 
-** Docker
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Docker
   (package! docker-compose-mode :auto :mode "docker-compose.*\.yml\\'")
   (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
-#+END_SRC
 
-** AppleScript
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; AppleScript
   (package! applescript-mode :auto :mode "\\.applescript\\'")
-#+END_SRC
 
-** Terraform
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Terraform
   (package! terraform-mode :auto :mode "\\.tf\\'")
-#+END_SRC
 
-** GraphQL
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; GraphQL
   (package! graphql-mode :auto :mode "\\.graphql\\'")
-#+END_SRC
 
-** CSV
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; CSV
   (package! csv-mode :auto :mode "\\.csv\\'")
-#+END_SRC
 
-** Orson (WIP)
-#+BEGIN_SRC emacs-lisp :lexical t
+
+
+;;;; Orson (WIP)
   (add-hook
    'orson-mode-hook
    (lambda ()
      (setq-local indent-tabs-mode nil)
      (prettify-symbols-mode nil)))
-#+END_SRC
 
-* Parentheses
-** Smartparens
-Provides a better way of handling parentheses.
 
-My =aero/smart-closing-parenthesis= is based on a similar function in Spacemacs.
 
-We also set up a bunch of paren pairs that aren't default for some reason.
+;;; Parentheses
 
-Toward the end we set up parens with post-handlers to add an extra newline and indent when hitting RET inside them.
+;;;; Smartparens
+;; Provides a better way of handling parentheses.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; My =aero/smart-closing-parenthesis= is based on a similar function in Spacemacs.
+
+;; We also set up a bunch of paren pairs that aren't default for some reason.
+
+;; Toward the end we set up parens with post-handlers to add an extra newline and indent when hitting RET inside them.
+
   (package! smartparens :auto
     :after (general) :defer 5
     :functions (show-smartparens-global-mode
@@ -5206,15 +5168,16 @@ Toward the end we set up parens with post-handlers to add an extra newline and i
     (sp-pair "(" ")" :post-handlers '(:add ("||\n[i]" "RET")))
 
     (define-key evil-insert-state-map ")" 'aero/smart-closing-parenthesis))
-#+END_SRC
 
-* Flymake & Flyspell
-** Flymake
-Diagnostics, errors, warnings, etc. This is a faster version of Flycheck.
 
-For fringe indicators, left is the default, but since git-gutter also uses left we need to make sure it still makes the same choice. If they conflict, one of them wins and it works out fine.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Flymake & Flyspell
+
+;;;; Flymake
+;; Diagnostics, errors, warnings, etc. This is a faster version of Flycheck.
+
+;; For fringe indicators, left is the default, but since git-gutter also uses left we need to make sure it still makes the same choice. If they conflict, one of them wins and it works out fine.
+
   (package! flymake :builtin
     :after (general)
     :custom
@@ -5227,12 +5190,12 @@ For fringe indicators, left is the default, but since git-gutter also uses left 
       "en" 'flymake-goto-next-error
       "ep" 'flymake-goto-prev-error
       "eb" 'flymake-show-buffer-diagnostics))
-#+END_SRC
 
-** Flyspell
-Spell checking, using a custom dictionary. Skips code blocks in org-mode.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Flyspell
+;; Spell checking, using a custom dictionary. Skips code blocks in org-mode.
+
     (package! flyspell :builtin
       :after (general)
       :hook ((prog-mode . flyspell-prog-mode)
@@ -5253,22 +5216,22 @@ Spell checking, using a custom dictionary. Skips code blocks in org-mode.
         "psw" 'flyspell-word
         "psb" 'flyspell-buffer
         "psr" 'flyspell-region))
-#+END_SRC
 
-*** Flyspell-lazy
-Lazy flyspell mode, which only checks words when they're idle. The
-idle timer is the real value here; it replaces flyspell's
-post-command-hook so typing stays responsive.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Flyspell-lazy
+;; Lazy flyspell mode, which only checks words when they're idle. The
+;; idle timer is the real value here; it replaces flyspell's
+;; post-command-hook so typing stays responsive.
+
   (package! flyspell-lazy :auto
     :hook ((flyspell-mode . flyspell-lazy-mode)))
-#+END_SRC
 
-*** Flyspell-correct
-A better interface for correcting spelling
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Flyspell-correct
+;; A better interface for correcting spelling
+
   (package! flyspell-correct :auto
     :after (general flyspell)
     :config
@@ -5277,12 +5240,12 @@ A better interface for correcting spelling
       "psC" 'flyspell-correct-at-point
       "psp" 'flyspell-correct-previous
       "psn" 'flyspell-correct-next))
-#+END_SRC
 
-* Formatting (Apheleia)
-It's hard to remember what this package is called, which is a marker of a bad name. However, it's good code, handling auto-formatting on save.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Formatting (Apheleia)
+;; It's hard to remember what this package is called, which is a marker of a bad name. However, it's good code, handling auto-formatting on save.
+
   (package! apheleia :auto
     :defer 2
     :after general
@@ -5302,26 +5265,26 @@ It's hard to remember what this package is called, which is a marker of a bad na
     (apheleia-global-mode +1)
 
     (aero-leader-def "bI" 'apheleia-format-buffer))
-#+END_SRC
 
-* Whitespace and indentation
-WS-Butler removes trailing whitespace, but only in modes where it's not important. This is a good default, but we need to exempt some modes where whitespace is important.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Whitespace and indentation
+;; WS-Butler removes trailing whitespace, but only in modes where it's not important. This is a good default, but we need to exempt some modes where whitespace is important.
+
   (package! ws-butler :auto
     :defer 1
     :functions (ws-butler-global-mode)
     :config (ws-butler-global-mode)
     :custom
     (ws-butler-global-exempt-modes '(special-mode comint-mode term-mode eshell-mode)))
-#+END_SRC
 
-* EWW: the Emacs Web Wowser
-A basic builtin browser. Very lightweight. Uses shr, which is a simple HTML renderer.
 
-First some helper functions for shr that make it render block-level elements as paragraphs, set the buffer title, and set up some interactive functions.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; EWW: the Emacs Web Wowser
+;; A basic builtin browser. Very lightweight. Uses shr, which is a simple HTML renderer.
+
+;; First some helper functions for shr that make it render block-level elements as paragraphs, set the buffer title, and set up some interactive functions.
+
   (defmacro shr-display-block (tag)
     "Register TAG a paragraph (in CSS parlance \"display:block;\").
 
@@ -5387,15 +5350,14 @@ equivalent to the list containing 16."
   (defun aero/eww-disable-scroll-margin ()
     "Disable scroll-margin in eww buffers."
     (setq-local scroll-margin 0))
-#+END_SRC
 
-=consult-outline= relies on =outline-regexp=, which eww buffers never configure — so =SPC j o= finds nothing useful there. The shr renderer does, however, apply faces like =shr-h1= through =shr-h6= to the text it produces for HTML headings. We exploit that by providing a custom =imenu-create-index-function= that walks the buffer line by line and collects any line whose text properties include a heading face.
 
-=eww-mode-map= binds =SPC= to =scroll-up-command= by default, which makes =SPC= a non-prefix key in the evil normal state overlay and blocks any longer =SPC=-prefixed sequence from being defined there. We clear that binding explicitly (=nil= in the evil keymap), which lets the general.el leader take over =SPC= as a prefix normally. =SPC j o= can then be bound to =consult-imenu= for eww just like any other mode-specific leader binding.
+;; =consult-outline= relies on =outline-regexp=, which eww buffers never configure — so =SPC j o= finds nothing useful there. The shr renderer does, however, apply faces like =shr-h1= through =shr-h6= to the text it produces for HTML headings. We exploit that by providing a custom =imenu-create-index-function= that walks the buffer line by line and collects any line whose text properties include a heading face.
 
-Then the actual EWW config. We open almost everything from Emacs into EWW, except a few sites that are so JS-heavy that they don't work at all.
+;; =eww-mode-map= binds =SPC= to =scroll-up-command= by default, which makes =SPC= a non-prefix key in the evil normal state overlay and blocks any longer =SPC=-prefixed sequence from being defined there. We clear that binding explicitly (=nil= in the evil keymap), which lets the general.el leader take over =SPC= as a prefix normally. =SPC j o= can then be bound to =consult-imenu= for eww just like any other mode-specific leader binding.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Then the actual EWW config. We open almost everything from Emacs into EWW, except a few sites that are so JS-heavy that they don't work at all.
+
   (package! eww :builtin
     :after (general evil ace-link)
     :commands (eww eww-browse-url eww-search-words browse-url-at-point)
@@ -5496,12 +5458,12 @@ Then the actual EWW config. We open almost everything from Emacs into EWW, excep
       "P" 'eww-bookmark-yank
       (kbd "RET") 'eww-bookmark-browse
       "q" 'quit-window))
-#+END_SRC
 
-** Shrface
-Adds some org-like features to EWW
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Shrface
+;; Adds some org-like features to EWW
+
   (package! shrface :auto
     :defer t
     :after (eww)
@@ -5511,24 +5473,24 @@ Adds some org-like features to EWW
     (shrface-basic)
     (shrface-trial)
     (shrface-default-keybindings))
-#+END_SRC
 
-** Shr-tag-pre-highlight
-Syntax highlighting for HTML pre tags
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Shr-tag-pre-highlight
+;; Syntax highlighting for HTML pre tags
+
   (package! shr-tag-pre-highlight :auto
     :after (shr)
     :config
     (add-to-list 'shr-external-rendering-functions '(pre . shr-tag-pre-highlight)))
-#+END_SRC
 
-* Elfeed
-Simple RSS reader
 
-=url-queue-timeout= controls how long an image fetch can sit in the async queue before being silently dropped. The default of 5 seconds is too short when an entry has several images and other fetches are already in flight — later images get evicted before they even start. 30 seconds gives enough headroom without letting truly broken requests linger indefinitely.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;;; Elfeed
+;; Simple RSS reader
+
+;; =url-queue-timeout= controls how long an image fetch can sit in the async queue before being silently dropped. The default of 5 seconds is too short when an entry has several images and other fetches are already in flight — later images get evicted before they even start. 30 seconds gives enough headroom without letting truly broken requests linger indefinitely.
+
   (defun aero/elfeed-show-disable-scroll-margin ()
     "Disable scroll-margin in elfeed entry buffers."
     (setq-local scroll-margin 0))
@@ -5546,12 +5508,12 @@ Simple RSS reader
     :config
     (evil-set-initial-state 'elfeed-search-mode 'normal)
     (evil-set-initial-state 'elfeed-show-mode 'normal))
-#+END_SRC
 
-** Elfeed-org
-Allows managing feeds in an org file
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Elfeed-org
+;; Allows managing feeds in an org file
+
   (defun aero-elfeed-org ()
     "Set `elfeed-feeds' from the org file."
     (interactive)
@@ -5581,38 +5543,40 @@ Allows managing feeds in an org file
   ;; Run once when elfeed loads up
   (with-eval-after-load 'elfeed
     (aero-elfeed-org))
-#+END_SRC
 
 
-* AI
-I've moved most AI functions out of Emacs proper, as I can't keep up with the incredible advances of products like Cursor and Claude Code. I keep copilot around for occasional use, since GitHub gives it to me for free.
 
-** Claude Code
-This is a custom local package (=aero-claude=) for running Claude Code inside Emacs via vterm. I wrote this from scratch after trying several third-party packages on GitHub (e.g. =claude-code-ide.el=) and finding them either too heavy, unreliable, or poorly suited to my workflow. The package handles several tricky vterm integration problems: it implements a synchronized output renderer that batches DEC sync blocks to eliminate flicker (libvterm ignores these markers), a split-and-close resize trick to force correct terminal dimensions on startup (with a drop-next-render mechanism to prevent the intermediate resize from causing duplicate display artifacts), and a clipboard image paste workaround since vterm lacks OSC 52 read support.
 
-Key bindings available in claude buffers:
+;;; AI
+;; I've moved most AI functions out of Emacs proper, as I can't keep up with the incredible advances of products like Cursor and Claude Code. I keep copilot around for occasional use, since GitHub gives it to me for free.
 
-| Key           | Action                                                                     |
-|---------------+----------------------------------------------------------------------------|
-| =SPC a c=     | Launch Claude Code for the current project                                 |
-| =C-S-v=       | Paste clipboard image (saves to temp file via =pngpaste=, inserts path)    |
-| =C-<escape>=  | Send literal escape to the terminal (useful for dismissing Claude prompts) |
-| =S-<return>=  | Insert a literal newline without submitting (inherited from vterm config)   |
 
-#+begin_src emacs-lisp :lexical t
+;;;; Claude Code
+;; This is a custom local package (=aero-claude=) for running Claude Code inside Emacs via vterm. I wrote this from scratch after trying several third-party packages on GitHub (e.g. =claude-code-ide.el=) and finding them either too heavy, unreliable, or poorly suited to my workflow. The package handles several tricky vterm integration problems: it implements a synchronized output renderer that batches DEC sync blocks to eliminate flicker (libvterm ignores these markers), a split-and-close resize trick to force correct terminal dimensions on startup (with a drop-next-render mechanism to prevent the intermediate resize from causing duplicate display artifacts), and a clipboard image paste workaround since vterm lacks OSC 52 read support.
+
+;; Key bindings available in claude buffers:
+
+;; | Key           | Action                                                                     |
+;; |---------------+----------------------------------------------------------------------------|
+;; | =SPC a c=     | Launch Claude Code for the current project                                 |
+;; | =C-S-v=       | Paste clipboard image (saves to temp file via =pngpaste=, inserts path)    |
+;; | =C-<escape>=  | Send literal escape to the terminal (useful for dismissing Claude prompts) |
+;; | =S-<return>=  | Insert a literal newline without submitting (inherited from vterm config)   |
+
   (package! aero-claude :localpackage
     :commands (aero/claude aero/claude-force-redisplay)
     :init
     (aero-leader-def
       "ac" 'aero/claude
       "as" 'aero/claude-force-redisplay))
-#+end_src
 
-* Shell
-** Xterm-color
-Colorize shell output
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Shell
+
+;;;; Xterm-color
+;; Colorize shell output
+
   (package! xterm-color :auto
     :commands (xterm-color-filter)
     :init
@@ -5620,12 +5584,12 @@ Colorize shell output
     (defun aero/advice-compilation-filter (f proc string)
       (funcall f proc (xterm-color-filter string)))
     (advice-add 'compilation-filter :around #'aero/advice-compilation-filter))
-#+END_SRC
 
-** vterm
-Note: vterm requires libvterm-dev, which may not be installed. See https://github.com/akermu/emacs-libvterm for full install instructions. Also requires shell-side configuration.
 
-#+begin_src emacs-lisp :lexical t
+
+;;;; vterm
+;; Note: vterm requires libvterm-dev, which may not be installed. See https://github.com/akermu/emacs-libvterm for full install instructions. Also requires shell-side configuration.
+
   (when (bound-and-true-p module-file-suffix)  ; Requires Emacs modules
     (package! vterm :auto :defer t
       :after (general)
@@ -5659,12 +5623,12 @@ Note: vterm requires libvterm-dev, which may not be installed. See https://githu
                   (lambda ()
                     (interactive)
                     (vterm-send-key "j" nil nil t)))))
-#+end_src
 
-*** multi-vterm
-Makes it easier to run multiple vterm instances at once, especially per-project
 
-#+begin_src emacs-lisp :lexical t
+
+;;;;; multi-vterm
+;; Makes it easier to run multiple vterm instances at once, especially per-project
+
   (package! multi-vterm :auto :defer t
     :after (vterm general)
     :init
@@ -5677,12 +5641,12 @@ Makes it easier to run multiple vterm instances at once, especially per-project
       "c" 'multi-vterm
       "n" 'mutli-vterm-next
       "p" 'multi-vterm-prev))
-#+end_src
 
-*** Cursor Agent wrapper
-Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions on startup in vterm. This wrapper launches Cursor Agent and triggers a redraw to ensure proper display.
 
-#+begin_src emacs-lisp :lexical t
+
+;;;;; Cursor Agent wrapper
+;; Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions on startup in vterm. This wrapper launches Cursor Agent and triggers a redraw to ensure proper display.
+
     (defun aero/cursor-agent--poll-for-startup (buffer-name retry-count)
       "Poll BUFFER-NAME for \\='Cursor Agent\\=' text and redraw when found.
   RETRY-COUNT is the number of attempts remaining (default 10 = ~5 seconds)."
@@ -5746,12 +5710,12 @@ Cursor Agent (and other TUI apps) sometimes don't get proper terminal dimensions
                                                   #'aero/cursor-agent--poll-for-startup
                                                   buffer-name
                                                   10)))))))))
-#+end_src
 
-** Eshell
-Realistically this is my main shell. It does try to override some important bindings by default, so we undo that.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;; Eshell
+;; Realistically this is my main shell. It does try to override some important bindings by default, so we undo that.
+
   (package! eshell :builtin
     :after (general evil)
     :commands eshell
@@ -5856,12 +5820,12 @@ Realistically this is my main shell. It does try to override some important bind
       (require 'em-cmpl)
       (require 'em-prompt)
       (require 'em-term)))
-#+END_SRC
 
-*** Eshell-prompt-extras
-Adds a more informative prompt to eshell
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Eshell-prompt-extras
+;; Adds a more informative prompt to eshell
+
   (package! eshell-prompt-extras :auto
     :after (eshell)
     :config
@@ -5869,29 +5833,29 @@ Adds a more informative prompt to eshell
       (autoload 'epe-theme-multiline-with-status "eshell-prompt-extras")
       (setq eshell-highlight-prompt nil
             eshell-prompt-function 'epe-theme-multiline-with-status)))
-#+END_SRC
 
-*** Eshell-syntax-highlighting
-Syntax highlighting in eshell
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Eshell-syntax-highlighting
+;; Syntax highlighting in eshell
+
   (package! eshell-syntax-highlighting :auto
     :after eshell-mode
     :hook (eshell-mode . eshell-syntax-highlighting-mode))
-#+END_SRC
 
-*** Capf-autosuggest
-Provides overlay suggestions in eshell. Use M-f to insert the next suggested word
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;;;; Capf-autosuggest
+;; Provides overlay suggestions in eshell. Use M-f to insert the next suggested word
+
   (package! capf-autosuggest "emacs-straight/capf-autosuggest"
     :hook (eshell-mode . capf-autosuggest-mode))
-#+END_SRC
 
-* Yarn-lock derived mode
-Rather than loading in a whole package, creating a derived mode for Yarn Locks is so simple that I just do it here.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Yarn-lock derived mode
+;; Rather than loading in a whole package, creating a derived mode for Yarn Locks is so simple that I just do it here.
+
   (defvar yarn-lock-mode-syntax-table
     (let ((syntable (make-syntax-table)))
       (modify-syntax-entry ?# "<" syntable)
@@ -5913,21 +5877,22 @@ Rather than loading in a whole package, creating a derived mode for Yarn Locks i
     :syntax-table yarn-lock-mode-syntax-table
     (setq font-lock-defaults '(yarn-lock-mode-font-lock-defaults)
           buffer-read-only t))
-#+END_SRC
 
-* Fun stuff
-** Lichess
-#+begin_src emacs-lisp :lexical t
+
+
+;;; Fun stuff
+
+;;;; Lichess
   (package! lichess :auto
     :commands (lichess lichess-tv lichess-game-watch)
     :custom
     (lichess-ai-default-level 3))
-#+end_src
 
-* General variable configuration
-This is loaded toward the end so that it overrides other packages. This solves some occasional issues where a mode overrides indenting, for example.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; General variable configuration
+;; This is loaded toward the end so that it overrides other packages. This solves some occasional issues where a mode overrides indenting, for example.
+
   (setq-default
    ;; general
    ring-bell-function 'ignore ; supprime cette putain de cloche.
@@ -6110,73 +6075,63 @@ This is loaded toward the end so that it overrides other packages. This solves s
 ;; manual frame creation via `make-frame' or `other-frame' still works.
 (advice-add 'display-buffer-pop-up-frame :override
             (lambda (_buffer _alist) nil))
-#+END_SRC
 
-Ensure language is setup, it's kind of crazy that this is necessary after all these years.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Ensure language is setup, it's kind of crazy that this is necessary after all these years.
+
   (setenv "LANG" "en_US.UTF-8")
   (setenv "LC_ALL" "en_US.UTF-8")
-#+END_SRC
 
-Underscores delineate words.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Underscores delineate words.
+
   (modify-syntax-entry ?_ "w")
-#+END_SRC
 
-Ensure case statements indent properly.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Ensure case statements indent properly.
+
   (with-eval-after-load 'prog-mode
     (c-set-offset 'case-label '++))
-#+END_SRC
 
-Show trailing whitespace in prog modes
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Show trailing whitespace in prog modes
+
   (add-hook 'prog-mode-hook (lambda () (setq show-trailing-whitespace t)))
-#+END_SRC
 
-Enable narrow to region without asking
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Enable narrow to region without asking
+
   (put 'narrow-to-region 'disabled nil)
-#+END_SRC
 
-Prevent savehist from hogging the CPU
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Prevent savehist from hogging the CPU
+
   (setq history-length 100)
   (put 'minibuffer-history 'history-length 50)
   (put 'evil-ex-history 'history-length 50)
   (put 'kill-ring 'history-length 25)
-#+END_SRC
 
-Start the Emacs server automatically so that emacsclient can always connect.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Start the Emacs server automatically so that emacsclient can always connect.
+
   (server-start)
-#+END_SRC
 
-Try to get emacsclient to open frames with focus. Doesn't always work, especially in GNOME.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Try to get emacsclient to open frames with focus. Doesn't always work, especially in GNOME.
+
   (add-hook 'server-switch-hook (lambda () (select-frame-set-input-focus (selected-frame))))
-#+END_SRC
 
-Enable the mouse in TTY, just for scrolling really.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Enable the mouse in TTY, just for scrolling really.
+
   (unless (display-graphic-p)
     (xterm-mouse-mode 1)
     (global-set-key (kbd "<mouse-4>") 'scroll-down-line)
     (global-set-key (kbd "<mouse-5>") 'scroll-up-line))
-#+END_SRC
 
-Disable idiotic Super keybindings. These are defined in =ns-win.el=. In my view, Super should be the domain of the OS and nothing in Emacs should ever be bound to it.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Disable idiotic Super keybindings. These are defined in =ns-win.el=. In my view, Super should be the domain of the OS and nothing in Emacs should ever be bound to it.
+
   (global-unset-key (kbd "s-:"))
   (global-unset-key (kbd "s-C"))
   (global-unset-key (kbd "s-D"))
@@ -6195,116 +6150,101 @@ Disable idiotic Super keybindings. These are defined in =ns-win.el=. In my view,
   (global-unset-key (kbd "s-q"))
   (global-unset-key (kbd "s-u"))
   (global-unset-key (kbd "s-w"))
-#+END_SRC
 
-Typing gets rid of the active region.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Typing gets rid of the active region.
+
   (delete-selection-mode t)
-#+END_SRC
 
-Try to save point position between sessions. Doesn't work consistently, but it's not a huge deal.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Try to save point position between sessions. Doesn't work consistently, but it's not a huge deal.
+
   (setq save-place-file (expand-file-name "saveplace" aero-etc-dir))
   (save-place-mode 1)
-#+END_SRC
 
-After restoring position, recenter so the cursor doesn't land at the bottom of the window.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; After restoring position, recenter so the cursor doesn't land at the bottom of the window.
+
   (advice-add 'save-place-find-file-hook :after
               (lambda (&rest _)
                 (when buffer-file-name (ignore-errors (recenter)))))
-#+END_SRC
 
-Ensure buffer names are unique when filenames match. The forward option will expand each duplicate buffer name to include their parent directories as far as necessary to make them unique. Does not apply to renamed buffers.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Ensure buffer names are unique when filenames match. The forward option will expand each duplicate buffer name to include their parent directories as far as necessary to make them unique. Does not apply to renamed buffers.
+
   (require 'uniquify)
   (setq uniquify-buffer-name-style 'forward)
-#+END_SRC
 
-Basic startup message override.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Basic startup message override.
+
   (defun display-startup-echo-area-message ()
     "Override ridiculous built-in crap."
     (message "Aero est prêt"))
-#+END_SRC
 
-If we leave a buffer, set its mark as inactive. Helps prevent accidentally following a mark to another file.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; If we leave a buffer, set its mark as inactive. Helps prevent accidentally following a mark to another file.
+
   (transient-mark-mode 1)
-#+END_SRC
 
-Word navigation within camelCase
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Word navigation within camelCase
+
   (global-subword-mode 1)
-#+END_SRC
 
-Don't allow the cursor in the minibuffer
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Don't allow the cursor in the minibuffer
+
   (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
-#+END_SRC
 
-Prevent =find-file-at-point= from pinging hostnames to validate them, which can cause multi-second freezes on VPN or slow networks.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Prevent =find-file-at-point= from pinging hostnames to validate them, which can cause multi-second freezes on VPN or slow networks.
+
   (setq ffap-machine-p-known 'reject)
-#+END_SRC
 
-Make files executable if the first line has a shebang
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Make files executable if the first line has a shebang
+
   (add-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
-#+END_SRC
 
-Always always always wrap lines
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Always always always wrap lines
+
   (global-visual-line-mode +1)
-#+END_SRC
 
-Log warnings but don't pop them up.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Log warnings but don't pop them up.
+
   (setq warning-minimum-level :error)
-#+END_SRC
 
-* Buffer cleanup
 
-Emacs accumulates buffers over long sessions. The built-in =midnight= package runs a cleanup function on a timer, killing buffers that haven't been visited in a while. The "special" delay applies to ephemeral output buffers matched by =clean-buffer-list-kill-regexps= (help, compilation, man pages, etc.) and uses seconds rather than days. General file and tool buffers are killed after four days of inactivity.
 
-The timer fires at 5pm rather than actual midnight, since the machine is usually sleeping then.
+;;; Buffer cleanup
 
-#+BEGIN_SRC emacs-lisp :lexical t
+;; Emacs accumulates buffers over long sessions. The built-in =midnight= package runs a cleanup function on a timer, killing buffers that haven't been visited in a while. The "special" delay applies to ephemeral output buffers matched by =clean-buffer-list-kill-regexps= (help, compilation, man pages, etc.) and uses seconds rather than days. General file and tool buffers are killed after four days of inactivity.
+
+;; The timer fires at 5pm rather than actual midnight, since the machine is usually sleeping then.
+
   (require 'midnight)
   (setq clean-buffer-list-delay-general 4
         clean-buffer-list-delay-special 3600
         midnight-delay (* 17 60 60))
   (midnight-mode t)
-#+END_SRC
 
-* Idle garbage collection
-Do garbage collection when I'm not actively doing anything for twenty seconds.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Idle garbage collection
+;; Do garbage collection when I'm not actively doing anything for twenty seconds.
+
   (run-with-idle-timer 20 t 'garbage-collect)
-#+END_SRC
 
-* Load local file
-Load a local init file if it exists. This is a great place to put secrets and keys, or machine-specific functions such as helpers that rely on proprietary code structure or information.
 
-#+BEGIN_SRC emacs-lisp :lexical t
+
+;;; Load local file
+;; Load a local init file if it exists. This is a great place to put secrets and keys, or machine-specific functions such as helpers that rely on proprietary code structure or information.
+
   (load (expand-file-name "init.local" user-emacs-directory) t t)
-#+END_SRC
 
-#  LocalWords:  Editorconfig Savehist
 
-# Local Variables:
-# eval: (add-hook 'after-save-hook #'org-babel-tangle nil t)
-# End:
+
+;;; config.el ends here

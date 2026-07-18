@@ -18,8 +18,8 @@
 ;;
 ;;; Commentary:
 ;;
-;; Thornjad's primary init file, containing important setup and calling org-babel on the main
-;; literate config.
+;; Thornjad's primary init file, containing important bootstrap setup and loading the main
+;; configuration from config.el.
 ;;
 ;;; Code:
 
@@ -71,18 +71,6 @@ so we use more cycles but less space, but not too little space.")
   (setq user-emacs-directory (file-name-directory user-init-file))
 
   ;; Load the configuration
-  ;; If config.el exists and is newer than config.org, load it directly to skip org-babel overhead.
-  ;; Otherwise, use org-babel to tangle and load config.org.
-  (let ((config-el (expand-file-name "config.el" user-emacs-directory))
-        (config-org (expand-file-name "config.org" user-emacs-directory)))
-    (if (and (file-exists-p config-el)
-             (file-newer-than-file-p config-el config-org))
-        ;; config.el is current, load it directly
-        (load config-el nil 'nomessage)
-      ;; config.el is stale or missing, use org-babel
-      (require 'org)
-      (require 'ob-tangle)
-      (setq org-babel-default-header-args:emacs-lisp '((:lexical . "yes")))
-      (org-babel-load-file config-org))))
+  (load (expand-file-name "config.el" user-emacs-directory) nil 'nomessage))
 
 ;;; init.el ends here
