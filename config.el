@@ -886,16 +886,29 @@ submodules outside `borg-drones-directory'."
     (borg-do-drones (drone) (push drone names))
     (nreverse names)))
 
+(defun aero/borg--skip-dotdirs (subdir)
+  "Recursion predicate for `directory-files-recursively': skip dotdirs.
+Excludes `.git' and similar from the search, since a drone's Lisp files are
+never there."
+  (not (string-prefix-p "." (file-name-nondirectory (directory-file-name subdir)))))
+
 (defun aero/borg-drone-present-p (name)
-  "Return non-nil if drone NAME is checked out with source present."
+  "Return non-nil if drone NAME is checked out with source present.
+Searches recursively: not every drone keeps its Lisp files at its worktree
+root, ghostel for example nests them under `lisp/'."
   (let ((dir (borg-worktree name)))
     (and (file-directory-p dir)
-         (directory-files dir nil "\\`[^.].*\\.el\\'" t))))
+         (directory-files-recursively dir "\\.el\\'" nil #'aero/borg--skip-dotdirs))))
 
 (defun aero/borg-drone-autoloads-p (name)
-  "Return non-nil if drone NAME already has a generated autoloads file."
-  (file-exists-p (expand-file-name (format "%s-autoloads.el" name)
-                                   (borg-worktree name))))
+  "Return non-nil if drone NAME already has a generated autoloads file.
+Searches recursively for `NAME-autoloads.el', since not every drone's
+autoloads land at its worktree root."
+  (let ((dir (borg-worktree name)))
+    (and (file-directory-p dir)
+         (directory-files-recursively
+          dir (concat "\\`" (regexp-quote name) "-autoloads\\.el\\'")
+          nil #'aero/borg--skip-dotdirs))))
 
 (defun aero/borg-warn-unassimilated (name)
   "Warn that drone NAME is declared but not checked out on this machine."
