@@ -1027,6 +1027,93 @@ the not-checked-out warning branch instead of loading the package."
             (message "Activated `%s'." name))
         (message "No `package!' form for `%s' found in config.el; add one and eval it." name)))))
 
+;; `aero/melpa-lookup-recipe` resolves a bare package name to a git URL by
+;; fetching a single recipe file from MELPA's raw GitHub content, rather than
+;; depending on straight.el's local recipe-repository checkout. This keeps
+;; working once straight is removed, and it is the mechanism that lets the
+;; `:borg` recipe below do MELPA lookups for a name with no target given.
+;; MELPA's recipe repository is consulted only for the git host/repo it
+;; names; it is never treated as a source of code to run.
+(defconst aero/melpa-recipe-url-format
+  "https://raw.githubusercontent.com/melpa/melpa/master/recipes/%s"
+  "Format string for a single MELPA recipe file's raw URL, given a package name.")
+
+(defun aero/melpa-lookup-recipe (name)
+  "Look up NAME in MELPA's recipe repository and return a git URL, or nil.
+Fetches only the single `recipes/NAME' file over HTTP.  Returns nil if NAME
+has no MELPA recipe, or its recipe does not use a Git-based fetcher."
+  (ignore-errors
+    (let ((buf (url-retrieve-synchronously
+                (format aero/melpa-recipe-url-format name) t t 10)))
+      (when buf
+        (unwind-protect
+            (with-current-buffer buf
+              (goto-char (point-min))
+              (when (looking-at-p "HTTP/[0-9.]+ 200")
+                (re-search-forward "\r?\n\r?\n")
+                (let* ((plist (cdr (read (current-buffer))))
+                       (fetcher (plist-get plist :fetcher)))
+                  (pcase fetcher
+                    ('git (plist-get plist :url))
+                    ('github (format "https://github.com/%s.git" (plist-get plist :repo)))
+                    ('gitlab (format "https://gitlab.com/%s.git" (plist-get plist :repo)))
+                    ('codeberg (format "https://codeberg.org/%s.git" (plist-get plist :repo)))
+                    ('sourcehut (format "https://git.sr.ht/%s" (plist-get plist :repo)))))))
+          (kill-buffer buf))))))
+
+;; `aero/borg-resolve-target` is the DWIM step: it takes whatever was written
+;; after `:borg' (or, if nothing was written, the package's own name) and
+;; decides what kind of thing it is. A scheme prefix or `git@host:' form is
+;; already a git URL and passes through unchanged; a three-segment slug whose
+;; first segment looks like a domain (`gitlab.com/owner/repo') gets `https://'
+;; prepended; a bare two-segment `owner/repo' slug is assumed to be GitHub;
+;; anything else is treated as a package name and looked up on MELPA.
+(defun aero/borg-resolve-target (name target)
+  "Resolve TARGET, or NAME if TARGET is nil, to a git URL.
+Returns nil if TARGET cannot be resolved to a usable git URL."
+  (let* ((s (or target name))
+         (segments (split-string s "/" t)))
+    (cond
+     ((string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*://" s) s)
+     ((string-match-p "\\`[^/@]+@[^/:]+:" s) s)
+     ((and (= (length segments) 3) (string-match-p "\\." (nth 0 segments)))
+      (concat "https://" s))
+     ((= (length segments) 2)
+      (format "https://github.com/%s.git" s))
+     (t (aero/melpa-lookup-recipe s)))))
+
+;; `aero/borg-ensure-assimilated` is what the `:borg' recipe in `package!'
+;; calls when a drone is declared but not yet present. It resolves the target
+;; to a URL, asks for one confirmation, and if approved assimilates and builds
+;; in place so the `use-package' call right after it in the same expansion
+;; runs immediately, with no separate re-eval step needed. It only acts when
+;; Emacs is interactive: a fresh machine's batch `make init' load must not
+;; block on `y-or-n-p' or start fetching over the network on its own, so it
+;; silently no-ops in batch and leaves the caller to fall back to
+;; `aero/borg-warn-unassimilated', same as before this existed. When the
+;; answer is "no", it messages the resolved name and URL so a session that
+;; evaluates many `package!' forms at once can scan `*Messages*' afterward
+;; for exactly what still needs attention.
+(defun aero/borg-ensure-assimilated (name &optional target)
+  "Assimilate and build drone NAME, resolving TARGET (or NAME) to a git URL.
+No-op when Emacs is not interactive.  Prompts for confirmation before
+fetching or building anything.  Returns non-nil if the drone was built."
+  (unless noninteractive
+    (let ((url (aero/borg-resolve-target name target)))
+      (cond
+       ((not url)
+        (message "borg: could not resolve a git URL for `%s' from `%s'; assimilate manually with `aero/borg-assimilate'."
+                 name (or target name))
+        nil)
+       ((y-or-n-p (format "Assimilate and build `%s' from %s? " name url))
+        (borg-assimilate name url t)
+        (borg-build name t)
+        t)
+       (t
+        (message "borg: skipped `%s' (%s) -- not assimilated.  Re-eval the `package!' form to retry."
+                 name url)
+        nil)))))
+
 ;; `aero/borg-assimilate` ties this together. It registers the target and each
 ;; missing dependency as a submodule and places their source on disk without
 ;; building or activating them, so none of their code runs. It then shows a
@@ -1210,8 +1297,14 @@ Example:
   require a :load-path for `use-package' to load properly.
 
   If the RECIPE is :borg, the package is a Borg drone (a git submodule under lib/drones/). Borg has
-  already set up its load path and autoloads during init, so only BODY is passed to `use-package'. If
-  the drone is not checked out on this machine, a warning is issued rather than failing.
+  already set up its load path and autoloads during init. If the drone is not checked out on this
+  machine, and Emacs is interactive, a target is resolved and, on confirmation, the drone is
+  assimilated and built before BODY is passed to `use-package'. The target is an optional value
+  written directly after :borg, and is not a keyword: a git URL, an `owner/repo' slug, a
+  host-qualified slug (`gitlab.com/owner/repo'), or a bare package name to look up on MELPA. If
+  :borg is bare, or given as `:borg t', the package's own name is used as that lookup key. If
+  resolution fails, the answer is declined, or Emacs is not interactive, a warning is issued rather
+  than failing.
 
   If the BODY contains the keyword :disabled, the package is completely ignored, with an expansion
   indicating the package has been disabled.
@@ -1240,14 +1333,25 @@ Example:
    ((equal recipe :localpackage)
     `(use-package ,package :straight nil :load-path "lib/localpackages" ,@body))
 
-   ;; Borg drone: configure an already-assimilated submodule. Borg has set up the load path and
-   ;; autoloads during init, so this only hands BODY to `use-package'. If the drone is not checked
-   ;; out on this machine, warn rather than fail. Assimilation is a separate, explicit act, never
-   ;; something this macro does at load time.
+   ;; Borg drone: configure an already-assimilated submodule, assimilating it first if needed. Borg
+   ;; has set up the load path and autoloads during init, so only BODY is handed to `use-package'.
+   ;; An optional non-keyword value directly after :borg is the fetch target (URL, slug, or bare
+   ;; name to look up on MELPA); bare :borg or `:borg t' uses the package's own name as that lookup
+   ;; key, mirroring how :auto resolves a name. `aero/borg-ensure-assimilated' does the actual work
+   ;; and only takes action when the drone is missing and Emacs is interactive, so this is always
+   ;; safe to eval: already-present drones skip straight to `use-package', and batch loads (fresh
+   ;; machine, `make init') fall straight to the warning below, same as before this existed.
    ((equal recipe :borg)
-    `(if (aero/borg-drone-present-p ,(symbol-name package))
-         (use-package ,package :straight nil ,@body)
-       (aero/borg-warn-unassimilated ,(symbol-name package))))
+    (let (target)
+      (cond
+       ((and body (eq (car body) t)) (pop body))
+       ((and body (not (keywordp (car body)))) (setq target (pop body))))
+      `(progn
+         (unless (aero/borg-drone-present-p ,(symbol-name package))
+           (aero/borg-ensure-assimilated ,(symbol-name package) ,target))
+         (if (aero/borg-drone-present-p ,(symbol-name package))
+             (use-package ,package :straight nil ,@body)
+           (aero/borg-warn-unassimilated ,(symbol-name package))))))
 
    ;; Use straight
    (t
