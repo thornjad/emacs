@@ -68,6 +68,11 @@ Most packages follow this pattern in `config.el`:
 
 **Package Source Preference**: Use `:auto` for packages available on MELPA rather than specifying GitHub repo names, as this provides better stability and version management through the package archive system.
 
+### Borg (Drone) Packages
+Borg is a submodule-based package manager being adopted incrementally alongside `straight.el`; each package is owned by exactly one of the two, migrating over one at a time. Drones live under `lib/drones/`, tracked in `.gitmodules` at exact pinned commits, which doubles as the review/audit trail. `borg-drones-directory` is set via `git config borg.drones-directory` (config.el sets this itself at startup, before `require`), not an Elisp `setq`, since `borg-build` runs the actual clone/compile step in a freshly spawned `emacs -Q --batch` subprocess that never loads `config.el` and only sees git-config-level state, not session-level Elisp variables.
+
+The `:borg` recipe in `package!` takes an optional non-keyword target directly after `:borg`: a git URL, an `owner/repo` GitHub slug, a host-qualified slug (`gitlab.com/owner/repo`), or a bare package name to look up on MELPA (`aero/melpa-lookup-recipe`, a direct HTTP fetch of a single MELPA recipe file, no dependency on straight). Bare `:borg` or `:borg t` uses the package's own name as that lookup key. If the drone is not already checked out, evaluating the form (interactively only, never in batch) resolves the target, asks one `y-or-n-p` confirmation, then assimilates and builds before continuing into `use-package` in the same expansion. Declining, or a resolution failure, prints a message to `*Messages*` naming what still needs manual attention (see `aero/borg-assimilate` for the standalone multi-package/dependency-chasing path).
+
 ### Custom Functions and Macros
 Many helper functions are defined inline within the configuration, typically prefixed with `aero/`. Key examples:
 - `aero/keyboard-quit-context` - Enhanced quit behavior
