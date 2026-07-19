@@ -1,14 +1,17 @@
-[submodule "lib/aero-theme"]
-	path = lib/aero-theme
-	url = git@github.com:thornjad/aero-theme.git
-[submodule "lib/straight.el"]
-	path = lib/straight.el
-	url = https://github.com/radian-software/straight.el.git
-[submodule "lib/borg"]
-	path = lib/borg
-	url = https://github.com/emacscollective/borg.git
-	ignore = untracked
 [submodule "evil-org-mode"]
 	path = lib/drones/evil-org-mode
 	url = https://github.com/Somelauw/evil-org-mode.git
 	ignore = untracked
+[submodule "ghostel"]
+	path = lib/drones/ghostel
+	url = https://github.com/dakra/ghostel.git
+[submodule "lib/aero-theme"]
+	path = lib/aero-theme
+	url = git@github.com:thornjad/aero-theme.git
+[submodule "lib/borg"]
+	path = lib/borg
+	url = https://github.com/emacscollective/borg.git
+	ignore = untracked
+[submodule "lib/straight.el"]
+	path = lib/straight.el
+	url = https://github.com/radian-software/straight.el.git

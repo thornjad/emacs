@@ -5885,7 +5885,7 @@ equivalent to the list containing 16."
     "as" 'aero/claude-force-redisplay))
 
 
-;;; Shell
+;;; Shell / Terminal
 
 ;;;; Xterm-color
 
@@ -5956,6 +5956,20 @@ equivalent to the list containing 16."
     "c" 'multi-vterm
     "n" 'mutli-vterm-next
     "p" 'multi-vterm-prev))
+
+;;;;; Ghostel
+
+;; Trying this out for Claude Code, may or may not keep
+(package! ghostel :borg "dakra/ghostel" :defer t
+  :commands (ghostel))
+
+;; These are built-in to Ghostel but need separate config
+(package! ghostel-eshell
+  :after (ghostel)
+  :hook (eshell-load . ghostel-eshell-visual-command-mode))
+(package! evil-ghostel
+  :after (ghostel evil)
+  :hook (ghostel-mode . evil-ghostel-mode))
 
 ;;;;; Cursor Agent wrapper
 
