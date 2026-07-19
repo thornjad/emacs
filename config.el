@@ -844,21 +844,29 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 ;; coexist, with each package owned by exactly one of them, and packages move
 ;; over one at a time.
 
+;; Borg derives `borg-drones-directory` from its own location, which would
+;; default to `lib/` and sweep in the non-drone submodules `lib/aero-theme`,
+;; `lib/straight.el`, and `lib/borg` itself. We instead keep drones in a
+;; dedicated `lib/drones/` subdirectory, via the `borg.drones-directory` git
+;; variable rather than an Elisp `setq`, and set it here, before `require`,
+;; so `borg-drones-directory`'s `defconst` derives the right value the first
+;; time it runs. A `setq` after the fact would only affect this interactive
+;; session: `borg-build` clones and compiles a drone in a freshly spawned
+;; `emacs -Q --batch` subprocess, which never loads this file and re-derives
+;; `borg-drones-directory` from scratch, so only a value visible to `git
+;; config` itself, not Elisp session state, is seen there too. Setting it here
+;; on every startup keeps this file the single source of truth despite
+;; `.git/config` itself not syncing across machines. Borg's other derived
+;; locations are computed from the repository root, not the drones directory,
+;; so they remain correct under this override.
+(let ((default-directory user-emacs-directory))
+  (call-process "git" nil nil nil "config" "borg.drones-directory" "lib/drones"))
+
 ;; Borg is itself vendored as a submodule at `lib/borg`, so it is added to the
 ;; load path and required directly rather than bootstrapped from the network.
 ;; Its only load-time dependencies are built-in Emacs libraries.
 (add-to-list 'load-path (expand-file-name "lib/borg" user-emacs-directory))
 (require 'borg)
-
-;; Borg derives `borg-drones-directory` from its own location, which would
-;; default to `lib/` and sweep in the non-drone submodules `lib/aero-theme`,
-;; `lib/straight.el`, and `lib/borg` itself. We instead keep drones in a
-;; dedicated `lib/drones/` subdirectory. This is set with `setq` rather than the
-;; `borg.drones-directory` git variable because git config lives in
-;; `.git/config` and does not sync across machines, whereas this configuration
-;; does. Borg's other derived locations are computed from the repository root,
-;; not the drones directory, so they remain correct after this override.
-(setq borg-drones-directory (expand-file-name "lib/drones" user-emacs-directory))
 
 ;; These helpers support the `:borg` recipe in the `package!` macro and the
 ;; startup self-heal below. `aero/borg-drone-names` deliberately uses

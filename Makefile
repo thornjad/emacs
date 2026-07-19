@@ -88,6 +88,7 @@ borg-config:
 	git config submodule.recurse true
 	git config diff.submodule log
 	git config status.submoduleSummary true
+	git config borg.drones-directory lib/drones
 
 # (re)generate autoloads for all Borg drones; compilation is left to compile-angel and
 # native-comp at load time, so this dependency-free step never miscompiles a drone
