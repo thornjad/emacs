@@ -315,7 +315,6 @@ avoiding the weird single-line behavior of `comment-dwim'."
 (global-set-key (kbd "C--") 'aero/decrease-font-size)
 
 ;; Also allow `C-=`, just to be less annoying since that's just + without shift
-
 (global-set-key (kbd "C-=") 'aero/increase-font-size)
 
 ;;;; Buffers, windows, frames, tabs
@@ -401,7 +400,6 @@ avoiding the weird single-line behavior of `comment-dwim'."
     (if win
         ;; found, so close it
         (aero/bury-buffer-kill-window win)
-
       ;; else we need to pop it up
       (progn
         (display-buffer buf
@@ -444,7 +442,6 @@ avoiding the weird single-line behavior of `comment-dwim'."
 ;;;; Files
 
 ;;;;; Reopen file at buffer
-
 ;; It's occasionally useful to "restart" the current buffer. To my current
 ;; knowledge this isn't a builtin functionality, so I have my own function.
 (defun aero/reopen-file-at-buffer ()
@@ -831,7 +828,6 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 ;;;; GnuTLS
 
 ;; Evaluate `gnutls` and disallow TLS connections
-
 (with-eval-after-load 'gnutls
   (eval-when-compile (require 'gnutls))
   (setq gnutls-verify-error t)) ; Do not allow insecure TLS connections.
@@ -851,7 +847,6 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 ;; Borg is itself vendored as a submodule at `lib/borg`, so it is added to the
 ;; load path and required directly rather than bootstrapped from the network.
 ;; Its only load-time dependencies are built-in Emacs libraries.
-
 (add-to-list 'load-path (expand-file-name "lib/borg" user-emacs-directory))
 (require 'borg)
 
@@ -863,7 +858,6 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 ;; `.git/config` and does not sync across machines, whereas this configuration
 ;; does. Borg's other derived locations are computed from the repository root,
 ;; not the drones directory, so they remain correct after this override.
-
 (setq borg-drones-directory (expand-file-name "lib/drones" user-emacs-directory))
 
 ;; These helpers support the `:borg` recipe in the `package!` macro and the
@@ -915,7 +909,6 @@ submodules outside `borg-drones-directory'."
 ;; the next startup, with no network access. Finally `borg-initialize` activates
 ;; every present, non-disabled drone by adding it to the load path and loading
 ;; its autoloads.
-
 (borg-do-drones (drone)
   (when (and (aero/borg-drone-present-p drone)
              (not (aero/borg-drone-autoloads-p drone)))
@@ -933,7 +926,6 @@ submodules outside `borg-drones-directory'."
 ;; through that same filtered path, which is what it should have returned, so
 ;; `borg-remove` and any future caller work correctly without us having to
 ;; flatten the submodule layout.
-
 (define-advice borg-drones (:around (orig &optional include-variables) aero/prefix-safe)
   "Make the no-argument `borg-drones' filter submodules by the drones-directory prefix."
   (if include-variables
@@ -1073,7 +1065,6 @@ from each package's Package-Requires header; URLs are entered at the prompt."
 
 ;; Don't allow straight to check for modifications in every repo on Emacs init,
 ;; saving some startup time
-
 (eval-when-compile
   (defvar straight-check-for-modifications))
 (setq straight-check-for-modifications nil)
@@ -1160,7 +1151,6 @@ from each package's Package-Requires header; URLs are entered at the prompt."
       use-package-minimum-reported-time 0.1)
 
 ;; If we're using `--debug-init`, make package loading verbose.
-
 (setq use-package-verbose init-file-debug)
 
 ;;;; Compatibility shims
@@ -1179,7 +1169,6 @@ from each package's Package-Requires header; URLs are entered at the prompt."
 ;; The rest of the config uses this custom `package!` macro to abstract away
 ;; some internals that have changed in the past and may change again (such as
 ;; using `straight.el`).
-
 (defmacro package! (package recipe &rest body)
   "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package\\='.
 
