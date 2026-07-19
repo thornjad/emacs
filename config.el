@@ -1004,13 +1004,38 @@ Names in ADDED are flagged as assimilated during the current run."
       (special-mode))
     (display-buffer (current-buffer))))
 
+;; `aero/borg-activate-package` closes the gap between "drone is built" and
+;; "package is actually loaded". The `:borg` branch of `package!` takes its
+;; warn-only path the first time it is evaluated, before the drone exists on
+;; disk, so the `use-package` call inside it never ran. Once the drone is
+;; built, re-evaluating that same top-level form is what actually activates
+;; it; this finds the form for NAME in config.el and evals it, so callers
+;; do not have to go back and do that step by hand.
+(defun aero/borg-activate-package (name)
+  "Re-evaluate NAME's `package!' form in config.el to activate it.
+Locates the top-level `(package! NAME :borg ...)' form and evals it in
+place, since the first evaluation (before the drone was assimilated) took
+the not-checked-out warning branch instead of loading the package."
+  (with-current-buffer (find-file-noselect (expand-file-name "config.el" user-emacs-directory))
+    (save-excursion
+      (goto-char (point-min))
+      (if (re-search-forward (format "^(package! %s\\_>" (regexp-quote name)) nil t)
+          (let ((beg (match-beginning 0)))
+            (goto-char beg)
+            (forward-sexp)
+            (eval-region beg (point))
+            (message "Activated `%s'." name))
+        (message "No `package!' form for `%s' found in config.el; add one and eval it." name)))))
+
 ;; `aero/borg-assimilate` ties this together. It registers the target and each
 ;; missing dependency as a submodule and places their source on disk without
 ;; building or activating them, so none of their code runs. It then shows a
 ;; report and only builds and activates after explicit confirmation, leaving a
 ;; window to inspect the cloned source. It uses `borg-assimilate` with its
 ;; `partially` argument for the no-build registration step, and `borg-build` for
-;; the deferred build.
+;; the deferred build. Activation re-evaluates each added drone's `package!`
+;; form via `aero/borg-activate-package`, so this single call is enough to go
+;; from a declared-but-absent drone to a fully loaded package.
 (defun aero/borg-assimilate (name url)
   "Assimilate drone NAME from URL together with its missing dependencies.
 Register NAME and each missing dependency as a submodule and place their
@@ -1052,7 +1077,9 @@ from each package's Package-Requires header; URLs are entered at the prompt."
         (special-mode))
       (display-buffer (current-buffer)))
     (if (yes-or-no-p "Source is on disk; nothing has run. Build and activate now? ")
-        (dolist (a (reverse added)) (borg-build a t))
+        (dolist (a (reverse added))
+          (borg-build a t)
+          (aero/borg-activate-package a))
       (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
                (length added)))))
 
