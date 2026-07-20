@@ -6266,6 +6266,26 @@ equivalent to the list containing 16."
     (require 'em-prompt)
     (require 'em-term)))
 
+;;;;; RET always submits
+
+;; As of its May 2026 release, evil-collection made RET's behavior in eshell
+;; conditional on evil state (governed by `evil-collection-repl-submit-state'):
+;; by default RET only submits in Normal state, while Insert state RET inserts
+;; a literal newline. That's a change from how eshell behaved for years, where
+;; RET submitted regardless of state, and it doesn't match how I actually use a
+;; shell. Rather than flipping the global `evil-collection-repl-submit-state'
+;; variable, which would also affect other REPL modes like ielm and cider,
+;; this overrides eshell specifically back to unconditional submit-on-RET. The
+;; override has to live on `eshell-first-time-mode-hook', appended so it runs
+;; after evil-collection's own setup on that same hook, since
+;; `eshell-mode-map' is rebuilt fresh the first time `eshell-mode' runs and any
+;; earlier binding gets discarded.
+
+(defun aero/eshell-ret-always-submits ()
+  (evil-collection-define-key 'insert 'eshell-mode-map (kbd "RET") 'eshell-send-input)
+  (evil-collection-define-key 'normal 'eshell-mode-map (kbd "RET") 'eshell-send-input))
+(add-hook 'eshell-first-time-mode-hook #'aero/eshell-ret-always-submits t)
+
 ;;;;; Eshell-prompt-extras
 
 ;; Adds a more informative prompt to eshell
