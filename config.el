@@ -1350,6 +1350,8 @@ Example:
 
    ((equal recipe :local)
     `(use-package ,package :straight nil ,@body))
+   ((equal recipe :subpackage)
+    `(use-package ,package :straight nil ,@body))
 
    ((equal recipe :localpackage)
     `(use-package ,package :straight nil :load-path "lib/localpackages" ,@body))
@@ -5985,10 +5987,10 @@ equivalent to the list containing 16."
   :commands (ghostel))
 
 ;; These are built-in to Ghostel but need separate config
-(package! ghostel-eshell
+(package! ghostel-eshell :subpackage
   :after (ghostel)
   :hook (eshell-load . ghostel-eshell-visual-command-mode))
-(package! evil-ghostel
+(package! evil-ghostel :subpackage
   :after (ghostel evil)
   :hook (ghostel-mode . evil-ghostel-mode))
 
