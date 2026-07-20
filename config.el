@@ -900,6 +900,18 @@ root, ghostel for example nests them under `lisp/'."
     (and (file-directory-p dir)
          (directory-files-recursively dir "\\.el\\'" nil #'aero/borg--skip-dotdirs))))
 
+(defun aero/borg-drone-registered-p (name)
+  "Return non-nil if drone NAME is already a registered git submodule.
+Checks `.gitmodules' via `borg-get', independent of whether the worktree
+has actually been checked out. This distinguishes a drone that is
+registered but not yet initialized -- e.g. one added by a `git pull' that
+brought a new `.gitmodules' entry and gitlink without also running
+`git submodule update --init' -- from a drone that has never been
+declared as a submodule at all. `aero/borg-drone-present-p' alone cannot
+tell these apart, since both look like an empty or missing worktree
+directory."
+  (borg-get name 'path))
+
 (defun aero/borg-drone-autoloads-p (name)
   "Return non-nil if drone NAME already has a generated autoloads file.
 Searches recursively for `NAME-autoloads.el', since not every drone's
@@ -1103,18 +1115,42 @@ Returns nil if TARGET cannot be resolved to a usable git URL."
       (format "https://github.com/%s.git" s))
      (t (aero/melpa-lookup-recipe s)))))
 
+;; `aero/borg-init-drone` handles the other way a drone can be missing from
+;; disk: already a registered submodule (a `.gitmodules' entry and gitlink
+;; committed, most often by a `git pull' that brought in a new drone) but
+;; never checked out on this machine. That pointer was already reviewed and
+;; approved at the commit that added it, so there is nothing left to confirm;
+;; this just runs the git equivalent of `git submodule update --init' to
+;; materialize it, then builds and activates it the same way
+;; `aero/borg-ensure-assimilated' does after a fresh assimilation.
+(defun aero/borg-init-drone (name)
+  "Check out already-registered but not-yet-initialized drone NAME.
+NAME must already be a registered submodule (see
+`aero/borg-drone-registered-p'). Runs `git submodule update --init' for
+NAME's path, then builds and activates it via `aero/borg-activate-package'.
+Returns non-nil if the drone ended up present."
+  (let ((default-directory borg-top-level-directory))
+    (borg--call-git name "submodule" "update" "--init" "--"
+                     (file-relative-name (borg-worktree name) borg-top-level-directory)))
+  (when (aero/borg-drone-present-p name)
+    (borg-build name t)
+    (aero/borg-activate-package name)
+    t))
+
 ;; `aero/borg-ensure-assimilated` is what the `:borg' recipe in `package!'
-;; calls when a drone is declared but not yet present. It resolves the target
-;; to a URL, asks for one confirmation, and if approved assimilates and builds
-;; in place so the `use-package' call right after it in the same expansion
-;; runs immediately, with no separate re-eval step needed. It only acts when
-;; Emacs is interactive: a fresh machine's batch `make init' load must not
-;; block on `y-or-n-p' or start fetching over the network on its own, so it
-;; silently no-ops in batch and leaves the caller to fall back to
-;; `aero/borg-warn-unassimilated', same as before this existed. When the
-;; answer is "no", it messages the resolved name and URL so a session that
-;; evaluates many `package!' forms at once can scan `*Messages*' afterward
-;; for exactly what still needs attention.
+;; calls when a drone is declared, not yet present, AND not already a
+;; registered submodule (see `aero/borg-drone-registered-p'; the registered
+;; case goes to `aero/borg-init-drone' instead, with no prompt). It resolves
+;; the target to a URL, asks for one confirmation, and if approved
+;; assimilates and builds in place so the `use-package' call right after it
+;; in the same expansion runs immediately, with no separate re-eval step
+;; needed. It only acts when Emacs is interactive: a fresh machine's batch
+;; `make init' load must not block on `y-or-n-p' or start fetching over the
+;; network on its own, so it silently no-ops in batch and leaves the caller
+;; to fall back to `aero/borg-warn-unassimilated', same as before this
+;; existed. When the answer is "no", it messages the resolved name and URL
+;; so a session that evaluates many `package!' forms at once can scan
+;; `*Messages*' afterward for exactly what still needs attention.
 (defun aero/borg-ensure-assimilated (name &optional target)
   "Assimilate and build drone NAME, resolving TARGET (or NAME) to a git URL.
 No-op when Emacs is not interactive.  Prompts for confirmation before
@@ -1319,8 +1355,12 @@ Example:
 
   If the RECIPE is :borg, the package is a Borg drone (a git submodule under lib/drones/). Borg has
   already set up its load path and autoloads during init. If the drone is not checked out on this
-  machine, and Emacs is interactive, a target is resolved and, on confirmation, the drone is
-  assimilated and built before BODY is passed to `use-package'. The target is an optional value
+  machine, one of two things happens. If it is already a registered submodule (a `.gitmodules' entry
+  and gitlink exist, most often because a `git pull' brought in a new drone without also running
+  `git submodule update --init'), it is silently checked out, built, and activated: that commit was
+  already the point of review, so no further confirmation is asked. Otherwise it is a genuinely new,
+  undeclared drone, and if Emacs is interactive, a target is resolved and, on confirmation, the drone
+  is assimilated and built before BODY is passed to `use-package'. The target is an optional value
   written directly after :borg, and is not a keyword: a git URL, an `owner/repo' slug, a
   host-qualified slug (`gitlab.com/owner/repo'), or a bare package name to look up on MELPA. If
   :borg is bare, or given as `:borg t', the package's own name is used as that lookup key. If
@@ -1360,10 +1400,12 @@ Example:
    ;; has set up the load path and autoloads during init, so only BODY is handed to `use-package'.
    ;; An optional non-keyword value directly after :borg is the fetch target (URL, slug, or bare
    ;; name to look up on MELPA); bare :borg or `:borg t' uses the package's own name as that lookup
-   ;; key, mirroring how :auto resolves a name. `aero/borg-ensure-assimilated' does the actual work
-   ;; and only takes action when the drone is missing and Emacs is interactive, so this is always
-   ;; safe to eval: already-present drones skip straight to `use-package', and batch loads (fresh
-   ;; machine, `make init') fall straight to the warning below, same as before this existed.
+   ;; key, mirroring how :auto resolves a name. When the drone is missing, `aero/borg-drone-registered-p'
+   ;; picks the right path: already registered (e.g. a submodule a `git pull' just added) silently
+   ;; self-heals via `aero/borg-init-drone', no prompt; genuinely new goes through
+   ;; `aero/borg-ensure-assimilated', which only takes action when Emacs is interactive. This is
+   ;; always safe to eval: already-present drones skip straight to `use-package', and batch loads
+   ;; (fresh machine, `make init') fall straight to the warning below, same as before this existed.
    ((equal recipe :borg)
     (let (target)
       (cond
