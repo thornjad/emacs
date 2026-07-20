@@ -4451,6 +4451,20 @@ Both attributes come from the active theme."
       (cancel-timer aero/org-super-agenda-timer)
       (setq aero/org-super-agenda-timer nil)))
 
+  (defun aero/no-visual-line-in-agenda ()
+    "Keep the agenda buffer from soft-wrapping.
+
+`global-visual-line-mode' re-enables itself on every major-mode
+setup via `after-change-major-mode-hook', which fires again each
+time `org-agenda-redo' rebuilds the buffer. Wrapped lines break
+`org-agenda-redo's line-based scroll restoration (it diffs logical
+buffer lines but recenters in screen lines), so the agenda window
+creeps every refresh. Hooking here, appended so it runs after the
+global mode's own hook, keeps wrapping off for good."
+    (when (derived-mode-p 'org-agenda-mode)
+      (visual-line-mode -1)))
+  (add-hook 'after-change-major-mode-hook #'aero/no-visual-line-in-agenda t)
+
   :hook ((org-agenda-after-show . recenter)
          (org-agenda-mode . aero/org-super-agenda-start-timer)
          (org-agenda-mode . aero/org-super-agenda-without-keymap))
