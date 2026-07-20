@@ -5983,16 +5983,51 @@ equivalent to the list containing 16."
 ;;;;; Ghostel
 
 ;; Trying this out for Claude Code, may or may not keep
+
+;; Mirrors `aero-claude''s `C-<escape>' -> `vterm-send-escape' convenience.
+;; By default ghostel's own terminal-key encoder claims every modified key
+;; including `C-<escape>', sending it on as an encoded Ctrl+Escape sequence
+;; (Kitty keyboard protocol) rather than a bare ESC byte -- most programs
+;; that aren't Kitty-protocol-aware don't recognize that as Escape, which is
+;; why it landed inconsistently. Listing it in `ghostel-keymap-exceptions'
+;; stops the encoder from claiming it in semi-char mode (the default input
+;; mode), so this binding in `ghostel-mode-map' -- the base map shared by
+;; every input mode -- is reached instead and sends a literal ESC.  Char
+;; mode intentionally ignores the exceptions list (it captures everything
+;; for full TUI passthrough), so this only smooths out the common case.
+(defun aero/ghostel-send-escape ()
+  "Send a literal escape to the terminal in the current ghostel buffer."
+  (interactive)
+  (ghostel-send-key "escape"))
+
+;; aero-theme underlines `nobreak-space' to flag stray U+00A0 in prose; CLI
+;; status lines (Claude Code's included) pad heavily with it, turning that
+;; into noise here, so ghostel buffers opt out.
+(defun aero/ghostel-disable-nobreak-highlight ()
+  "Do not visually flag non-breaking spaces in ghostel buffers."
+  (setq-local nobreak-char-display nil))
+
 (package! ghostel :borg "dakra/ghostel" :defer t
-  :commands (ghostel))
+  :commands (ghostel)
+  :custom
+  (ghostel-keymap-exceptions '("C-c" "C-x" "C-u" "C-h" "M-x" "M-:" "C-\\" "C-<escape>"))
+  :hook (ghostel-mode . aero/ghostel-disable-nobreak-highlight)
+  :config
+  (define-key ghostel-mode-map (kbd "C-<escape>") #'aero/ghostel-send-escape))
 
 ;; These are built-in to Ghostel but need separate config
 (package! ghostel-eshell :subpackage
   :after (ghostel)
   :hook (eshell-load . ghostel-eshell-visual-command-mode))
 (package! evil-ghostel :subpackage
+  :load-path "lib/drones/ghostel/extensions/evil-ghostel"
   :after (ghostel evil)
-  :hook (ghostel-mode . evil-ghostel-mode))
+  :hook (ghostel-mode . evil-ghostel-mode)
+  ;; Default 'auto forwards bare ESC to the terminal in alt-screen programs
+  ;; (Claude Code's CLI runs alt-screen); always run evil's own binding
+  ;; instead, leaving C-<escape> as the sole literal-ESC path.
+  :custom
+  (evil-ghostel-escape 'evil))
 
 ;;;;; Cursor Agent wrapper
 
