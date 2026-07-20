@@ -1413,7 +1413,9 @@ Example:
        ((and body (not (keywordp (car body)))) (setq target (pop body))))
       `(progn
          (unless (aero/borg-drone-present-p ,(symbol-name package))
-           (aero/borg-ensure-assimilated ,(symbol-name package) ,target))
+           (if (aero/borg-drone-registered-p ,(symbol-name package))
+               (aero/borg-init-drone ,(symbol-name package))
+             (aero/borg-ensure-assimilated ,(symbol-name package) ,target)))
          (if (aero/borg-drone-present-p ,(symbol-name package))
              (use-package ,package :straight nil ,@body)
            (aero/borg-warn-unassimilated ,(symbol-name package))))))
