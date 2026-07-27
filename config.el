@@ -5527,7 +5527,6 @@ Assumes it follows the default naming scheme."
   (sp-local-pair 'web-mode "{% " " %}")
   (sp-local-pair 'web-mode "{{ " " }}")
   (sp-local-pair 'web-mode "`" "`")
-  (sp-local-pair 'org-mode "$" "$")
   (sp-local-pair 'org-mode "=" "=")
   (sp-local-pair 'org-mode "/" "/" :trigger-wrap "/" )
   (sp-local-pair 'markdown-mode "```" "```" :post-handlers '(:add ("||\n[i]" "RET")))
