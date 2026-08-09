@@ -66,7 +66,7 @@ Most packages follow this pattern in `config.el`:
   )
 ```
 
-**Package Source Preference**: Use `:auto` for packages available on MELPA rather than specifying GitHub repo names, as this provides better stability and version management through the package archive system.
+**Package Source Preference**: Borg is the target for all new packages, straight (`:auto`) only for existing packages not yet migrated. When adding a new package, use `(package! name :borg)` (bare `:borg` does a MELPA-recipe lookup for the fetch target, same as `:auto` would); reach for `:auto` only if borg assimilation genuinely fails. This reverses the older straight-first default now that Borg is the intended long-term package manager (Michael, 2026-08-09).
 
 ### Borg (Drone) Packages
 Borg is a submodule-based package manager being adopted incrementally alongside `straight.el`; each package is owned by exactly one of the two, migrating over one at a time. Drones live under `lib/drones/`, tracked in `.gitmodules` at exact pinned commits, which doubles as the review/audit trail. `borg-drones-directory` is set via `git config borg.drones-directory` (config.el sets this itself at startup, before `require`), not an Elisp `setq`, since `borg-build` runs the actual clone/compile step in a freshly spawned `emacs -Q --batch` subprocess that never loads `config.el` and only sees git-config-level state, not session-level Elisp variables.
