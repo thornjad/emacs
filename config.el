@@ -4519,6 +4519,28 @@ global mode's own hook, keeps wrapping off for good."
     :keymaps 'org-mode-map
     "ic" '(org-download-clipboard :wk "insert image from clipboard")))
 
+;;;; Org-social
+
+;; Org Social: decentralized social network built on Org-mode files served
+;; over HTTP, coordinated through a relay server
+;; (https://github.com/tanrax/org-social).
+
+(package! request :borg)
+(package! emojify :borg)
+(package! async-http-queue :borg)
+
+(package! org-social :borg "tanrax/org-social.el"
+  :after (org request emojify async-http-queue)
+  :commands (org-social-timeline org-social-new-post org-social-new-reply)
+  :custom
+  (org-social-file "~/Documents/thornlog/social.org")
+  (org-social-relay "https://relay.org-social.org/")
+  (org-social-my-public-url "https://jmthornton.net/social.org")
+  :config
+  (keymap-global-set "C-c s t" #'org-social-timeline)
+  (keymap-global-set "C-c s n" #'org-social-new-post)
+  (keymap-global-set "C-c s r" #'org-social-new-reply))
+
 ;;;; Functions for the org agenda
 
 (defun aero/org-agenda-list ()

@@ -1,3 +1,9 @@
+[submodule "async-http-queue"]
+	path = lib/drones/async-http-queue
+	url = https://git.andros.dev/andros/async-http-queue-el.git
+[submodule "emojify"]
+	path = lib/drones/emojify
+	url = https://github.com/iqbalansari/emacs-emojify.git
 [submodule "evil-org-mode"]
 	path = lib/drones/evil-org-mode
 	url = https://github.com/Somelauw/evil-org-mode.git
@@ -15,3 +21,6 @@
 [submodule "lib/straight.el"]
 	path = lib/straight.el
 	url = https://github.com/radian-software/straight.el.git
+[submodule "org-social"]
+	path = lib/drones/org-social
+	url = https://github.com/tanrax/org-social.el.git
