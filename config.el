@@ -5789,10 +5789,16 @@ equivalent to the list containing 16."
      (".*reddit.com" . browse-url-generic)
      ("." . eww-browse-url)))
 
-  ;; MacOS needs its hand held to find the binary
-  (browse-url-generic-program (if (system-is-mac)
-                                  "/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox"
-                                "firefox"))
+  ;; MacOS needs its hand held to find the binary. Prefer Firefox Developer
+  ;; Edition when present, falling back to mainline Firefox on machines that
+  ;; only have that installed.
+  (browse-url-generic-program
+   (cond
+    ((and (system-is-mac)
+          (file-exists-p "/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox"))
+     "/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox")
+    ((system-is-mac) "/Applications/Firefox.app/Contents/MacOS/firefox")
+    (t "firefox")))
 
   (eww-search-prefix "https://lite.duckduckgo.com/lite?q=")
   (shr-max-width 90)
