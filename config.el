@@ -4250,40 +4250,6 @@ automatic indentation any longer."
   ;; start with all levels collapsed
   (add-hook 'org-mode-hook #'org-hide-block-all)
 
-  ;; long org files default to overview visibility on open, so I'm not
-  ;; staring at a fully-expanded 500-line note. A file's own #+startup:
-  ;; visibility keyword (as added to thornlog managing/feedback notes) always
-  ;; wins over this default.
-  (defvar aero/org-auto-overview-line-threshold 150
-    "Org files at or under this many lines skip the auto-overview fold.")
-
-  (defun aero/org-has-startup-visibility-keyword-p ()
-    "Non-nil if #+startup: already sets a fold/visibility state."
-    (save-excursion
-      (goto-char (point-min))
-      (re-search-forward
-       "^#\\+startup:.*\\<\\(overview\\|content\\|showall\\|showeverything\\|show[2-5]levels\\|fold\\|nofold\\)\\>"
-       nil t)))
-
-  (defun aero/org-startup-overview-if-long ()
-    "Fold to overview on load for long org files with no explicit #+startup visibility."
-    (when (and buffer-file-name
-               (> (count-lines (point-min) (point-max))
-                  aero/org-auto-overview-line-threshold)
-               (not (aero/org-has-startup-visibility-keyword-p)))
-      ;; org-overview here folds correctly, but redisplay on first
-      ;; window display silently re-unfolds a scattered subset of
-      ;; headings afterward (visual-line-mode walking invisible text
-      ;; during line-wrap computation, confirmed by direct testing;
-      ;; not save-place, not org-modern, not point position). deferring
-      ;; one tick past the initial display makes the fold stick.
-      (let ((buf (current-buffer)))
-        (run-with-timer 0 nil (lambda ()
-                                 (when (buffer-live-p buf)
-                                   (with-current-buffer buf (org-overview))))))))
-
-  (add-hook 'org-mode-hook #'aero/org-startup-overview-if-long)
-
   ;; Apply heading-line decorations (:overline always, :strike-through on DONE
   ;; when the theme defines it) as a font-lock keyword spanning the entire
   ;; heading line with append priority. The theme's :overline lives on
