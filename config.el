@@ -4529,6 +4529,55 @@ global mode's own hook, keeps wrapping off for good."
 (package! emojify :borg)
 (package! async-http-queue :borg)
 
+;; A CMYK JPEG avatar (4 color components, not the usual 3) crashed Emacs
+;; outright on 2026-08-09: EXC_BAD_ACCESS/SIGABRT deep in CoreGraphics during
+;; redisplay, a native fault outside any `condition-case'. org-social's own
+;; image-insert function only catches Lisp errors, which this isn't, so the
+;; check has to happen before the image is ever handed to `create-image'.
+(defun aero/jpeg-cmyk-p (file)
+  "Non-nil if FILE is a JPEG whose SOF marker declares 4 color components.
+Reads the marker segments directly rather than decoding the image. Returns
+nil for non-JPEG files, truncated markers, or any read error."
+  (condition-case nil
+      (with-temp-buffer
+        (set-buffer-multibyte nil)
+        (insert-file-contents-literally file)
+        (goto-char (point-min))
+        (when (and (eq (following-char) #xFF) (eq (char-after (1+ (point))) #xD8))
+          (goto-char (+ (point-min) 2))
+          (catch 'result
+            (while (< (+ (point) 4) (point-max))
+              (unless (eq (char-after) #xFF)
+                (throw 'result nil))
+              (let ((marker (char-after (1+ (point)))))
+                (cond
+                 ((memq marker '(#xD8 #xD9 #x01)) (forward-char 2))
+                 ((<= #xD0 marker #xD7) (forward-char 2))
+                 ((memq marker '(#xC0 #xC1 #xC2 #xC3 #xC5 #xC6 #xC7
+                                  #xC9 #xCA #xCB #xCD #xCE #xCF))
+                  (throw 'result (eql (char-after (+ (point) 9)) 4)))
+                 (t
+                  (let ((len (logior (ash (char-after (+ (point) 2)) 8)
+                                      (char-after (+ (point) 3)))))
+                    (forward-char (+ 2 len)))))))
+            nil)))
+    (error nil)))
+
+(defun aero/org-social-skip-cmyk-avatar (orig-fn url pos &optional width)
+  "Around-advice for `org-social-ui--put-image-from-cache'.
+Falls back to org-social's own text placeholder for a CMYK JPEG instead of
+calling ORIG-FN with URL, POS, and WIDTH, since that path is what crashes."
+  (if (and url (stringp url) (display-graphic-p))
+      (let ((image-file (expand-file-name
+                          (base64-encode-string url :no-line-break)
+                          org-social-image-cache-directory)))
+        (unless (org-social-ui--cache-image-p url)
+          (org-social-ui--cache-image url))
+        (if (and (org-social-ui--cache-image-p url) (aero/jpeg-cmyk-p image-file))
+            (org-social-ui--insert-formatted-text "🖼️ [Image]" nil "#666666")
+          (funcall orig-fn url pos width)))
+    (funcall orig-fn url pos width)))
+
 (package! org-social :borg "tanrax/org-social.el"
   :after (org request emojify async-http-queue)
   :commands (org-social-timeline org-social-new-post org-social-new-reply)
@@ -4536,10 +4585,13 @@ global mode's own hook, keeps wrapping off for good."
   (org-social-file "~/Documents/thornlog/social.org")
   (org-social-relay "https://relay.org-social.org/")
   (org-social-my-public-url "https://jmthornton.net/social.org")
+  (org-social-language-filter '("en" "fr" "zh"))
   :config
   (keymap-global-set "C-c s t" #'org-social-timeline)
   (keymap-global-set "C-c s n" #'org-social-new-post)
-  (keymap-global-set "C-c s r" #'org-social-new-reply))
+  (keymap-global-set "C-c s r" #'org-social-new-reply)
+  (with-eval-after-load 'org-social-ui
+    (advice-add 'org-social-ui--put-image-from-cache :around #'aero/org-social-skip-cmyk-avatar)))
 
 ;;;; Functions for the org agenda
 

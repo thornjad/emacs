@@ -24,3 +24,6 @@
 [submodule "org-social"]
 	path = lib/drones/org-social
 	url = https://github.com/tanrax/org-social.el.git
+[submodule "request"]
+	path = lib/drones/request
+	url = https://github.com/tkf/emacs-request.git
