@@ -1,9 +1,11 @@
 [submodule "async-http-queue"]
 	path = lib/drones/async-http-queue
 	url = https://git.andros.dev/andros/async-http-queue-el.git
+	ignore = untracked
 [submodule "emojify"]
 	path = lib/drones/emojify
 	url = https://github.com/iqbalansari/emacs-emojify.git
+	ignore = untracked
 [submodule "evil-org-mode"]
 	path = lib/drones/evil-org-mode
 	url = https://github.com/Somelauw/evil-org-mode.git
@@ -11,6 +13,7 @@
 [submodule "ghostel"]
 	path = lib/drones/ghostel
 	url = https://github.com/dakra/ghostel.git
+	ignore = untracked
 [submodule "lib/aero-theme"]
 	path = lib/aero-theme
 	url = git@github.com:thornjad/aero-theme.git
@@ -24,6 +27,8 @@
 [submodule "org-social"]
 	path = lib/drones/org-social
 	url = https://github.com/tanrax/org-social.el.git
+	ignore = untracked
 [submodule "request"]
 	path = lib/drones/request
 	url = https://github.com/tkf/emacs-request.git
+	ignore = untracked

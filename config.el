@@ -1101,6 +1101,19 @@ has no MELPA recipe, or its recipe does not use a Git-based fetcher."
 ;; first segment looks like a domain (`gitlab.com/owner/repo') gets `https://'
 ;; prepended; a bare two-segment `owner/repo' slug is assumed to be GitHub;
 ;; anything else is treated as a package name and looked up on MELPA.
+;; Every borg-built drone generates its own `NAME-autoloads.el' (and
+;; sometimes other build byproducts, e.g. ghostel's `.texi') that upstream
+;; never tracks. Without `ignore = untracked', the outer repo's `git status'
+;; reports the submodule as "modified" for content that was never meant to
+;; be committed. `evil-org-mode' and `lib/borg' already carry this setting;
+;; every drone assimilated through the functions below gets it too, so this
+;; stops being a one-off fix per drone.
+(defun aero/borg-ignore-untracked (name)
+  "Set `submodule.NAME.ignore' to \"untracked\" in .gitmodules."
+  (let ((default-directory borg-top-level-directory))
+    (borg--call-git name "config" "-f" ".gitmodules"
+                     (format "submodule.%s.ignore" name) "untracked")))
+
 (defun aero/borg-resolve-target (name target)
   "Resolve TARGET, or NAME if TARGET is nil, to a git URL.
 Returns nil if TARGET cannot be resolved to a usable git URL."
@@ -1164,6 +1177,7 @@ fetching or building anything.  Returns non-nil if the drone was built."
         nil)
        ((y-or-n-p (format "Assimilate and build `%s' from %s? " name url))
         (borg-assimilate name url t)
+        (aero/borg-ignore-untracked name)
         (borg-build name t)
         t)
        (t
@@ -1195,6 +1209,7 @@ from each package's Package-Requires header; URLs are entered at the prompt."
       (pcase-let ((`(,n . ,u) (pop queue)))
         (unless (aero/borg-drone-present-p n)
           (borg-assimilate n u t)
+          (aero/borg-ignore-untracked n)
           (push n added))
         (dolist (req (aero/borg-package-requires n))
           (let ((dep (symbol-name (car req))))
