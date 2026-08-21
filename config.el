@@ -2609,12 +2609,16 @@ Truncates long names to keep tab bar manageable."
 ;; My custom modeline. Originally based on Doom's modeline, but the code
 ;; diverged many years ago.
 
-;; The built-in VC system is disabled entirely because it runs a git subprocess
-;; on every file open to populate `vc-mode`, which is expensive on macOS.
-;; Instead, the git branch segment below queries git directly and caches the
-;; result per buffer, refreshing only on save and window focus.
+;; VC stays registered for Git so `project.el` can list files with `git
+;; ls-files`, faster and `.gitignore`-aware than its plain directory-walk
+;; fallback. Disabled instead is the per-buffer refresh VC normally runs on
+;; every file open to populate `vc-mode`, a `git status` subprocess that's
+;; expensive on macOS. The git branch segment below queries git directly and
+;; caches the result per buffer, refreshing only on save and window focus.
 
-(setq vc-handled-backends nil)
+(setq vc-handled-backends '(Git))
+(remove-hook 'find-file-hook #'vc-refresh-state)
+(remove-hook 'after-revert-hook #'vc-after-revert)
 
 (defgroup aero/modeline nil
   "A minimal mode-line with useful information."
