@@ -3529,7 +3529,8 @@ for instant updates with no idle timer dependency."
       (aero/claude)))
 
   :custom
-  (project-vc-ignores '("node_modules/" "straight/" "target/")) ; globally ignored
+  ;; Globally ignored stuff
+  (project-vc-ignores '("node_modules/" "straight/" "target/" "dist/" ".nx/cache/" ".claude/worktrees/"))
   (project-vc-extra-root-markers '(".project.el" ".projectile" ".git"))
   (project-compilation-buffer-name-function #'project-prefixed-buffer-name)
 
