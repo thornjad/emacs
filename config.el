@@ -1112,7 +1112,7 @@ has no MELPA recipe, or its recipe does not use a Git-based fetcher."
   "Set `submodule.NAME.ignore' to \"untracked\" in .gitmodules."
   (let ((default-directory borg-top-level-directory))
     (borg--call-git name "config" "-f" ".gitmodules"
-                     (format "submodule.%s.ignore" name) "untracked")))
+                    (format "submodule.%s.ignore" name) "untracked")))
 
 (defun aero/borg-resolve-target (name target)
   "Resolve TARGET, or NAME if TARGET is nil, to a git URL.
@@ -1144,7 +1144,7 @@ NAME's path, then builds and activates it via `aero/borg-activate-package'.
 Returns non-nil if the drone ended up present."
   (let ((default-directory borg-top-level-directory))
     (borg--call-git name "submodule" "update" "--init" "--"
-                     (file-relative-name (borg-worktree name) borg-top-level-directory)))
+                    (file-relative-name (borg-worktree name) borg-top-level-directory)))
   (when (aero/borg-drone-present-p name)
     (borg-build name t)
     (aero/borg-activate-package name)
@@ -3558,8 +3558,7 @@ for instant updates with no idle timer dependency."
 
 ;;; Magit
 
-;; One of the truly great packages in Emacs. I use it for everything
-;; git-related.
+;; One of the truly great packages in Emacs
 
 (package! magit :auto
   :after (general)
@@ -4570,11 +4569,11 @@ nil for non-JPEG files, truncated markers, or any read error."
                  ((memq marker '(#xD8 #xD9 #x01)) (forward-char 2))
                  ((<= #xD0 marker #xD7) (forward-char 2))
                  ((memq marker '(#xC0 #xC1 #xC2 #xC3 #xC5 #xC6 #xC7
-                                  #xC9 #xCA #xCB #xCD #xCE #xCF))
+                                      #xC9 #xCA #xCB #xCD #xCE #xCF))
                   (throw 'result (eql (char-after (+ (point) 9)) 4)))
                  (t
                   (let ((len (logior (ash (char-after (+ (point) 2)) 8)
-                                      (char-after (+ (point) 3)))))
+                                     (char-after (+ (point) 3)))))
                     (forward-char (+ 2 len)))))))
             nil)))
     (error nil)))
@@ -4585,8 +4584,8 @@ Falls back to org-social's own text placeholder for a CMYK JPEG instead of
 calling ORIG-FN with URL, POS, and WIDTH, since that path is what crashes."
   (if (and url (stringp url) (display-graphic-p))
       (let ((image-file (expand-file-name
-                          (base64-encode-string url :no-line-break)
-                          org-social-image-cache-directory)))
+                         (base64-encode-string url :no-line-break)
+                         org-social-image-cache-directory)))
         (unless (org-social-ui--cache-image-p url)
           (org-social-ui--cache-image url))
         (if (and (org-social-ui--cache-image-p url) (aero/jpeg-cmyk-p image-file))
