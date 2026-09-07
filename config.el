@@ -4520,7 +4520,7 @@ global mode's own hook, keeps wrapping off for good."
      (:name "Past due" :and (:deadline past :not (:todo ("WAITING" "BLOCKED"))))
      (:name "In Progress" :todo "INPROGRESS")
      (:name "Due today" :and (:deadline today :not (:todo ("WAITING" "BLOCKED"))))
-     (:name "PRs" :and (:tag "ticket" :todo "PR"))
+     (:name "PRs" :todo "PR")
      (:name "Tickets" :todo ("TICKET") :tag "ticket")
      (:name "Class" :tag "school" :tag "class")
      (:name "Prioritized" :not (:todo ("WAITING" "BLOCKED" "BACKLOG")
