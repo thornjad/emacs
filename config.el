@@ -4182,6 +4182,7 @@ automatic indentation any longer."
     "od" 'org-deadline
     "oj" 'org-clock-goto
     "ot" 'aero/org-set-tags
+    "or" '(aero/org-refresh-tag-alist :wk "refresh tag alist")
     "ol" 'org-store-link
     "oT" '(org-tags-view :wk "list tags")
     "vo" 'org-capture)
