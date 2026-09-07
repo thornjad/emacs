@@ -4848,33 +4848,39 @@ a live non-transient previous buffer."
 (setq aero/org-roam-idle-sync-timer
       (run-with-idle-timer 300 t #'aero/org-roam-incremental-sync))
 
-;;;;; Task IDs (todo.org)
+;;;;; Task IDs
 
-;; Give todo.org tasks a real org ID. Titles aren't unique.
+;; Give task files a real org ID. Titles aren't unique.
+
+(defvar aero/todo-org-id-files
+  (list (expand-file-name "todo.org" aero/roam-path)
+        (expand-file-name "school_todo.org" aero/roam-path))
+  "Files that get automatic task IDs; see `aero/todo-org-ensure-task-ids'.")
 
 (defun aero/todo-org-ensure-task-ids ()
-  "Assign an org ID to every TODO-state heading in todo.org before save."
+  "Assign an org ID to every TODO-state heading in the current buffer,
+when it's one of `aero/todo-org-id-files', before save."
   (when (and buffer-file-name
-             (string= (file-truename buffer-file-name)
-                      (file-truename (expand-file-name "todo.org" aero/roam-path))))
+             (member (file-truename buffer-file-name)
+                     (mapcar #'file-truename aero/todo-org-id-files)))
     (org-map-entries
      (lambda () (when (org-get-todo-state) (org-id-get-create))))))
 
 (add-hook 'before-save-hook #'aero/todo-org-ensure-task-ids)
 
 (defun aero/todo-org-idle-id-sweep ()
-  "Backfill missing org IDs on TODO headings in todo.org, for tasks
-written directly to disk instead of through this Emacs.
+  "Backfill missing org IDs on TODO headings in `aero/todo-org-id-files',
+for tasks written directly to disk instead of through this Emacs.
 
-Skips if the buffer has unsaved edits, to avoid reverting over them."
-  (let* ((path (expand-file-name "todo.org" aero/roam-path))
-         (buf (or (find-buffer-visiting path)
-                  (find-file-noselect path))))
-    (with-current-buffer buf
-      (unless (buffer-modified-p)
-        (revert-buffer t t t)
-        (aero/todo-org-ensure-task-ids)
-        (when (buffer-modified-p) (save-buffer))))))
+Skips a file if its buffer has unsaved edits, to avoid reverting over them."
+  (dolist (path aero/todo-org-id-files)
+    (let ((buf (or (find-buffer-visiting path)
+                   (find-file-noselect path))))
+      (with-current-buffer buf
+        (unless (buffer-modified-p)
+          (revert-buffer t t t)
+          (aero/todo-org-ensure-task-ids)
+          (when (buffer-modified-p) (save-buffer)))))))
 
 (defvar aero/todo-org-idle-id-sweep-timer
   (run-with-idle-timer 300 t #'aero/todo-org-idle-id-sweep)
