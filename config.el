@@ -4848,6 +4848,39 @@ a live non-transient previous buffer."
 (setq aero/org-roam-idle-sync-timer
       (run-with-idle-timer 300 t #'aero/org-roam-incremental-sync))
 
+;;;;; Task IDs (todo.org)
+
+;; Give todo.org tasks a real org ID. Titles aren't unique.
+
+(defun aero/todo-org-ensure-task-ids ()
+  "Assign an org ID to every TODO-state heading in todo.org before save."
+  (when (and buffer-file-name
+             (string= (file-truename buffer-file-name)
+                      (file-truename (expand-file-name "todo.org" aero/roam-path))))
+    (org-map-entries
+     (lambda () (when (org-get-todo-state) (org-id-get-create))))))
+
+(add-hook 'before-save-hook #'aero/todo-org-ensure-task-ids)
+
+(defun aero/todo-org-idle-id-sweep ()
+  "Backfill missing org IDs on TODO headings in todo.org, for tasks
+written directly to disk instead of through this Emacs.
+
+Skips if the buffer has unsaved edits, to avoid reverting over them."
+  (let* ((path (expand-file-name "todo.org" aero/roam-path))
+         (buf (or (find-buffer-visiting path)
+                  (find-file-noselect path))))
+    (with-current-buffer buf
+      (unless (buffer-modified-p)
+        (revert-buffer t t t)
+        (aero/todo-org-ensure-task-ids)
+        (when (buffer-modified-p) (save-buffer))))))
+
+(defvar aero/todo-org-idle-id-sweep-timer
+  (run-with-idle-timer 300 t #'aero/todo-org-idle-id-sweep)
+  "Timer for `aero/todo-org-idle-id-sweep', held so it can be cancelled
+rather than accumulating a duplicate on reload.")
+
 ;;;;; Manual sync commands
 
 ;; Sometimes explicit control over database syncing is needed. These commands
