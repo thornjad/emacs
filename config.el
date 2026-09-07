@@ -4344,6 +4344,22 @@ Both attributes come from the active theme."
       (auto-revert-mode 1)))
   (add-hook 'org-mode-hook #'aero/auto-revert-todo))
 
+;; Autosave any modified `org-agenda-files' buffer after 5 minutes idle. The
+;; collision this guards against (a Claude/thornlog routine writing todo.org
+;; while it has local edits pending) only happens once or twice a day, so
+;; this just needs to shrink that window, not chase zero latency;
+;; `aero/auto-revert-todo' above still owns the silent reload once the
+;; buffer is clean again.
+(defun aero/idle-autosave-agenda-files ()
+  "Save any modified `org-agenda-files' buffer."
+  (dolist (file org-agenda-files)
+    (when-let ((buf (find-buffer-visiting file)))
+      (with-current-buffer buf
+        (when (buffer-modified-p)
+          (save-buffer))))))
+
+(run-with-idle-timer 300 t #'aero/idle-autosave-agenda-files)
+
 ;;;; Org-protocol
 
 ;; Handles capture requests coming in via the `org-protocol://` URL scheme. A
@@ -5059,6 +5075,31 @@ Add it to the file tags, placing it after the #+title: line if it exists."
   (if (org-before-first-heading-p)
       (aero/org-add-file-tag)
     (org-set-tags-command)))
+
+(defun aero/org-refresh-tag-alist ()
+  "Rebuild `org-tag-persistent-alist' from every tag used across org-roam.
+
+`org-set-tags-command' only falls back to `org-get-buffer-tags' (which
+scans the buffer via the org-element cache) when `org-current-tag-alist'
+is nil. Thornlog disables that cache buffer-locally via its
+`.dir-locals.el' (out-of-band Syncthing rewrites there were pegging a
+core in GC), so heading-level tag-setting on thornlog files errored
+with \"Cache must be active\". Populating `org-tag-persistent-alist'
+from the org-roam database instead means `org-current-tag-alist' is
+never nil, so `org-get-buffer-tags' is never reached there, and as a
+side effect `org-set-tags-command' offers fast one-key tag selection
+from the known tag list instead of requiring typed entry."
+  (interactive)
+  (setq org-tag-persistent-alist
+        (mapcar (lambda (row) (list (car row)))
+                (org-roam-db-query "SELECT DISTINCT tag FROM tags")))
+  (when (called-interactively-p 'interactive)
+    (message "org-tag-persistent-alist refreshed: %d tags"
+             (length org-tag-persistent-alist))))
+
+;; populate once on startup; `SPC o r' reruns it manually once new tags
+;; have been added elsewhere in the session
+(add-hook 'emacs-startup-hook #'aero/org-refresh-tag-alist)
 
 ;;;;; Updated (modified) and created timestamps in Org-roam
 
