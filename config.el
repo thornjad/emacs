@@ -5018,23 +5018,27 @@ rather than accumulating a duplicate on reload.")
                 (unless aero/org-todo-in-progress
                   (apply orig-fn args))))
 
-  (defun aero/org-roam-latte--filter-self-refs (orig-fn start end)
-    "Delete latte highlight overlays whose node lives in the current file.
+  (defun aero/org-roam-latte--filter-self-refs (orig-fn buffer &optional start end)
+    "Delete latte highlight overlays whose node lives in BUFFER's own file.
 
 Calls ORIG-FN (`org-roam-latte--make-overlays') first, then removes any
 overlay it created whose matched text resolves to a node in the same file as
-the current buffer, between START and END."
-    (funcall orig-fn start end)
-    (when-let ((file (buffer-file-name (current-buffer))))
-      (dolist (o (overlays-in (or start (point-min)) (or end (point-max))))
-        (when (eq (overlay-get o 'face) 'org-roam-latte-keyword-face)
-          (let* ((text (buffer-substring-no-properties
-                        (overlay-start o) (overlay-end o)))
-                 (node (condition-case nil
-                           (org-roam-node-from-title-or-alias text t)
-                         (error nil))))
-            (when (and node (file-equal-p (org-roam-node-file node) file))
-              (delete-overlay o)))))))
+BUFFER, between START and END. `org-roam-latte--make-overlays' itself takes
+BUFFER as its first, required argument (verify with
+`describe-function' before changing this again), so ORIG-FN must be called
+with all three."
+    (funcall orig-fn buffer start end)
+    (when-let ((file (buffer-file-name buffer)))
+      (with-current-buffer buffer
+        (dolist (o (overlays-in (or start (point-min)) (or end (point-max))))
+          (when (eq (overlay-get o 'face) 'org-roam-latte-keyword-face)
+            (let* ((text (buffer-substring-no-properties
+                          (overlay-start o) (overlay-end o)))
+                   (node (condition-case nil
+                             (org-roam-node-from-title-or-alias text t)
+                           (error nil))))
+              (when (and node (file-equal-p (org-roam-node-file node) file))
+                (delete-overlay o))))))))
   (advice-add 'org-roam-latte--make-overlays :around
               #'aero/org-roam-latte--filter-self-refs)
 
