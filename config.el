@@ -5889,6 +5889,19 @@ Assumes it follows the default naming scheme."
   (interactive "sSearch DuckDuckGo: ")
   (xwidget-webkit-browse-url (format "https://duckduckgo.com/?q=%s" (or term "")) t))
 
+;; `browse-url-browser-function' below defaults almost everything to eww (see
+;; the eww :custom block). xwidget-webkit link navigation that falls through
+;; to `browse-url' (new-window/target=_blank handoffs) inherits that global
+;; default too, which sends the link to eww instead of staying in the widget
+;; — from the buffer this looks like "every click opens in eww." Overriding
+;; the variable locally in xwidget-webkit buffers keeps navigation in the
+;; widget without touching the global eww-first default used everywhere else.
+(defun aero/xwidget-webkit-browse-url-locally ()
+  "Keep link navigation inside the current xwidget webkit buffer."
+  (setq-local browse-url-browser-function #'xwidget-webkit-browse-url))
+
+(add-hook 'xwidget-webkit-mode-hook #'aero/xwidget-webkit-browse-url-locally)
+
 (defun aero/ace-link-eww-new-buffer ()
   "Call `ace-link-eww' but open in a new buffer.
 
