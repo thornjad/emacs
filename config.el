@@ -6150,6 +6150,57 @@ equivalent to the list containing 16."
   (aero-elfeed-org))
 
 
+;;; EAF: Emacs Application Framework
+
+;; Core drone ships only `eaf.el' + Python side. Each app (browser,
+;; pdf-viewer, demo, ...) is cloned separately by `install-eaf.py' into
+;; `app/', not its own package, so each needs `:local' + `:load-path',
+;; same as an extension bundled in a drone (see evil-ghostel above).
+;; `M-x eaf-open-demo' verifies core once `demo' installed; `M-x
+;; eaf-open-browser' for the actual browser.
+
+(package! eaf :borg
+  :config
+  (require 'eaf)
+  ;; Pin interpreter: matches where pip deps got installed, independent
+  ;; of pyenv/conda shell state.
+  ;; https://github.com/emacs-eaf/emacs-application-framework/wiki/Python-Virtual-Environment
+  (setq eaf-python-command "/opt/homebrew/bin/python3")
+  ;; eaf-mode-map* is the base map every app's keymap inherits from,
+  ;; surviving per-app keymap regeneration. No app alist binds "4"-"9"
+  ;; (unlike "0"-"3"), so with evil active those keys hit evil's own
+  ;; digit-argument instead of EAF. Forward raw like any other unbound
+  ;; key: Python decides insert vs. no-op by real focus state.
+  (dolist (key '("4" "5" "6" "7" "8" "9"))
+    (define-key eaf-mode-map* (kbd key) #'eaf-send-key))
+  ;; macOS Emacs's own defaults bind s-v/c/x/a/z to yank/copy/kill-region/
+  ;; mark-whole-buffer/undo, acting on this buffer's nonexistent text:
+  ;; the real page lives in the Qt widget. Bind EAF's actual actions
+  ;; instead of raw key synthesis: a synthetic Meta+V event doesn't
+  ;; reliably trigger native paste, same mechanism C-y already uses.
+  (dolist (fun '("yank_text" "copy_text" "kill_text" "select_all" "undo_action"))
+    (eaf--make-py-proxy-function fun))
+  (define-key eaf-mode-map* (kbd "s-v") #'eaf-py-proxy-yank_text)
+  (define-key eaf-mode-map* (kbd "s-c") #'eaf-py-proxy-copy_text)
+  (define-key eaf-mode-map* (kbd "s-x") #'eaf-py-proxy-kill_text)
+  (define-key eaf-mode-map* (kbd "s-a") #'eaf-py-proxy-select_all)
+  (define-key eaf-mode-map* (kbd "s-z") #'eaf-py-proxy-undo_action))
+
+(package! eaf-browser :local
+  :load-path "lib/drones/eaf/app/browser"
+  :after eaf
+  :config
+  (require 'eaf-browser)
+  (setq eaf-browser-continue-where-left-off t)
+  (setq eaf-browser-enable-adblocker t))
+
+(package! eaf-demo :local
+  :load-path "lib/drones/eaf/app/demo"
+  :after eaf
+  :config
+  (require 'eaf-demo))
+
+
 ;;; AI
 
 ;; I've moved most AI functions out of Emacs proper, as I can't keep up with the
