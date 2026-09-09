@@ -4057,7 +4057,7 @@ automatic indentation any longer."
       :empty-lines 1)
      ("w" "Web capture (org-protocol)" entry
       (file ,(expand-file-name "todo.org" aero/roam-path))
-      "* TODO [#E] Read: [[%:link][%:description]] :firefox_capture:\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n%?"
+      "* TODO [#E] Read: [[%:link][%:description]] :firefox_capture:reading:\nSCHEDULED: %t\n:PROPERTIES:\n:CREATED: %(aero/org-capture-created-timestamp)\n:END:\n%?"
       :empty-lines 1)))
 
   (org-todo-keywords
