@@ -36,3 +36,11 @@
 	path = lib/drones/eaf
 	url = https://github.com/emacs-eaf/emacs-application-framework.git
 	ignore = untracked
+[submodule "inflections"]
+	path = lib/drones/inflections
+	url = https://github.com/eschulte/jump.el.git
+	ignore = untracked
+[submodule "org-roam-latte"]
+	path = lib/drones/org-roam-latte
+	url = https://github.com/yad-tahir/org-roam-latte.git
+	ignore = untracked

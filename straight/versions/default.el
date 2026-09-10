@@ -80,7 +80,6 @@
  ("org-fancy-priorities" . "7f677c6c14ecf05eab8e0efbfe7f1b00ae68eb1d")
  ("org-modern" . "ae0d91fa16f0e72df50633d0941242eecd78721b")
  ("org-roam" . "425d53d56d0d338c781741df87824b1bfe7f88bc")
- ("org-roam-latte" . "fbcdad953e1b84441fcc9c7e33f809c648de5ae2")
  ("org-super-agenda" . "c07e35416ce749b42cbb70ff8d4e814362111bb5")
  ("package-lint" . "6f05a369e0718e93c5dce0951cad5e6646296612")
  ("prescient.el" . "7dd5b53886146a507f1388e0b61990f9820f9eb1")

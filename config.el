@@ -4989,7 +4989,16 @@ rather than accumulating a duplicate on reload.")
 
 ;; Highlights unlinked references to existing org-roam nodes in buffers. Click
 ;; or press RET on highlighted text to visit the node, or M-RET to convert it
-;; into a link.
+;; into a link. Self-referential highlighting (a node's own title, or a
+;; sibling node's title in the same file, matching inside that file) is
+;; excluded natively by `org-roam-latte-exclude-scope', which defaults to
+;; `node' and needs no configuration here.
+
+;; org-roam-latte requires the `inflections' package for pluralization; it
+;; has no dedicated upstream repo, so it's assimilated from the repo that
+;; happens to bundle it (`inflections.el' sits alongside an unrelated
+;; `jump.el' at the repo root).
+(package! inflections :borg "eschulte/jump.el")
 
 ;; When org-roam-latte's `after-change-function` runs during an `org-todo` state
 ;; change, the inflections library's `replace-match` (called with
@@ -4997,15 +5006,8 @@ rather than accumulating a duplicate on reload.")
 ;; prevent this by inhibiting latte's after-change hook while `org-todo` is
 ;; executing.
 
-;; Latte highlights any text matching a known node title, even when the match
-;; is the current file's own node (e.g. a todo task's title reappearing
-;; elsewhere in the same file it lives in). We filter those out after the
-;; fact: for each highlight latte creates, look up the node it resolves to via
-;; org-roam's own indexed title/alias query and drop the overlay if that node
-;; lives in the current buffer's file.
-
-(package! org-roam-latte :auto
-  :after org-roam
+(package! org-roam-latte :borg "yad-tahir/org-roam-latte"
+  :after (org-roam inflections)
   :hook (org-roam-find-file . org-roam-latte-mode)
   :config
   (defvar aero/org-todo-in-progress nil)
@@ -5017,30 +5019,6 @@ rather than accumulating a duplicate on reload.")
               (lambda (orig-fn &rest args)
                 (unless aero/org-todo-in-progress
                   (apply orig-fn args))))
-
-  (defun aero/org-roam-latte--filter-self-refs (orig-fn buffer &optional start end)
-    "Delete latte highlight overlays whose node lives in BUFFER's own file.
-
-Calls ORIG-FN (`org-roam-latte--make-overlays') first, then removes any
-overlay it created whose matched text resolves to a node in the same file as
-BUFFER, between START and END. `org-roam-latte--make-overlays' itself takes
-BUFFER as its first, required argument (verify with
-`describe-function' before changing this again), so ORIG-FN must be called
-with all three."
-    (funcall orig-fn buffer start end)
-    (when-let ((file (buffer-file-name buffer)))
-      (with-current-buffer buffer
-        (dolist (o (overlays-in (or start (point-min)) (or end (point-max))))
-          (when (eq (overlay-get o 'face) 'org-roam-latte-keyword-face)
-            (let* ((text (buffer-substring-no-properties
-                          (overlay-start o) (overlay-end o)))
-                   (node (condition-case nil
-                             (org-roam-node-from-title-or-alias text t)
-                           (error nil))))
-              (when (and node (file-equal-p (org-roam-node-file node) file))
-                (delete-overlay o))))))))
-  (advice-add 'org-roam-latte--make-overlays :around
-              #'aero/org-roam-latte--filter-self-refs)
 
   (aero-mode-leader-def
     :keymaps 'org-mode-map
