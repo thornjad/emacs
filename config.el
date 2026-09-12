@@ -6212,6 +6212,12 @@ equivalent to the list containing 16."
   :after eaf
   :config
   (require 'eaf-pdf-viewer)
+  ;; Mouse-drag text selection is handled entirely inside the embedded Qt
+  ;; widget, which on macOS steals real Cocoa first-responder status from
+  ;; Emacs. Cmd+C after such a selection silently fails to reach Emacs at
+  ;; all until an app-level refocus (e.g. Cmd+Tab away and back). Click-
+  ;; to-copy needs no keypress, so it sidesteps the focus handoff.
+  (setq eaf-pdf-click-to-copy t)
   ;; Default keybinding steals SPC for scroll_up_page. Deleting the entry
   ;; isn't enough: the generated app keymap's parent is `eaf-mode-map*',
   ;; which also binds SPC (to eaf-send-key, for browser text fields), so
