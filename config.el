@@ -3807,6 +3807,13 @@ Show status and update submodules."
   (when (member org-state '("TODO"))
     (outline-show-subtree)))
 
+(defun aero/org-save-current-buffer-if-modified ()
+  "Save only the current buffer, if modified.
+A todo-state change only dirties the current buffer, so there's no need to
+save every open org buffer (`org-save-all-org-buffers' does that)."
+  (when (buffer-modified-p)
+    (save-buffer)))
+
 (defun aero/org-insert-modified-timestamp-now ()
   "Insert a modified property with the current time."
   (interactive)
@@ -4241,7 +4248,8 @@ automatic indentation any longer."
               (define-key org-src-mode-map (kbd "C-c C-c") #'org-edit-src-exit)))
 
   ;; Also save after state change
-  (add-hook 'org-after-todo-state-change-hook #'org-save-all-org-buffers)
+  (add-hook 'org-after-todo-state-change-hook
+            #'aero/org-save-current-buffer-if-modified)
 
   ;; don't auto-pair dollar signs; org treats $ as LaTeX math delimiters but
   ;; we don't use LaTeX and just want to type dollar signs normally
