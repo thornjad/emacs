@@ -6211,7 +6211,16 @@ equivalent to the list containing 16."
   :load-path "lib/drones/eaf/app/pdf-viewer"
   :after eaf
   :config
-  (require 'eaf-pdf-viewer))
+  (require 'eaf-pdf-viewer)
+  ;; Default keybinding steals SPC for scroll_up_page. Deleting the entry
+  ;; isn't enough: the generated app keymap's parent is `eaf-mode-map*',
+  ;; which also binds SPC (to eaf-send-key, for browser text fields), so
+  ;; an absent entry here just falls through to that. Bind it to nil
+  ;; instead, which shadows the parent binding rather than inheriting
+  ;; it, letting the SPC leader key through.
+  (setq eaf-pdf-viewer-keybinding
+        (assoc-delete-all "SPC" eaf-pdf-viewer-keybinding))
+  (push '("SPC" . nil) eaf-pdf-viewer-keybinding))
 
 (package! eaf-pyqterminal :local
   :load-path "lib/drones/eaf/app/pyqterminal"
