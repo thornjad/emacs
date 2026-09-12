@@ -5035,6 +5035,23 @@ ORIG-FN is org-roam-latte's after-change hook, via :around advice."
   (advice-add 'org-roam-latte--after-change-function :around
               #'aero/org-roam-latte-skip-during-org-todo)
 
+  ;; org-roam-latte--db-modified rebuilds its whole keyword hash from every
+  ;; node in the org-roam DB on every call, and runs synchronously inside
+  ;; the save path (via advice on org-roam-db-update-file/-clear-file). Its
+  ;; job is just unlinked-reference highlighting, an occasional convenience
+  ;; that shouldn't block a save, so defer it to the next idle moment
+  ;; instead; a burst of saves collapses into a single rebuild.
+  (defvar aero/org-roam-latte-rebuild-timer nil)
+
+  (defun aero/org-roam-latte-debounce-rebuild (orig-fn &rest args)
+    "Debounce ORIG-FN, org-roam-latte's keyword-hash rebuild, via idle timer."
+    (when (timerp aero/org-roam-latte-rebuild-timer)
+      (cancel-timer aero/org-roam-latte-rebuild-timer))
+    (setq aero/org-roam-latte-rebuild-timer
+          (apply #'run-with-idle-timer 1 nil orig-fn args)))
+  (advice-add 'org-roam-latte--db-modified :around
+              #'aero/org-roam-latte-debounce-rebuild)
+
   (aero-mode-leader-def
     :keymaps 'org-mode-map
     "v" '(org-roam-latte-complete-at-point :wk "complete roam node")))
