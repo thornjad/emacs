@@ -6220,7 +6220,13 @@ equivalent to the list containing 16."
   ;; it, letting the SPC leader key through.
   (setq eaf-pdf-viewer-keybinding
         (assoc-delete-all "SPC" eaf-pdf-viewer-keybinding))
-  (push '("SPC" . nil) eaf-pdf-viewer-keybinding))
+  (push '("SPC" . nil) eaf-pdf-viewer-keybinding)
+  ;; s-c is bound in `eaf-mode-map*' (shared by every app) to the generic
+  ;; copy_text proxy, but pdf-viewer's own text-selection copy is a
+  ;; separate action, copy_select (already on M-w below). Per-app alist
+  ;; entries take priority over the inherited eaf-mode-map* binding, so
+  ;; this makes s-c copy the current selection instead.
+  (push '("s-c" . "copy_select") eaf-pdf-viewer-keybinding))
 
 (package! eaf-pyqterminal :local
   :load-path "lib/drones/eaf/app/pyqterminal"
