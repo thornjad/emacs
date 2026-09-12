@@ -5019,14 +5019,21 @@ rather than accumulating a duplicate on reload.")
   :hook (org-roam-find-file . org-roam-latte-mode)
   :config
   (defvar aero/org-todo-in-progress nil)
-  (advice-add 'org-todo :around
-              (lambda (orig-fn &rest args)
-                (let ((aero/org-todo-in-progress t))
-                  (apply orig-fn args))))
+
+  (defun aero/org-todo-mark-in-progress (orig-fn &rest args)
+    "Bind `aero/org-todo-in-progress' to t while ORIG-FN runs.
+ORIG-FN is `org-todo' itself, via :around advice."
+    (let ((aero/org-todo-in-progress t))
+      (apply orig-fn args)))
+  (advice-add 'org-todo :around #'aero/org-todo-mark-in-progress)
+
+  (defun aero/org-roam-latte-skip-during-org-todo (orig-fn &rest args)
+    "Skip ORIG-FN while `org-todo' is running.
+ORIG-FN is org-roam-latte's after-change hook, via :around advice."
+    (unless aero/org-todo-in-progress
+      (apply orig-fn args)))
   (advice-add 'org-roam-latte--after-change-function :around
-              (lambda (orig-fn &rest args)
-                (unless aero/org-todo-in-progress
-                  (apply orig-fn args))))
+              #'aero/org-roam-latte-skip-during-org-todo)
 
   (aero-mode-leader-def
     :keymaps 'org-mode-map
