@@ -6207,11 +6207,17 @@ equivalent to the list containing 16."
   (setq eaf-browser-continue-where-left-off t)
   (setq eaf-browser-enable-adblocker t))
 
-(package! eaf-demo :local
-  :load-path "lib/drones/eaf/app/demo"
+(package! eaf-pdf-viewer :local
+  :load-path "lib/drones/eaf/app/pdf-viewer"
   :after eaf
   :config
-  (require 'eaf-demo))
+  (require 'eaf-pdf-viewer))
+
+(package! eaf-pyqterminal :local
+  :load-path "lib/drones/eaf/app/pyqterminal"
+  :after eaf
+  :config
+  (require 'eaf-pyqterminal))
 
 
 ;;; AI
