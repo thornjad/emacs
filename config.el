@@ -5382,7 +5382,7 @@ Assumes it follows the default naming scheme."
 ;; If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
 (package! web-mode :auto
-  :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|mjs\\|jsx\\|s?css\\|astro\\)\\'"
+  :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|mjs\\|jsx\\|s?css\\)\\'"
   :custom (web-mode-enable-engine-detection t)
   :config
   (unless (treesitterp) (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))))
@@ -5393,6 +5393,16 @@ Assumes it follows the default naming scheme."
 ;; allows us to set up Eglot to run the Astro LS on these files
 
 (define-derived-mode astro-mode web-mode "astro")
+(add-to-list 'auto-mode-alist '("\\.astro\\'" . astro-mode))
+
+;; web-mode already ships a built-in "astro" engine, matched by filename, that
+;; knows the "---" frontmatter fence is a distinct block. It never flips on
+;; front-matter-block handling for that engine though (the code to do so is
+;; present in web-mode.el's web-mode-guess-engine-and-content-type but
+;; commented out), so without this the markup indenter loses track of nesting
+;; right after the frontmatter and flattens indentation for the rest of the
+;; file.
+(add-hook 'astro-mode-hook (lambda () (setq-local web-mode-enable-front-matter-block t)))
 
 ;;;;; Emmet
 
@@ -5833,9 +5843,18 @@ Assumes it follows the default naming scheme."
           "-"))
 
   (dolist (cmd `((elm-format . (npx "elm-format" "--yes" "--stdin"))
-                 (cljfmt . ("lein" "cljfmt" "fix" filepath))))
+                 (cljfmt . ("lein" "cljfmt" "fix" filepath))
+                 ;; plain `prettier' can't infer a parser for `.astro' files
+                 ;; (needs prettier-plugin-astro passed explicitly); the
+                 ;; default apheleia-mode-alist maps bare web-mode to plain
+                 ;; prettier, which fails outright on these
+                 (prettier-astro
+                  . ("apheleia-npx" "prettier" "--stdin-filepath" filepath
+                     "--plugin=prettier-plugin-astro" "--parser=astro"
+                     (apheleia-formatters-js-indent "--use-tabs" "--tab-width")))))
     (add-to-list 'apheleia-formatters cmd))
   (add-to-list 'apheleia-mode-alist '(clojure-mode . cljfmt))
+  (add-to-list 'apheleia-mode-alist '(astro-mode . prettier-astro))
 
   (apheleia-global-mode +1)
 
