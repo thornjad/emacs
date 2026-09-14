@@ -895,7 +895,7 @@ never there."
 (defun aero/borg-drone-present-p (name)
   "Return non-nil if drone NAME is checked out with source present.
 Searches recursively: not every drone keeps its Lisp files at its worktree
-root, ghostel for example nests them under `lisp/'."
+root, eaf for example nests some under `core/'."
   (let ((dir (borg-worktree name)))
     (and (file-directory-p dir)
          (directory-files-recursively dir "\\.el\\'" nil #'aero/borg--skip-dotdirs))))
@@ -1102,8 +1102,8 @@ has no MELPA recipe, or its recipe does not use a Git-based fetcher."
 ;; prepended; a bare two-segment `owner/repo' slug is assumed to be GitHub;
 ;; anything else is treated as a package name and looked up on MELPA.
 ;; Every borg-built drone generates its own `NAME-autoloads.el' (and
-;; sometimes other build byproducts, e.g. ghostel's `.texi') that upstream
-;; never tracks. Without `ignore = untracked', the outer repo's `git status'
+;; sometimes other build byproducts, e.g. a compiled `.info' manual) that
+;; upstream never tracks. Without `ignore = untracked', the outer repo's `git status'
 ;; reports the submodule as "modified" for content that was never meant to
 ;; be committed. `evil-org-mode' and `lib/borg' already carry this setting;
 ;; every drone assimilated through the functions below gets it too, so this
@@ -6222,7 +6222,7 @@ equivalent to the list containing 16."
 ;; Core drone ships only `eaf.el' + Python side. Each app (browser,
 ;; pdf-viewer, demo, ...) is cloned separately by `install-eaf.py' into
 ;; `app/', not its own package, so each needs `:local' + `:load-path',
-;; same as an extension bundled in a drone (see evil-ghostel above).
+;; same as any extension bundled inside a drone's own checkout.
 ;; `M-x eaf-open-demo' verifies core once `demo' installed; `M-x
 ;; eaf-open-browser' for the actual browser.
 
@@ -6402,55 +6402,6 @@ equivalent to the list containing 16."
     "c" 'multi-vterm
     "n" 'mutli-vterm-next
     "p" 'multi-vterm-prev))
-
-;;;;; Ghostel
-
-;; Trying this out for Claude Code, may or may not keep
-
-;; Mirrors `aero-claude''s `C-<escape>' -> `vterm-send-escape' convenience.
-;; By default ghostel's own terminal-key encoder claims every modified key
-;; including `C-<escape>', sending it on as an encoded Ctrl+Escape sequence
-;; (Kitty keyboard protocol) rather than a bare ESC byte -- most programs
-;; that aren't Kitty-protocol-aware don't recognize that as Escape, which is
-;; why it landed inconsistently. Listing it in `ghostel-keymap-exceptions'
-;; stops the encoder from claiming it in semi-char mode (the default input
-;; mode), so this binding in `ghostel-mode-map' -- the base map shared by
-;; every input mode -- is reached instead and sends a literal ESC.  Char
-;; mode intentionally ignores the exceptions list (it captures everything
-;; for full TUI passthrough), so this only smooths out the common case.
-(defun aero/ghostel-send-escape ()
-  "Send a literal escape to the terminal in the current ghostel buffer."
-  (interactive)
-  (ghostel-send-key "escape"))
-
-;; aero-theme underlines `nobreak-space' to flag stray U+00A0 in prose; CLI
-;; status lines (Claude Code's included) pad heavily with it, turning that
-;; into noise here, so ghostel buffers opt out.
-(defun aero/ghostel-disable-nobreak-highlight ()
-  "Do not visually flag non-breaking spaces in ghostel buffers."
-  (setq-local nobreak-char-display nil))
-
-(package! ghostel :borg "dakra/ghostel" :defer t
-  :commands (ghostel)
-  :custom
-  (ghostel-keymap-exceptions '("C-c" "C-x" "C-u" "C-h" "M-x" "M-:" "C-\\" "C-<escape>"))
-  :hook (ghostel-mode . aero/ghostel-disable-nobreak-highlight)
-  :config
-  (define-key ghostel-mode-map (kbd "C-<escape>") #'aero/ghostel-send-escape))
-
-;; These are built-in to Ghostel but need separate config
-(package! ghostel-eshell :subpackage
-  :after (ghostel)
-  :hook (eshell-load . ghostel-eshell-visual-command-mode))
-(package! evil-ghostel :subpackage
-  :load-path "lib/drones/ghostel/extensions/evil-ghostel"
-  :after (ghostel evil)
-  :hook (ghostel-mode . evil-ghostel-mode)
-  ;; Default 'auto forwards bare ESC to the terminal in alt-screen programs
-  ;; (Claude Code's CLI runs alt-screen); always run evil's own binding
-  ;; instead, leaving C-<escape> as the sole literal-ESC path.
-  :custom
-  (evil-ghostel-escape 'evil))
 
 ;;;;; Cursor Agent wrapper
 
