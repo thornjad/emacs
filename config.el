@@ -1683,8 +1683,7 @@ Example:
    "fo" '(:ignore t :wk "open special files")
    "fot" '(:ignore t :wk "thornlog")
    "fott" '(aero/thornlog-todo :wk "thornlog todo")
-   "fotl" '(aero/thornlog-log :wk "thornlog log")
-   "fotj" '(aero/thornlog-journal :wk "thornlog journal")
+   "fotl" '(aero/thornlog-daylog :wk "thornlog day log")
    "fote" 'aero/open-emacs-config
    "fotd" '(aero/thornlog-dir :wk "thornlog all")
    "fw" '(save-buffer :wk "write buffer")
@@ -4205,7 +4204,6 @@ automatic indentation any longer."
     "r" 'org-refile
     "s" 'org-set-property
     "e" 'org-edit-src-code
-    "d" 'insert-new-day
     "i" '(:ignore t :wk "insert")
     "il" 'org-insert-link
     "it" 'org-time-stamp
@@ -5065,25 +5063,19 @@ ORIG-FN is org-roam-latte's after-change hook, via :around advice."
 (when (file-exists-p (expand-file-name "lisp/thornlog.el" aero/thornlog-path))
   (load (expand-file-name "lisp/thornlog.el" aero/thornlog-path)))
 
-(defun aero/thornlog-log ()
-  "Personal persistent log."
+(defun aero/thornlog-daylog ()
+  "Open today's Work Log day-note, creating it first if it doesn't
+exist yet."
   (interactive)
-  (org-roam-node-visit (org-roam-node-from-title-or-alias "Work Log")))
+  (let* ((title (thornlog--day-note-title))
+         (node (or (org-roam-node-from-title-or-alias title)
+                  (thornlog--find-or-create-day-note))))
+    (org-roam-node-visit node)))
 
 (defun aero/thornlog-todo ()
   "Personal todo list."
   (interactive)
   (org-roam-node-visit (org-roam-node-from-title-or-alias "Main Todo: Triaged Tasks and Inbox")))
-
-(defun aero/thornlog-journal ()
-  "Open current year's personal journal file via org-roam node lookup."
-  (interactive)
-  (let* ((current-year (format-time-string "%Y"))
-         (journal-title (format "Personal Log %s" current-year))
-         (journal-node (org-roam-node-from-title-or-alias journal-title)))
-    (if journal-node
-        (org-roam-node-visit journal-node)
-      (message "No journal found for year %s. Please create a journal page titled '%s'." current-year journal-title))))
 
 (defun aero/pull-thornlog ()
   "Pulls the latest changes from Thornlog."
