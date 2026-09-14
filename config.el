@@ -4720,6 +4720,49 @@ a live non-transient previous buffer."
   (advice-add 'org-agenda-set-tags :after #'aero/org-agenda-save-modified-buffers)
   (advice-add 'org-agenda-refile :after #'aero/org-agenda-save-modified-buffers))
 
+;;;;; Work Log day-notes in the agenda
+
+;; Work Log day notes are split one file per day, so no fixed filename belongs in
+;; `org-agenda-files'. Today's file doesn't exist until the day-note command creates it. Instead of
+;; scanning every note in `aero/roam-path', list that one directory and keep the N most recent Work
+;; Log filenames. Advising `org-agenda-files' itself, rather than the static list, covers every
+;; agenda entry point.
+
+(defconst aero/work-log-file-regexp
+  "\\`[0-9]\\{14\\}-work_log_[a-z]+_\\([a-z]+\\)_\\([0-9]\\{2\\}\\)_\\([0-9]\\{4\\}\\)\\.org\\'"
+  "Work Log day-note filename pattern in `aero/roam-path', capturing
+month name, day, and year (e.g. \"work_log_monday_september_14_2026.org\"
+captures \"september\" \"14\" \"2026\").")
+
+(defconst aero/month-name-to-number
+  '(("january" . 1) ("february" . 2) ("march" . 3) ("april" . 4)
+    ("may" . 5) ("june" . 6) ("july" . 7) ("august" . 8)
+    ("september" . 9) ("october" . 10) ("november" . 11) ("december" . 12))
+  "Month name, as spelled in Work Log filenames, to month number.")
+
+(defun aero/work-log-file-date (file)
+  "Encoded date FILE (a Work Log day-note) is for, parsed from its name."
+  (let ((name (file-name-nondirectory file)))
+    (string-match aero/work-log-file-regexp name)
+    (encode-time 0 0 0
+                 (string-to-number (match-string 2 name))
+                 (cdr (assoc (match-string 1 name) aero/month-name-to-number))
+                 (string-to-number (match-string 3 name)))))
+
+(defun aero/recent-work-log-files (&optional n)
+  "Return the N (default 3) most recent Work Log day-notes, newest first."
+  (let* ((files (directory-files aero/roam-path t aero/work-log-file-regexp))
+         (dated (mapcar (lambda (f) (cons f (aero/work-log-file-date f))) files))
+         (sorted (sort dated (lambda (a b) (time-less-p (cdr b) (cdr a))))))
+    (seq-take (mapcar #'car sorted) (or n 3))))
+
+(defun aero/org-agenda-files-add-work-log (files)
+  "Append the most recent Work Log day-notes to FILES."
+  (append files (aero/recent-work-log-files)))
+
+(with-eval-after-load 'org-agenda
+  (advice-add 'org-agenda-files :filter-return #'aero/org-agenda-files-add-work-log))
+
 ;;;; Org-roam
 
 ;; A fantastic note-taking system, used for building a second brain.
@@ -5069,7 +5112,7 @@ exist yet."
   (interactive)
   (let* ((title (thornlog--day-note-title))
          (node (or (org-roam-node-from-title-or-alias title)
-                  (thornlog--find-or-create-day-note))))
+                   (thornlog--find-or-create-day-note))))
     (org-roam-node-visit node)))
 
 (defun aero/thornlog-todo ()
