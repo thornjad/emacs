@@ -351,7 +351,9 @@ avoiding the weird single-line behavior of `comment-dwim'."
   (interactive)
   (cl-destructuring-bind
       (buf start pos)
-      (or (cl-find (window-buffer window) (window-prev-buffers) :key #'car :test-not #'eq)
+      (or (cl-find-if (lambda (b) (and (buffer-live-p b) (not (eq b (window-buffer window)))))
+                       (window-prev-buffers)
+                       :key #'car)
           (list (other-buffer) nil nil))
     (if (not buf)
         (message "Last buffer not found")
