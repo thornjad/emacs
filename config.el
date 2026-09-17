@@ -4360,12 +4360,20 @@ Both attributes come from the active theme."
 ;; `aero/auto-revert-todo' above still owns the silent reload once the
 ;; buffer is clean again.
 (defun aero/idle-autosave-agenda-files ()
-  "Save any modified `org-agenda-files' buffer."
-  (dolist (file org-agenda-files)
+  "Save any modified `org-agenda-files' buffer; silently revert any
+unmodified one that has gone stale relative to disk (e.g. an external
+process rewrote it), so a later interactive supersession prompt never
+gets the chance to fire. Never touches a buffer with unsaved edits --
+reverting is only for buffers with nothing local to lose. Calls
+`org-agenda-files' as a function, not the raw variable, since Work Log
+day-notes are added dynamically via advice and would otherwise be
+skipped here entirely."
+  (dolist (file (org-agenda-files))
     (when-let ((buf (find-buffer-visiting file)))
       (with-current-buffer buf
-        (when (buffer-modified-p)
-          (save-buffer))))))
+        (if (buffer-modified-p)
+            (save-buffer)
+          (aero/revert-if-unmodified-and-stale file))))))
 
 (run-with-idle-timer 300 t #'aero/idle-autosave-agenda-files)
 
