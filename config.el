@@ -5145,7 +5145,7 @@ exist yet."
          (scheduled-string (if (not (string= meeting-time ""))
                                (format "<%s %s>" today meeting-time)
                              (format "<%s>" today)))
-         (task-string (format "*** MEETING %s  :meeting:\nSCHEDULED: %s"
+         (task-string (format "** MEETING %s  :meeting:\nSCHEDULED: %s"
                               meeting-name scheduled-string)))
     (goto-char (point-max))
     (re-search-backward "^\\*+ Meetings" nil t)
