@@ -352,8 +352,8 @@ avoiding the weird single-line behavior of `comment-dwim'."
   (cl-destructuring-bind
       (buf start pos)
       (or (cl-find-if (lambda (b) (and (buffer-live-p b) (not (eq b (window-buffer window)))))
-                       (window-prev-buffers)
-                       :key #'car)
+                      (window-prev-buffers)
+                      :key #'car)
           (list (other-buffer) nil nil))
     (if (not buf)
         (message "Last buffer not found")
@@ -4844,12 +4844,60 @@ captures \"september\" \"14\" \"2026\").")
       :unnarrowed t)))
 
   (org-roam-node-display-template
-   (concat "${title} " (propertize "${tags}" 'face 'org-tag)))
+   (concat "${aero-title} " (propertize "${tags}" 'face 'org-tag)))
 
   (org-roam-graph-executable "fdp")
   (org-roam-graph-link-hidden-types '("https" "http" "cite"))
 
   :init
+  ;; todo keywords are sometimes file-defined and the Roam DB doesn't store
+  ;; them, so we cache them as needed.
+  (defvar aero/org-done-cache (make-hash-table :test 'equal)
+    "Map of file to its done keywords.")
+
+  (defun aero/org-seq-done-keywords (words)
+    "Return the done keywords in a todo sequence WORDS: after \"|\", else the last."
+    (let* ((kws (seq-remove
+                 #'string-empty-p
+                 (mapcar (lambda (w) (replace-regexp-in-string "(.*)\\'" "" w))
+                         words)))
+           (bar (member "|" kws)))
+      (if bar (cdr bar) (last kws))))
+
+  (defun aero/org-done-keywords (file)
+    "Return done keywords from FILE's #+TODO header, else `org-todo-keywords'."
+    (or (gethash file aero/org-done-cache)
+        (puthash file
+                 (mapcan #'aero/org-seq-done-keywords
+                         (or (with-temp-buffer
+                               (insert-file-contents file nil 0 2048)
+                               (let (acc)
+                                 (while (re-search-forward "^#\\+\\(?:seq_\\|typ_\\)?todo:\\(.*\\)$" nil t)
+                                   (push (split-string (match-string 1)) acc))
+                                 acc))
+                             (mapcar #'cdr org-todo-keywords)))
+                 aero/org-done-cache)))
+
+  ;; named org-roam-node-* rather than aero/ because the display template
+  ;; resolves ${aero-title} by calling `org-roam-node-aero-title'.
+  (defun org-roam-node-aero-title (node)
+    "Return NODE's title, prefixed with its colored todo keyword if it has one.
+Italicized when NODE is a subheading rather than a whole file."
+    (let ((title (org-roam-node-title node))
+          (todo (org-roam-node-todo node)))
+      (when (> (org-roam-node-level node) 0)
+        (setq title (propertize title 'face 'italic)))
+      (if todo
+          (let ((face
+                 (or (cdr (assoc todo org-todo-keyword-faces))
+                     (if (member
+                          todo
+                          (aero/org-done-keywords (org-roam-node-file node)))
+                         'org-done
+                       'org-todo))))
+            (concat (propertize todo 'face face) " " title))
+        title)))
+
   (defun aero/org-roam-node-insert-dwim ()
     "Insert a roam node link. If region is active, wrap it; otherwise insert after point."
     (interactive)
