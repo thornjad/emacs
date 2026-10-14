@@ -3995,6 +3995,46 @@ automatic indentation any longer."
       (delete-region (car bounds) (cdr bounds))
       (insert (format "[[%s][%s]]" url title)))))
 
+;;;; Org HTML export
+
+;; For printing notes (exam sheets and the like). A file picks its own output
+;; path with an `#+export_file_name:' keyword, relative to the file. Otherwise
+;; the HTML lands in `aero/org-export-directory'.
+
+(defvar aero/org-export-directory (expand-file-name "exports/" aero/thornlog-path)
+  "Fallback directory for `aero/org-export-html-open' output.
+An `#+export_file_name:' keyword in the org file takes precedence.")
+
+(defun aero/org-export-strip-id-links (text backend _info)
+  "Reduce `id:' links in exported TEXT to their description, they are dead in print."
+  (if (eq backend 'html)
+      (replace-regexp-in-string "<a href=\"[^\"]*#ID-[^\"]*\">\\([^<]*\\)</a>" "\\1" text)
+    text))
+
+(defun aero/org-export-html-open ()
+  "Export the current org buffer to HTML and open it in the default browser.
+Drops `id:' links, which go nowhere in print."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not an org buffer"))
+  (require 'ox-html)
+  (let* ((named (save-excursion
+                  (save-restriction
+                    (widen)
+                    (goto-char (point-min))
+                    (re-search-forward "^#\\+export_file_name:" nil t))))
+         (file (if named
+                   (expand-file-name (org-export-output-file-name ".html"))
+                 (expand-file-name
+                  (concat (file-name-base buffer-file-name) ".html")
+                  aero/org-export-directory))))
+    (make-directory (file-name-directory file) t)
+    (let ((org-export-filter-link-functions
+           (cons #'aero/org-export-strip-id-links org-export-filter-link-functions)))
+      (org-export-to-file 'html file))
+    (aero/xdg-open file)
+    (message "Exported %s" file)))
+
 ;;;; Org package
 
 ;; Now for the actual package configuration. This is a long one, so I've made a
