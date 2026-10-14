@@ -89,3 +89,5 @@ xkcd/
 # Ignore local init and custom file
 init.local.el
 custom.el
+
+.org-id-locations
