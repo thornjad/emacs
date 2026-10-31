@@ -6766,6 +6766,13 @@ equivalent to the list containing 16."
   :custom
   (lichess-ai-default-level 3))
 
+;;;; 2048
+
+;; The MELPA recipe for 2048-game fetches from Mercurial (sourcehut), which
+;; straight can't clone, so use the git mirror at emacsmirror instead.
+(package! 2048-game (:repo "emacsmirror/2048-game")
+  :commands (2048-game))
+
 
 ;;; General variable configuration
 
