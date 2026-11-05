@@ -28,10 +28,6 @@
 	path = lib/drones/request
 	url = https://github.com/tkf/emacs-request.git
 	ignore = untracked
-[submodule "eaf"]
-	path = lib/drones/eaf
-	url = https://github.com/emacs-eaf/emacs-application-framework.git
-	ignore = untracked
 [submodule "inflections"]
 	path = lib/drones/inflections
 	url = https://github.com/eschulte/jump.el.git
