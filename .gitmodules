@@ -2,6 +2,10 @@
 	path = lib/drones/async-http-queue
 	url = https://git.andros.dev/andros/async-http-queue-el.git
 	ignore = untracked
+[submodule "eaf"]
+	path = lib/drones/eaf
+	url = https://github.com/emacs-eaf/emacs-application-framework.git
+	ignore = untracked
 [submodule "emojify"]
 	path = lib/drones/emojify
 	url = https://github.com/iqbalansari/emacs-emojify.git
@@ -9,6 +13,10 @@
 [submodule "evil-org-mode"]
 	path = lib/drones/evil-org-mode
 	url = https://github.com/Somelauw/evil-org-mode.git
+	ignore = untracked
+[submodule "inflections"]
+	path = lib/drones/inflections
+	url = https://github.com/eschulte/jump.el.git
 	ignore = untracked
 [submodule "lib/aero-theme"]
 	path = lib/aero-theme
@@ -20,6 +28,10 @@
 [submodule "lib/straight.el"]
 	path = lib/straight.el
 	url = https://github.com/radian-software/straight.el.git
+[submodule "org-roam-latte"]
+	path = lib/drones/org-roam-latte
+	url = https://github.com/yad-tahir/org-roam-latte.git
+	ignore = untracked
 [submodule "org-social"]
 	path = lib/drones/org-social
 	url = https://github.com/tanrax/org-social.el.git
@@ -28,15 +40,7 @@
 	path = lib/drones/request
 	url = https://github.com/tkf/emacs-request.git
 	ignore = untracked
-[submodule "eaf"]
-	path = lib/drones/eaf
-	url = https://github.com/emacs-eaf/emacs-application-framework.git
-	ignore = untracked
-[submodule "inflections"]
-	path = lib/drones/inflections
-	url = https://github.com/eschulte/jump.el.git
-	ignore = untracked
-[submodule "org-roam-latte"]
-	path = lib/drones/org-roam-latte
-	url = https://github.com/yad-tahir/org-roam-latte.git
+[submodule "termweb"]
+	path = lib/drones/termweb
+	url = https://git.andros.dev/andros/termweb.el
 	ignore = untracked

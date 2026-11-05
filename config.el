@@ -1039,6 +1039,21 @@ Names in ADDED are flagged as assimilated during the current run."
       (special-mode))
     (display-buffer (current-buffer))))
 
+;; `borg-build` run interactively returns as soon as its compilation process
+;; starts; the drone is only activated (put on `load-path', autoloads loaded)
+;; from that process's sentinel once the build finishes. Anything that needs
+;; the drone loadable right after, like the `use-package' call in `package!',
+;; would race the sentinel and fail with "Cannot load". This helper blocks
+;; until the build exits, then activates explicitly (idempotent) so the
+;; drone is always loadable on return.
+(defun aero/borg-build-and-activate (name)
+  "Build drone NAME, wait for the build to finish, then activate it."
+  (borg-build name)
+  (when-let* ((proc (get-buffer-process "*Borg Build*")))
+    (while (process-live-p proc)
+      (accept-process-output proc 0.2)))
+  (borg-activate name))
+
 ;; `aero/borg-activate-package` closes the gap between "drone is built" and
 ;; "package is actually loaded". The `:borg` branch of `package!` takes its
 ;; warn-only path the first time it is evaluated, before the drone exists on
@@ -1142,14 +1157,13 @@ Returns nil if TARGET cannot be resolved to a usable git URL."
   "Check out already-registered but not-yet-initialized drone NAME.
 NAME must already be a registered submodule (see
 `aero/borg-drone-registered-p'). Runs `git submodule update --init' for
-NAME's path, then builds and activates it via `aero/borg-activate-package'.
+NAME's path, then builds and activates it via `aero/borg-build-and-activate'.
 Returns non-nil if the drone ended up present."
   (let ((default-directory borg-top-level-directory))
     (borg--call-git name "submodule" "update" "--init" "--"
                     (file-relative-name (borg-worktree name) borg-top-level-directory)))
   (when (aero/borg-drone-present-p name)
-    (borg-build name t)
-    (aero/borg-activate-package name)
+    (aero/borg-build-and-activate name)
     t))
 
 ;; `aero/borg-ensure-assimilated` is what the `:borg' recipe in `package!'
@@ -1180,7 +1194,7 @@ fetching or building anything.  Returns non-nil if the drone was built."
        ((y-or-n-p (format "Assimilate and build `%s' from %s? " name url))
         (borg-assimilate name url t)
         (aero/borg-ignore-untracked name)
-        (borg-build name t)
+        (aero/borg-build-and-activate name)
         t)
        (t
         (message "borg: skipped `%s' (%s) -- not assimilated.  Re-eval the `package!' form to retry."
@@ -1239,7 +1253,7 @@ from each package's Package-Requires header; URLs are entered at the prompt."
       (display-buffer (current-buffer)))
     (if (yes-or-no-p "Source is on disk; nothing has run. Build and activate now? ")
         (dolist (a (reverse added))
-          (borg-build a t)
+          (aero/borg-build-and-activate a)
           (aero/borg-activate-package a))
       (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
                (length added)))))
@@ -6046,6 +6060,13 @@ Assumes it follows the default naming scheme."
       (if title
           (rename-buffer (concat "eww - " title) t)
         (rename-buffer "eww" t)))))
+
+;; Reformats pages in EWW to the TermWeb layout (skip link first, trimmed
+;; header) for sites with an adapter, e.g. Wikipedia and EmacsWiki.
+(package! termweb :borg "https://git.andros.dev/andros/termweb.el"
+  :after eww
+  :config
+  (termweb-eww-enable))
 
 (defun aero/wiki-news () (interactive)
        (eww-browse-url "https://en.wikipedia.org/wiki/Portal:Current_events"))
