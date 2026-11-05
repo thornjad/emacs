@@ -3787,18 +3787,22 @@ Show status and update submodules."
 ;; Before the actual package config, let's define some useful functions.
 (defun archive-buffer-closed-tasks ()
   (interactive)
-  (org-map-entries
-   (lambda ()
-     (when (member (org-get-todo-state) org-done-keywords)
-       (org-archive-subtree-default)
-       ;; the archive alters the tree, so just go back to the top
-       (setq org-map-continue-from (point-min))))
-   nil 'file))
+  ;; org archives via the kill ring, and `current-kill' prefers the system
+  ;; clipboard, so a non-tree clipboard breaks the paste into the archive
+  (let ((interprogram-paste-function nil))
+    (org-map-entries
+     (lambda ()
+       (when (member (org-get-todo-state) org-done-keywords)
+         (org-archive-subtree-default)
+         ;; the archive alters the tree, so just go back to the top
+         (setq org-map-continue-from (point-min))))
+     nil 'file)))
 
 (defun trim-archive-entries ()
   "Trim entries in the archive file older than 60 days."
   (interactive)
-  (let ((archive-file (expand-file-name aero/thornlog-archive-file)))
+  (let ((archive-file (expand-file-name aero/thornlog-archive-file))
+        (interprogram-paste-function nil))
     (when (file-exists-p archive-file)
       (let ((cutoff-date (time-subtract (current-time) (days-to-time 60))))
         (with-current-buffer (find-file-noselect archive-file)
