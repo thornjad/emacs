@@ -3024,8 +3024,16 @@ Truncates long names to ensure other modeline segments remain visible."
   (when (system-is-mac)
     (setq aero-theme-font-height 140))
   :config
-  (setq aero-theme-font "JetBrains Mono")
-  (load-theme 'aero t))
+  (setq aero-theme-font (if (find-font (font-spec :name "Nordwand Mono"))
+                            "Nordwand Mono"
+                          "JetBrains Mono"))
+  (load-theme 'aero t)
+  ;; Nordwand Mono lacks ↑ ↓, and the system fallback is taller than the font,
+  ;; stretching agenda rows that show priority arrows. Must run after
+  ;; `load-theme': the theme's font creates the frame's own fontset, which a
+  ;; call made beforehand never reaches.
+  (when (equal aero-theme-font "Nordwand Mono")
+    (set-fontset-font nil '(?↑ . ?↓) (font-spec :family "JetBrains Mono") nil 'prepend)))
 
 (defun aero/reload-current-theme ()
   "Force-reload the current custom theme from disk.
