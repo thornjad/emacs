@@ -5158,69 +5158,6 @@ rather than accumulating a duplicate on reload.")
 (setq aero/org-roam-vacuum-check-timer
       (run-at-time "3:00am" (* 24 60 60) #'aero/org-roam-maybe-schedule-vacuum))
 
-;;;;; Org-roam-latte
-
-;; Highlights unlinked references to existing org-roam nodes in buffers. Click
-;; or press RET on highlighted text to visit the node, or M-RET to convert it
-;; into a link. Self-referential highlighting (a node's own title, or a
-;; sibling node's title in the same file, matching inside that file) is
-;; excluded natively by `org-roam-latte-exclude-scope', which defaults to
-;; `node' and needs no configuration here.
-
-;; org-roam-latte requires the `inflections' package for pluralization; it
-;; has no dedicated upstream repo, so it's assimilated from the repo that
-;; happens to bundle it (`inflections.el' sits alongside an unrelated
-;; `jump.el' at the repo root).
-(package! inflections :borg "eschulte/jump.el")
-
-;; When org-roam-latte's `after-change-function` runs during an `org-todo` state
-;; change, the inflections library's `replace-match` (called with
-;; `FIXEDCASE`nil`) interacts with `evil-org-mode= to upcase heading text. We
-;; prevent this by inhibiting latte's after-change hook while `org-todo` is
-;; executing.
-
-(package! org-roam-latte :borg "yad-tahir/org-roam-latte"
-  :after (org-roam inflections)
-  :hook (org-roam-find-file . org-roam-latte-mode)
-  :config
-  (defvar aero/org-todo-in-progress nil)
-
-  (defun aero/org-todo-mark-in-progress (orig-fn &rest args)
-    "Bind `aero/org-todo-in-progress' to t while ORIG-FN runs.
-ORIG-FN is `org-todo' itself, via :around advice."
-    (let ((aero/org-todo-in-progress t))
-      (apply orig-fn args)))
-  (advice-add 'org-todo :around #'aero/org-todo-mark-in-progress)
-
-  (defun aero/org-roam-latte-skip-during-org-todo (orig-fn &rest args)
-    "Skip ORIG-FN while `org-todo' is running.
-ORIG-FN is org-roam-latte's after-change hook, via :around advice."
-    (unless aero/org-todo-in-progress
-      (apply orig-fn args)))
-  (advice-add 'org-roam-latte--after-change-function :around
-              #'aero/org-roam-latte-skip-during-org-todo)
-
-  ;; org-roam-latte--db-modified rebuilds its whole keyword hash from every
-  ;; node in the org-roam DB on every call, and runs synchronously inside
-  ;; the save path (via advice on org-roam-db-update-file/-clear-file). Its
-  ;; job is just unlinked-reference highlighting, an occasional convenience
-  ;; that shouldn't block a save, so defer it to the next idle moment
-  ;; instead; a burst of saves collapses into a single rebuild.
-  (defvar aero/org-roam-latte-rebuild-timer nil)
-
-  (defun aero/org-roam-latte-debounce-rebuild (orig-fn &rest args)
-    "Debounce ORIG-FN, org-roam-latte's keyword-hash rebuild, via idle timer."
-    (when (timerp aero/org-roam-latte-rebuild-timer)
-      (cancel-timer aero/org-roam-latte-rebuild-timer))
-    (setq aero/org-roam-latte-rebuild-timer
-          (apply #'run-with-idle-timer 1 nil orig-fn args)))
-  (advice-add 'org-roam-latte--db-modified :around
-              #'aero/org-roam-latte-debounce-rebuild)
-
-  (aero-mode-leader-def
-    :keymaps 'org-mode-map
-    "v" '(org-roam-latte-complete-at-point :wk "complete roam node")))
-
 ;;;;; Thornlog
 
 ;; This is a personal logging and note taking system, based on org-roam. It's

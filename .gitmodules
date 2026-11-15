@@ -28,14 +28,6 @@
 	path = lib/drones/request
 	url = https://github.com/tkf/emacs-request.git
 	ignore = untracked
-[submodule "inflections"]
-	path = lib/drones/inflections
-	url = https://github.com/eschulte/jump.el.git
-	ignore = untracked
-[submodule "org-roam-latte"]
-	path = lib/drones/org-roam-latte
-	url = https://github.com/yad-tahir/org-roam-latte.git
-	ignore = untracked
 [submodule "termweb"]
 	path = lib/drones/termweb
 	url = https://git.andros.dev/andros/termweb.el
