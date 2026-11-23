@@ -1,6 +1,190 @@
+[submodule "2048-game"]
+	path = lib/drones/2048-game
+	url = https://github.com/emacsmirror/2048-game.git
+	ignore = untracked
+[submodule "ace-link"]
+	path = lib/drones/ace-link
+	url = https://github.com/abo-abo/ace-link.git
+	ignore = untracked
+[submodule "annalist"]
+	path = lib/drones/annalist
+	url = https://github.com/noctuid/annalist.el.git
+	ignore = untracked
+[submodule "apheleia"]
+	path = lib/drones/apheleia
+	url = https://github.com/radian-software/apheleia.git
+	ignore = untracked
+[submodule "applescript-mode"]
+	path = lib/drones/applescript-mode
+	url = https://github.com/emacsorphanage/applescript-mode.git
+	ignore = untracked
+[submodule "async"]
+	path = lib/drones/async
+	url = https://github.com/jwiegley/emacs-async.git
+	ignore = untracked
+[submodule "avy"]
+	path = lib/drones/avy
+	url = https://github.com/abo-abo/avy.git
+	ignore = untracked
+[submodule "clojure-mode"]
+	path = lib/drones/clojure-mode
+	url = https://github.com/clojure-emacs/clojure-mode.git
+	ignore = untracked
+[submodule "company"]
+	path = lib/drones/company
+	url = https://github.com/company-mode/company-mode.git
+	ignore = untracked
+[submodule "company-box"]
+	path = lib/drones/company-box
+	url = https://github.com/sebastiencs/company-box.git
+	ignore = untracked
+[submodule "cond-let"]
+	path = lib/drones/cond-let
+	url = https://github.com/tarsius/cond-let.git
+	ignore = untracked
+[submodule "consult"]
+	path = lib/drones/consult
+	url = https://github.com/minad/consult.git
+	ignore = untracked
+[submodule "consult-yasnippet"]
+	path = lib/drones/consult-yasnippet
+	url = https://github.com/mohkale/consult-yasnippet.git
+	ignore = untracked
+[submodule "csv-mode"]
+	path = lib/drones/csv-mode
+	url = https://github.com/emacs-straight/csv-mode.git
+	ignore = untracked
+[submodule "dash"]
+	path = lib/drones/dash
+	url = https://github.com/magnars/dash.el.git
+	ignore = untracked
+[submodule "dockerfile-mode"]
+	path = lib/drones/dockerfile-mode
+	url = https://github.com/spotify/dockerfile-mode.git
+	ignore = untracked
+[submodule "el2md"]
+	path = lib/drones/el2md
+	url = https://gitlab.com/thornjad/el2md
+	ignore = untracked
+[submodule "elfeed"]
+	path = lib/drones/elfeed
+	url = https://github.com/skeeto/elfeed.git
+	ignore = untracked
+[submodule "elisp-autofmt"]
+	path = lib/drones/elisp-autofmt
+	url = https://codeberg.org/ideasman42/emacs-elisp-autofmt
+	ignore = untracked
+[submodule "elisp-refs"]
+	path = lib/drones/elisp-refs
+	url = https://github.com/Wilfred/elisp-refs.git
+	ignore = untracked
+[submodule "emacsql"]
+	path = lib/drones/emacsql
+	url = https://github.com/magit/emacsql.git
+	ignore = untracked
+[submodule "emmet-mode"]
+	path = lib/drones/emmet-mode
+	url = https://github.com/smihica/emmet-mode.git
+	ignore = untracked
+[submodule "eshell-syntax-highlighting"]
+	path = lib/drones/eshell-syntax-highlighting
+	url = https://github.com/akreisher/eshell-syntax-highlighting.git
+	ignore = untracked
+[submodule "evil"]
+	path = lib/drones/evil
+	url = https://github.com/emacs-evil/evil.git
+	ignore = untracked
+[submodule "evil-collection"]
+	path = lib/drones/evil-collection
+	url = https://github.com/emacs-evil/evil-collection.git
+	ignore = untracked
+[submodule "evil-matchit"]
+	path = lib/drones/evil-matchit
+	url = https://github.com/redguardtoo/evil-matchit.git
+	ignore = untracked
 [submodule "evil-org-mode"]
 	path = lib/drones/evil-org-mode
 	url = https://github.com/Somelauw/evil-org-mode.git
+	ignore = untracked
+[submodule "exec-path-from-shell"]
+	path = lib/drones/exec-path-from-shell
+	url = https://github.com/purcell/exec-path-from-shell.git
+	ignore = untracked
+[submodule "f"]
+	path = lib/drones/f
+	url = https://github.com/rejeep/f.el.git
+	ignore = untracked
+[submodule "flymake-mypy"]
+	path = lib/drones/flymake-mypy
+	url = https://github.com/com4/flymake-mypy.git
+	ignore = untracked
+[submodule "flymake-ruff"]
+	path = lib/drones/flymake-ruff
+	url = https://github.com/erickgnavar/flymake-ruff.git
+	ignore = untracked
+[submodule "flyspell-correct"]
+	path = lib/drones/flyspell-correct
+	url = https://github.com/d12frosted/flyspell-correct.git
+	ignore = untracked
+	no-byte-compile = flyspell-correct-avy-menu.el
+	no-byte-compile = flyspell-correct-helm.el
+	no-byte-compile = flyspell-correct-ivy.el
+	no-byte-compile = flyspell-correct-popup.el
+[submodule "flyspell-lazy"]
+	path = lib/drones/flyspell-lazy
+	url = https://github.com/rolandwalker/flyspell-lazy.git
+	ignore = untracked
+[submodule "formfeeder"]
+	path = lib/drones/formfeeder
+	url = https://github.com/thornjad/formfeeder.git
+	ignore = untracked
+[submodule "frame-local"]
+	path = lib/drones/frame-local
+	url = https://github.com/sebastiencs/frame-local.git
+	ignore = untracked
+[submodule "fringe-helper"]
+	path = lib/drones/fringe-helper
+	url = https://github.com/nschum/fringe-helper.el.git
+	ignore = untracked
+[submodule "general"]
+	path = lib/drones/general
+	url = https://github.com/noctuid/general.el.git
+	ignore = untracked
+[submodule "git-gutter"]
+	path = lib/drones/git-gutter
+	url = https://github.com/emacsorphanage/git-gutter.git
+	ignore = untracked
+[submodule "git-gutter-fringe"]
+	path = lib/drones/git-gutter-fringe
+	url = https://github.com/emacsorphanage/git-gutter-fringe.git
+	ignore = untracked
+[submodule "git-link"]
+	path = lib/drones/git-link
+	url = https://github.com/sshaw/git-link.git
+	ignore = untracked
+[submodule "goto-chg"]
+	path = lib/drones/goto-chg
+	url = https://github.com/emacs-evil/goto-chg.git
+	ignore = untracked
+[submodule "graphql-mode"]
+	path = lib/drones/graphql-mode
+	url = https://github.com/davazp/graphql-mode.git
+	ignore = untracked
+[submodule "hcl-mode"]
+	path = lib/drones/hcl-mode
+	url = https://github.com/hcl-emacs/hcl-mode.git
+	ignore = untracked
+[submodule "helpful"]
+	path = lib/drones/helpful
+	url = https://github.com/Wilfred/helpful.git
+	ignore = untracked
+[submodule "highlight-thing"]
+	path = lib/drones/highlight-thing
+	url = https://github.com/fgeller/highlight-thing.el.git
+	ignore = untracked
+[submodule "ht"]
+	path = lib/drones/ht
+	url = https://github.com/Wilfred/ht.el.git
 	ignore = untracked
 [submodule "lib/aero-theme"]
 	path = lib/aero-theme
@@ -9,14 +193,174 @@
 	path = lib/borg
 	url = https://github.com/emacscollective/borg.git
 	ignore = untracked
-[submodule "lib/straight.el"]
-	path = lib/straight.el
-	url = https://github.com/radian-software/straight.el.git
+[submodule "lichess"]
+	path = lib/drones/lichess
+	url = https://github.com/tmythicator/lichess.el.git
+	ignore = untracked
+[submodule "llama"]
+	path = lib/drones/llama
+	url = https://github.com/tarsius/llama.git
+	ignore = untracked
+[submodule "magit"]
+	path = lib/drones/magit
+	url = https://github.com/magit/magit.git
+	ignore = untracked
+[submodule "marginalia"]
+	path = lib/drones/marginalia
+	url = https://github.com/minad/marginalia.git
+	ignore = untracked
+[submodule "markdown-mode"]
+	path = lib/drones/markdown-mode
+	url = https://github.com/jrblevin/markdown-mode.git
+	ignore = untracked
+[submodule "markdown-toc"]
+	path = lib/drones/markdown-toc
+	url = https://github.com/ardumont/markdown-toc.git
+	ignore = untracked
+[submodule "multi-vterm"]
+	path = lib/drones/multi-vterm
+	url = https://github.com/suonlight/multi-vterm.git
+	ignore = untracked
+[submodule "orderless"]
+	path = lib/drones/orderless
+	url = https://github.com/oantolin/orderless.git
+	ignore = untracked
+[submodule "org-appear"]
+	path = lib/drones/org-appear
+	url = https://github.com/awth13/org-appear.git
+	ignore = untracked
+[submodule "org-download"]
+	path = lib/drones/org-download
+	url = https://github.com/abo-abo/org-download.git
+	ignore = untracked
+[submodule "org-fancy-priorities"]
+	path = lib/drones/org-fancy-priorities
+	url = https://github.com/harrybournis/org-fancy-priorities.git
+	ignore = untracked
+[submodule "org-modern"]
+	path = lib/drones/org-modern
+	url = https://github.com/minad/org-modern.git
+	ignore = untracked
+[submodule "org-roam"]
+	path = lib/drones/org-roam
+	url = https://github.com/org-roam/org-roam.git
+	ignore = untracked
+	load-path = .
+	load-path = extensions
+[submodule "org-super-agenda"]
+	path = lib/drones/org-super-agenda
+	url = https://github.com/alphapapa/org-super-agenda.git
+	ignore = untracked
+[submodule "package-lint"]
+	path = lib/drones/package-lint
+	url = https://github.com/purcell/package-lint.git
+	ignore = untracked
+[submodule "posframe"]
+	path = lib/drones/posframe
+	url = https://github.com/tumashu/posframe.git
+	ignore = untracked
+[submodule "prescient"]
+	path = lib/drones/prescient
+	url = https://github.com/radian-software/prescient.el.git
+	ignore = untracked
+	no-byte-compile = .dir-locals.el
+	no-byte-compile = corfu-prescient.el
+	no-byte-compile = ivy-prescient.el
+	no-byte-compile = selectrum-prescient.el
+[submodule "queue"]
+	path = lib/drones/queue
+	url = https://github.com/emacs-straight/queue.git
+	ignore = untracked
 [submodule "request"]
 	path = lib/drones/request
 	url = https://github.com/tkf/emacs-request.git
+	ignore = untracked
+[submodule "s"]
+	path = lib/drones/s
+	url = https://github.com/magnars/s.el.git
+	ignore = untracked
+[submodule "selection-highlight-mode"]
+	path = lib/drones/selection-highlight-mode
+	url = https://github.com/balloneij/selection-highlight-mode.git
+	ignore = untracked
+[submodule "shrface"]
+	path = lib/drones/shrface
+	url = https://github.com/chenyanming/shrface.git
+	ignore = untracked
+[submodule "smartparens"]
+	path = lib/drones/smartparens
+	url = https://github.com/Fuco1/smartparens.git
+	ignore = untracked
+[submodule "smartscan"]
+	path = lib/drones/smartscan
+	url = https://github.com/mickeynp/smart-scan.git
 	ignore = untracked
 [submodule "termweb"]
 	path = lib/drones/termweb
 	url = https://git.andros.dev/andros/termweb.el
 	ignore = untracked
+[submodule "terraform-mode"]
+	path = lib/drones/terraform-mode
+	url = https://github.com/hcl-emacs/terraform-mode.git
+	ignore = untracked
+[submodule "todo-light"]
+	path = lib/drones/todo-light
+	url = https://github.com/thornjad/todo-light.git
+	ignore = untracked
+[submodule "ts"]
+	path = lib/drones/ts
+	url = https://github.com/alphapapa/ts.el.git
+	ignore = untracked
+[submodule "undo-tree"]
+	path = lib/drones/undo-tree
+	url = https://github.com/emacs-straight/undo-tree.git
+	ignore = untracked
+[submodule "unmodified-buffer"]
+	path = lib/drones/unmodified-buffer
+	url = https://github.com/arthurcgusmao/unmodified-buffer.git
+	ignore = untracked
+[submodule "verb"]
+	path = lib/drones/verb
+	url = https://github.com/federicotdn/verb.git
+	ignore = untracked
+[submodule "vertico"]
+	path = lib/drones/vertico
+	url = https://github.com/minad/vertico.git
+	ignore = untracked
+	load-path = .
+	load-path = extensions
+[submodule "vterm"]
+	path = lib/drones/vterm
+	url = https://github.com/akermu/emacs-libvterm.git
+	ignore = untracked
+[submodule "web-mode"]
+	path = lib/drones/web-mode
+	url = https://github.com/fxbois/web-mode.git
+	ignore = untracked
+[submodule "winum"]
+	path = lib/drones/winum
+	url = https://github.com/deb0ch/emacs-winum.git
+	ignore = untracked
+[submodule "with-editor"]
+	path = lib/drones/with-editor
+	url = https://github.com/magit/with-editor.git
+	ignore = untracked
+[submodule "ws-butler"]
+	path = lib/drones/ws-butler
+	url = https://github.com/lewang/ws-butler.git
+	ignore = untracked
+[submodule "xterm-color"]
+	path = lib/drones/xterm-color
+	url = https://github.com/atomontage/xterm-color.git
+	ignore = untracked
+[submodule "yaml-mode"]
+	path = lib/drones/yaml-mode
+	url = https://github.com/yoshiki/yaml-mode.git
+	ignore = untracked
+[submodule "yasnippet"]
+	path = lib/drones/yasnippet
+	url = https://github.com/joaotavora/yasnippet.git
+	ignore = untracked
+[submodule "lib/straight.el"]
+	path = lib/straight.el
+	url = https://github.com/radian-software/straight.el.git

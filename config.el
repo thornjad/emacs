@@ -1385,6 +1385,18 @@ from each package's Package-Requires header; URLs are entered at the prompt."
       (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
                (length added)))))
 
+;;;;; Straight coexistence (temporary)
+
+;; TEMPORARY: remove together with straight itself. While both managers run,
+;; straight still resolves dependencies on its own, so a package it manages that
+;; requires `dash' would build its own copy of `dash' and put it ahead of the
+;; drone on `load-path'. Telling straight that a drone's package is "built in"
+;; makes it skip that package, so only the drone is ever loaded.
+(defun aero/borg-claim-from-straight (name)
+  "Make straight skip package NAME, which a Borg drone now provides."
+  (when (boundp 'straight-built-in-pseudo-packages)
+    (add-to-list 'straight-built-in-pseudo-packages (intern name))))
+
 ;;;;; Bulk assimilation (temporary)
 
 ;; TEMPORARY: exists only for the straight-to-Borg migration, remove it when
@@ -1401,7 +1413,7 @@ from each package's Package-Requires header; URLs are entered at the prompt."
     (with-temp-buffer
       (insert-file-contents (expand-file-name "config.el" user-emacs-directory))
       (goto-char (point-min))
-      (while (re-search-forward "^(package! \\([^ \n]+\\) :borg\\_>" nil t)
+      (while (re-search-forward "^[ \t]*(package! \\([^ \n]+\\)[ \t\n]+:borg\\_>" nil t)
         (goto-char (match-beginning 0))
         (let ((form (read (current-buffer))))
           (pcase-let ((`(,target ,policy ,_) (aero/borg--parse-args (nthcdr 3 form))))
@@ -1655,6 +1667,7 @@ Example:
    ((equal recipe :borg)
     (pcase-let ((`(,target ,policy ,body) (aero/borg--parse-args body)))
       `(progn
+         (aero/borg-claim-from-straight ,(symbol-name package))
          (aero/borg-declare-policy ,(symbol-name package) ',policy)
          (unless (aero/borg-drone-present-p ,(symbol-name package))
            (if (aero/borg-drone-registered-p ,(symbol-name package))
@@ -1695,8 +1708,29 @@ Example:
 
 ;;;; Library requirements
 
-(package! dash :auto)
-(package! async :auto :commands (async-save)) ; required by org-download
+(package! dash :borg "magnars/dash.el")
+(package! async :borg "jwiegley/emacs-async" :commands (async-save)) ; required by org-download
+
+;; Borg does not install dependencies, so each library another package requires
+;; is a drone of its own. They are deferred: Borg puts them on the load path
+;; and the packages that need them `require` them.
+
+(package! annalist :borg "noctuid/annalist.el" :defer t)
+(package! cond-let :borg "tarsius/cond-let" :defer t)
+(package! elisp-refs :borg "Wilfred/elisp-refs" :defer t)
+(package! emacsql :borg "magit/emacsql" :defer t)
+(package! f :borg "rejeep/f.el" :defer t)
+(package! frame-local :borg "sebastiencs/frame-local" :defer t)
+(package! fringe-helper :borg "nschum/fringe-helper.el" :defer t)
+(package! goto-chg :borg "emacs-evil/goto-chg" :defer t)
+(package! hcl-mode :borg "hcl-emacs/hcl-mode" :defer t)
+(package! ht :borg "Wilfred/ht.el" :defer t)
+(package! llama :borg "tarsius/llama" :defer t)
+(package! posframe :borg "tumashu/posframe" :defer t)
+(package! queue :borg "emacs-straight/queue" :defer t)
+(package! s :borg "magnars/s.el" :defer t)
+(package! ts :borg "alphapapa/ts.el" :defer t)
+(package! with-editor :borg "magit/with-editor" :defer t)
 
 ;; JSONRPC is used by Eglot, Dape, Copilot and others. It is builtin, but we
 ;; want to stop logging everything as a performance optimization.
@@ -1711,7 +1745,7 @@ Example:
 ;; We only really need this in MacOS, grabbing environment variables from the
 ;; default shell
 
-(package! exec-path-from-shell :auto
+(package! exec-path-from-shell :borg "purcell/exec-path-from-shell"
   :when (or (memq window-system '(mac ns x)) (daemonp))
   :config
   (dolist (var '("PATH" "SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO"
@@ -1751,7 +1785,7 @@ Example:
 
 ;; From there, we set up all the main keybindings.
 
-(package! general :auto
+(package! general :borg "noctuid/general.el"
   :functions (general-define-key aero-leader-def aero-mode-leader-def)
   :init
   (setq-default general-override-states
@@ -1999,7 +2033,7 @@ Example:
 
 ;; In visual mode, use `<` and `>` to indent/unindent the line(s)
 
-(package! evil :auto
+(package! evil :borg "emacs-evil/evil"
   :init
   (setq evil-want-keybinding nil
         evil-undo-system 'undo-tree
@@ -2102,7 +2136,7 @@ Example:
 
 ;; Provides Evil defaults for many modes which Evil proper overlooks
 
-(package! evil-collection :auto
+(package! evil-collection :borg "emacs-evil/evil-collection"
   :defer 1
   :after evil
   :config (evil-collection-init))
@@ -2111,7 +2145,7 @@ Example:
 
 ;; Allows % to jump matching tags
 
-(package! evil-matchit :auto
+(package! evil-matchit :borg "redguardtoo/evil-matchit"
   :defer 5
   :after evil
   :defines global-evil-matchit-mode
@@ -2145,7 +2179,7 @@ Example:
 ;; lightweight. Also make sure selections can wrap around the top and bottom of
 ;; the menu.
 
-(package! vertico :auto
+(package! vertico :borg "minad/vertico" :borg-load-path ("." "extensions")
   :init (vertico-mode)
   :custom
   (vertico-cycle t)
@@ -2167,7 +2201,7 @@ Example:
 ;; including `M-x`. Replaces amx for command history sorting. Shares the
 ;; prescient persistence store with company-prescient.
 
-(package! vertico-prescient :auto
+(package! vertico-prescient :subpackage
   :after (vertico)
   :config (vertico-prescient-mode +1))
 
@@ -2176,14 +2210,14 @@ Example:
 ;; This provides a more informative completion system, showing more information
 ;; about the candidates.
 
-(package! marginalia :auto :init (marginalia-mode))
+(package! marginalia :borg "minad/marginalia" :init (marginalia-mode))
 
 ;;;;; Orderless
 
 ;; This provides a more flexible completion system where we can use spaces to
 ;; separate search terms, inputting them in any order.
 
-(package! orderless :auto
+(package! orderless :borg "oantolin/orderless"
   :custom
   (completion-styles '(substring orderless basic))
   (completion-category-defaults nil)
@@ -2206,7 +2240,7 @@ Example:
   (interactive)
   (funcall #'consult-outline 1))
 
-(package! consult :auto
+(package! consult :borg "minad/consult"
   :after (general evil orderless)
   :commands (consult-line
              consult-buffer
@@ -2291,7 +2325,7 @@ Example:
 ;; Yasnippet provides a powerful templating system for inserting boilerplate
 ;; code.
 
-(package! yasnippet :auto
+(package! yasnippet :borg "joaotavora/yasnippet"
   :defer 1
   :custom
   (yas-installed-snippets-dir aero-snippets-dir)
@@ -2302,7 +2336,7 @@ Example:
 
 ;; Plug yasnipet into consult for a better interface to snippets
 
-(package! consult-yasnippet :auto
+(package! consult-yasnippet :borg "mohkale/consult-yasnippet"
   :after (consult yasnippet)
   :config
   (aero-leader-def
@@ -2339,7 +2373,7 @@ Example:
 
 ;; Utility for visual navgation
 
-(package! avy :auto
+(package! avy :borg "abo-abo/avy"
   :after (general)
   :init
   (general-define-key
@@ -2354,7 +2388,7 @@ Example:
 
 ;; Jump to links in eww with Avy
 
-(package! ace-link :auto
+(package! ace-link :borg "abo-abo/ace-link"
   :after (avy eww)
   :functions (ace-link-setup-default)
   :config (ace-link-setup-default))
@@ -2363,7 +2397,7 @@ Example:
 
 ;; Gives us the `M-n` and `M-p` symbol-following ability
 
-(package! smartscan :auto
+(package! smartscan :borg "mickeynp/smart-scan"
   :hook ((prog-mode org-mode) . smartscan-mode)
   :config
   (advice-add 'smartscan-symbol-go-forward :around #'aero/advice-disable-subword)
@@ -2388,7 +2422,7 @@ Example:
 ;; `undo-in-region` is disabled entirely because it's buggy enough that it will
 ;; drop your undo history in some situations without warning.
 
-(package! undo-tree :auto
+(package! undo-tree :borg "emacs-straight/undo-tree"
   :defer 2
   :custom
   (undo-tree-auto-save-history nil)
@@ -2481,7 +2515,7 @@ Truncates long names to keep tab bar manageable."
 
 ;; Jump to windows by number. 1 is the upper-left-most
 
-(package! winum :auto
+(package! winum :borg "deb0ch/emacs-winum"
   :defer 5
   :after (general which-key)
   :init
@@ -2503,7 +2537,7 @@ Truncates long names to keep tab bar manageable."
 ;; I can't believe this isn't built-in. Company provides a completion system
 ;; that's more powerful than the default.
 
-(package! company :auto
+(package! company :borg "company-mode/company-mode"
   :after (evil)
   :hook ((prog-mode . company-mode)
          (company-mode-hook . evil-normalize-keymaps))
@@ -2529,7 +2563,11 @@ Truncates long names to keep tab bar manageable."
 ;; Moves commonly-used completions to the top, and provides a better sorting
 ;; algorithm.
 
-(package! company-prescient :auto
+;; prescient, company-prescient and vertico-prescient all live in this one drone
+(package! prescient :borg "radian-software/prescient.el" :defer t
+  ;; the ivy, corfu and selectrum backends need packages we do not have
+  :borg-compile ("prescient.el" "company-prescient.el" "vertico-prescient.el"))
+(package! company-prescient :subpackage
   :after (company)
   :hook (company-mode . company-prescient-mode)
   :custom (prescient-save-file (expand-file-name "prescient-save.el" aero-cache-dir))
@@ -2539,7 +2577,7 @@ Truncates long names to keep tab bar manageable."
 
 ;; Provides a better popup interface for company
 
-(package! company-box :auto
+(package! company-box :borg "sebastiencs/company-box"
   :hook (company-mode . company-box-mode))
 
 ;;;; Tramp
@@ -2685,7 +2723,7 @@ Truncates long names to keep tab bar manageable."
 ;; for example, you visit a file, change something, then undo the change, this
 ;; package ensures the buffer doesn't think its still modified.
 
-(package! unmodified-buffer :auto
+(package! unmodified-buffer :borg "arthurcgusmao/unmodified-buffer"
   :defer 1
   :hook ((prog-mode text-mode) . unmodified-buffer-mode))
 
@@ -2712,7 +2750,7 @@ Truncates long names to keep tab bar manageable."
 ;; A better version of the built-in help buffers. This ought to be included in
 ;; Emacs.
 
-(package! helpful :auto
+(package! helpful :borg "Wilfred/helpful"
   :commands (helpful-function
              helpful-variable
              helpful-macro
@@ -3414,7 +3452,7 @@ Skips update entirely when Emacs has no OS focus."
 
 ;; Displays formfeed characters, which are often used by convention in Elisp
 
-(package! formfeeder "thornjad/formfeeder"
+(package! formfeeder :borg "thornjad/formfeeder"
   :defer 2
   :defines (formfeeder-line-width)
   :config
@@ -3430,7 +3468,7 @@ Skips update entirely when Emacs has no OS focus."
 ;; We set `highlight-thing-limit-to-region-in-large-buffers` so that in large
 ;; buffers, only look at nearby lines
 
-(package! highlight-thing :auto
+(package! highlight-thing :borg "fgeller/highlight-thing.el"
   :hook (prog-mode . highlight-thing-mode)
   :commands (highlight-thing-mode)
   :custom
@@ -3445,7 +3483,7 @@ Skips update entirely when Emacs has no OS focus."
 ;; editing multiple instances of the same thing.
 
 (package! selection-highlight-mode
-  (:host github :repo "balloneij/selection-highlight-mode")
+  :borg "balloneij/selection-highlight-mode"
   :hook (prog-mode . selection-highlight-mode)
   :custom (selection-highlight-mode-min-length 3))
 
@@ -3453,7 +3491,7 @@ Skips update entirely when Emacs has no OS focus."
 
 ;; Highlight todo and similar words
 
-(package! todo-light "thornjad/todo-light"
+(package! todo-light :borg "thornjad/todo-light"
   :defer 2
   :config (global-todo-light-mode +1))
 
@@ -3732,7 +3770,7 @@ for instant updates with no idle timer dependency."
 
 ;; One of the truly great packages in Emacs
 
-(package! magit :auto
+(package! magit :borg "magit/magit"
   :after (general)
   :commands (magit-blame
              magit-commit
@@ -3907,7 +3945,7 @@ Show status and update submodules."
 ;; Other buffers update via git-gutter's own internal hooks when they become
 ;; active.
 
-(package! git-gutter :auto
+(package! git-gutter :borg "emacsorphanage/git-gutter"
   :hook ((prog-mode text-mode conf-mode) . git-gutter-mode)
   :custom
   (git-gutter:visual-line t)
@@ -3944,7 +3982,7 @@ Show status and update submodules."
   ;; coloring. The functionality is disabled in Tramp because it hogs the
   ;; connection bandwidth.
 
-  (package! git-gutter-fringe :auto :after (git-gutter)
+  (package! git-gutter-fringe :borg "emacsorphanage/git-gutter-fringe" :after (git-gutter)
     :custom
     (fringes-outside-margins t)
 
@@ -3979,7 +4017,7 @@ Show status and update submodules."
 
 ;; Super simple way to get a link to a file or line in a file on GitHub
 
-(package! git-link :auto
+(package! git-link :borg "sshaw/git-link"
   :after (general)
   :commands (git-link git-link-commit git-link-homepage)
   :init (aero-leader-def "gL" 'git-link))
@@ -4669,7 +4707,7 @@ skipped here entirely."
 
 ;; Show formatting markers when point is near
 
-(package! org-appear :auto
+(package! org-appear :borg "awth13/org-appear"
   :custom (org-hide-emphasis-markers t)
   :hook (org-mode . org-appear-mode))
 
@@ -4678,7 +4716,7 @@ skipped here entirely."
 ;; Some trivial UI improvements for org files. Uses the "replace" set of stars
 ;; for headings.
 
-(package! org-modern :auto
+(package! org-modern :borg "minad/org-modern"
   :hook ((org-mode . org-modern-mode)
          (org-agenda-finalize-hook . org-modern-agenda))
   :custom
@@ -4738,7 +4776,7 @@ skipped here entirely."
 
 ;; Custom display of org priorities
 
-(package! org-fancy-priorities :auto
+(package! org-fancy-priorities :borg "harrybournis/org-fancy-priorities"
   :after (org)
   :hook (org-mode . org-fancy-priorities-mode)
   :custom
@@ -4752,7 +4790,7 @@ skipped here entirely."
 ;; The workhorse of my task management. This package allows me to group tasks in
 ;; the agenda in a way that makes sense to me.
 
-(package! org-super-agenda :auto
+(package! org-super-agenda :borg "alphapapa/org-super-agenda"
   :preface
   (defun aero/org-super-agenda-without-keymap ()
     "Stops super-agenda from overriding evil-org bindings."
@@ -4839,7 +4877,7 @@ global mode's own hook, keeps wrapping off for good."
 
 ;; Allow drag-and-drop of images from browser, finder, etc.
 
-(package! org-download :auto
+(package! org-download :borg "abo-abo/org-download"
   :after (org general)
   :commands (org-download-clipboard org-download-yank org-download-screenshot)
   :custom (org-download-method 'directory)
@@ -4981,7 +5019,7 @@ captures \"september\" \"14\" \"2026\").")
 
 ;; A fantastic note-taking system, used for building a second brain.
 
-(package! org-roam :auto
+(package! org-roam :borg "org-roam/org-roam" :borg-load-path ("." "extensions")
   :after (general org)
   :functions (org-roam-node-find
               org-roam-capture
@@ -5492,7 +5530,7 @@ Assumes it follows the default naming scheme."
 
 ;; Make HTTP requests using org-mode, so I can save my queries in roam
 
-(package! verb :auto
+(package! verb :borg "federicotdn/verb"
   :commands (verb-send-request-on-point-other-window-stay)
   :after (org general)
   :init
@@ -5546,7 +5584,7 @@ Assumes it follows the default naming scheme."
 ;; mean strings, regardless of what the mode's developer believes. We also
 ;; ensure that checkboxes are not expanded by smartparens.
 
-(package! markdown-mode :auto
+(package! markdown-mode :borg "jrblevin/markdown-mode"
   :after (general smartparens)
   :mode (("\\.md\\'" . gfm-mode)
          ("\\.markdown\\'" . gfm-mode)
@@ -5570,19 +5608,19 @@ Assumes it follows the default naming scheme."
 
 ;;;;; Markdown-toc
 
-(package! markdown-toc :auto
+(package! markdown-toc :borg "ardumont/markdown-toc"
   :commands (markdown-toc-generate-toc markdown-toc-refresh-toc))
 
 ;;;; Yaml
 
-(package! yaml-mode :auto
+(package! yaml-mode :borg "yoshiki/yaml-mode"
   :mode "\\.ya?ml\\'")
 
 ;;;; Web mode (HTML, CSS, JS)
 
 ;; If we have tree-sitter, prefer tsx-ts-mode (which will also load eglot)
 
-(package! web-mode :auto
+(package! web-mode :borg "fxbois/web-mode"
   :mode "\\.\\(jsp\\|tpl\\|php\\|xml\\|html?\\|erb\\|svg\\|mjs\\|jsx\\|s?css\\)\\'"
   :custom (web-mode-enable-engine-detection t)
   :config
@@ -5609,7 +5647,7 @@ Assumes it follows the default naming scheme."
 
 ;; Provides emmet expansion in web-mode
 
-(package! emmet-mode :auto
+(package! emmet-mode :borg "smihica/emmet-mode"
   :hook ((web-mode html-mode css-mode scss-mode js-mode) . emmet-mode)
   :init (setq emmet-self-closing-tag-style " /")
   :config
@@ -5618,7 +5656,7 @@ Assumes it follows the default naming scheme."
 
 ;;;; Clojure
 
-(package! clojure-mode :auto :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
+(package! clojure-mode :borg "clojure-emacs/clojure-mode" :mode "\\.\\(cljs?\\|cljs.*\\|edn\\|boot\\)\\'")
 
 ;;;; Emacs Lisp
 
@@ -5626,14 +5664,14 @@ Assumes it follows the default naming scheme."
 
 ;; Linting for Emacs packages
 
-(package! package-lint :auto
+(package! package-lint :borg "purcell/package-lint"
   :commands (package-lint-current-buffer))
 
 ;;;;; Elisp-autofmt
 
 ;; Automatically format elisp code
 
-(package! elisp-autofmt :auto
+(package! elisp-autofmt :borg "codeberg.org/ideasman42/emacs-elisp-autofmt"
   :commands (elisp-autofmt-buffer
              elisp-autofmt-region)
   :custom
@@ -5644,7 +5682,7 @@ Assumes it follows the default naming scheme."
 
 ;; Convert elisp files to markdown Readme files
 
-(package! el2md (:host gitlab :repo "thornjad/el2md")
+(package! el2md :borg "gitlab.com/thornjad/el2md"
   :after (general)
   :commands (el2md-write-readme
              el2md-view-buffer
@@ -5769,7 +5807,7 @@ Assumes it follows the default naming scheme."
 ;; Some type checking via Flymake. Must be added after eglot so eglot doesn't
 ;; clobber it.
 
-(package! flymake-mypy "com4/flymake-mypy"
+(package! flymake-mypy :borg "com4/flymake-mypy"
   :after (eglot flymake)
   :init
   (add-hook 'eglot-managed-mode-hook
@@ -5782,7 +5820,7 @@ Assumes it follows the default naming scheme."
 ;; Some type checking via Flymake. Must be added after eglot so eglot doesn't
 ;; clobber it.
 
-(package! flymake-ruff :auto
+(package! flymake-ruff :borg "erickgnavar/flymake-ruff"
   :after (eglot flymake)
   :functions (flymake-ruff-load)
   :init
@@ -5802,25 +5840,25 @@ Assumes it follows the default naming scheme."
 
 ;; Compose files are plain YAML, so use the built-in tree-sitter mode
 (add-to-list 'auto-mode-alist '("docker-compose.*\\.ya?ml\\'" . yaml-ts-mode))
-(package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
+(package! dockerfile-mode :borg "spotify/dockerfile-mode" :mode "Dockerfile[a-zA-Z.-]*\\'")
 
 ;;;; AppleScript
 
-(package! applescript-mode :auto :mode "\\.applescript\\'")
+(package! applescript-mode :borg "emacsorphanage/applescript-mode" :mode "\\.applescript\\'")
 
 ;;;; Terraform
 
-(package! terraform-mode :auto :mode "\\.tf\\'")
+(package! terraform-mode :borg "hcl-emacs/terraform-mode" :mode "\\.tf\\'")
 
 ;;;; GraphQL
 
 ;; graphql-mode requires `request`
 (package! request :borg)
-(package! graphql-mode :auto :mode "\\.graphql\\'")
+(package! graphql-mode :borg "davazp/graphql-mode" :mode "\\.graphql\\'")
 
 ;;;; CSV
 
-(package! csv-mode :auto :mode "\\.csv\\'")
+(package! csv-mode :borg "emacs-straight/csv-mode" :mode "\\.csv\\'")
 
 ;;;; Orson (WIP)
 
@@ -5845,7 +5883,7 @@ Assumes it follows the default naming scheme."
 ;; Toward the end we set up parens with post-handlers to add an extra newline
 ;; and indent when hitting RET inside them.
 
-(package! smartparens :auto
+(package! smartparens :borg "Fuco1/smartparens"
   :after (general) :defer 5
   :functions (show-smartparens-global-mode
               sp-kill-sexp sp-local-pair
@@ -6015,14 +6053,16 @@ Assumes it follows the default naming scheme."
 ;; idle timer is the real value here; it replaces flyspell's
 ;; post-command-hook so typing stays responsive.
 
-(package! flyspell-lazy :auto
+(package! flyspell-lazy :borg "rolandwalker/flyspell-lazy"
   :hook ((flyspell-mode . flyspell-lazy-mode)))
 
 ;;;;; Flyspell-correct
 
 ;; A better interface for correcting spelling
 
-(package! flyspell-correct :auto
+(package! flyspell-correct :borg "d12frosted/flyspell-correct"
+  ;; the avy-menu, helm, ivy and popup frontends need packages we do not have
+  :borg-compile ("flyspell-correct.el" "flyspell-correct-ido.el")
   :after (general flyspell)
   :config
   (aero-leader-def
@@ -6037,7 +6077,7 @@ Assumes it follows the default naming scheme."
 ;; It's hard to remember what this package is called, which is a marker of a bad
 ;; name. However, it's good code, handling auto-formatting on save.
 
-(package! apheleia :auto
+(package! apheleia :borg "radian-software/apheleia"
   :defer 2
   :after general
 
@@ -6073,7 +6113,7 @@ Assumes it follows the default naming scheme."
 ;; important. This is a good default, but we need to exempt some modes where
 ;; whitespace is important.
 
-(package! ws-butler :auto
+(package! ws-butler :borg "lewang/ws-butler"
   :defer 1
   :functions (ws-butler-global-mode)
   :config (ws-butler-global-mode)
@@ -6317,7 +6357,7 @@ equivalent to the list containing 16."
 
 ;; Adds some org-like features to EWW
 
-(package! shrface :auto
+(package! shrface :borg "chenyanming/shrface"
   :defer t
   :after (eww)
   :hook (eww-after-render . shrface-mode)
@@ -6341,7 +6381,7 @@ equivalent to the list containing 16."
   "Disable scroll-margin in elfeed entry buffers."
   (setq-local scroll-margin 0))
 
-(package! elfeed :auto
+(package! elfeed :borg "skeeto/elfeed"
   :commands (elfeed elfeed-db-compact)
   :after (general evil)
   :hook (elfeed-show-mode . aero/elfeed-show-disable-scroll-margin)
@@ -6431,7 +6471,7 @@ equivalent to the list containing 16."
 
 ;; Colorize shell output
 
-(package! xterm-color :auto
+(package! xterm-color :borg "atomontage/xterm-color"
   :commands (xterm-color-filter)
   :init
   (setq compilation-environment '("TERM=xterm-256color"))
@@ -6446,7 +6486,7 @@ equivalent to the list containing 16."
 ;; requires shell-side configuration.
 
 (when (bound-and-true-p module-file-suffix)  ; Requires Emacs modules
-  (package! vterm :auto :defer t
+  (package! vterm :borg "akermu/emacs-libvterm" :defer t
     :after (general)
     :custom
     (vterm-max-scrollback 5000)
@@ -6484,7 +6524,7 @@ equivalent to the list containing 16."
 ;; Makes it easier to run multiple vterm instances at once, especially
 ;; per-project
 
-(package! multi-vterm :auto :defer t
+(package! multi-vterm :borg "suonlight/multi-vterm" :defer t
   :after (vterm general)
   :init
   (aero-leader-def
@@ -6700,7 +6740,7 @@ equivalent to the list containing 16."
 
 ;; Syntax highlighting in eshell
 
-(package! eshell-syntax-highlighting :auto
+(package! eshell-syntax-highlighting :borg "akreisher/eshell-syntax-highlighting"
   :after eshell-mode
   :hook (eshell-mode . eshell-syntax-highlighting-mode))
 
@@ -6737,14 +6777,14 @@ equivalent to the list containing 16."
 
 ;;;; Lichess
 
-(package! lichess :auto
+(package! lichess :borg "tmythicator/lichess.el"
   :commands (lichess lichess-tv lichess-game-watch)
   :custom
   (lichess-ai-default-level 3))
 
 ;;;; 2048
 
-(package! 2048-game (:repo "emacsmirror/2048-game")
+(package! 2048-game :borg "emacsmirror/2048-game"
   :commands (2048-game))
 
 
