@@ -1145,6 +1145,133 @@ Returns nil if TARGET cannot be resolved to a usable git URL."
       (format "https://github.com/%s.git" s))
      (t (aero/melpa-lookup-recipe s)))))
 
+;;;;; Drone build policy
+
+;; Borg reads two kinds of per-drone build policy from `.gitmodules`:
+;; `load-path` (which directories of the drone go on `load-path` and get
+;; compiled) and `no-byte-compile` (files to skip). `.gitmodules` is committed,
+;; so a fresh machine builds from it, but it is easy to forget and invisible to
+;; anyone reading this file. So the policy is declared on the `package!` form
+;; instead,
+;;
+;;     (package! vertico :borg "minad/vertico"
+;;       :borg-load-path ("." "extensions"))
+;;
+;; and the helpers below write it through to `.gitmodules`. `:borg-load-path`
+;; lists directories relative to the drone. `:borg-compile` is an allowlist of
+;; files to compile: every other `.el` file in the drone's load-path directories
+;; is written to `no-byte-compile`. Without it Borg compiles every `.el` file in
+;; those directories except tests and `-pkg.el` files. A drone that declares
+;; neither keyword keeps Borg's defaults and its `.gitmodules` entries are left
+;; alone. `aero/borg-sync-policy` rewrites `.gitmodules` to match, and Emacs
+;; warns after startup when the two disagree.
+(defvar aero/borg-policy nil
+  "Alist of (NAME . PLIST) declared by `package!' :borg forms.
+PLIST may hold :load-path, a list of directories, and :compile, a list of
+files.  Both are relative to the drone's worktree.")
+
+(defun aero/borg-declare-policy (name policy)
+  "Record POLICY, a plist, as the declared build policy of drone NAME."
+  (when policy
+    (setf (alist-get name aero/borg-policy nil nil #'equal) policy)))
+
+(defun aero/borg--parse-args (args)
+  "Split ARGS, the forms after `:borg' in a `package!' form, into three parts.
+Return (TARGET POLICY BODY).  TARGET is the optional fetch target written
+directly after `:borg', POLICY is a plist built from `:borg-load-path' and
+`:borg-compile', and BODY is everything else, for `use-package'."
+  (let (target policy body)
+    (cond ((eq (car args) t) (pop args))
+          ((and args (not (keywordp (car args)))) (setq target (pop args))))
+    (while args
+      (let ((a (pop args)))
+        (cond ((eq a :borg-load-path) (setq policy (plist-put policy :load-path (pop args))))
+              ((eq a :borg-compile) (setq policy (plist-put policy :compile (pop args))))
+              (t (push a body)))))
+    (list target policy (nreverse body))))
+
+(defun aero/borg--policy-dirs (name)
+  "Return the load-path directories of drone NAME relative to its worktree."
+  (or (plist-get (cdr (assoc name aero/borg-policy)) :load-path)
+      (mapcar (lambda (d) (file-relative-name d (borg-worktree name)))
+              (borg-load-path name))))
+
+(defun aero/borg--policy-wanted (name)
+  "Return the `.gitmodules' values that NAME's declared policy requires.
+The result is an alist of (VARIABLE . VALUES).  The allowlist can only be
+turned into `no-byte-compile' entries once the drone is checked out."
+  (let* ((policy (cdr (assoc name aero/borg-policy)))
+         (paths (plist-get policy :load-path))
+         (allow (plist-get policy :compile))
+         (topdir (borg-worktree name))
+         wanted)
+    (when paths (push (cons 'load-path paths) wanted))
+    (when (and allow (file-directory-p topdir))
+      (let (skip)
+        (dolist (dir (aero/borg--policy-dirs name))
+          (let ((abs (expand-file-name dir topdir)))
+            (when (file-directory-p abs)
+              (dolist (file (directory-files abs t "\\.el\\'"))
+                (let ((rel (file-relative-name file topdir)))
+                  (unless (or (member rel allow)
+                              (string-match-p "\\(?:-autoloads\\|-pkg\\|-tests?\\)\\.el\\'" rel))
+                    (push rel skip)))))))
+        (push (cons 'no-byte-compile (sort skip #'string<)) wanted)))
+    (nreverse wanted)))
+
+(defun aero/borg--git-config (&rest args)
+  "Run `git config -f .gitmodules ARGS' at the top level, return the exit code."
+  (let ((default-directory borg-top-level-directory))
+    (apply #'call-process "git" nil nil nil "config" "-f" ".gitmodules" args)))
+
+(defun aero/borg-apply-policy (name)
+  "Write drone NAME's declared policy into `.gitmodules'.
+Return non-nil if anything changed.  Only variables the policy declares are
+touched."
+  (let (changed)
+    (dolist (pair (aero/borg--policy-wanted name))
+      (let ((var (symbol-name (car pair)))
+            (key (format "submodule.%s.%s" name (car pair))))
+        (unless (equal (cdr pair) (borg-get-all name var))
+          (aero/borg--git-config "--unset-all" key)
+          (dolist (v (cdr pair))
+            (aero/borg--git-config "--add" key v))
+          (setq changed t))))
+    changed))
+
+(defun aero/borg-sync-policy ()
+  "Make `.gitmodules' match the policy declared in config.el.
+Commit `.gitmodules' afterwards: a fresh machine builds from it."
+  (interactive)
+  (let (done)
+    (dolist (entry aero/borg-policy)
+      (when (and (aero/borg-drone-registered-p (car entry))
+                 (aero/borg-apply-policy (car entry)))
+        (push (car entry) done)))
+    (message "Borg policy: updated %s" (if done (string-join (nreverse done) ", ") "nothing"))))
+
+(defun aero/borg-policy-drift ()
+  "Return the drones whose declared policy differs from `.gitmodules'."
+  (let (drift)
+    (borg-do-drones (d)
+      (when (and (assoc d aero/borg-policy)
+                 (seq-some (lambda (pair) (not (equal (cdr pair) (borg-get-all d (car pair)))))
+                           (aero/borg--policy-wanted d)))
+        (push d drift)))
+    (nreverse drift)))
+
+(defun aero/borg-warn-policy-drift ()
+  "Warn when a drone's declared policy and `.gitmodules' disagree."
+  (when-let* ((drift (aero/borg-policy-drift)))
+    (display-warning
+     'borg
+     (format "Declared policy differs from .gitmodules for: %s.  Run `M-x aero/borg-sync-policy' and commit .gitmodules."
+             (string-join drift ", "))
+     :warning)))
+
+(unless noninteractive
+  (add-hook 'after-init-hook #'aero/borg-warn-policy-drift))
+
 ;; `aero/borg-init-drone` handles the other way a drone can be missing from
 ;; disk: already a registered submodule (a `.gitmodules' entry and gitlink
 ;; committed, most often by a `git pull' that brought in a new drone) but
@@ -1194,6 +1321,7 @@ fetching or building anything.  Returns non-nil if the drone was built."
        ((y-or-n-p (format "Assimilate and build `%s' from %s? " name url))
         (borg-assimilate name url t)
         (aero/borg-ignore-untracked name)
+        (aero/borg-apply-policy name)
         (aero/borg-build-and-activate name)
         t)
        (t
@@ -1226,6 +1354,7 @@ from each package's Package-Requires header; URLs are entered at the prompt."
         (unless (aero/borg-drone-present-p n)
           (borg-assimilate n u t)
           (aero/borg-ignore-untracked n)
+          (aero/borg-apply-policy n)
           (push n added))
         (dolist (req (aero/borg-package-requires n))
           (let ((dep (symbol-name (car req))))
@@ -1257,6 +1386,88 @@ from each package's Package-Requires header; URLs are entered at the prompt."
           (aero/borg-activate-package a))
       (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
                (length added)))))
+
+;;;;; Bulk assimilation (temporary)
+
+;; TEMPORARY: exists only for the straight-to-Borg migration, remove it when
+;; the migration ends. `aero/borg-bulk-assimilate` replaces one prompt per drone
+;; with two prompts in total. It reads every `(package! NAME :borg ...)` form
+;; from this file, keeps the drones that are not on disk yet (or only those
+;; named), and shows each drone's URL before asking once whether to clone them.
+;; Cloning runs none of their code. It then shows the commit each clone landed
+;; on, so the code can be inspected, and asks once more before building and
+;; activating anything.
+(defun aero/borg--config-drone-forms ()
+  "Return (NAME TARGET POLICY) for each `(package! NAME :borg ...)' in config.el."
+  (let (out)
+    (with-temp-buffer
+      (insert-file-contents (expand-file-name "config.el" user-emacs-directory))
+      (goto-char (point-min))
+      (while (re-search-forward "^(package! \\([^ \n]+\\) :borg\\_>" nil t)
+        (goto-char (match-beginning 0))
+        (let ((form (read (current-buffer))))
+          (pcase-let ((`(,target ,policy ,_) (aero/borg--parse-args (nthcdr 3 form))))
+            (push (list (symbol-name (nth 1 form)) target policy) out)))))
+    (nreverse out)))
+
+(defun aero/borg-bulk-assimilate (&optional names)
+  "TEMPORARY.  Clone, then build, every missing drone declared in config.el.
+With NAMES, a list of drone names, only handle those.  Ask once before
+cloning and once before building."
+  (interactive)
+  (let* ((todo (seq-remove
+                (lambda (f)
+                  (or (aero/borg-drone-present-p (car f))
+                      (aero/borg-drone-registered-p (car f))
+                      (and names (not (member (car f) names)))))
+                (aero/borg--config-drone-forms)))
+         (plan (mapcar (lambda (f)
+                         (list (car f) (aero/borg-resolve-target (car f) (nth 1 f)) (nth 2 f)))
+                       todo))
+         (unresolved (seq-remove #'cadr plan))
+         added failed)
+    (when unresolved
+      (user-error "No git URL for: %s" (string-join (mapcar #'car unresolved) ", ")))
+    (unless plan
+      (user-error "Nothing to assimilate"))
+    (with-current-buffer (get-buffer-create "*borg-bulk*")
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "Drones to clone (%d).  Cloning runs none of their code.\n\n" (length plan)))
+        (dolist (p plan) (insert (format "  %-28s %s\n" (car p) (cadr p))))
+        (goto-char (point-min))
+        (special-mode))
+      (display-buffer (current-buffer)))
+    (when (yes-or-no-p (format "Clone these %d drones? " (length plan)))
+      (pcase-dolist (`(,name ,url ,policy) plan)
+        (condition-case err
+            (progn
+              (aero/borg-declare-policy name policy)
+              (borg-assimilate name url t)
+              (aero/borg-ignore-untracked name)
+              (aero/borg-apply-policy name)
+              (push name added))
+          (error (push (cons name (error-message-string err)) failed))))
+      (setq added (nreverse added))
+      (with-current-buffer (get-buffer-create "*borg-bulk*")
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Cloned %d, nothing built or run yet.\n\n" (length added)))
+          (dolist (n added)
+            (insert (format "  %-28s %s\n" n
+                            (let ((default-directory (borg-worktree n)))
+                              (string-trim (shell-command-to-string
+                                            "git log -1 --format='%h %cs %s'"))))))
+          (when failed
+            (insert "\nFailed:\n")
+            (dolist (f failed) (insert (format "  %-28s %s\n" (car f) (cdr f)))))
+          (goto-char (point-min))
+          (special-mode)))
+      (when (and added (yes-or-no-p (format "Build and activate these %d drones? " (length added))))
+        (dolist (n added)
+          (aero/borg-build-and-activate n)
+          (aero/borg-activate-package n)))
+      (list :added added :failed failed))))
 
 ;;;; Straight.el
 
@@ -1398,6 +1609,10 @@ Example:
   resolution fails, the answer is declined, or Emacs is not interactive, a warning is issued rather
   than failing.
 
+  A :borg form also accepts two build-policy keywords, removed from BODY before `use-package' sees
+  them: :borg-load-path, a list of directories of the drone to put on `load-path' and compile, and
+  :borg-compile, an allowlist of files to compile.  See \"Drone build policy\" above.
+
   If the BODY contains the keyword :disabled, the package is completely ignored, with an expansion
   indicating the package has been disabled.
 
@@ -1438,11 +1653,9 @@ Example:
    ;; always safe to eval: already-present drones skip straight to `use-package', and batch loads
    ;; (fresh machine, `make init') fall straight to the warning below, same as before this existed.
    ((equal recipe :borg)
-    (let (target)
-      (cond
-       ((and body (eq (car body) t)) (pop body))
-       ((and body (not (keywordp (car body)))) (setq target (pop body))))
+    (pcase-let ((`(,target ,policy ,body) (aero/borg--parse-args body)))
       `(progn
+         (aero/borg-declare-policy ,(symbol-name package) ',policy)
          (unless (aero/borg-drone-present-p ,(symbol-name package))
            (if (aero/borg-drone-registered-p ,(symbol-name package))
                (aero/borg-init-drone ,(symbol-name package))

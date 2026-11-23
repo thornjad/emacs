@@ -73,6 +73,12 @@ Borg is a submodule-based package manager being adopted incrementally alongside 
 
 The `:borg` recipe in `package!` takes an optional non-keyword target directly after `:borg`: a git URL, an `owner/repo` GitHub slug, a host-qualified slug (`gitlab.com/owner/repo`), or a bare package name to look up on MELPA (`aero/melpa-lookup-recipe`, a direct HTTP fetch of a single MELPA recipe file, no dependency on straight). Bare `:borg` or `:borg t` uses the package's own name as that lookup key. If the drone is not already checked out, evaluating the form (interactively only, never in batch) resolves the target, asks one `y-or-n-p` confirmation, then assimilates and builds before continuing into `use-package` in the same expansion. Declining, or a resolution failure, prints a message to `*Messages*` naming what still needs manual attention (see `aero/borg-assimilate` for the standalone multi-package/dependency-chasing path).
 
+**Build policy** is declared on the `package!` form, with `config.el` as the source of truth, and written through to `.gitmodules` (which a fresh machine builds from). Two optional keywords, removed from the body before `use-package` sees it: `:borg-load-path` (directories of the drone, relative to it, to put on `load-path` and compile, e.g. `("." "extensions")`) and `:borg-compile` (an allowlist of files to compile; every other `.el` file in those directories goes into `no-byte-compile`). Without them Borg's defaults apply: `elisp/`, then `lisp/`, then the repo root, compiling every `.el` there except tests and `-pkg.el`. After adding or changing either keyword, run `aero/borg-sync-policy` and commit `.gitmodules`; Emacs warns after startup if the two disagree. Assimilation applies the policy before the first build, so a new drone is built correctly.
+
+`make borg-build` byte-compiles every drone (all drones are on the load path first, so build order does not matter). `make init` runs it. Emacs's JIT makes the resulting `.elc` files native on first load, so compile-angel is not needed (it is being removed).
+
+`aero/borg-bulk-assimilate` is a temporary helper for the straight-to-Borg migration: it clones every declared-but-missing drone behind one prompt, shows the commit each landed on, then builds behind a second. It is removed when the migration ends.
+
 ### Custom Functions and Macros
 Many helper functions are defined inline within the configuration, typically prefixed with `aero/`. Key examples:
 - `aero/keyboard-quit-context` - Enhanced quit behavior

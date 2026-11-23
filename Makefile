@@ -28,10 +28,6 @@ install-emacs-macos:
 	rm -rf /Applications/Emacs.app || true
 	cp -r /opt/homebrew/opt/emacs-plus@31/Emacs.app /Applications/
 
-install-emacs-macos-stable:
-	rm -rf /Applications/Emacs.app || true
-	cp -r /opt/homebrew/opt/emacs-plus@30/Emacs.app /Applications/
-
 build-emacs-macos: macos-reqs
 	brew install emacs-plus@31 --with-xwidgets --with-dbus
 	$(MAKE) install-emacs-macos
@@ -40,14 +36,6 @@ build-emacs-macos: macos-reqs
 build-emacs-macos-minimal: macos-reqs
 	brew install emacs-plus@31
 	$(MAKE) install-emacs-macos
-
-build-emacs-macos-stable: macos-reqs
-	brew install emacs-plus@30 --with-native-comp --with-xwidgets
-	$(MAKE) install-emacs-macos-stable
-
-build-emacs-macos-stable-minimal: macos-reqs
-	brew install emacs-plus@30
-	$(MAKE) install-emacs-macos-stable
 
 remove-emacs-macos:
 	brew uninstall emacs-plus@31 || true
@@ -90,14 +78,22 @@ borg-config:
 	git config status.submoduleSummary true
 	git config borg.drones-directory lib/drones
 
-# (re)generate autoloads for all Borg drones; compilation is left to compile-angel and
-# native-comp at load time, so this dependency-free step never miscompiles a drone
+# (re)generate autoloads for all Borg drones. This step is dependency-free and never compiles
 borg-autoloads:
 	$(EMACS) --batch -L lib/borg -l borg \
 		--eval "(setq borg-drones-directory (expand-file-name \"lib/drones\"))" \
 		--eval "(borg-do-drones (d) (borg-update-autoloads d))"
 
-init: nongnu-elpa install-deps submodule borg
+# byte-compile every drone. All drones are on the load path first, so each compiles against its
+# dependencies whatever the build order. Emacs then makes the .elc files native on first load
+.PHONY: borg-build
+borg-build:
+	$(EMACS) --batch -Q -L lib/borg -l borg \
+		--eval "(setq borg-drones-directory (expand-file-name \"lib/drones\"))" \
+		--eval "(borg-initialize)" \
+		--eval "(borg-do-drones (d) (borg-build d))"
+
+init: nongnu-elpa install-deps submodule borg borg-build
 
 clear-straight:
 	rm -rf ./straight/
