@@ -932,18 +932,16 @@ autoloads land at its worktree root."
            name)
    :warning))
 
-;; Borg owns autoloads; `compile-angel` owns compilation. The self-heal below
-;; generates autoloads for any present drone that lacks them, which is
-;; dependency-free and therefore safe regardless of load order. It deliberately
-;; does not byte-compile, because compiling a drone before its dependencies are
-;; loaded would silently miscompile macro calls. Byte and native compilation are
-;; left to `compile-angel` and the native-comp JIT, which compile each drone's
-;; source on first load, by which point `use-package`'s `:after` and `:hook`
-;; deferral guarantees the drone's dependencies are present. This also means a
-;; machine that has pulled new drone source but not yet built it heals itself on
-;; the next startup, with no network access. Finally `borg-initialize` activates
-;; every present, non-disabled drone by adding it to the load path and loading
-;; its autoloads.
+;; Borg owns autoloads and, through `make borg-build`, byte compilation. The
+;; self-heal below generates autoloads for any present drone that lacks them,
+;; which is dependency-free and therefore safe regardless of load order. It
+;; deliberately does not byte-compile at startup: `make borg-build` does that
+;; with every drone already on the load path, and Emacs's JIT makes the
+;; resulting `.elc` files native on first load. A drone that has not been built
+;; yet simply loads from source. This also means a machine that has pulled new
+;; drone source heals itself on the next startup, with no network access.
+;; Finally `borg-initialize` activates every present, non-disabled drone by
+;; adding it to the load path and loading its autoloads.
 (borg-do-drones (drone)
   (when (and (aero/borg-drone-present-p drone)
              (not (aero/borg-drone-autoloads-p drone)))
@@ -1503,11 +1501,13 @@ cloning and once before building."
                  emacsmirror-mirror melpa))
 (setq straight-recipes-gnu-elpa-use-mirror t)
 
-;; Tell straight that let-alist is a built-in package now, so it doesn't need to
-;; be checked if we (or more likely any dependency) try to pull it in.
+;; Tell straight that let-alist, seq, transient and compat are built in now (the
+;; last three as of Emacs 31.1), so it doesn't fetch its own copies if we (or
+;; more likely any dependency) try to pull them in.
 
 (with-eval-after-load 'straight
-  (add-to-list 'straight-built-in-pseudo-packages 'let-alist))
+  (dolist (pkg '(let-alist seq transient compat))
+    (add-to-list 'straight-built-in-pseudo-packages pkg)))
 
 ;; straight.el is vendored as a git submodule at `lib/straight.el` rather than
 ;; fetched from the network on first run. The standard bootstrap snippet
@@ -1692,34 +1692,6 @@ Example:
           (functionp 'module-load)
           (bound-and-true-p module-file-suffix))
      (require 'treesit nil t))
-
-;;;; Compile angel
-
-;; Set up automatic compilation for everything past this point
-
-(package! compile-angel :auto
-  :demand t
-  :hook (emacs-lisp-mode-hook . compile-angel-on-save-local-mode)
-
-  :custom
-  (compile-angel-verbose t)
-  (compile-angel-enable-byte-compile nil) ; only native compile
-
-  :config
-  ;; Exclude these files
-  (with-eval-after-load "savehist" (push (concat "/" (file-name-nondirectory savehist-file))
-                                         compile-angel-excluded-files))
-  (with-eval-after-load "recentf" (push (concat "/" (file-name-nondirectory recentf-save-file))
-                                        compile-angel-excluded-files))
-  (with-eval-after-load "cus-edit" (push (concat "/" (file-name-nondirectory custom-file))
-                                         compile-angel-excluded-files))
-
-  (compile-angel-on-load-mode))
-
-;;;; Fix GNU ELPA Keyring
-
-;; The ELPA keyring sometimes gets screwed up, this fixes it
-(package! gnu-elpa-keyring-update :auto)
 
 ;;;; Library requirements
 
@@ -1914,7 +1886,6 @@ Example:
    "fott" '(aero/thornlog-todo :wk "thornlog todo")
    "fotl" '(aero/thornlog-daylog :wk "thornlog day log")
    "fote" 'aero/open-emacs-config
-   "fotd" '(aero/thornlog-dir :wk "thornlog all")
    "fw" '(save-buffer :wk "write buffer")
    "fh" '(aero/toggle-angular-component-file :wk "toggle angular component file")
 
@@ -1966,9 +1937,7 @@ Example:
    "rr" 'xref-find-references
 
    "q" '(:ignore t :wk "quoted insert")
-   "ql" 'insert-lambda
    "qq" 'quoted-insert
-   "qp" 'aero/insert-pdb
    "qu" 'insert-char
 
    "s" '(:ignore t :wk "sexp")
@@ -2365,16 +2334,6 @@ Example:
   :config
   (recentf-mode 1)
   (run-at-time 60 (* 5 60) #'aero/recentf-save-list-quiet))
-
-;;;;; All-the-icons
-
-;; Support for icon insertion, and used as a lib in other packages
-
-(package! all-the-icons :auto
-  :after (general)
-  :defer 3
-  :when (display-graphic-p)
-  :config (aero-leader-def "qi" 'all-the-icons-insert))
 
 ;;;;; Avy
 
@@ -2785,17 +2744,6 @@ Truncates long names to keep tab bar manageable."
 ;; commands (`other-frame`, `find-file-other-frame`, etc.) are unaffected.
 
 (setq pop-up-frames nil)
-
-;;;; Window navigation
-
-;; Useful when windmove thinks a window doesn't exist
-
-(package! ace-window :auto
-  :after (general)
-  :commands (ace-window)
-  :init
-  (aero-leader-def
-    "wW" 'ace-window))
 
 ;;;; Side-window management
 
@@ -3267,12 +3215,6 @@ instead of using cached settings."
         (load-file theme-file))
       (load-theme theme t))))
 
-;; Other themes I like to enable to draw tweaks from
-
-(package! tao-theme :auto)
-(package! lambda-themes "Lambda-Emacs/lambda-themes")
-(package! folio-theme "kn66/folio-theme.el")
-
 ;;;; Default frame setup
 
 ;; Set up the default frame in an agreeable fashion. The width is based on a
@@ -3514,17 +3456,6 @@ Skips update entirely when Emacs has no OS focus."
 (package! todo-light "thornjad/todo-light"
   :defer 2
   :config (global-todo-light-mode +1))
-
-;;;; Evil-terminal-cursor-changer
-
-;; Doesn't do anything for GUI, so don't bother. In TUI, use a line when in
-;; insert mode
-
-(unless (display-graphic-p)
-  (package! evil-terminal-cursor-changer :auto
-    :after evil
-    :functions (evil-terminal-cursor-changer-activate)
-    :config (evil-terminal-cursor-changer-activate)))
 
 
 ;;; Breadcrumbs in the headerline
@@ -4917,80 +4848,6 @@ global mode's own hook, keeps wrapping off for good."
     :keymaps 'org-mode-map
     "ic" '(org-download-clipboard :wk "insert image from clipboard")))
 
-;;;; Org-social
-
-;; Org Social: decentralized social network built on Org-mode files served
-;; over HTTP, coordinated through a relay server
-;; (https://github.com/tanrax/org-social).
-
-(package! request :borg)
-(package! emojify :borg)
-(package! async-http-queue :borg)
-
-;; A CMYK JPEG avatar (4 color components, not the usual 3) crashed Emacs
-;; outright on 2026-08-09: EXC_BAD_ACCESS/SIGABRT deep in CoreGraphics during
-;; redisplay, a native fault outside any `condition-case'. org-social's own
-;; image-insert function only catches Lisp errors, which this isn't, so the
-;; check has to happen before the image is ever handed to `create-image'.
-(defun aero/jpeg-cmyk-p (file)
-  "Non-nil if FILE is a JPEG whose SOF marker declares 4 color components.
-Reads the marker segments directly rather than decoding the image. Returns
-nil for non-JPEG files, truncated markers, or any read error."
-  (condition-case nil
-      (with-temp-buffer
-        (set-buffer-multibyte nil)
-        (insert-file-contents-literally file)
-        (goto-char (point-min))
-        (when (and (eq (following-char) #xFF) (eq (char-after (1+ (point))) #xD8))
-          (goto-char (+ (point-min) 2))
-          (catch 'result
-            (while (< (+ (point) 4) (point-max))
-              (unless (eq (char-after) #xFF)
-                (throw 'result nil))
-              (let ((marker (char-after (1+ (point)))))
-                (cond
-                 ((memq marker '(#xD8 #xD9 #x01)) (forward-char 2))
-                 ((<= #xD0 marker #xD7) (forward-char 2))
-                 ((memq marker '(#xC0 #xC1 #xC2 #xC3 #xC5 #xC6 #xC7
-                                      #xC9 #xCA #xCB #xCD #xCE #xCF))
-                  (throw 'result (eql (char-after (+ (point) 9)) 4)))
-                 (t
-                  (let ((len (logior (ash (char-after (+ (point) 2)) 8)
-                                     (char-after (+ (point) 3)))))
-                    (forward-char (+ 2 len)))))))
-            nil)))
-    (error nil)))
-
-(defun aero/org-social-skip-cmyk-avatar (orig-fn url pos &optional width)
-  "Around-advice for `org-social-ui--put-image-from-cache'.
-Falls back to org-social's own text placeholder for a CMYK JPEG instead of
-calling ORIG-FN with URL, POS, and WIDTH, since that path is what crashes."
-  (if (and url (stringp url) (display-graphic-p))
-      (let ((image-file (expand-file-name
-                         (base64-encode-string url :no-line-break)
-                         org-social-image-cache-directory)))
-        (unless (org-social-ui--cache-image-p url)
-          (org-social-ui--cache-image url))
-        (if (and (org-social-ui--cache-image-p url) (aero/jpeg-cmyk-p image-file))
-            (org-social-ui--insert-formatted-text "🖼️ [Image]" nil "#666666")
-          (funcall orig-fn url pos width)))
-    (funcall orig-fn url pos width)))
-
-(package! org-social :borg "tanrax/org-social.el"
-  :after (org request emojify async-http-queue)
-  :commands (org-social-timeline org-social-new-post org-social-new-reply)
-  :custom
-  (org-social-file "~/Documents/thornlog/social.org")
-  (org-social-relay "https://relay.org-social.org/")
-  (org-social-my-public-url "https://jmthornton.net/social.org")
-  (org-social-language-filter '("en" "fr" "zh"))
-  :config
-  (keymap-global-set "C-c s t" #'org-social-timeline)
-  (keymap-global-set "C-c s n" #'org-social-new-post)
-  (keymap-global-set "C-c s r" #'org-social-new-reply)
-  (with-eval-after-load 'org-social-ui
-    (advice-add 'org-social-ui--put-image-from-cache :around #'aero/org-social-skip-cmyk-avatar)))
-
 ;;;; Functions for the org agenda
 
 (defun aero/org-agenda-list ()
@@ -5628,21 +5485,6 @@ Assumes it follows the default naming scheme."
 (add-hook 'before-save-hook #'aero/org-roam-insert-created-property)
 (add-hook 'before-save-hook #'aero/org-roam-insert-modified-property)
 
-;;;;; Consult-org-roam
-
-;; Provides a more powerful interface for searching org-roam nodes using ripgrep
-
-(package! consult-org-roam :auto
-  :after (org-roam general)
-  :custom
-  (consult-org-roam-grep-func #'consult-ripgrep)
-  :config
-  (aero-leader-def
-    "vb" 'consult-org-roam-backlinks
-    "vB" 'consult-org-roam-backlinks-recursive
-    "vl" 'consult-org-roam-forward-links
-    "v'" 'consult-org-roam-search))
-
 
 ;;; Applications
 
@@ -5657,32 +5499,6 @@ Assumes it follows the default naming scheme."
   (aero-mode-leader-def
     :keymaps 'org-mode-map
     "RET" 'verb-send-request-on-point-other-window-stay))
-
-;;;; ESUP
-
-;; Emacs startup profiler.
-
-;; The override of `esup-read-results` works around a bug where esup tries to
-;; profile cl-lib and fails by doing some nil checking.
-
-(package! esup :auto
-  :commands (esup)
-  :config
-  (defun esup-read-results ()
-    "Read all `esup-result' objects from `esup-incoming-results-buffer'.
-
-  HACKED by Aero to add nil checking."
-    (let (results sep-end-point)
-      (with-current-buffer (get-buffer esup-incoming-results-buffer)
-        (goto-char esup-last-result-start-point)
-        (message "at %s" esup-last-result-start-point)
-        (unless (eobp)
-          (while (setq sep-end-point (esup-next-separator-end-point))
-            (when-let* ((result (car (esup-read-result (point)))))
-              (push result results))
-            (setq esup-last-result-start-point sep-end-point)
-            (goto-char esup-last-result-start-point))))
-      (nreverse results))))
 
 
 ;;; Prog modes
@@ -5799,15 +5615,6 @@ Assumes it follows the default naming scheme."
   :config
   (eval-when-compile (defvar emmet-expand-jsx-className?))
   (add-hook 'js-mode-hook (lambda () (setq emmet-expand-jsx-className? t))))
-
-;;;; Jest
-
-;; My own package for running Jest tests from within Emacs. Based loosely on the
-;; functionality in VS Code
-
-(package! jest "thornjad/emacs-jest"
-  :commands (jest jest-file jest-test)
-  :after (general))
 
 ;;;; Clojure
 
@@ -5988,12 +5795,13 @@ Assumes it follows the default naming scheme."
 
 ;;;; TOML
 
-(package! toml-mode :auto
-  :mode "\\(\\.toml\\|Cargo\\.lock\\)\\'")
+;; Built in, using the tree-sitter toml grammar
+(add-to-list 'auto-mode-alist '("\\(\\.toml\\|Cargo\\.lock\\)\\'" . toml-ts-mode))
 
 ;;;; Docker
 
-(package! docker-compose-mode :auto :mode "docker-compose.*\.yml\\'")
+;; Compose files are plain YAML, so use the built-in tree-sitter mode
+(add-to-list 'auto-mode-alist '("docker-compose.*\\.ya?ml\\'" . yaml-ts-mode))
 (package! dockerfile-mode :auto :mode "Dockerfile[a-zA-Z.-]*\\'")
 
 ;;;; AppleScript
@@ -6006,6 +5814,8 @@ Assumes it follows the default naming scheme."
 
 ;;;; GraphQL
 
+;; graphql-mode requires `request`
+(package! request :borg)
 (package! graphql-mode :auto :mode "\\.graphql\\'")
 
 ;;;; CSV
@@ -6517,15 +6327,6 @@ equivalent to the list containing 16."
   (shrface-trial)
   (shrface-default-keybindings))
 
-;;;; Shr-tag-pre-highlight
-
-;; Syntax highlighting for HTML pre tags
-
-(package! shr-tag-pre-highlight :auto
-  :after (shr)
-  :config
-  (add-to-list 'shr-external-rendering-functions '(pre . shr-tag-pre-highlight)))
-
 
 ;;; Elfeed
 
@@ -6693,7 +6494,7 @@ equivalent to the list containing 16."
   :config
   (aero-mode-leader-def 'vterm-mode-map
     "c" 'multi-vterm
-    "n" 'mutli-vterm-next
+    "n" 'multi-vterm-next
     "p" 'multi-vterm-prev))
 
 ;;;;; Cursor Agent wrapper
@@ -6895,18 +6696,6 @@ equivalent to the list containing 16."
   (evil-collection-define-key 'normal 'eshell-mode-map (kbd "RET") 'eshell-send-input))
 (add-hook 'eshell-first-time-mode-hook #'aero/eshell-ret-always-submits t)
 
-;;;;; Eshell-prompt-extras
-
-;; Adds a more informative prompt to eshell
-
-(package! eshell-prompt-extras :auto
-  :after (eshell)
-  :config
-  (with-eval-after-load "esh-opt"
-    (autoload 'epe-theme-multiline-with-status "eshell-prompt-extras")
-    (setq eshell-highlight-prompt nil
-          eshell-prompt-function 'epe-theme-multiline-with-status)))
-
 ;;;;; Eshell-syntax-highlighting
 
 ;; Syntax highlighting in eshell
@@ -6914,14 +6703,6 @@ equivalent to the list containing 16."
 (package! eshell-syntax-highlighting :auto
   :after eshell-mode
   :hook (eshell-mode . eshell-syntax-highlighting-mode))
-
-;;;;; Capf-autosuggest
-
-;; Provides overlay suggestions in eshell. Use M-f to insert the next suggested
-;; word
-
-(package! capf-autosuggest "emacs-straight/capf-autosuggest"
-  :hook (eshell-mode . capf-autosuggest-mode))
 
 
 ;;; Yarn-lock derived mode
@@ -7132,7 +6913,6 @@ equivalent to the list containing 16."
  js-indent-level 2
  js-switch-indent-offset 2
  js-syntactic-mode-name nil ; just use normal mode name
- js2-basic-offset 2
  typescript-indent-level 2
  python-indent-offset 4 ; 2 would be too much of a hassle
  rust-indent-offset 4
