@@ -1778,6 +1778,7 @@ Example:
    "wB" '(aero/switch-to-minibuffer-window :wk "switch to minibuffer")
    "ws" '(eww-search-words :which-key "web search")
    "ww" 'eww
+   "wW" '(aero/eww-wikipedia :wk "wikipedia search")
    "wp" 'browse-url-at-point
    "wc" 'aero/toggle-compilation-buffer
    "wd" 'delete-window
@@ -6019,6 +6020,17 @@ Assumes it follows the default naming scheme."
 
 (defun aero/wiki-news () (interactive)
        (eww-browse-url "https://en.wikipedia.org/wiki/Portal:Current_events"))
+
+(defun aero/eww-wikipedia (query)
+  "Search Wikipedia for QUERY in EWW.
+Defaults to the active region, else the word at point."
+  (interactive
+   (let ((default (if (use-region-p)
+                      (buffer-substring-no-properties (region-beginning) (region-end))
+                    (thing-at-point 'word t))))
+     (list (read-string (format-prompt "Search Wikipedia" default) nil nil default))))
+  (eww (format "https://en.wikipedia.org/w/index.php?search=%s"
+               (url-hexify-string query))))
 
 (defun aero/xwidgets-search-ddg (&optional term)
   (interactive "sSearch DuckDuckGo: ")
