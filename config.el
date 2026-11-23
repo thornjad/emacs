@@ -5968,6 +5968,17 @@ Assumes it follows the default naming scheme."
   (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_SRC" . "#\\+END_SRC"))
   (add-to-list 'ispell-skip-region-alist '("#\\+BEGIN_EXAMPLE" . "#\\+END_EXAMPLE"))
 
+  ;; a body word matching the last word of a headline above it isn't a
+  ;; duplicate, since the duplicate check skips newlines. Duplicates within a
+  ;; headline or within body text are still flagged.
+  (define-advice flyspell-word-search-backward
+      (:around (fn word bound &optional ignore-case) aero/skip-org-heading-dup)
+    (let ((p (funcall fn word bound ignore-case)))
+      (unless (and p (derived-mode-p 'org-mode)
+                   (not (org-at-heading-p))
+                   (save-excursion (goto-char p) (org-at-heading-p)))
+        p)))
+
   (aero-leader-def
     "psP" 'flyspell-prog-mode
     "psN" 'flyspell-goto-next-error
