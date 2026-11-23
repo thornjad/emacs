@@ -93,7 +93,7 @@ init: install-deps submodule borg borg-build
 install-aspell:
 	brew install aspell
 
-install-deps: lsp-booster graphviz install-npm install-aspell
+install-deps: graphviz install-npm install-aspell
 	brew install node ripgrep
 	if [ "$$(uname)" = "Darwin" ]; then brew install pngpaste; fi
 	if [ "$$(uname)" = "Linux" ]; then sudo apt install -y wl-clipboard; fi
@@ -111,12 +111,3 @@ install-npm:
 # Required for org-roam graphing
 graphviz:
 	brew install graphviz
-
-lsp-booster:
-	if [ -d ~/.config/emacs/tmp/emacs-lsp-booster ]; then \
-		cd ~/.config/emacs/tmp/emacs-lsp-booster && git pull; \
-	else git clone git@github.com:blahgeek/emacs-lsp-booster.git ~/.config/emacs/tmp/emacs-lsp-booster; \
-	fi
-	cd ~/.config/emacs/tmp/emacs-lsp-booster && cargo build --release
-	mkdir -p ~/.local/bin
-	ln -sf ~/.config/emacs/tmp/emacs-lsp-booster/target/release/emacs-lsp-booster ~/.local/bin/emacs-lsp-booster

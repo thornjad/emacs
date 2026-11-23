@@ -37,7 +37,6 @@ This is a single-file Emacs configuration:
 ### Development Dependencies
 - `make install-deps` - Install LSP servers and development tools (includes Python, Rust components)
 - `make install-npm` - Install Node.js-based language servers (TypeScript, Angular, Elm, etc.)
-- `make lsp-booster` - Build and install emacs-lsp-booster for faster LSP performance
 - `make graphviz` - Install graphviz (required for org-roam graph visualization)
 
 ### Emacs Installation (if needed)
@@ -127,7 +126,7 @@ The configuration is not designed as a distribution but as a personal system tha
 - **Go, Java, C/C++**: Various LSP integrations available
 
 ### Key Development Features
-- **Eglot**: Built-in LSP client with booster optimization
+- **Eglot**: Built-in LSP client
 - **Magit**: Full Git integration with evil-mode bindings
 - **Project management**: Built-in project.el with custom enhancements
 - **Company mode**: Auto-completion with company-box UI
