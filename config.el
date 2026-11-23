@@ -4309,6 +4309,9 @@ Drops `id:' links, which go nowhere in print."
    `(("n" "Agenda and all TODOs" ((agenda "") (alltodo "")))
      ("s" "School items" agenda ""
       ((org-agenda-files '(,(expand-file-name "school_todo.org" aero/roam-path)))))
+     ("o" "Agenda without school" agenda ""
+      ((org-super-agenda-groups
+        (cons '(:discard (:tag ("school" "class"))) org-super-agenda-groups))))
      ("e" "Experimentation tag" tags "experimentation")))
 
   :init
@@ -4778,9 +4781,10 @@ calling ORIG-FN with URL, POS, and WIDTH, since that path is what crashes."
 ;;;; Functions for the org agenda
 
 (defun aero/org-agenda-list ()
-  "`org-agenda', skipping command menu to list."
+  "`org-agenda', skipping command menu to list, hiding school and class items.
+Those live in the class agenda (`aero/org-class-agenda-list')."
   (interactive)
-  (org-agenda nil "a"))
+  (org-agenda nil "o"))
 
 (defun aero/org-class-agenda-list ()
   "`org-agenda', skipping command menu to list."
