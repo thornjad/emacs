@@ -15,6 +15,7 @@ macos-reqs:
 	brew update
 	brew install coreutils git-delta tree-sitter
 	brew tap d12frosted/emacs-plus
+	brew trust --tap d12frosted/emacs-plus
 
 build-emacs-cask-stable: macos-reqs
 	brew install --cask emacs
