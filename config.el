@@ -4192,6 +4192,58 @@ Drops `id:' links, which go nowhere in print."
     (aero/xdg-open file)
     (message "Exported %s" file)))
 
+;;;; Org-element cache guard
+
+;; The cache can desync from its buffer (out-of-band writes by Syncthing,
+;; routines and the MCP layer). Org then calls `display-warning' from inside its
+;; parse loop, thousands of times. Each warning inserts into *Warnings*, which
+;; triggers font-lock and a GC over an ever-growing text-property tree, in C,
+;; where C-g cannot interrupt it (seen Jun, Jul and Nov 2026, the last on stable
+;; Emacs 31.1). Two guards, so a desync degrades to a slow uncached parse
+;; instead of a frozen Emacs.
+;;
+;; First, thornlog's .dir-locals.el turns the cache off, but dir-locals only
+;; apply after the major mode body has run, and `org-mode' itself calls
+;; `org-element-at-point' (startup visibility) before that. So the first parse
+;; of every freshly visited thornlog file ran with the cache on. Bind it off
+;; for the whole `org-mode' call instead.
+
+(defun aero/org-mode-no-cache-in-thornlog (orig &rest args)
+  "Call ORIG with the default `org-element-use-cache' off for thornlog files.
+Sets the default rather than let-binding, because the dir-local value gets
+applied inside this call and Emacs warns when a let-bound variable turns
+buffer-local."
+  (if (and buffer-file-name
+           (string-prefix-p aero/thornlog-path (expand-file-name buffer-file-name)))
+      (let ((old (default-value 'org-element-use-cache)))
+        (unwind-protect
+            (progn (setq-default org-element-use-cache nil)
+                   (apply orig args))
+          (setq-default org-element-use-cache old)))
+    (apply orig args)))
+
+(advice-add 'org-mode :around #'aero/org-mode-no-cache-in-thornlog)
+
+;; Second, a tripwire that applies everywhere (the cache stays on outside
+;; thornlog, for source-block checks). The first cache warning in a buffer
+;; drops the warning, disables the cache in that buffer and resets it. Later
+;; parses are uncached, so no warning can repeat.
+
+(defun aero/org-element-cache-warning-guard (orig type message &rest args)
+  "Turn org-element cache warnings into a one-shot cache disable.
+ORIG, TYPE, MESSAGE and ARGS are those of `display-warning'."
+  (if (and (consp type) (eq (car type) 'org-element)
+           (eq (cadr type) 'org-element-cache))
+      (progn
+        (when org-element-use-cache
+          (message "org-element cache desynced in %s, disabled for this buffer (%.200s)"
+                   (buffer-name) message))
+        (setq-local org-element-use-cache nil)
+        (ignore-errors (org-element-cache-reset)))
+    (apply orig type message args)))
+
+(advice-add 'display-warning :around #'aero/org-element-cache-warning-guard)
+
 ;;;; Org package
 
 ;; Now for the actual package configuration. This is a long one, so I've made a
