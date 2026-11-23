@@ -86,10 +86,9 @@
 ;; installed), as well as some small dependencies. It will also set up and
 ;; update some submodules.
 
-;; Upon starting up Emacs for the first time, further third-party packages will
-;; automatically download and install via `straight.el`. Subsequent startups
-;; should take one or two seconds. If you encounter any errors at this stage,
-;; try restarting Emacs and/or opening a bug.
+;; Third-party packages are Borg drones: git submodules that `make init` checks
+;; out and builds. Startup should then take a few seconds. If you encounter any
+;; errors at this stage, try restarting Emacs and/or opening a bug.
 
 ;;;;; Emacs installation using included build scripts
 
@@ -836,19 +835,16 @@ Runs the \\='docker-restart\\=' target from the same Makefile as
 
 ;;;; Borg
 
-;; Borg is being introduced alongside straight as the long-term replacement for
-;; package management. It manages each package as a git submodule (a "drone")
-;; under `lib/drones/`, which means every package is pinned to an explicit
-;; commit, updates show up as reviewable submodule-pointer diffs in git history,
-;; and there is no network access or remote code evaluation at init time. This
-;; directly addresses the largest security gap in this configuration, which is
-;; unvetted package updates. The migration is incremental: straight and Borg
-;; coexist, with each package owned by exactly one of them, and packages move
-;; over one at a time.
+;; Borg is the package manager. It manages each package as a git submodule (a
+;; "drone") under `lib/drones/`, which means every package is pinned to an
+;; explicit commit, updates show up as reviewable submodule-pointer diffs in git
+;; history, and there is no network access or remote code evaluation at init
+;; time. This directly addresses the largest security gap this configuration
+;; used to have, which was unvetted package updates.
 
 ;; Borg derives `borg-drones-directory` from its own location, which would
-;; default to `lib/` and sweep in the non-drone submodules `lib/aero-theme`,
-;; `lib/straight.el`, and `lib/borg` itself. We instead keep drones in a
+;; default to `lib/` and sweep in the non-drone submodules `lib/aero-theme`
+;; and `lib/borg` itself. We instead keep drones in a
 ;; dedicated `lib/drones/` subdirectory, via the `borg.drones-directory` git
 ;; variable rather than an Elisp `setq`, and set it here, before `require`,
 ;; so `borg-drones-directory`'s `defconst` derives the right value the first
@@ -951,8 +947,8 @@ autoloads land at its worktree root."
 ;; Borg assumes every submodule is a drone living directly under
 ;; `borg-drones-directory`. The no-argument form of `borg-drones` relies on that
 ;; assumption: it strips a fixed prefix length from every submodule path without
-;; filtering, so in this configuration, where `lib/borg`, `lib/aero-theme`, and
-;; `lib/straight.el` are submodules outside `lib/drones/`, it returns garbage
+;; filtering, so in this configuration, where `lib/borg` and `lib/aero-theme`
+;; are submodules outside `lib/drones/`, it returns garbage
 ;; and even errors on paths shorter than the prefix. Only one Borg function
 ;; depends on this no-argument form, `borg-remove`; everything else uses the
 ;; prefix-filtered `borg-drones 'raw`. This advice reroutes the no-argument call
@@ -977,8 +973,7 @@ autoloads land at its worktree root."
 ;; `Package-Requires` header in its source, scanning every non-generated Emacs
 ;; Lisp file because the declaring file is not always named after the drone.
 ;; `aero/borg-dep-status` classifies each dependency as Emacs itself, an
-;; existing drone, otherwise available (built-in or still provided by straight
-;; during the migration), or missing. We read dependencies from local source
+;; existing drone, otherwise available (built-in), or missing. We read dependencies from local source
 ;; rather than an external database, so `epkg` is not needed and is deliberately
 ;; not used.
 (defun aero/borg-package-requires (name)
@@ -1022,7 +1017,7 @@ Names in ADDED are flagged as assimilated during the current run."
                           (cond ((eq status 'emacs) "Emacs itself")
                                 ((member dn added) "drone (added this run)")
                                 ((eq status 'drone) "assimilated drone")
-                                ((eq status 'present) "available (built-in or via straight)")
+                                ((eq status 'present) "available (built-in)")
                                 (t "MISSING -- needs assimilation")))))))))
 
 (defun aero/borg-describe-deps (name)
@@ -1077,9 +1072,9 @@ the not-checked-out warning branch instead of loading the package."
 
 ;; `aero/melpa-lookup-recipe` resolves a bare package name to a git URL by
 ;; fetching a single recipe file from MELPA's raw GitHub content, rather than
-;; depending on straight.el's local recipe-repository checkout. This keeps
-;; working once straight is removed, and it is the mechanism that lets the
-;; `:borg` recipe below do MELPA lookups for a name with no target given.
+;; depending on a local recipe-repository checkout. It is the mechanism that
+;; lets the `:borg` recipe below do MELPA lookups for a name with no target
+;; given.
 ;; MELPA's recipe repository is consulted only for the git host/repo it
 ;; names; it is never treated as a source of code to run.
 (defconst aero/melpa-recipe-url-format
@@ -1385,18 +1380,6 @@ from each package's Package-Requires header; URLs are entered at the prompt."
       (message "Left %d package(s) unbuilt for inspection. Use borg-build, or borg-remove to undo."
                (length added)))))
 
-;;;;; Straight coexistence (temporary)
-
-;; TEMPORARY: remove together with straight itself. While both managers run,
-;; straight still resolves dependencies on its own, so a package it manages that
-;; requires `dash' would build its own copy of `dash' and put it ahead of the
-;; drone on `load-path'. Telling straight that a drone's package is "built in"
-;; makes it skip that package, so only the drone is ever loaded.
-(defun aero/borg-claim-from-straight (name)
-  "Make straight skip package NAME, which a Borg drone now provides."
-  (when (boundp 'straight-built-in-pseudo-packages)
-    (add-to-list 'straight-built-in-pseudo-packages (intern name))))
-
 ;;;;; Bulk assimilation (temporary)
 
 ;; TEMPORARY: exists only for the straight-to-Borg migration, remove it when
@@ -1479,86 +1462,7 @@ cloning and once before building."
           (aero/borg-activate-package n)))
       (list :added added :failed failed))))
 
-;;;; Straight.el
-
-;; straight.el is managed as a vendored git submodule at `lib/straight.el`
-;; tracking the default branch. Since the submodule is pinned to an explicit
-;; commit, the branch is mostly advisory; updates happen by advancing the
-;; submodule pointer, not by running straight's own update commands.
-
-;; Don't allow straight to check for modifications in every repo on Emacs init,
-;; saving some startup time
-(eval-when-compile
-  (defvar straight-check-for-modifications))
-(setq straight-check-for-modifications nil)
-
-;; Set the order in which repositories are checked for `:auto` recipes. These
-;; are based on broad levels of trust, if something appears in both GNU ELPA and
-;; MELPA, for example, we'd prefer the GNU ELPA version. Also prefer using the
-;; mirror of GNU ELPA because it's stupidly more efficient than the normal GNU
-;; ELPA build process.
-
-;; We also use the GitHub mirror of Non-GNU ELPA because the source Savannah
-;; server gets overloaded fairly often.
-
-(defvar straight-recipe-repositories)
-(defvar straight-recipes-gnu-elpa-use-mirror)
-(defvar straight-built-in-pseudo-packages)
-
-(setq straight-recipe-repositories
-      '(org-elpa gnu-elpa-mirror
-                 (nongnu-elpa :type git :host github
-                              :repo "emacsmirror/nongnu_elpa"
-                              :branch "main")
-                 emacsmirror-mirror melpa))
-(setq straight-recipes-gnu-elpa-use-mirror t)
-
-;; Tell straight that let-alist, seq, transient and compat are built in now (the
-;; last three as of Emacs 31.1), so it doesn't fetch its own copies if we (or
-;; more likely any dependency) try to pull them in.
-
-(with-eval-after-load 'straight
-  (dolist (pkg '(let-alist seq transient compat))
-    (add-to-list 'straight-built-in-pseudo-packages pkg)))
-
-;; straight.el is vendored as a git submodule at `lib/straight.el` rather than
-;; fetched from the network on first run. The standard bootstrap snippet
-;; downloads `install.el` from `raw.githubusercontent.com` and evaluates it in
-;; place, which is unauthenticated remote code execution on every fresh machine
-;; setup. Because `straight.el` is the trust anchor for every other package in
-;; this configuration, it is treated as a first-class threat surface and pinned
-;; under version control. To update it, advance the submodule commit and commit
-;; the pointer change; straight's own update commands will not affect it.
-
-;; On a fresh machine where `straight/repos/straight.el` does not yet exist, the
-;; bootstrap creates a symlink from `straight/repos/straight.el` to the vendored
-;; `lib/straight.el` and loads `bootstrap.el` from there. `bootstrap.el` uses
-;; `file-truename` on `load-file-name`, so it resolves the symlink and correctly
-;; finds `straight.el` in `lib/straight.el/`. Subsequent runs find the existing
-;; repo (real or symlinked) and load `bootstrap.el` directly. No network access
-;; occurs at any point during bootstrap.
-
-;; This mirrors the approach straight.el's own README documents as the
-;; alternative for environments where `url-retrieve-synchronously` is
-;; unavailable: clone the repository into
-;; `~/.emacs.d/straight/repos/straight.el` and check out the desired revision.
-
-;; This is an intermediate arrangement. The longer-term plan is to replace
-;; straight with Borg, which manages all packages as git submodules natively and
-;; eliminates the bootstrap trust problem entirely.
-
-(let* ((repos-dir (expand-file-name "straight/repos" user-emacs-directory))
-       (repos-straight (expand-file-name "straight.el" repos-dir))
-       (lib-straight (expand-file-name "lib/straight.el" user-emacs-directory))
-       (bootstrap-file (expand-file-name "bootstrap.el" repos-straight)))
-  (unless (file-exists-p repos-straight)
-    (make-directory repos-dir t)
-    (make-symbolic-link lib-straight repos-straight))
-  (load bootstrap-file nil 'nomessage))
-
-;; I'm not certain straight needs to be set up before use-package, but before
-;; use-package was built in to Emacs something got messed up when use-package
-;; was loaded first.
+;;;; Use-package
 
 (require 'use-package)
 
@@ -1593,19 +1497,21 @@ cloning and once before building."
 
 ;; The rest of the config uses this custom `package!` macro to abstract away
 ;; some internals that have changed in the past and may change again (such as
-;; using `straight.el`).
+;; the package manager).
 (defmacro package! (package recipe &rest body)
-  "Get PACKAGE using RECIPE, then evaluate PACKAGE & BODY with `use-package\\='.
+  "Configure PACKAGE with `use-package', getting it according to RECIPE.
 
 Example:
 
-    (package! foo (:host gitlab :repo \"thornjad/foo\" :branch \"main\")
-       :commands (foo-bar foo-spam))
+    (package! vertico :borg \"minad/vertico\"
+      :borg-load-path (\".\" \"extensions\")
+      :commands (vertico-mode))
 
-  If the RECIPE is :builtin or :local, do not search [M]ELPA, only pass BODY to `use-package'. While
-  there is no functional difference between these two keywords, :builtin should be used for packages
-  within Emacs while :local should be used for user packages which exist locally. :local packages may
-  require a :load-path for `use-package' to load properly.
+  If the RECIPE is :builtin, :local or :subpackage, nothing is fetched and only BODY is passed to
+  `use-package'.  :builtin is for packages within Emacs, :local for user packages which exist locally
+  and may require a :load-path for `use-package' to load properly, and :subpackage for a package that
+  lives inside another package's drone.  :localpackage is like :local but adds lib/localpackages to
+  the load path.
 
   If the RECIPE is :borg, the package is a Borg drone (a git submodule under lib/drones/). Borg has
   already set up its load path and autoloads during init. If the drone is not checked out on this
@@ -1628,64 +1534,43 @@ Example:
   If the BODY contains the keyword :disabled, the package is completely ignored, with an expansion
   indicating the package has been disabled.
 
-  If the recipe does not contain a :host, it default to 'github.
-
-  If the recipe is only a string, it is considered a github repo.
-
   Usage of this macro allows simplified refactoring when changing packaging systems, as Aero is wont
   to do every few years."
   (declare (indent defun)) ; indent like use-package
-
-  (when (stringp recipe)
-    (setq recipe (list :repo recipe)))
 
   (cond
    ((memq :disabled body)
     (format "%s :disabled by Aero package!" package))
 
-   ((equal recipe :builtin)
-    `(use-package ,package :straight (:type built-in) ,@body))
-
-   ((equal recipe :local)
-    `(use-package ,package :straight nil ,@body))
-   ((equal recipe :subpackage)
-    `(use-package ,package :straight nil ,@body))
+   ((memq recipe '(:builtin :local :subpackage))
+    `(use-package ,package ,@body))
 
    ((equal recipe :localpackage)
-    `(use-package ,package :straight nil :load-path "lib/localpackages" ,@body))
+    `(use-package ,package :load-path "lib/localpackages" ,@body))
 
    ;; Borg drone: configure an already-assimilated submodule, assimilating it first if needed. Borg
    ;; has set up the load path and autoloads during init, so only BODY is handed to `use-package'.
    ;; An optional non-keyword value directly after :borg is the fetch target (URL, slug, or bare
    ;; name to look up on MELPA); bare :borg or `:borg t' uses the package's own name as that lookup
-   ;; key, mirroring how :auto resolves a name. When the drone is missing, `aero/borg-drone-registered-p'
-   ;; picks the right path: already registered (e.g. a submodule a `git pull' just added) silently
-   ;; self-heals via `aero/borg-init-drone', no prompt; genuinely new goes through
-   ;; `aero/borg-ensure-assimilated', which only takes action when Emacs is interactive. This is
-   ;; always safe to eval: already-present drones skip straight to `use-package', and batch loads
-   ;; (fresh machine, `make init') fall straight to the warning below, same as before this existed.
+   ;; key. When the drone is missing, `aero/borg-drone-registered-p' picks the right path: already
+   ;; registered (e.g. a submodule a `git pull' just added) silently self-heals via
+   ;; `aero/borg-init-drone', no prompt; genuinely new goes through `aero/borg-ensure-assimilated',
+   ;; which only takes action when Emacs is interactive. This is always safe to eval: already-present
+   ;; drones skip straight to `use-package', and batch loads (fresh machine, `make init') fall
+   ;; straight to the warning below.
    ((equal recipe :borg)
     (pcase-let ((`(,target ,policy ,body) (aero/borg--parse-args body)))
       `(progn
-         (aero/borg-claim-from-straight ,(symbol-name package))
          (aero/borg-declare-policy ,(symbol-name package) ',policy)
          (unless (aero/borg-drone-present-p ,(symbol-name package))
            (if (aero/borg-drone-registered-p ,(symbol-name package))
                (aero/borg-init-drone ,(symbol-name package))
              (aero/borg-ensure-assimilated ,(symbol-name package) ,target)))
          (if (aero/borg-drone-present-p ,(symbol-name package))
-             (use-package ,package :straight nil ,@body)
+             (use-package ,package ,@body)
            (aero/borg-warn-unassimilated ,(symbol-name package))))))
 
-   ;; Use straight
-   (t
-    (progn
-      (when (and (not (equal recipe :auto))
-                 (and (not (memq :host recipe))
-                      (not (memq :source recipe))))
-        (setq recipe (plist-put recipe :host 'github)))
-
-      `(use-package ,package :straight ,(or (equal recipe :auto) recipe) ,@body)))))
+   (t (error "package!: unknown recipe %S for %s" recipe package))))
 
 
 ;;; Core setup (prelude)
@@ -3740,7 +3625,7 @@ for instant updates with no idle timer dependency."
 
   :custom
   ;; Globally ignored stuff
-  (project-vc-ignores '("node_modules/" "straight/" "target/" "dist/" ".nx/cache/" ".claude/worktrees/"))
+  (project-vc-ignores '("node_modules/" "target/" "dist/" ".nx/cache/" ".claude/worktrees/"))
   (project-vc-extra-root-markers '(".project.el" ".projectile" ".git"))
   (project-compilation-buffer-name-function #'project-prefixed-buffer-name)
 
@@ -6893,12 +6778,8 @@ equivalent to the list containing 16."
                                  ";;\n"
                                  ";; Booted in " (emacs-init-time "%.3f seconds")
                                  (format " with %d garbage collections" gcs-done)
-                                 (when (boundp 'straight--profile-cache)
-                                   (format "\n;; Initialized %d packages"
-                                           (+ (hash-table-size straight--profile-cache)
-                                              (if (bound-and-true-p package-alist)
-                                                  (length package-activated-list)
-                                                0))))
+                                 (format "
+;; Initialized %d drones" (length (aero/borg-drone-names)))
                                  "\n\n")
 
  use-package-verbose nil ; ignore verbose output from use-package

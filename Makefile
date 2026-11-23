@@ -4,11 +4,11 @@
 EMACS ?= emacs
 EMACS_BUILD_DIR ?= ~/lib/emacs/
 
-macos: sync upgrade-emacs-macos init precompile
+macos: sync upgrade-emacs-macos init
 	@echo "Installed"
 
 linux: sync build-emacs-linux install-linux init
-	@echo "Installed, and make clear-straight-build to rebuild all packages on next start"
+	@echo "Installed"
 
 # required, emacs-plus handles the actual Emacs dependencies
 macos-reqs:
@@ -53,13 +53,6 @@ install-linux:
 	mkdir -p ~/.local/share/applications/
 	cp ./bin/aero-emacs.desktop ~/.local/share/applications/
 
-.PHONY: nongnu-elpa
-nongnu-elpa:
-	# nongnu-elpa is corrupted somehow, this fixes it by cloning without fsck whether or not it's already there
-	rm -rf ~/.config/emacs/straight/repos/nongnu-elpa/
-	mkdir -p ~/.config/emacs/straight/repos/
-	git clone https://git.savannah.gnu.org/git/emacs/nongnu.git ~/.config/emacs/straight/repos/nongnu-elpa --config transfer.fsckobjects=false --config receive.fsckobjects=false --config fetch.fsckobjects=false
-
 submodule:
 	git submodule update --init --recursive
 
@@ -93,16 +86,7 @@ borg-build:
 		--eval "(borg-initialize)" \
 		--eval "(borg-do-drones (d) (borg-build d))"
 
-init: nongnu-elpa install-deps submodule borg borg-build
-
-clear-straight:
-	rm -rf ./straight/
-
-clear-straight-build:
-	rm -rf ./straight/build
-
-# Clear out packages and re-init
-hard-init: clear-straight init
+init: install-deps submodule borg borg-build
 
 # Continues even on failures. This lets us only install what the system can install, but can
 # swallow up errors
@@ -136,53 +120,3 @@ lsp-booster:
 	cd ~/.config/emacs/tmp/emacs-lsp-booster && cargo build --release
 	mkdir -p ~/.local/bin
 	ln -sf ~/.config/emacs/tmp/emacs-lsp-booster/target/release/emacs-lsp-booster ~/.local/bin/emacs-lsp-booster
-
-# Pre-compile all packages for native compilation to avoid slow first launch
-# Works on fresh installs: sets up recipe repos, bootstraps straight.el, installs packages, then compiles
-.PHONY: precompile
-precompile: precompile-setup-repos
-	@echo "Pruning stale straight.el build symlinks..."
-	@find ~/.config/emacs/straight/build -xtype l -delete 2>/dev/null || true
-	@echo "Loading configuration and installing packages (this may take several minutes)..."
-	@/Applications/Emacs.app/Contents/MacOS/Emacs --batch \
-		--eval "(setq native-comp-async-report-warnings-errors 'silent)" \
-		--eval "(setq native-comp-async-jobs-number 4)" \
-		-l ~/.config/emacs/init.el \
-		--eval "(message \"Configuration loaded, starting native compilation...\")" \
-		--eval "(native-compile-async \"~/.config/emacs/straight/build/\" 'recursively)" \
-		--eval "(let ((start-time (current-time)) (last-count 0)) \
-		         (while (> (length comp-files-queue) 0) \
-		           (let ((current-count (length comp-files-queue))) \
-		             (when (/= current-count last-count) \
-		               (message \"Compiling... %d files remaining\" current-count) \
-		               (setq last-count current-count))) \
-		           (sleep-for 2)) \
-		         (message \"Native compilation complete in %.1f seconds\" \
-		                  (float-time (time-subtract (current-time) start-time))))"
-	@echo "Pre-compilation finished."
-
-# Clone essential recipe repositories for straight.el if they don't exist (needed for batch bootstrap)
-.PHONY: precompile-setup-repos
-precompile-setup-repos:
-	@mkdir -p ~/.config/emacs/straight/repos
-	@if [ ! -d ~/.config/emacs/straight/repos/melpa ]; then \
-		echo "Cloning melpa recipes..."; \
-		git clone --depth 1 https://github.com/melpa/melpa.git ~/.config/emacs/straight/repos/melpa; \
-	fi
-	@if [ ! -d ~/.config/emacs/straight/repos/gnu-elpa-mirror ]; then \
-		echo "Cloning gnu-elpa-mirror recipes..."; \
-		git clone --depth 1 https://github.com/emacs-straight/gnu-elpa-mirror.git ~/.config/emacs/straight/repos/gnu-elpa-mirror; \
-	fi
-	@if [ ! -d ~/.config/emacs/straight/repos/nongnu-elpa ]; then \
-		echo "Cloning nongnu-elpa recipes..."; \
-		git clone https://git.savannah.gnu.org/git/emacs/nongnu.git ~/.config/emacs/straight/repos/nongnu-elpa \
-			--config transfer.fsckobjects=false --config receive.fsckobjects=false --config fetch.fsckobjects=false; \
-	fi
-	@if [ ! -d ~/.config/emacs/straight/repos/emacsmirror-mirror ]; then \
-		echo "Cloning emacsmirror-mirror recipes..."; \
-		git clone --depth 1 https://github.com/emacs-straight/emacsmirror-mirror.git ~/.config/emacs/straight/repos/emacsmirror-mirror; \
-	fi
-	@if [ ! -d ~/.config/emacs/straight/repos/straight.el ]; then \
-		echo "Cloning straight.el..."; \
-		git clone --depth 1 https://github.com/radian-software/straight.el.git ~/.config/emacs/straight/repos/straight.el; \
-	fi

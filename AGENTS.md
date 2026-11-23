@@ -8,7 +8,7 @@ This is a single-file Emacs configuration:
 
 - **Main configuration**: `config.el` - Plain Emacs Lisp, organized into sections with `;;;`-style outline headings (navigate with `outline-minor-mode`/imenu, not org headlines)
 - **Bootstrap**: `init.el` - Minimal bootstrap that loads `config.el` directly
-- **Package management**: Uses `straight.el` for package management (installed automatically on first run)
+- **Package management**: Uses Borg; every package is a git submodule (a drone) under `lib/drones/`
 - **Theme**: Custom `aero-theme` located in `lib/aero-theme/`
 - **Modular structure**: Configuration is organized in sections within `config.el`
 
@@ -32,9 +32,7 @@ This is a single-file Emacs configuration:
 - `make submodule` - Initialize and update git submodules
 
 ### Package Management
-- `make clear-straight` - Remove all straight.el packages (nuclear option)
-- `make clear-straight-build` - Clear package build cache (gentler reset)
-- `make hard-init` - Clear packages and re-initialize everything
+- `make borg-build` - Rebuild (byte-compile) every drone
 
 ### Development Dependencies
 - `make install-deps` - Install LSP servers and development tools (includes Python, Rust components)
@@ -66,12 +64,12 @@ Most packages follow this pattern in `config.el`:
   )
 ```
 
-**Package Source Preference**: Borg is the target for all new packages, straight (`:auto`) only for existing packages not yet migrated. When adding a new package, use `(package! name :borg)` (bare `:borg` does a MELPA-recipe lookup for the fetch target, same as `:auto` would); reach for `:auto` only if borg assimilation genuinely fails. This reverses the older straight-first default now that Borg is the intended long-term package manager (Michael, 2026-08-09).
+**Package Source**: every package is a Borg drone. When adding a new package, use `(package! name :borg "owner/repo")` (bare `:borg` does a MELPA-recipe lookup for the fetch target). Built-in packages use `:builtin`, local ones `:local`, and a package that lives inside another drone `:subpackage`.
 
 ### Borg (Drone) Packages
-Borg is a submodule-based package manager being adopted incrementally alongside `straight.el`; each package is owned by exactly one of the two, migrating over one at a time. Drones live under `lib/drones/`, tracked in `.gitmodules` at exact pinned commits, which doubles as the review/audit trail. `borg-drones-directory` is set via `git config borg.drones-directory` (config.el sets this itself at startup, before `require`), not an Elisp `setq`, since `borg-build` runs the actual clone/compile step in a freshly spawned `emacs -Q --batch` subprocess that never loads `config.el` and only sees git-config-level state, not session-level Elisp variables.
+Borg is a submodule-based package manager. Drones live under `lib/drones/`, tracked in `.gitmodules` at exact pinned commits, which doubles as the review/audit trail. `borg-drones-directory` is set via `git config borg.drones-directory` (config.el sets this itself at startup, before `require`), not an Elisp `setq`, since `borg-build` runs the actual clone/compile step in a freshly spawned `emacs -Q --batch` subprocess that never loads `config.el` and only sees git-config-level state, not session-level Elisp variables.
 
-The `:borg` recipe in `package!` takes an optional non-keyword target directly after `:borg`: a git URL, an `owner/repo` GitHub slug, a host-qualified slug (`gitlab.com/owner/repo`), or a bare package name to look up on MELPA (`aero/melpa-lookup-recipe`, a direct HTTP fetch of a single MELPA recipe file, no dependency on straight). Bare `:borg` or `:borg t` uses the package's own name as that lookup key. If the drone is not already checked out, evaluating the form (interactively only, never in batch) resolves the target, asks one `y-or-n-p` confirmation, then assimilates and builds before continuing into `use-package` in the same expansion. Declining, or a resolution failure, prints a message to `*Messages*` naming what still needs manual attention (see `aero/borg-assimilate` for the standalone multi-package/dependency-chasing path).
+The `:borg` recipe in `package!` takes an optional non-keyword target directly after `:borg`: a git URL, an `owner/repo` GitHub slug, a host-qualified slug (`gitlab.com/owner/repo`), or a bare package name to look up on MELPA (`aero/melpa-lookup-recipe`, a direct HTTP fetch of a single MELPA recipe file). Bare `:borg` or `:borg t` uses the package's own name as that lookup key. If the drone is not already checked out, evaluating the form (interactively only, never in batch) resolves the target, asks one `y-or-n-p` confirmation, then assimilates and builds before continuing into `use-package` in the same expansion. Declining, or a resolution failure, prints a message to `*Messages*` naming what still needs manual attention (see `aero/borg-assimilate` for the standalone multi-package/dependency-chasing path).
 
 **Build policy** is declared on the `package!` form, with `config.el` as the source of truth, and written through to `.gitmodules` (which a fresh machine builds from). Two optional keywords, removed from the body before `use-package` sees it: `:borg-load-path` (directories of the drone, relative to it, to put on `load-path` and compile, e.g. `("." "extensions")`) and `:borg-compile` (an allowlist of files to compile; every other `.el` file in those directories goes into `no-byte-compile`). Without them Borg's defaults apply: `elisp/`, then `lisp/`, then the repo root, compiling every `.el` there except tests and `-pkg.el`. After adding or changing either keyword, run `aero/borg-sync-policy` and commit `.gitmodules`; Emacs warns after startup if the two disagree. Assimilation applies the policy before the first build, so a new drone is built correctly.
 
@@ -108,7 +106,7 @@ The configuration implements controversial but potentially beneficial GC tuning:
 ## Configuration Philosophy
 
 This is a highly personal configuration optimized for:
-- **Speed**: Uses straight.el for package management, native compilation, GC tuning
+- **Speed**: Borg drones compiled ahead of time, native compilation, GC tuning
 - **Modal editing**: Evil mode with extensive customization, SPC-based leader key system
 - **Development workflows**: Comprehensive LSP setup with eglot, multiple language support
 - **Aesthetic consistency**: Custom aero-theme and modeline implementation
@@ -187,8 +185,8 @@ When looking for similar functionality:
 ## Configuration Testing and Debugging
 
 ### Common Issues and Solutions
-- **Startup errors**: Use `make clear-straight-build` to rebuild packages, or `make hard-init` for complete reset
-- **Package conflicts**: Check `*Messages*` buffer for conflicts; may need `make clear-straight` (nuclear option)
+- **Startup errors**: Run `make borg-build` to rebuild every drone, or `make init` to also fetch missing ones
+- **Package conflicts**: Check `*Messages*` buffer for conflicts, and `aero/borg-describe-deps` for a drone's dependencies
 - **LSP issues**: Verify language servers are installed via `make install-deps` or `make install-npm`
 - **Theme issues**: Custom themes are in `lib/aero-theme/` and loaded via directory constant
 

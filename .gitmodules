@@ -361,6 +361,3 @@
 	path = lib/drones/yasnippet
 	url = https://github.com/joaotavora/yasnippet.git
 	ignore = untracked
-[submodule "lib/straight.el"]
-	path = lib/straight.el
-	url = https://github.com/radian-software/straight.el.git
