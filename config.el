@@ -4378,7 +4378,8 @@ Drops `id:' links, which go nowhere in print."
       ((org-agenda-files '(,(expand-file-name "school_todo.org" aero/roam-path)))))
      ("o" "Agenda without school" agenda ""
       ((org-super-agenda-groups
-        (cons '(:discard (:tag ("school" "class"))) org-super-agenda-groups))))
+        (cons '(:discard (:tag ("school" "class")))
+              (progn (require 'org-super-agenda) org-super-agenda-groups)))))
      ("e" "Experimentation tag" tags "experimentation")))
 
   :init
