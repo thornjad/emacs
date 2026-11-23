@@ -3602,6 +3602,15 @@ for instant updates with no idle timer dependency."
   (aero-leader-def
     "gs" 'magit-status
     "gb" 'magit-blame
+    ;; these live in :config, so load magit before calling them
+    "gp" '((lambda () (interactive)
+             (require 'magit)
+             (call-interactively #'aero/pull-pr))
+           :which-key "pull PR")
+    "gd" '((lambda () (interactive)
+             (require 'magit)
+             (call-interactively #'aero/diff-against-main))
+           :which-key "diff vs main/master")
     "gl" '(:ignore t :which-key "log")
     "glb" 'magit-log-buffer-file
     "gld" 'magit-log-trace-definition
@@ -3664,16 +3673,70 @@ for instant updates with no idle timer dependency."
       (read-only-mode 1)))
   (advice-add 'magit-process-filter :after #'aero/magit--color-buffer)
 
-  (defun aero/fetch-pr ()
-    "Fetch a GH(E) pull request into a new branch prefixed with `pr'."
+  (defun aero/--pr-repo-dir ()
+    "Return the repo directory PR commands should act on.
+Use the current repo, unless it is Thornlog or there is none, in which case
+prompt for a repo name that must exist under ~/src."
+    (let ((top (magit-toplevel)))
+      (if (and top (not (string-match-p "/thornlog/" top)))
+          top
+        (let* ((name (string-trim (read-string "Repository in ~/src: ")))
+               (dir (expand-file-name name "~/src")))
+          (when (string-empty-p name)
+            (user-error "No repository given"))
+          (unless (file-exists-p (expand-file-name ".git" dir))
+            (user-error "~/src/%s is not a git repository" name))
+          (file-name-as-directory dir)))))
+
+  (defun aero/--pr-read-args ()
+    "Read (PR DIR) for the PR commands."
+    (let* ((dir (aero/--pr-repo-dir))
+           (pr (string-trim (read-string "Enter PR number: "))))
+      (list pr dir)))
+
+  (defun aero/fetch-pr (pr &optional dir)
+    "Fetch GH(E) pull request PR into the branch `pr/PR' in DIR and open Magit.
+Same as the `git pr' alias, minus the checkout. Return the branch name."
+    (interactive (aero/--pr-read-args))
+    (unless (string-match-p "\\`[0-9]+\\'" pr)
+      (user-error "Invalid PR number: %s" pr))
+    (let* ((dir (or dir (aero/--pr-repo-dir)))
+           (default-directory dir)
+           (branch (format "pr/%s" pr)))
+      (unless (zerop (magit-call-git "fetch" "-fu" "origin"
+                                     (format "refs/pull/%s/head:%s" pr branch)))
+        (magit-refresh)
+        (user-error "Fetching PR %s failed, see the magit process buffer" pr))
+      (when (called-interactively-p 'any)
+        (magit-status dir)
+        (message "Fetched PR %s into %s" pr branch))
+      branch))
+
+  (defun aero/pull-pr (pr &optional dir)
+    "Fetch pull request PR into `pr/PR' in DIR, check it out, and open Magit."
+    (interactive (aero/--pr-read-args))
+    (let* ((dir (or dir (aero/--pr-repo-dir)))
+           (default-directory dir)
+           (branch (aero/fetch-pr pr dir)))
+      (unless (zerop (magit-call-git "checkout" branch))
+        (magit-status dir)
+        (user-error "Checking out %s failed, see the magit process buffer" branch))
+      (magit-status dir)
+      (message "Checked out PR %s as %s" pr branch)))
+
+  (defun aero/diff-against-main ()
+    "Diff HEAD against its merge-base with origin's main or master branch.
+Three-dot range, so the result matches GitHub's \"Files changed\" tab."
     (interactive)
-    (let* ((pr (message-read-from-minibuffer "Enter PR number: "))
-           (new-branch (format "pr%s" pr))
-           (fetch-command
-            (format "git fetch origin pull/%s/head:%s" pr new-branch)))
-      (shell-command fetch-command)
-      (magit-status)
-      (message "Checked out PR as %s" new-branch))))
+    (let ((base (seq-find (lambda (b) (magit-rev-verify (concat "origin/" b)))
+                          '("main" "master"))))
+      (unless base
+        (user-error "Neither origin/main nor origin/master exists"))
+      (magit-diff-range (format "origin/%s...HEAD" base))))
+
+  (with-eval-after-load 'magit-diff
+    (transient-append-suffix 'magit-diff "r"
+      '("m" "Merge-base vs main/master" aero/diff-against-main))))
 
 ;;;; Git master
 
