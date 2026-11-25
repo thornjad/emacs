@@ -86,7 +86,13 @@ borg-build:
 		--eval "(borg-initialize)" \
 		--eval "(borg-do-drones (d) (borg-build d))"
 
-init: install-deps submodule borg borg-build
+# rebuild the org-roam cache db when org-roam's schema version changed (see the script header). Runs
+# batch -Q with native compilation off, so it never loads config.el or triggers async compiles
+.PHONY: org-roam-db-upgrade
+org-roam-db-upgrade:
+	$(EMACS) --batch -Q -l bin/org-roam-db-upgrade.el
+
+init: install-deps submodule borg borg-build org-roam-db-upgrade
 
 # Continues even on failures. This lets us only install what the system can install, but can
 # swallow up errors
